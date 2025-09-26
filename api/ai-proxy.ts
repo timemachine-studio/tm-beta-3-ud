@@ -379,17 +379,23 @@ function generateImageUrl(params: ImageGenerationParams): string {
   
   // Add reference image if provided
   if (referenceImageUrl) {
-    url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&enhance=false&nologo=true&model=seedream&token=${hardcodedToken}&image:${referenceImageUrl}`;
+    console.log('Adding reference image to Pollinations URL:', referenceImageUrl);
+    // The correct format for Pollinations reference image is to add it as a parameter with image= prefix
+    url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&enhance=false&nologo=true&model=seedream&token=${hardcodedToken}&image=${encodeURIComponent(referenceImageUrl)}`;
   }
   
+  console.log('Generated Pollinations URL:', url);
   return url;
 }
 
 // Function to upload image to Cloudinary and get URL
 async function uploadImageToCloudinary(base64Image: string): Promise<string | null> {
   try {
-    const cloudName = process.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = process.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+    // Use import.meta.env instead of process.env for client-side environment variables
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+    
+    console.log('Cloudinary config:', { cloudName, uploadPreset });
     
     if (!cloudName || !uploadPreset) {
       console.error('Cloudinary configuration missing');
@@ -399,9 +405,13 @@ async function uploadImageToCloudinary(base64Image: string): Promise<string | nu
     // Remove data:image/jpeg;base64, prefix if present
     const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
     
+    console.log('Preparing to upload image to Cloudinary');
+    
     const formData = new FormData();
     formData.append('file', `data:image/png;base64,${base64Data}`);
     formData.append('upload_preset', uploadPreset);
+    
+    console.log(`Uploading to Cloudinary: https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
     
     const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
       method: 'POST',
@@ -409,11 +419,13 @@ async function uploadImageToCloudinary(base64Image: string): Promise<string | nu
     });
     
     if (!response.ok) {
-      console.error('Cloudinary upload failed:', await response.text());
+      const errorText = await response.text();
+      console.error('Cloudinary upload failed:', errorText);
       return null;
     }
     
     const data = await response.json();
+    console.log('Cloudinary upload successful:', data.secure_url);
     return data.secure_url;
   } catch (error) {
     console.error('Error uploading to Cloudinary:', error);
