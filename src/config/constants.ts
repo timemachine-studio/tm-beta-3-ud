@@ -6,11 +6,8 @@ export const BETA_ACCESS_TOKEN = import.meta.env.VITE_BETA_ACCESS_TOKEN || 'WE_W
 // API Keys
 export const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 export const CEREBRAS_API_KEY = import.meta.env.VITE_CEREBRAS_API_KEY;
-
-// Cloudinary Configuration (for server-side use)
-export const CLOUDINARY_CLOUD_NAME = import.meta.env.CLOUDINARY_CLOUD_NAME;
-export const CLOUDINARY_API_KEY = import.meta.env.CLOUDINARY_API_KEY;
-export const CLOUDINARY_API_SECRET = import.meta.env.CLOUDINARY_API_SECRET;
+export const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+export const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 // Rate Limits (for display purposes only - actual limits enforced server-side)
 export const PERSONA_LIMITS = {
