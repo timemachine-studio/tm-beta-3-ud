@@ -330,10 +330,6 @@ const imageGenerationTool = {
           default: 1920,
           minimum: 1080,
           maximum: 2048
-        },
-        referenceImage: {
-          type: "string",
-          description: "Base64 encoded image data to use as a reference for image editing. If provided, the generated image will be based on this reference image.",
         }
       },
       required: ["prompt"]
@@ -361,7 +357,13 @@ interface ImageGenerationParams {
   prompt: string;
   width?: number;
   height?: number;
-  referenceImageUrl?: string;
+}
+
+interface ImageGenerationParams {
+  prompt: string;
+  width?: number;
+  height?: number;
+  imageUrl?: string; // New parameter for reference image URL
 }
 
 function generateImageUrl(params: ImageGenerationParams): string {
@@ -369,68 +371,20 @@ function generateImageUrl(params: ImageGenerationParams): string {
     prompt,
     width = 1080,
     height = 1920,
-    referenceImageUrl
+    imageUrl
   } = params;
   
   const encodedPrompt = encodeURIComponent(prompt);
   const hardcodedToken = "Cf5zT0TTvLLEskfY";
   
-  let url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&enhance=false&nologo=true&model=seedream&token=${hardcodedToken}`;
+  let url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&enhance=false&nologo=true&model=nanobanana&token=${hardcodedToken}`;
   
-  // Add reference image if provided
-  if (referenceImageUrl) {
-    console.log('Adding reference image to Pollinations URL:', referenceImageUrl);
-    // The correct format for Pollinations reference image is to add it as a parameter with image= prefix
-    url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&enhance=false&nologo=true&model=seedream&token=${hardcodedToken}&image=${encodeURIComponent(referenceImageUrl)}`;
+  // Add reference image parameter if provided
+  if (imageUrl) {
+    url += `&image=${imageUrl}`;
   }
   
-  console.log('Generated Pollinations URL:', url);
   return url;
-}
-
-// Function to upload image to Cloudinary and get URL
-async function uploadImageToCloudinary(base64Image: string): Promise<string | null> {
-  try {
-    // Use import.meta.env instead of process.env for client-side environment variables
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-    
-    console.log('Cloudinary config:', { cloudName, uploadPreset });
-    
-    if (!cloudName || !uploadPreset) {
-      console.error('Cloudinary configuration missing');
-      return null;
-    }
-    
-    // Remove data:image/jpeg;base64, prefix if present
-    const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-    
-    console.log('Preparing to upload image to Cloudinary');
-    
-    const formData = new FormData();
-    formData.append('file', `data:image/png;base64,${base64Data}`);
-    formData.append('upload_preset', uploadPreset);
-    
-    console.log(`Uploading to Cloudinary: https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
-    
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-      method: 'POST',
-      body: formData
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Cloudinary upload failed:', errorText);
-      return null;
-    }
-    
-    const data = await response.json();
-    console.log('Cloudinary upload successful:', data.secure_url);
-    return data.secure_url;
-  } catch (error) {
-    console.error('Error uploading to Cloudinary:', error);
-    return null;
-  }
 }
 
 function createImageMarkdown(params: ImageGenerationParams): string {
@@ -739,7 +693,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { messages, persona = 'default', imageData, audioData, referenceImage, heatLevel = 2, stream = false } = req.body;
+    const { messages, persona = 'default', imageData, audioData, heatLevel = 2, stream = false } = req.body;
     
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Invalid messages format' });
@@ -940,36 +894,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               } else if (data.type === 'tool_calls') {
                 toolCallsBuffer.push(...data.tool_calls);
               } else if (data.type === 'finish') {
-                  // Process any accumulated tool calls
-                  if (toolCallsBuffer.length > 0) {
-                    for (const toolCall of toolCallsBuffer) {
-                      if (toolCall.function?.name === 'generate_image') {
-                        try {
-                          const params: ImageGenerationParams = JSON.parse(toolCall.function.arguments);
-                          
-                          // Handle reference image if provided
-                          if (referenceImage) {
-                            // Upload reference image to Cloudinary
-                            const cloudinaryUrl = await uploadImageToCloudinary(referenceImage);
-                            if (cloudinaryUrl) {
-                              params.referenceImageUrl = cloudinaryUrl;
-                            }
-                          }
-                          
-                          const imageMarkdown = createImageMarkdown(params);
-                          res.write(`\n\n${imageMarkdown}`);
-                          fullContent += `\n\n${imageMarkdown}`;
-                        } catch (error) {
-                          console.error('Error processing image generation:', error);
-                          const errorMsg = '\n\nSorry, I had trouble generating that image. Please try again.';
-                          res.write(errorMsg);
-                          fullContent += errorMsg;
-                        }
+                // Process any accumulated tool calls
+                if (toolCallsBuffer.length > 0) {
+                  for (const toolCall of toolCallsBuffer) {
+                    if (toolCall.function?.name === 'generate_image') {
+                      try {
+                        const params: ImageGenerationParams = JSON.parse(toolCall.function.arguments);
+                        const imageMarkdown = createImageMarkdown(params);
+                        res.write(`\n\n${imageMarkdown}`);
+                        fullContent += `\n\n${imageMarkdown}`;
+                      } catch (error) {
+                        console.error('Error processing image generation:', error);
+                        const errorMsg = '\n\nSorry, I had trouble generating that image. Please try again.';
+                        res.write(errorMsg);
+                        fullContent += errorMsg;
                       }
                     }
                   }
-                  break;
                 }
+                break;
+              }
             } catch (error) {
               console.error('Error parsing streaming chunk:', error);
             }
@@ -1056,16 +1000,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (toolCall.function?.name === 'generate_image') {
             try {
               const params: ImageGenerationParams = JSON.parse(toolCall.function.arguments);
-              
-              // Handle reference image if provided
-              if (referenceImage) {
-                // Upload reference image to Cloudinary
-                const cloudinaryUrl = await uploadImageToCloudinary(referenceImage);
-                if (cloudinaryUrl) {
-                  params.referenceImageUrl = cloudinaryUrl;
-                }
-              }
-              
               const imageMarkdown = createImageMarkdown(params);
               fullContent += `\n\n${imageMarkdown}`;
             } catch (error) {

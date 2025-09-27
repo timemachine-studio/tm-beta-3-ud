@@ -16,12 +16,12 @@ export interface ChatState {
 }
 
 export interface ChatActions {
-  handleSendMessage: (message: string, imageData?: string, audioData?: string) => Promise<void>;
+  handleSendMessage: (message: string, imageData?: string[], audioData?: string) => Promise<void>;
   setChatMode: (isChatMode: boolean) => void;
 }
 
 export interface ChatInputProps {
-  onSendMessage: (message: string, imageData?: string, audioData?: string) => Promise<void>;
+  onSendMessage: (message: string, imageData?: string[], audioData?: string) => Promise<void>;
   isLoading?: boolean;
 }
 

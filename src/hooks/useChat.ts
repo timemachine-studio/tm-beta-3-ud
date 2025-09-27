@@ -197,7 +197,7 @@ export function useChat() {
     }
   }, [currentSessionId]);
 
-  const handleSendMessage = useCallback(async (content: string, imageData?: string | string[], audioData?: string) => {
+  const handleSendMessage = useCallback(async (content: string, imageData?: string[], audioData?: string) => {
     let messagePersona = currentPersona;
     let messageContent = content;
 
