@@ -8,6 +8,7 @@ import { ImagePreview } from './ImagePreview';
 import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
 import { MentionCall } from './MentionCall';
+import { uploadToImageBB } from '../../services/imagebb/imageBBService';
 
 type Persona = keyof typeof AI_PERSONAS;
 
@@ -53,6 +54,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const [message, setMessage] = useState('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [showMentionCall, setShowMentionCall] = useState(false);
@@ -125,9 +127,26 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
         setIsUploading(true);
         try {
           const base64Images = await Promise.all(selectedImages.map(convertImageToBase64));
-          await onSendMessage(message, base64Images);
+
+          const uploadResults = await Promise.all(
+            base64Images.map(base64Image => uploadToImageBB(base64Image))
+          );
+
+          const successfulUploads = uploadResults.filter(result => result.success);
+
+          if (successfulUploads.length === 0) {
+            alert('Failed to upload images to ImageBB. Please try again.');
+            setIsUploading(false);
+            return;
+          }
+
+          const publicUrls = successfulUploads.map(result => result.url);
+          setUploadedImageUrls(publicUrls);
+
+          await onSendMessage(message, base64Images, undefined, publicUrls);
           setSelectedImages([]);
           setImagePreviewUrls([]);
+          setUploadedImageUrls([]);
         } catch (error) {
           alert('Failed to process images. Please try again.');
           console.error('Error processing images:', error);

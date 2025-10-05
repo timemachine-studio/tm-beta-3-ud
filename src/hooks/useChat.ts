@@ -197,7 +197,7 @@ export function useChat() {
     }
   }, [currentSessionId]);
 
-  const handleSendMessage = useCallback(async (content: string, imageData?: string[], audioData?: string) => {
+  const handleSendMessage = useCallback(async (content: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[]) => {
     let messagePersona = currentPersona;
     let messageContent = content;
 
@@ -220,7 +220,8 @@ export function useChat() {
       isAI: false,
       hasAnimated: false,
       imageData: imageData,
-      audioData: audioData
+      audioData: audioData,
+      inputImageUrls: inputImageUrls
     };
     
     setMessages(prev => [...prev, userMessage]);
@@ -248,6 +249,7 @@ export function useChat() {
         messagePersona,
         audioData,
         messagePersona === 'pro' ? currentProHeatLevel : undefined,
+        inputImageUrls,
         // onChunk callback
         (chunk: string) => {
           updateStreamingMessage(aiMessageId, chunk, true);
@@ -256,7 +258,7 @@ export function useChat() {
         (response) => {
           const emotion = extractEmotion(response.content);
           const cleanedContent = cleanContent(response.content);
-          
+
           if (emotion) {
             setCurrentEmotion(emotion);
           }
@@ -266,14 +268,14 @@ export function useChat() {
         // onError callback
         (error) => {
           console.error('Failed to generate streaming response:', error);
-          
+
           // Check if it's a rate limit error
           if (error && typeof error === 'object' && 'type' in error && error.type === 'rateLimit') {
             setShowRateLimitModal(true);
           } else {
             setError('Failed to generate response. Please try again.');
           }
-          
+
           // Remove the placeholder message on error
           setMessages(prev => prev.filter(msg => msg.id !== aiMessageId));
           setStreamingMessageId(null);
@@ -289,7 +291,8 @@ export function useChat() {
           '', // System prompt is now handled server-side
           messagePersona,
           audioData,
-          messagePersona === 'pro' ? currentProHeatLevel : undefined
+          messagePersona === 'pro' ? currentProHeatLevel : undefined,
+          inputImageUrls
         );
         
         const emotion = extractEmotion(aiResponse.content);

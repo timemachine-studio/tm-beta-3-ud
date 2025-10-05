@@ -1,6 +1,5 @@
 import { Message } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
-import { uploadImageToCloudinary } from '../cloudinary';
 
 interface AIResponse {
   content: string;
@@ -27,6 +26,7 @@ export async function generateAIResponseStreaming(
   currentPersona: keyof typeof AI_PERSONAS = 'default',
   audioData?: string,
   heatLevel?: number,
+  inputImageUrls?: string[],
   onChunk?: (chunk: string) => void,
   onComplete?: (response: AIResponse) => void,
   onError?: (error: Error) => void
@@ -47,6 +47,7 @@ export async function generateAIResponseStreaming(
         imageData,
         audioData,
         heatLevel,
+        inputImageUrls,
         stream: true
       })
     });
@@ -139,24 +140,10 @@ export async function generateAIResponse(
   systemPrompt: string = '', // Not used anymore, kept for compatibility
   currentPersona: keyof typeof AI_PERSONAS = 'default',
   audioData?: string,
-  heatLevel?: number
+  heatLevel?: number,
+  inputImageUrls?: string[]
 ): Promise<AIResponse> {
   try {
-    // Check if there's image data for editing
-    let imageUrl: string | undefined;
-    
-    // If there's image data, upload the first image to Cloudinary
-    if (Array.isArray(imageData) && imageData.length > 0) {
-      try {
-        // Upload the first image to Cloudinary and get a public URL
-        imageUrl = await uploadImageToCloudinary(imageData[0]);
-        console.log('Image uploaded to Cloudinary:', imageUrl);
-      } catch (uploadError) {
-        console.error('Error uploading image to Cloudinary:', uploadError);
-        // Continue without image URL if upload fails
-      }
-    }
-    
     // Call the Vercel API route without streaming
     const response = await fetch('/api/ai-proxy', {
       method: 'POST',
@@ -170,9 +157,9 @@ export async function generateAIResponse(
         })),
         persona: currentPersona,
         imageData,
-        imageUrl, // Pass the image URL to the API
         audioData,
         heatLevel,
+        inputImageUrls,
         stream: false
       })
     });
