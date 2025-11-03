@@ -128,7 +128,7 @@ Now go be the best AI friend anyone's ever had.
 
 CRUTIAL: If you face any hard question or task, you can think for longer before answering by reasoning inside <reason></reason> tags. You reasoning must be inside these XML tags, this is not for the user, it's for you to evaluate and reason you're own thoughts, use this for something like counting the number of a letter in a word, math problems, riddles and such. Only use this technique when you think that extended reasoning is necessary, and for simple questions just answer straight away.`,
     initialMessage: "Hey there! I'm TimeMachine, from future.",
-    model: 'gpt-oss-120b',
+    model: 'qwen-3-coder-480b',
     temperature: 0.9,
     maxTokens: 2000
   },
@@ -610,7 +610,6 @@ async function callCerebrasAPIStreaming(
     model,
     temperature,
     max_tokens: maxTokens,
-    reasoning_effort: "low", // Add this line for the gpt-oss-120b model
     stream: true
   };
 
