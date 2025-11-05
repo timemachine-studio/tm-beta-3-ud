@@ -102,11 +102,11 @@ export function AIMessage({
 
   // Handle image generation detection
   useEffect(() => {
-    // Check if we have a complete image link
-    if (content.includes('![Image](https://image.pollinations.ai/')) {
-      const imageRegex = /!\[Image\]\(https:\/\/image\.pollinations\.ai\/prompt\/[^)]+\)/g;
+    // Check if we have a complete image link with the new URL format
+    if (content.includes('![Image](https://enter.pollinations.ai/')) {
+      const imageRegex = /!\[Image\]\(https:\/\/enter\.pollinations\.ai\/api\/generate\/image\/[^)]+\)/g;
       const matches = content.match(imageRegex);
-      
+
       if (matches) {
         // Complete image markdown found, show generating state briefly
         setIsGeneratingImage(true);
