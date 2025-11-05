@@ -484,11 +484,19 @@ const imageGenerationTool = {
           type: "string",
           description: "Description of the image to generate. Use fully detailed prompt. Look carefully if the user mentions small details like adding text and style etc. And add more details like dreamy effects etc to make the image look aesthetically pleasing."
         },
-        orientation: {
-          type: "string",
-          description: "Orientation of the image. Choose 'portrait' for vertical images or 'landscape' for horizontal images.",
-          enum: ["portrait", "landscape"],
-          default: "portrait"
+        width: {
+          type: "integer",
+          description: "Width of the image in pixels",
+          default: 2160,
+          minimum: 2160,
+          maximum: 3840
+        },
+        height: {
+          type: "integer", 
+          description: "Height of the image in pixels",
+          default: 3840,
+          minimum: 2160,
+          maximum: 3840
         }
       },
       required: ["prompt"]
@@ -514,7 +522,6 @@ Your responses should be optimized for a quick, back-and-forth voice conversatio
 
 interface ImageGenerationParams {
   prompt: string;
-  orientation?: 'portrait' | 'landscape';
   width?: number;
   height?: number;
   inputImageUrl?: string;
@@ -523,21 +530,10 @@ interface ImageGenerationParams {
 function generateImageUrl(params: ImageGenerationParams): string {
   const {
     prompt,
-    orientation = 'portrait',
+    width = 2160,
+    height = 3840,
     inputImageUrl
   } = params;
-
-  // Set dimensions based on orientation
-  let width: number;
-  let height: number;
-
-  if (orientation === 'landscape') {
-    width = 3840;
-    height = 2160;
-  } else {
-    width = 2160;
-    height = 3840;
-  }
 
   const encodedPrompt = encodeURIComponent(prompt);
   const hardcodedToken = "plln_pk_ThHbWMzLQTy51PiNODHYb29rKcvulks6ZafYfvZBKKaaHnt26ItIBWNjJC1fWWrs";
@@ -553,7 +549,7 @@ function generateImageUrl(params: ImageGenerationParams): string {
 
 function createImageMarkdown(params: ImageGenerationParams): string {
   const imageUrl = generateImageUrl(params);
-  return `![Image](${imageUrl})`;
+  return `![Generated Image](${imageUrl})`;
 }
 
 // Rate limiting configuration

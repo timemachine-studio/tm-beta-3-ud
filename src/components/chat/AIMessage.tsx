@@ -102,11 +102,11 @@ export function AIMessage({
 
   // Handle image generation detection
   useEffect(() => {
-    // Check if we have a complete image link with the new URL format
+    // Check if we have a complete image link
     if (content.includes('![Image](https://enter.pollinations.ai/')) {
       const imageRegex = /!\[Image\]\(https:\/\/enter\.pollinations\.ai\/api\/generate\/image\/[^)]+\)/g;
       const matches = content.match(imageRegex);
-
+      
       if (matches) {
         // Complete image markdown found, show generating state briefly
         setIsGeneratingImage(true);
@@ -339,7 +339,7 @@ export function AIMessage({
                       transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                       className="w-4 h-4 border-2 border-current border-t-transparent rounded-full"
                     />
-                    serving right now
+                    Thinking...
                   </div>
                 ) : null}
               </div>
@@ -365,7 +365,7 @@ export function AIMessage({
                     transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                     className="w-6 h-6 border-2 border-current border-t-transparent rounded-full"
                   />
-                  serving right now
+                  Thinking...
                 </div>
               ) : null}
             </div>
