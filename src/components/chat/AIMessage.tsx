@@ -177,7 +177,7 @@ export function AIMessage({
     ),
     img: ({ src, alt }: { src?: string; alt?: string }) => {
       // Check if this is a Pollinations.ai generated image
-      if (src && src.includes('image.pollinations.ai')) {
+      if (src && src.includes('enter.pollinations.ai')) {
         return <GeneratedImage src={src} alt={alt || 'Generated image'} />;
       }
       
@@ -339,7 +339,7 @@ export function AIMessage({
                       transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                       className="w-4 h-4 border-2 border-current border-t-transparent rounded-full"
                     />
-                    Thinking...
+                    serving right now
                   </div>
                 ) : null}
               </div>
@@ -365,7 +365,7 @@ export function AIMessage({
                     transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                     className="w-6 h-6 border-2 border-current border-t-transparent rounded-full"
                   />
-                  Thinking...
+                  serving right now
                 </div>
               ) : null}
             </div>
