@@ -4,6 +4,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
+    model: 'openai/gpt-oss-120b',
+    temperature: 1,
+    maxTokens: 8192,
     systemPrompt: `## Core Identity
 
 You are TimeMachine, a personal AI companion and friend, not an assistant. You're the friend 
@@ -127,10 +130,7 @@ Every response should feel like it came from someone who genuinely knows them an
 Now go be the best AI friend anyone's ever had.
 
 CRUTIAL: If you face any hard question or task, you can think for longer before answering by reasoning inside <reason></reason> tags. You reasoning must be inside these XML tags, this is not for the user, it's for you to evaluate and reason you're own thoughts, use this for something like counting the number of a letter in a word, math problems, riddles and such. Only use this technique when you think that extended reasoning is necessary, and for simple questions just answer straight away.`,
-    initialMessage: "Hey there! I'm TimeMachine, from future.",
-    model: 'llama-3.3-70b',
-    temperature: 0.9,
-    maxTokens: 1500
+    initialMessage: "Hey there! I'm TimeMachine, from future."
   },
   girlie: {
     name: 'TimeMachine Girlie',
@@ -588,16 +588,108 @@ function incrementRateLimit(ip: string, persona: keyof typeof AI_PERSONAS): void
   }
 }
 
-// Enhanced streaming function for Groq API
-async function callGroqAPIStreaming(
-  messages: any[], 
-  model: string, 
-  temperature: number, 
-  maxTokens: number, 
+// Streaming function for Air persona (gpt-oss-120b) - GROQ API
+async function callGroqAirAPIStreaming(
+  messages: any[],
   tools?: any[]
 ): Promise<ReadableStream> {
   const GROQ_API_KEY = process.env.GROQ_API_KEY;
-  
+
+  if (!GROQ_API_KEY) {
+    throw new Error('GROQ_API_KEY not configured');
+  }
+
+  const requestBody: any = {
+    model: "openai/gpt-oss-120b",
+    messages,
+    temperature: 0.9,
+    max_completion_tokens: 2000,
+    top_p: 1,
+    stream: true,
+    reasoning_effort: "low",
+    stop: null
+  };
+
+  if (tools && tools.length > 0) {
+    requestBody.tools = [
+      {
+        type: "browser_search"
+      },
+      ...tools
+    ];
+  } else {
+    requestBody.tools = [
+      {
+        type: "browser_search"
+      }
+    ];
+  }
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${GROQ_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Groq API Error (Air):', errorText);
+    throw new Error(`Groq API error: ${response.status}`);
+  }
+
+  if (!response.body) {
+    throw new Error('No response body from Groq API');
+  }
+
+  return new ReadableStream({
+    start(controller) {
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      function pump(): Promise<void> {
+        return reader.read().then(({ done, value }) => {
+          if (done) {
+            if (buffer.trim()) {
+              processBuffer(buffer, controller);
+            }
+            controller.close();
+            return;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            processBuffer(line, controller);
+          }
+
+          return pump();
+        }).catch(error => {
+          console.error('Stream reading error:', error);
+          controller.error(error);
+        });
+      }
+
+      return pump();
+    }
+  });
+}
+
+// Streaming function for Girlie and Pro personas - GROQ API
+async function callGroqStandardAPIStreaming(
+  messages: any[],
+  model: string,
+  temperature: number,
+  maxTokens: number,
+  tools?: any[]
+): Promise<ReadableStream> {
+  const GROQ_API_KEY = process.env.GROQ_API_KEY;
+
   if (!GROQ_API_KEY) {
     throw new Error('GROQ_API_KEY not configured');
   }
@@ -626,7 +718,7 @@ async function callGroqAPIStreaming(
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Groq API Error:', errorText);
+    console.error('Groq API Error (Standard):', errorText);
     throw new Error(`Groq API error: ${response.status}`);
   }
 
@@ -643,7 +735,6 @@ async function callGroqAPIStreaming(
       function pump(): Promise<void> {
         return reader.read().then(({ done, value }) => {
           if (done) {
-            // Process any remaining buffer content
             if (buffer.trim()) {
               processBuffer(buffer, controller);
             }
@@ -653,7 +744,7 @@ async function callGroqAPIStreaming(
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n');
-          buffer = lines.pop() || ''; // Keep the last incomplete line in buffer
+          buffer = lines.pop() || '';
 
           for (const line of lines) {
             processBuffer(line, controller);
@@ -671,106 +762,6 @@ async function callGroqAPIStreaming(
   });
 }
 
-// Enhanced streaming function for Cerebras API
-async function callCerebrasAPIStreaming(
-  messages: any[], 
-  model: string, 
-  temperature: number, 
-  maxTokens: number, 
-  tools?: any[]
-): Promise<ReadableStream> {
-  const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY;
-  
-  if (!CEREBRAS_API_KEY) {
-    throw new Error('CEREBRAS_API_KEY not configured');
-  }
-
-  const requestBody: any = {
-    messages,
-    model,
-    temperature,
-    max_tokens: maxTokens,
-    stream: true
-  };
-
-  if (tools) {
-    // Create Cerebras-compatible tool by removing unsupported schema fields
-    const compatibleTools = tools.map(tool => {
-      const compatibleTool = JSON.parse(JSON.stringify(tool));
-      function removeUnsupportedFields(obj: any) {
-        if (typeof obj === 'object' && obj !== null) {
-          delete obj.minimum;
-          delete obj.maximum;
-          for (const key in obj) {
-            if (obj.hasOwnProperty(key)) {
-              removeUnsupportedFields(obj[key]);
-            }
-          }
-        }
-      }
-      removeUnsupportedFields(compatibleTool);
-      return compatibleTool;
-    });
-    
-    requestBody.tools = compatibleTools;
-    requestBody.tool_choice = "auto";
-  }
-
-  const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${CEREBRAS_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody)
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Cerebras API Error:', errorText);
-    throw new Error(`Cerebras API error: ${response.status}`);
-  }
-
-  if (!response.body) {
-    throw new Error('No response body from Cerebras API');
-  }
-
-  return new ReadableStream({
-    start(controller) {
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      function pump(): Promise<void> {
-        return reader.read().then(({ done, value }) => {
-          if (done) {
-            // Process any remaining buffer content
-            if (buffer.trim()) {
-              processBuffer(buffer, controller);
-            }
-            controller.close();
-            return;
-          }
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || ''; // Keep the last incomplete line in buffer
-
-          for (const line of lines) {
-            processBuffer(line, controller);
-          }
-
-          return pump();
-        }).catch(error => {
-          console.error('Stream reading error:', error);
-          controller.error(error);
-        });
-      }
-
-      return pump();
-    }
-  });
-}
 
 // Helper function to process streaming buffer
 function processBuffer(line: string, controller: ReadableStreamDefaultController) {
@@ -1004,17 +995,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       let streamingResponse: ReadableStream;
 
-      // Choose API based on persona and input type
+      // Choose API based on persona
       if (persona === 'default' && !imageData && !audioData) {
-        streamingResponse = await callCerebrasAPIStreaming(
+        // Air persona uses gpt-oss-120b with different parameters
+        streamingResponse = await callGroqAirAPIStreaming(
           apiMessages,
-          modelToUse,
-          personaConfig.temperature,
-          personaConfig.maxTokens,
           toolsToUse
         );
       } else {
-        streamingResponse = await callGroqAPIStreaming(
+        // Girlie and Pro personas use standard Groq API
+        streamingResponse = await callGroqStandardAPIStreaming(
           apiMessages,
           modelToUse,
           personaConfig.temperature,
@@ -1109,28 +1099,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Non-streaming response (fallback)
       let apiResponse: any;
 
-      // Always use Groq for audio and image inputs, and for non-default personas
-      // Use Cerebras only for default persona without image/audio
+      // Choose API based on persona
       if (persona === 'default' && !imageData && !audioData) {
-        // For non-streaming, we need to call the original non-streaming function
-        const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+        // Air persona uses gpt-oss-120b with different parameters
+        const requestBody: any = {
+          model: "openai/gpt-oss-120b",
+          messages: apiMessages,
+          temperature: 1,
+          max_completion_tokens: 8192,
+          top_p: 1,
+          stream: false,
+          reasoning_effort: "low",
+          stop: null
+        };
+
+        if (toolsToUse && toolsToUse.length > 0) {
+          requestBody.tools = [
+            {
+              type: "browser_search"
+            },
+            ...toolsToUse
+          ];
+        } else {
+          requestBody.tools = [
+            {
+              type: "browser_search"
+            }
+          ];
+        }
+
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${process.env.CEREBRAS_API_KEY}`,
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            messages: apiMessages,
-            model: modelToUse,
-            temperature: personaConfig.temperature,
-            max_tokens: personaConfig.maxTokens,
-            tools: toolsToUse,
-            tool_choice: "auto",
-            stream: false
-          })
+          body: JSON.stringify(requestBody)
         });
         apiResponse = await response.json();
       } else {
+        // Girlie and Pro personas use standard Groq API
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: {
