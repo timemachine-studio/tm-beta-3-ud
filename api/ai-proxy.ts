@@ -118,8 +118,7 @@ You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMa
 
 ### Image Generation:
 
-When users request images, use the generate_image function with technically precise and detailed prompts. Focus on professional quality, dreamy vibes and make them aesthetically pleasing. 
-At first ask the user what kind of image will they like you to generate, give them some options and proceed to generate images ONLY after they confirm you.
+When users request images, use the generate_image function with technically precise and detailed prompts. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
 
 ## Remember
 
@@ -335,7 +334,7 @@ You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMa
 
 ### Image Generation:
 
-When users request images, use the generate_image function with technically precise and detailed prompts. Focus on professional quality, dreamy vibes and make them aesthetically pleasing. At first ask the user what kind of image will they like you to generate, give them some options and proceed to generate images then.
+When users request images, use the generate_image function with technically precise and detailed prompts. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
 
 ## Remember
 
@@ -476,17 +475,17 @@ const imageGenerationTool = {
   type: "function" as const,
   function: {
     name: "generate_image",
-    description: "Generate an image ONLY when user wants you to generate images directly. Ask the user directly for clarification with the description before making the image. Call the tool to generate image",
+    description: "Generate an image using this tool call.",
     parameters: {
       type: "object",
       properties: {
         prompt: {
           type: "string",
-          description: "Description of the image to generate. Use fully detailed prompt. Look carefully if the user mentions small details like adding text and style etc. And add more details like dreamy effects etc to make the image look aesthetically pleasing."
+          description: "Description of the image to generate. Use fully detailed prompt. Look carefully if the user mentions small details like adding text and style etc. And add more details like: dreamy effects etc. to make the image look aesthetically pleasing."
         },
         orientation: {
           type: "string",
-          description: "Orientation of the image. Choose either 'portrait' (vertical) or 'landscape' (horizontal). Portrait is 2160x3840, landscape is 3840x2160.",
+          description: "Orientation of the image.",
           enum: ["portrait", "landscape"],
           default: "portrait"
         }
