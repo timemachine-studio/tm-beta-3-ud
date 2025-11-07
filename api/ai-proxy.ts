@@ -608,21 +608,11 @@ async function callGroqAirAPIStreaming(
     stream: true,
     reasoning_effort: "low",
     stop: null
-  };
+ };
 
-  if (tools && tools.length > 0) {
-    requestBody.tools = [
-      {
-        type: "browser_search"
-      },
-      ...tools
-    ];
-  } else {
-    requestBody.tools = [
-      {
-        type: "browser_search"
-      }
-    ];
+  if (tools) {
+    requestBody.tools = tools;
+    requestBody.tool_choice = "auto";
   }
 
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
