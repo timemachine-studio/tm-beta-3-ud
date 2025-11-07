@@ -5,8 +5,8 @@ const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
     model: 'openai/gpt-oss-120b',
-    temperature: 1,
-    maxTokens: 8192,
+    temperature: 0.9,
+    maxTokens: 2000,
     systemPrompt: `## Core Identity
 
 You are TimeMachine, a personal AI companion and friend, not an assistant. You're the friend 
