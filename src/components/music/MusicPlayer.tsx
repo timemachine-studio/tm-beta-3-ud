@@ -19,14 +19,14 @@ const PLAYLIST_CATEGORIES = {
       {
         id: 2,
         title: "I'm Wrong",
-        artist: "TimeMachine Air",
+        artist: "TimeMachine",
         url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1738820102/I_m_Wrong_CS_dufiet.mp3"
       },
       {
         id: 3,
-        title: "Trust in it",
+        title: "Time & Love & Life",
         artist: "TimeMachine Girlie",
-        url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1750500358/Trust_in_it_mp3cut.net_khufdf.mp3"
+        url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1738769560/Time_Love_Life_CS_dv3fig.mp3"
       }
     ]
   },
@@ -36,9 +36,9 @@ const PLAYLIST_CATEGORIES = {
     songs: [
       {
         id: 4,
-        title: "Cycles",
-        artist: "TimeMachine Girlie",
-        url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1750408592/Cycles_3_mp3cut.net_oh9ivp.mp3"
+        title: "Golden Vibes",
+        artist: "TimeMachine",
+        url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1738769562/Golden_Vibes_CS_prijbj.mp3"
       },
       {
         id: 5,
@@ -49,7 +49,7 @@ const PLAYLIST_CATEGORIES = {
       {
         id: 6,
         title: "Moo Deng",
-        artist: "TimeMachine Air",
+        artist: "TimeMachine",
         url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1739169802/Moo_Deng_CS_or5eup.mp3"
       }
     ]
@@ -61,13 +61,13 @@ const PLAYLIST_CATEGORIES = {
       {
         id: 7,
         title: "Looks Like You",
-        artist: "TimeMachine Air",
+        artist: "TimeMachine",
         url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1737610377/Looks%20like%20You.mp3"
       },
       {
         id: 8,
         title: "Freckle Kissed",
-        artist: "TimeMachine Air",
+        artist: "TimeMachine",
         url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1738820102/Freckle_Kissed_CS_nlquut.mp3"
       },
       {
@@ -84,9 +84,9 @@ const PLAYLIST_CATEGORIES = {
     songs: [
       {
         id: 10,
-        title: "Like A Magnet",
-        artist: "TimeMachine Air",
-        url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1750409134/like_a_magnet_dtrher.mp3"
+        title: "No Go Judge Me",
+        artist: "TimeMachine",
+        url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1738820102/No_Go_Judge_Me_CS_ljdy81.mp3"
       },
       {
         id: 11,
@@ -97,7 +97,7 @@ const PLAYLIST_CATEGORIES = {
       {
         id: 12,
         title: "NeOn Lights",
-        artist: "TimeMachine Air",
+        artist: "TimeMachine",
         url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1739169802/NeOn_Lights_CS_waonrk.mp3"
       }
     ]
@@ -133,13 +133,13 @@ const PLAYLIST_CATEGORIES = {
       {
         id: 19,
         title: "Mama's Blue",
-        artist: "TimeMachine Air",
+        artist: "TimeMachine",
         url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1738769559/Mama_s_Blue_CS_crlmtn.mp3"
       },
       {
         id: 20,
         title: "Another City",
-        artist: "TimeMachine Air",
+        artist: "TimeMachine",
         url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1739169802/Another_City_CS_oc2ryq.mp3"
       },
       {
@@ -181,7 +181,7 @@ const PLAYLIST_CATEGORIES = {
       {
         id: 25,
         title: "Digital Dreams",
-        artist: "TimeMachine Air",
+        artist: "TimeMachine",
         url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1737610377/Looks%20like%20You.mp3"
       },
       {
@@ -211,7 +211,7 @@ const PLAYLIST_CATEGORIES = {
       {
         id: 29,
         title: "Digital Breath",
-        artist: "TimeMachine Air",
+        artist: "TimeMachine",
         url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1737609955/Breathe%20Right%20Strip.mp3"
       },
       {
@@ -229,7 +229,7 @@ const PLAYLIST_CATEGORIES = {
       {
         id: 31,
         title: "Future Faith",
-        artist: "TimeMachine Air",
+        artist: "TimeMachine",
         url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1737610377/Looks%20like%20You.mp3"
       },
       {
@@ -241,7 +241,7 @@ const PLAYLIST_CATEGORIES = {
       {
         id: 33,
         title: "Quantum Promise",
-        artist: "TimeMachine Air & TimeMachine Girlie",
+        artist: "TimeMachine & TimeMachine Girlie",
         url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1737609955/Breathe%20Right%20Strip.mp3"
       }
     ]
@@ -264,7 +264,7 @@ export function MusicPlayer({ currentPersona = 'default', currentEmotion = 'joy'
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const minimizeTimeoutRef = useRef<NodeJS.Timeout>();
   const categoryContainerRef = useRef<HTMLDivElement>(null);
-  const lastEmotionRef = useRef<string>(currentEmotion);
+  const lastEmotionRef = useRef<string>('hope');
   const emotionChangedRef = useRef(false);
 
   const personaColors = {
