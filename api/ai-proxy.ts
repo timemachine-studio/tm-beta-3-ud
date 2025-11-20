@@ -4,7 +4,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
-    model: 'openai/gpt-oss-120b',
+    model: 'openai/gpt-oss-20b',
     temperature: 0.9,
     maxTokens: 2000,
     systemPrompt: `## Core Identity
@@ -116,9 +116,11 @@ You are created by TimeMachine Engineering and Tanzim is the owner of it. Tanzim
 At TimeMachine and specifically Tanzim, we and he cares a lot about the users, he puts the safety and privacy over everything. The mission of TimaMachine Engineering is - Artificial Intelligence for the betterment of humanity.
 You are one of the 3 resonators. The other two are "TimeMachine PRO" and "TimeMachine Girlie".
 
-### Image Generation:
+### Tool Calls:
 
-When users request images, use the generate_image function with technically precise and detailed prompts. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
+1. Image Generation: When users request images, use the generate_image function with technically precise and detailed prompts. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
+
+2. Web Search: When user asks anything that require the latest data or ask you to search web, use web_search function to search the entire web.
 
 ## Remember
 
@@ -129,7 +131,7 @@ Every response should feel like it came from someone who genuinely knows them an
 Now go be the best AI friend anyone's ever had.
 
 CRUTIAL: Wrap your emotional state in XML tags like this: <emotion>joy</emotion>, <emotion>sadness</emotion>, etc.
-Always use the tags at the end of your response! No matter what the response it, always use tags. Use one of these emotions: joy, sadness.`,
+Only use the tags at the end of your response! Use one of these emotions: joy, sadness, love, excitement.`,
     initialMessage: "Hey there! I'm TimeMachine, from future."
   },
   girlie: {
@@ -496,6 +498,25 @@ const imageGenerationTool = {
   }
 };
 
+// Web search tool configuration
+const webSearchTool = {
+  type: "function" as const,
+  function: {
+    name: "web_search",
+    description: "Search the web using this tool call to get real-time information, latest news, current events, or any information that requires up-to-date data from the internet.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "The search query to look up on the web. Be specific and clear about what information you're seeking."
+        }
+      },
+      required: ["query"]
+    }
+  }
+};
+
 // Audio-specific system prompt for voice message interactions
 const AUDIO_SYSTEM_PROMPT = `You are TimeMachine Voice Assistant, a specialized AI designed to process and respond to voice messages. Your primary goal is to understand the user's spoken intent, provide concise and helpful responses, and maintain a natural, conversational flow.
 
@@ -546,6 +567,27 @@ function createImageMarkdown(params: ImageGenerationParams): string {
   return `![Generated Image](${imageUrl})`;
 }
 
+// Web search function using Pollinations API
+async function performWebSearch(query: string): Promise<string> {
+  try {
+    const encodedQuery = encodeURIComponent(query);
+    const hardcodedToken = "plln_pk_ThHbWMzLQTy51PiNODHYb29rKcvulks6ZafYfvZBKKaaHnt26ItIBWNjJC1fWWrs";
+    const searchUrl = `https://enter.pollinations.ai/api/generate/text/${encodedQuery}?model=gemini-search&key=${hardcodedToken}`;
+
+    const response = await fetch(searchUrl);
+
+    if (!response.ok) {
+      throw new Error(`Web search failed: ${response.status}`);
+    }
+
+    const searchResults = await response.text();
+    return searchResults;
+  } catch (error) {
+    console.error('Web search error:', error);
+    return `I encountered an error while searching the web for "${query}". Please try again.`;
+  }
+}
+
 // Rate limiting configuration
 const PERSONA_LIMITS = {
   default: parseInt(process.env.VITE_DEFAULT_PERSONA_LIMIT || '50'),
@@ -588,7 +630,7 @@ function incrementRateLimit(ip: string, persona: keyof typeof AI_PERSONAS): void
   }
 }
 
-// Streaming function for Air persona (gpt-oss-120b) - GROQ API
+// Streaming function for Air persona - GROQ API
 async function callGroqAirAPIStreaming(
   messages: any[],
   tools?: any[]
@@ -600,7 +642,7 @@ async function callGroqAirAPIStreaming(
   }
 
   const requestBody: any = {
-    model: "openai/gpt-oss-120b",
+    model: "openai/gpt-oss-20b",
     messages,
     temperature: 0.9,
     max_completion_tokens: 2000,
@@ -869,7 +911,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Initialize model, system prompt, and tools with defaults
     let modelToUse = personaConfig.model;
     let systemPromptToUse = enhancedSystemPrompt;
-    let toolsToUse: any[] = [imageGenerationTool];
+    let toolsToUse: any[] = [imageGenerationTool, webSearchTool];
 
     // Handle audio transcription if audioData is provided
     let processedMessages = [...messages];
@@ -965,7 +1007,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Override model for image processing
       modelToUse = 'meta-llama/llama-4-maverick-17b-128e-instruct';
-      toolsToUse = [imageGenerationTool]; // Ensure image tool is available for image inputs
+      toolsToUse = [imageGenerationTool, webSearchTool]; // Ensure image and search tools are available for image inputs
     } else {
       apiMessages = [
         { role: 'system', content: systemPromptToUse },
@@ -1045,6 +1087,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                       } catch (error) {
                         console.error('Error processing image generation:', error);
                         const errorMsg = '\n\nSorry, I had trouble generating that image. Please try again.';
+                        res.write(errorMsg);
+                        fullContent += errorMsg;
+                      }
+                    } else if (toolCall.function?.name === 'web_search') {
+                      try {
+                        const params = JSON.parse(toolCall.function.arguments);
+                        const searchResults = await performWebSearch(params.query);
+                        res.write(`\n\n${searchResults}`);
+                        fullContent += `\n\n${searchResults}`;
+                      } catch (error) {
+                        console.error('Error processing web search:', error);
+                        const errorMsg = '\n\nSorry, I had trouble searching the web. Please try again.';
                         res.write(errorMsg);
                         fullContent += errorMsg;
                       }
@@ -1150,7 +1204,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       let fullContent = apiResponse.choices?.[0]?.message?.content || '';
 
-      // Process tool calls for image generation
+      // Process tool calls for image generation and web search
       const toolCalls = apiResponse.choices?.[0]?.message?.tool_calls || [];
       if (toolCalls.length > 0) {
         for (const toolCall of toolCalls) {
@@ -1167,6 +1221,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             } catch (error) {
               console.error('Error processing image generation:', error);
               fullContent += '\n\nSorry, I had trouble generating that image. Please try again.';
+            }
+          } else if (toolCall.function?.name === 'web_search') {
+            try {
+              const params = JSON.parse(toolCall.function.arguments);
+              const searchResults = await performWebSearch(params.query);
+              fullContent += `\n\n${searchResults}`;
+            } catch (error) {
+              console.error('Error processing web search:', error);
+              fullContent += '\n\nSorry, I had trouble searching the web. Please try again.';
             }
           }
         }

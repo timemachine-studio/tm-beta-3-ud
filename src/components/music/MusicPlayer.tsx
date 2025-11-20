@@ -24,9 +24,9 @@ const PLAYLIST_CATEGORIES = {
       },
       {
         id: 3,
-        title: "Time & Love & Life",
+        title: "Trust in it",
         artist: "TimeMachine Girlie",
-        url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1738769560/Time_Love_Life_CS_dv3fig.mp3"
+        url: "https://res.cloudinary.com/dnjv18giv/video/upload/v1750500358/Trust_in_it_mp3cut.net_khufdf.mp3"
       }
     ]
   },
@@ -264,7 +264,7 @@ export function MusicPlayer({ currentPersona = 'default', currentEmotion = 'joy'
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const minimizeTimeoutRef = useRef<NodeJS.Timeout>();
   const categoryContainerRef = useRef<HTMLDivElement>(null);
-  const lastEmotionRef = useRef<string>('hope');
+  const lastEmotionRef = useRef<string>('');
   const emotionChangedRef = useRef(false);
 
   const personaColors = {
