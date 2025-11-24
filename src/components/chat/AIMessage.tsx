@@ -67,6 +67,7 @@ export function AIMessage({
   const [showReasoning, setShowReasoning] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const mentionedPersona = extractMentionedPersona(previousMessage);
   const displayPersona = mentionedPersona || currentPersona;
   const personaColor = getPersonaColor(displayPersona);
@@ -106,7 +107,7 @@ export function AIMessage({
     if (content.includes('![Image](https://enter.pollinations.ai/')) {
       const imageRegex = /!\[Image\]\(https:\/\/enter\.pollinations\.ai\/api\/generate\/image\/[^)]+\)/g;
       const matches = content.match(imageRegex);
-      
+
       if (matches) {
         // Complete image markdown found, show generating state briefly
         setIsGeneratingImage(true);
@@ -116,6 +117,20 @@ export function AIMessage({
       }
     }
   }, [content]);
+
+  // Handle web search detection
+  useEffect(() => {
+    // Show searching state when streaming is active but content hasn't arrived yet
+    // Stop showing when we get actual content or when an error occurs
+    const hasContent = content && content.trim().length > 0;
+    const hasSearchResults = content && (content.includes('http') || content.includes('://'));
+
+    if (isStreamingActive && !hasContent) {
+      setIsSearching(true);
+    } else if (hasContent || !isStreamingActive) {
+      setIsSearching(false);
+    }
+  }, [isStreamingActive, content]);
 
   // Handle audio URL detection and loading
   useEffect(() => {
@@ -260,7 +275,28 @@ export function AIMessage({
               gradientAnimationDuration={2}
               textClassName="text-base"
               className="py-1"
-              style={{ 
+              style={{
+                fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
+                fontSize: '16px'
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Web search state */}
+      {isSearching && !content && (
+        <div className="w-full max-w-2xl mx-auto my-4">
+          <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
+            <AnimatedShinyText
+              text="Traveling the timeline"
+              useShimmer={true}
+              baseColor={shimmerColors.baseColor}
+              shimmerColor={shimmerColors.shimmerColor}
+              gradientAnimationDuration={2}
+              textClassName="text-base"
+              className="py-1"
+              style={{
                 fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
                 fontSize: '16px'
               }}
@@ -307,7 +343,7 @@ export function AIMessage({
         </div>
       )}
       {/* Show content when not generating or when generation is complete */}
-      {!isGeneratingImage && !isRecordingVoice && (content || isStreamingActive) && !audioUrl && (
+      {!isGeneratingImage && !isRecordingVoice && !isSearching && (content || isStreamingActive) && !audioUrl && (
         <>
           {isChatMode ? (
             <div className="flex flex-col gap-1">
