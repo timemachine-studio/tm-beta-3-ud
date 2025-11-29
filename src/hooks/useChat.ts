@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Message } from '../types/chat';
 import { generateAIResponse, generateAIResponseStreaming } from '../services/ai/aiProxyService';
+import { generateExternalAIResponse, generateExternalAIResponseStreaming, ExternalAIModel } from '../services/ai/externalAIService';
 import { INITIAL_MESSAGE, AI_PERSONAS } from '../config/constants';
 
 interface ChatSession {
@@ -200,12 +201,22 @@ export function useChat() {
   const handleSendMessage = useCallback(async (content: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[]) => {
     let messagePersona = currentPersona;
     let messageContent = content;
+    let externalAI: ExternalAIModel | null = null;
 
-    // Check for @persona mentions
-    const mentionMatch = content.match(/^@(girlie|pro)\s+(.+)$/);
-    if (mentionMatch) {
-      messagePersona = mentionMatch[1] as keyof typeof AI_PERSONAS;
-      messageContent = mentionMatch[2];
+    // Check for external AI mentions (case insensitive)
+    const externalAIMatch = content.match(/^@(chatgpt|gemini|claude|grok)\s+(.+)$/i);
+    if (externalAIMatch) {
+      externalAI = externalAIMatch[1].toLowerCase() as ExternalAIModel;
+      messageContent = externalAIMatch[2];
+    }
+
+    // Check for @persona mentions (only if no external AI mentioned)
+    if (!externalAI) {
+      const mentionMatch = content.match(/^@(girlie|pro)\s+(.+)$/);
+      if (mentionMatch) {
+        messagePersona = mentionMatch[1] as keyof typeof AI_PERSONAS;
+        messageContent = mentionMatch[2];
+      }
     }
 
     // Handle audio data - if we have audio but no text content, create a message indicating audio input
@@ -240,8 +251,48 @@ export function useChat() {
     setMessages(prev => [...prev, aiMessage]);
     setStreamingMessageId(aiMessageId);
 
+    // If external AI is mentioned, use external AI service
+    if (externalAI) {
+      if (useStreaming) {
+        let accumulatedContent = '';
+        generateExternalAIResponseStreaming(
+          externalAI,
+          [...messages, userMessage],
+          // onChunk callback
+          (chunk: string) => {
+            accumulatedContent += chunk;
+            updateStreamingMessage(aiMessageId, chunk, true);
+          },
+          // onComplete callback
+          () => {
+            completeStreamingMessage(aiMessageId, accumulatedContent);
+          },
+          // onError callback
+          (error) => {
+            console.error('Failed to generate external AI response:', error);
+            setError(`Failed to generate response from ${externalAI}. Please try again.`);
+            setMessages(prev => prev.filter(msg => msg.id !== aiMessageId));
+            setStreamingMessageId(null);
+            setIsLoading(false);
+          }
+        );
+      } else {
+        try {
+          const aiResponse = await generateExternalAIResponse(externalAI, [...messages, userMessage]);
+          completeStreamingMessage(aiMessageId, aiResponse.content);
+        } catch (error) {
+          console.error('Failed to generate external AI response:', error);
+          setError(`Failed to generate response from ${externalAI}. Please try again.`);
+          setMessages(prev => prev.filter(msg => msg.id !== aiMessageId));
+          setStreamingMessageId(null);
+          setIsLoading(false);
+        }
+      }
+      return;
+    }
+
     if (useStreaming) {
-      // Use streaming response
+      // Use streaming response for TimeMachine personas
       generateAIResponseStreaming(
         [...messages, userMessage],
         imageData,

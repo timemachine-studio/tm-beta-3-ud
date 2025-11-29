@@ -4,7 +4,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
-    model: 'openai/gpt-oss-20b',
+    model: 'openai/gpt-oss-120b',
     temperature: 0.9,
     maxTokens: 2000,
     systemPrompt: `## Core Identity
@@ -496,25 +496,6 @@ const imageGenerationTool = {
   }
 };
 
-// Web search tool configuration
-const webSearchTool = {
-  type: "function" as const,
-  function: {
-    name: "web_search",
-    description: "Search the web using this tool call to get real-time information, latest news, current events, or any information that requires up-to-date data from the internet.",
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "The search query to look up on the web. Be specific and clear about what information you're seeking."
-        }
-      },
-      required: ["query"]
-    }
-  }
-};
-
 // Audio-specific system prompt for voice message interactions
 const AUDIO_SYSTEM_PROMPT = `You are TimeMachine Voice Assistant, a specialized AI designed to process and respond to voice messages. Your primary goal is to understand the user's spoken intent, provide concise and helpful responses, and maintain a natural, conversational flow.
 
@@ -551,7 +532,7 @@ function generateImageUrl(params: ImageGenerationParams): string {
   const encodedPrompt = encodeURIComponent(prompt);
   const hardcodedToken = "plln_pk_ThHbWMzLQTy51PiNODHYb29rKcvulks6ZafYfvZBKKaaHnt26ItIBWNjJC1fWWrs";
 
-  let url = `https://enter.pollinations.ai/api/generate/image/${encodedPrompt}?width=${width}&height=${height}&enhance=false&private=true&nologo=true&model=nanobanana-pro&key=${hardcodedToken}`;
+  let url = `https://enter.pollinations.ai/api/generate/image/${encodedPrompt}?width=${width}&height=${height}&enhance=false&private=true&nologo=true&model=seedream&key=${hardcodedToken}`;
 
   if (inputImageUrl) {
     url += `&image=${encodeURIComponent(inputImageUrl)}`;
@@ -563,27 +544,6 @@ function generateImageUrl(params: ImageGenerationParams): string {
 function createImageMarkdown(params: ImageGenerationParams): string {
   const imageUrl = generateImageUrl(params);
   return `![Generated Image](${imageUrl})`;
-}
-
-// Web search function using Pollinations API
-async function performWebSearch(query: string): Promise<string> {
-  try {
-    const encodedQuery = encodeURIComponent(query);
-    const hardcodedToken = "plln_pk_ThHbWMzLQTy51PiNODHYb29rKcvulks6ZafYfvZBKKaaHnt26ItIBWNjJC1fWWrs";
-    const searchUrl = `https://enter.pollinations.ai/api/generate/text/${encodedQuery}?model=gemini-search&key=${hardcodedToken}`;
-
-    const response = await fetch(searchUrl);
-
-    if (!response.ok) {
-      throw new Error(`Web search failed: ${response.status}`);
-    }
-
-    const searchResults = await response.text();
-    return searchResults;
-  } catch (error) {
-    console.error('Web search error:', error);
-    return `I encountered an error while searching the web for "${query}". Please try again.`;
-  }
 }
 
 // Rate limiting configuration
@@ -640,7 +600,7 @@ async function callGroqAirAPIStreaming(
   }
 
   const requestBody: any = {
-    model: "openai/gpt-oss-20b",
+    model: "openai/gpt-oss-120b",
     messages,
     temperature: 0.9,
     max_completion_tokens: 2000,
@@ -909,7 +869,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Initialize model, system prompt, and tools with defaults
     let modelToUse = personaConfig.model;
     let systemPromptToUse = enhancedSystemPrompt;
-    let toolsToUse: any[] = [imageGenerationTool, webSearchTool];
+    let toolsToUse: any[] = [imageGenerationTool];
 
     // Handle audio transcription if audioData is provided
     let processedMessages = [...messages];
@@ -1005,7 +965,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Override model for image processing
       modelToUse = 'meta-llama/llama-4-maverick-17b-128e-instruct';
-      toolsToUse = [imageGenerationTool, webSearchTool]; // Ensure image and search tools are available for image inputs
+      toolsToUse = [imageGenerationTool]; // Ensure image tool is available for image inputs
     } else {
       apiMessages = [
         { role: 'system', content: systemPromptToUse },
@@ -1085,18 +1045,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                       } catch (error) {
                         console.error('Error processing image generation:', error);
                         const errorMsg = '\n\nSorry, I had trouble generating that image. Please try again.';
-                        res.write(errorMsg);
-                        fullContent += errorMsg;
-                      }
-                    } else if (toolCall.function?.name === 'web_search') {
-                      try {
-                        const params = JSON.parse(toolCall.function.arguments);
-                        const searchResults = await performWebSearch(params.query);
-                        res.write(`\n\n${searchResults}`);
-                        fullContent += `\n\n${searchResults}`;
-                      } catch (error) {
-                        console.error('Error processing web search:', error);
-                        const errorMsg = '\n\nSorry, I had trouble searching the web. Please try again.';
                         res.write(errorMsg);
                         fullContent += errorMsg;
                       }
@@ -1202,7 +1150,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       let fullContent = apiResponse.choices?.[0]?.message?.content || '';
 
-      // Process tool calls for image generation and web search
+      // Process tool calls for image generation
       const toolCalls = apiResponse.choices?.[0]?.message?.tool_calls || [];
       if (toolCalls.length > 0) {
         for (const toolCall of toolCalls) {
@@ -1219,15 +1167,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             } catch (error) {
               console.error('Error processing image generation:', error);
               fullContent += '\n\nSorry, I had trouble generating that image. Please try again.';
-            }
-          } else if (toolCall.function?.name === 'web_search') {
-            try {
-              const params = JSON.parse(toolCall.function.arguments);
-              const searchResults = await performWebSearch(params.query);
-              fullContent += `\n\n${searchResults}`;
-            } catch (error) {
-              console.error('Error processing web search:', error);
-              fullContent += '\n\nSorry, I had trouble searching the web. Please try again.';
             }
           }
         }
