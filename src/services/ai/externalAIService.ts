@@ -12,15 +12,15 @@ interface ExternalAIConfig {
 const AI_CONFIGS: Record<ExternalAIModel, ExternalAIConfig> = {
   chatgpt: {
     baseUrl: 'https://text.pollinations.ai',
-    model: 'openai'
+    model: 'gemini'
   },
   gemini: {
     baseUrl: 'https://text.pollinations.ai',
-    model: 'gemini'
+    model: 'openai'
   },
   claude: {
     baseUrl: 'https://text.pollinations.ai',
-    model: 'claude-fast'
+    model: 'openai-fast'
   },
   grok: {
     baseUrl: 'https://text.pollinations.ai',
