@@ -103,7 +103,7 @@ export async function generateExternalAIResponseStreaming(
       body: JSON.stringify({
         model: config.model,
         messages: openAIMessages,
-        stream: false
+        stream: true
       })
     });
 
