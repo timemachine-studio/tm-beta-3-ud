@@ -21,53 +21,7 @@ interface AIMessageProps extends MessageProps {
   isStreaming?: boolean;
   audioUrl?: string;
   isStreamingActive?: boolean;
-  aiModel?: 'chatgpt' | 'gemini' | 'claude' | 'grok';
 }
-
-const getExternalAIColor = (model: 'chatgpt' | 'gemini' | 'claude' | 'grok') => {
-  switch (model) {
-    case 'chatgpt':
-      return 'text-green-400';
-    case 'gemini':
-      return 'text-blue-400';
-    case 'claude':
-      return 'text-orange-400';
-    case 'grok':
-      return 'text-purple-400';
-    default:
-      return 'text-white';
-  }
-};
-
-const getExternalAIName = (model: 'chatgpt' | 'gemini' | 'claude' | 'grok') => {
-  switch (model) {
-    case 'chatgpt':
-      return 'ChatGPT';
-    case 'gemini':
-      return 'Gemini';
-    case 'claude':
-      return 'Claude';
-    case 'grok':
-      return 'Grok';
-    default:
-      return 'AI';
-  }
-};
-
-const getExternalAIShimmerColors = (model: 'chatgpt' | 'gemini' | 'claude' | 'grok') => {
-  switch (model) {
-    case 'chatgpt':
-      return { baseColor: '#22c55e', shimmerColor: '#ffffff' };
-    case 'gemini':
-      return { baseColor: '#3b82f6', shimmerColor: '#ffffff' };
-    case 'claude':
-      return { baseColor: '#f97316', shimmerColor: '#ffffff' };
-    case 'grok':
-      return { baseColor: '#a855f7', shimmerColor: '#ffffff' };
-    default:
-      return { baseColor: '#ffffff', shimmerColor: '#ffffff' };
-  }
-};
 
 const getPersonaColor = (persona: keyof typeof AI_PERSONAS = 'default') => {
   switch (persona) {
@@ -75,6 +29,14 @@ const getPersonaColor = (persona: keyof typeof AI_PERSONAS = 'default') => {
       return 'text-pink-400';
     case 'pro':
       return 'text-cyan-400';
+    case 'chatgpt':
+      return 'text-green-400';
+    case 'gemini':
+      return 'text-blue-400';
+    case 'claude':
+      return 'text-orange-400';
+    case 'grok':
+      return 'text-gray-400';
     default:
       return 'text-purple-400';
   }
@@ -83,63 +45,48 @@ const getPersonaColor = (persona: keyof typeof AI_PERSONAS = 'default') => {
 const getPersonaShimmerColors = (persona: keyof typeof AI_PERSONAS = 'default') => {
   switch (persona) {
     case 'girlie':
-      return { baseColor: '#ec4899', shimmerColor: '#ffffff' };
+      return { baseColor: '#ec4899', shimmerColor: '#ffffff' }; // Pink base with white shimmer
     case 'pro':
-      return { baseColor: '#06b6d4', shimmerColor: '#ffffff' };
+      return { baseColor: '#06b6d4', shimmerColor: '#ffffff' }; // Cyan base with white shimmer
+    case 'chatgpt':
+      return { baseColor: '#22c55e', shimmerColor: '#ffffff' }; // Green base with white shimmer
+    case 'gemini':
+      return { baseColor: '#3b82f6', shimmerColor: '#ffffff' }; // Blue base with white shimmer
+    case 'claude':
+      return { baseColor: '#f97316', shimmerColor: '#ffffff' }; // Orange base with white shimmer
+    case 'grok':
+      return { baseColor: '#9ca3af', shimmerColor: '#ffffff' }; // Gray base with white shimmer
     default:
-      return { baseColor: '#a855f7', shimmerColor: '#ffffff' };
+      return { baseColor: '#a855f7', shimmerColor: '#ffffff' }; // Purple base with white shimmer
   }
 };
 
 const extractMentionedPersona = (message: string | null): keyof typeof AI_PERSONAS | null => {
   if (!message) return null;
-  const match = message.match(/^@(girlie|pro)\s/);
-  return match ? match[1] as keyof typeof AI_PERSONAS : null;
+  const match = message.match(/^@(chatgpt|gemini|claude|grok|girlie|pro)\s/i);
+  return match ? match[1].toLowerCase() as keyof typeof AI_PERSONAS : null;
 };
 
-const extractMentionedAI = (message: string | null): 'chatgpt' | 'gemini' | 'claude' | 'grok' | null => {
-  if (!message) return null;
-  const match = message.match(/^@(chatgpt|gemini|claude|grok)\s/i);
-  return match ? match[1].toLowerCase() as 'chatgpt' | 'gemini' | 'claude' | 'grok' : null;
-};
-
-export function AIMessage({
-  content,
+export function AIMessage({ 
+  content, 
   thinking: reasoning,
-  isChatMode,
-  messageId,
-  hasAnimated,
-  onAnimationComplete,
+  isChatMode, 
+  messageId, 
+  hasAnimated, 
+  onAnimationComplete, 
   currentPersona = 'default',
   previousMessage = null,
   isStreaming = false,
   audioUrl,
-  isStreamingActive = false,
-  aiModel
+  isStreamingActive = false
 }: AIMessageProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
-
-  const mentionedAI = extractMentionedAI(previousMessage);
-  const displayAI = aiModel || mentionedAI;
   const mentionedPersona = extractMentionedPersona(previousMessage);
   const displayPersona = mentionedPersona || currentPersona;
-
-  let personaColor: string;
-  let shimmerColors: { baseColor: string; shimmerColor: string };
-  let displayName: string;
-
-  if (displayAI) {
-    personaColor = getExternalAIColor(displayAI);
-    shimmerColors = getExternalAIShimmerColors(displayAI);
-    displayName = getExternalAIName(displayAI);
-  } else {
-    personaColor = getPersonaColor(displayPersona);
-    shimmerColors = getPersonaShimmerColors(displayPersona);
-    displayName = AI_PERSONAS[displayPersona].name;
-  }
-
+  const personaColor = getPersonaColor(displayPersona);
+  const shimmerColors = getPersonaShimmerColors(displayPersona);
   const contentEndRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
 
@@ -157,6 +104,30 @@ export function AIMessage({
           gradient: 'from-cyan-950/90 to-cyan-900/90',
           border: 'border-cyan-500/20',
           shadow: 'shadow-[0_0_30px_rgba(34,211,238,0.2)]'
+        };
+      case 'chatgpt':
+        return {
+          gradient: 'from-green-950/90 to-green-900/90',
+          border: 'border-green-500/20',
+          shadow: 'shadow-[0_0_30px_rgba(34,197,94,0.2)]'
+        };
+      case 'gemini':
+        return {
+          gradient: 'from-blue-950/90 to-blue-900/90',
+          border: 'border-blue-500/20',
+          shadow: 'shadow-[0_0_30px_rgba(59,130,246,0.2)]'
+        };
+      case 'claude':
+        return {
+          gradient: 'from-orange-950/90 to-orange-900/90',
+          border: 'border-orange-500/20',
+          shadow: 'shadow-[0_0_30px_rgba(249,115,22,0.2)]'
+        };
+      case 'grok':
+        return {
+          gradient: 'from-gray-950/90 to-gray-900/90',
+          border: 'border-gray-500/20',
+          shadow: 'shadow-[0_0_30px_rgba(156,163,175,0.2)]'
         };
       default:
         return {
@@ -364,7 +335,7 @@ export function AIMessage({
         <div className="w-full max-w-2xl mx-auto my-4">
           <div className="flex flex-col gap-1">
             <div className={`text-xs font-medium ${personaColor} opacity-60`}>
-              {displayName}
+              {AI_PERSONAS[displayPersona].name}
             </div>
             <AudioPlayerBubble
               audioSrc={audioUrl}
@@ -381,7 +352,7 @@ export function AIMessage({
           {isChatMode ? (
             <div className="flex flex-col gap-1">
               <div className={`text-xs font-medium ${personaColor} opacity-60`}>
-                {displayName}
+                {AI_PERSONAS[displayPersona].name}
                 {isStreamingActive && (
                   <span className="ml-2 inline-flex items-center">
                     <motion.div

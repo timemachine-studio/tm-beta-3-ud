@@ -19,14 +19,37 @@ export const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
     initialMessage: "Hey there! I'm TimeMachine, from future",
+    color: 'purple'
   },
   girlie: {
     name: 'TimeMachine Girlie',
     initialMessage: "Hiee✨ I'm TimeMachine Girlie, from future~",
+    color: 'pink'
   },
   pro: {
     name: 'TimeMachine PRO',
     initialMessage: "It's TimeMachine PRO, from future. Let's cure cancer.",
+    color: 'cyan'
+  },
+  chatgpt: {
+    name: 'ChatGPT',
+    initialMessage: "Hello! I'm ChatGPT.",
+    color: 'green'
+  },
+  gemini: {
+    name: 'Gemini',
+    initialMessage: "Hello! I'm Gemini.",
+    color: 'blue'
+  },
+  claude: {
+    name: 'Claude',
+    initialMessage: "Hello! I'm Claude.",
+    color: 'orange'
+  },
+  grok: {
+    name: 'Grok',
+    initialMessage: "Hello! I'm Grok.",
+    color: 'gray'
   }
 };
 

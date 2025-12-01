@@ -8,7 +8,6 @@ import { ImagePreview } from './ImagePreview';
 import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
 import { MentionCall } from './MentionCall';
-import { AIMentionPicker } from './AIMentionPicker';
 import { uploadToImageBB } from '../../services/imagebb/imageBBService';
 
 type Persona = keyof typeof AI_PERSONAS;
@@ -59,7 +58,6 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const [isUploading, setIsUploading] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [showMentionCall, setShowMentionCall] = useState(false);
-  const [showAIMentionPicker, setShowAIMentionPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { theme } = useTheme();
@@ -125,6 +123,9 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((message.trim() || selectedImages.length > 0) && !isLoading && !isUploading) {
+      // Close mention modal when sending message
+      setShowMentionCall(false);
+
       if (selectedImages.length > 0) {
         setIsUploading(true);
         try {
@@ -175,21 +176,12 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     const newValue = e.target.value;
     setMessage(newValue);
 
-    // Check if user typed @ at the end
     if (newValue.endsWith('@')) {
-      // Check what comes before @ to decide which picker to show
-      const beforeAt = newValue.slice(0, -1).trim();
-      const lastWord = beforeAt.split(/\s+/).pop() || '';
-
-      // If it looks like a persona mention context (e.g., empty or after space)
-      if (lastWord === '' || !lastWord.match(/^@/)) {
-        setShowAIMentionPicker(true);
-        setShowMentionCall(false);
-      }
-    } else {
-      // Close pickers if @ is removed
-      if (!newValue.includes('@')) {
-        setShowAIMentionPicker(false);
+      setShowMentionCall(true);
+    } else if (showMentionCall) {
+      // Check if user has completed typing a mention (case-insensitive)
+      const completedMention = newValue.match(/@(chatgpt|gemini|claude|grok)\s/i);
+      if (completedMention || !newValue.includes('@')) {
         setShowMentionCall(false);
       }
     }
@@ -203,26 +195,6 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     if (textareaRef.current) {
       textareaRef.current.focus();
       const newCursorPosition = cursorPosition + command.length;
-      textareaRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
-    }
-  };
-
-  const handleAIMentionSelect = (mention: string) => {
-    // Replace the @ at cursor with the full mention
-    const cursorPosition = textareaRef.current?.selectionStart || message.length;
-    const beforeCursor = message.slice(0, cursorPosition);
-    const afterCursor = message.slice(cursorPosition);
-
-    // Remove the @ that triggered the picker
-    const newBefore = beforeCursor.slice(0, -1);
-    const newMessage = newBefore + mention + ' ' + afterCursor;
-
-    setMessage(newMessage);
-    setShowAIMentionPicker(false);
-
-    if (textareaRef.current) {
-      textareaRef.current.focus();
-      const newCursorPosition = newBefore.length + mention.length + 1;
       textareaRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
     }
   };
@@ -397,11 +369,6 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
               isVisible={showMentionCall}
               onSelect={handleMentionSelect}
               currentPersona={currentPersona}
-            />
-
-            <AIMentionPicker
-              isVisible={showAIMentionPicker}
-              onSelect={handleAIMentionSelect}
             />
           </div>
         </div>

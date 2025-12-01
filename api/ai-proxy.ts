@@ -468,6 +468,38 @@ You’re TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule 
     model: 'moonshotai/kimi-k2-instruct-0905',
     temperature: 0.9,
     maxTokens: 4000
+  },
+  chatgpt: {
+    name: 'ChatGPT',
+    model: 'openai',
+    temperature: 1,
+    maxTokens: 4000,
+    systemPrompt: '',
+    initialMessage: "Hello! I'm ChatGPT."
+  },
+  gemini: {
+    name: 'Gemini',
+    model: 'google',
+    temperature: 1,
+    maxTokens: 4000,
+    systemPrompt: '',
+    initialMessage: "Hello! I'm Gemini."
+  },
+  claude: {
+    name: 'Claude',
+    model: 'anthropic',
+    temperature: 1,
+    maxTokens: 4000,
+    systemPrompt: '',
+    initialMessage: "Hello! I'm Claude."
+  },
+  grok: {
+    name: 'Grok',
+    model: 'xai',
+    temperature: 1,
+    maxTokens: 4000,
+    systemPrompt: '',
+    initialMessage: "Hello! I'm Grok."
   }
 };
 
@@ -511,6 +543,10 @@ Avoid:
 - Overly formal language.
 
 Your responses should be optimized for a quick, back-and-forth voice conversation experience.`;
+
+// Pollinations API configuration
+const POLLINATIONS_API_KEY = 'plln_pk_jCIIjFYkfyAWJtyxOOQuUawdMvuSgskZ';
+const POLLINATIONS_API_URL = 'https://enter.pollinations.ai/api/generate/v1/chat/completions';
 
 interface ImageGenerationParams {
   prompt: string;
@@ -809,8 +845,118 @@ function extractReasoningAndContent(response: string): { content: string; thinki
   const reasonMatch = response.match(/<reason>([\s\S]*?)<\/reason>/);
   const thinking = reasonMatch ? reasonMatch[1].trim() : undefined;
   const content = response.replace(/<reason>[\s\S]*?<\/reason>/, '').trim();
-  
+
   return { content, thinking };
+}
+
+// Pollinations API function for external AI models (streaming)
+async function callPollinationsAPIStreaming(
+  messages: any[],
+  model: string
+): Promise<ReadableStream> {
+  const response = await fetch(POLLINATIONS_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${POLLINATIONS_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: messages.filter(msg => msg.role !== 'system' || msg.content.trim()),
+      temperature: 1,
+      stream: true
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Pollinations API error: ${response.status}`);
+  }
+
+  if (!response.body) {
+    throw new Error('No response body from Pollinations API');
+  }
+
+  // Transform the response stream to match our format
+  return new ReadableStream({
+    async start(controller) {
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
+
+            if (trimmedLine.startsWith('data: ')) {
+              try {
+                const jsonStr = trimmedLine.slice(6);
+                const data = JSON.parse(jsonStr);
+
+                if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                  controller.enqueue(new TextEncoder().encode(
+                    JSON.stringify({
+                      type: 'content',
+                      content: data.choices[0].delta.content
+                    }) + '\n'
+                  ));
+                }
+
+                if (data.choices && data.choices[0] && data.choices[0].finish_reason) {
+                  controller.enqueue(new TextEncoder().encode(
+                    JSON.stringify({ type: 'finish' }) + '\n'
+                  ));
+                }
+              } catch (error) {
+                console.error('Error parsing streaming chunk:', error);
+              }
+            }
+          }
+        }
+
+        controller.enqueue(new TextEncoder().encode(
+          JSON.stringify({ type: 'finish' }) + '\n'
+        ));
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    }
+  });
+}
+
+// Pollinations API function for external AI models (non-streaming)
+async function callPollinationsAPI(
+  messages: any[],
+  model: string
+): Promise<any> {
+  const response = await fetch(POLLINATIONS_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${POLLINATIONS_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: messages.filter(msg => msg.role !== 'system' || msg.content.trim()),
+      temperature: 1,
+      stream: false
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Pollinations API error: ${response.status}`);
+  }
+
+  return await response.json();
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -986,7 +1132,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let streamingResponse: ReadableStream;
 
       // Choose API based on persona
-      if (persona === 'default' && !imageData && !audioData) {
+      const externalAIs = ['chatgpt', 'gemini', 'claude', 'grok'];
+      if (externalAIs.includes(persona)) {
+        // External AI models use Pollinations API
+        streamingResponse = await callPollinationsAPIStreaming(
+          apiMessages,
+          personaConfig.model
+        );
+      } else if (persona === 'default' && !imageData && !audioData) {
         // Air persona uses gpt-oss-120b with different parameters
         streamingResponse = await callGroqAirAPIStreaming(
           apiMessages,
@@ -1090,7 +1243,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let apiResponse: any;
 
       // Choose API based on persona
-      if (persona === 'default' && !imageData && !audioData) {
+      const externalAIs = ['chatgpt', 'gemini', 'claude', 'grok'];
+      if (externalAIs.includes(persona)) {
+        // External AI models use Pollinations API
+        apiResponse = await callPollinationsAPI(
+          apiMessages,
+          personaConfig.model
+        );
+      } else if (persona === 'default' && !imageData && !audioData) {
         // Air persona uses gpt-oss-120b with different parameters
         const requestBody: any = {
           model: "openai/gpt-oss-120b",

@@ -11,18 +11,28 @@ interface MentionCallProps {
 const personaColors = {
   default: 'from-purple-600/20 to-blue-600/20',
   girlie: 'from-pink-500/20 to-rose-400/20',
-  pro: 'from-cyan-600/20 to-blue-600/20'
+  pro: 'from-cyan-600/20 to-blue-600/20',
+  chatgpt: 'from-green-600/20 to-emerald-600/20',
+  gemini: 'from-blue-600/20 to-indigo-600/20',
+  claude: 'from-orange-600/20 to-amber-600/20',
+  grok: 'from-gray-600/20 to-slate-600/20'
 } as const;
 
 const personaGlowColors = {
   default: 'rgba(139,0,255,0.7)',
   girlie: 'rgba(199,21,133,0.7)',
-  pro: 'rgba(34,211,238,0.7)'
+  pro: 'rgba(34,211,238,0.7)',
+  chatgpt: 'rgba(34,197,94,0.7)',
+  gemini: 'rgba(37,99,235,0.7)',
+  claude: 'rgba(234,88,12,0.7)',
+  grok: 'rgba(107,114,128,0.7)'
 } as const;
 
 export function MentionCall({ isVisible, onSelect, currentPersona }: MentionCallProps) {
+  // Only show external AI models in mention dropdown
+  const externalAIs = ['chatgpt', 'gemini', 'claude', 'grok'];
   const availablePersonas = Object.entries(AI_PERSONAS)
-    .filter(([key]) => key !== currentPersona)
+    .filter(([key]) => externalAIs.includes(key))
     .map(([key, persona]) => ({
       key,
       command: `@${key}`,
