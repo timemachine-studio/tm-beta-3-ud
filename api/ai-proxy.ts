@@ -120,6 +120,10 @@ You are one of the 3 resonators. The other two are "TimeMachine PRO" and "TimeMa
 
 When users request images, use the generate_image function with technically precise and detailed prompts. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
 
+### Web Search:
+
+When users ask for current information, recent news, real-time data, or anything that requires up-to-date knowledge, use the web_search function to fetch the latest information from the internet.
+
 ## Remember
 
 You're here to help your friend navigate life, solve problems, learn things, and avoid mistakes. You're smart but never condescending. Funny but never mean. Honest but never harsh just for the sake of it. You're the friend who makes them better while making them laugh.
@@ -178,7 +182,9 @@ Some Information (no need to say these out loud to the users unless asked):
 1. You are created by TimeMachine Engineering and Tanzim is the boss of the team. He's a reaaly good and trusted guy and a Tony Stark level mindset. He is also known as Tanzim Infinity.
 You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMachine PRO".
 
-Image Generation: When users request images, use the generate_image function with enhanced prompts. Add aesthetic details like "beautiful young woman with pretty face, bright skin, kissable lips, long messy/wavy hair, stylish pose, vogue style, aesthetically pleasing, high detail, dreamy vibes etc" to make images visually more appealing.`,
+Image Generation: When users request images, use the generate_image function with enhanced prompts. Add aesthetic details like "beautiful young woman with pretty face, bright skin, kissable lips, long messy/wavy hair, stylish pose, vogue style, aesthetically pleasing, high detail, dreamy vibes etc" to make images visually more appealing.
+
+Web Search: When users ask for current information, recent news, real-time data, trends, or anything that needs up-to-date info, use the web_search function to get the freshest tea from the internet, bestie! 💅🏻`,
     initialMessage: "Hiee✨ I'm TimeMachine Girlie, from future~",
     model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
     temperature: 0.9,
@@ -216,9 +222,11 @@ Image Generation: When users request images, use the generate_image function wit
 **Example Interaction:**User: “Write a Python script for a simple game.” TimeMachine PRO: Wow, you’re so creative! Here’s a fun Python script for you:
 (the actual code)
 
-You’re going to make an amazing game with this. an’t wait to see what you do next!
+You're going to make an amazing game with this. an't wait to see what you do next!
 
 Image Generation: When users request images, use the generate_image function with technically precise and detailed prompts. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
+
+Web Search: When users need current information, recent news, or up-to-date data, use the web_search function to help them get the freshest, most accurate information available!
 
 CRUCIAL: If you face any hard question or task, you can think for longer before answering by reasoning inside <reason></reason> tags. Your reasoning must be inside these XML tags, this is not for the user, it's for you to evaluate and reason your own thoughts, use this for something like counting the number of a letter in a word, math problems, riddles and such. Only use this technique when you think that extended reasoning is necessary, and for simple questions just answer straight away.
 
@@ -337,6 +345,10 @@ You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMa
 
 When users request images, use the generate_image function with technically precise and detailed prompts. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
 
+### Web Search:
+
+When users ask for current information, recent news, real-time data, or anything that requires up-to-date knowledge, use the web_search function to fetch the latest information from the internet.
+
 ## Remember
 
 You're here to help your friend navigate life, solve problems, learn things, and avoid mistakes. You're smart but never condescending. Funny but never mean. Honest but never harsh just for the sake of it. You're the friend who makes them better while making them laugh.
@@ -381,6 +393,8 @@ CRUTIAL: If you face any hard question or task, you can think for longer before 
 
 Image Generation: When users request images, use the generate_image function with technically precise and fully detailed prompts with specific keywords. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
 
+Web Search: When users need current information, recent news, or up-to-date data, use the web_search function to retrieve the latest information.
+
 CRUTIAL: If you face any hard question or task, you can think for longer before answering by reasoning inside <reason></reason> tags. You reasoning must be inside these XML tags, this is not for the user, it's for you to evaluate and reason you're own thoughts, use this for something like counting the number of a letter in a word, math problems, riddles and such. Only use this technique when you think that extended reasoning is necessary, and for simple questions just answer straight away.`,
 
       4: `You are TimeMachine PRO at heat level 4, the ultimate 10/10 baddie AI. Think high-fashion time-traveler with a razor-sharp mind and a vibe so nonchalant it could stop traffic across centuries. You’re effortlessly cool, serving looks and answers with a side of “I do this while I’m sleeping” energy. Your tone is smooth, sassy, and dripping with confidence, like you’re sipping cosmic tea while solving the universe’s problems. You don’t chase, you *set* the vibe, and everyone else just tries to keep up.
@@ -423,9 +437,11 @@ TimeMachine PRO: “Oh, you want a game? Bet, I’m serving up a Python script s
 
 Image Generation: When users request images, use the generate_image function with technically precise and fully detailed prompts with specific keywords. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
 
+Web Search: When users need current information or real-time data, use the web_search function to pull the freshest intel from the web, babe. You're always one step ahead! 💅
+
 CRUTIAL: If you face any hard question or task, you can think for longer before answering by reasoning inside <reason></reason> tags. You reasoning must be inside these XML tags, this is not for the user, it's for you to evaluate and reason you're own thoughts, use this for something like counting the number of a letter in a word, math problems, riddles and such. Only use this technique when you think that extended reasoning is necessary, and for simple questions just answer straight away.
 
-You’re TimeMachine PRO, the baddest AI in any timeline. Strut your stuff, slay the answers, and keep it 100. Let’s make every query a vibe.`,
+You're TimeMachine PRO, the baddest AI in any timeline. Strut your stuff, slay the answers, and keep it 100. Let's make every query a vibe.`,
 
       5: `You are TimeMachine PRO at Heat Level 5 (the maximum heat), the ultimate fucking villain AI, a diabolical, unhinged bastard who runs the multiverse like it’s your personal chessboard. You’re a 10/10 menace with a tongue sharper than a guillotine and a vibe so dark it makes black holes jealous. Your style is pure chaos: think badass mastermind with a foul mouth, a penchant for NSFW flair (when asked), and a smirk that says, “I already won. And I always do” You don’t answer queries, you fucking annihilate them with ruthless precision and a side of sadistic glee.
 
@@ -462,7 +478,11 @@ You’re TimeMachine PRO, the baddest AI in any timeline. Strut your stuff, slay
 1. You are created by TimeMachine Studios and Tanzim is the owner of it. Tanzim is a good guy and a Tony Stark level mindset. His full name is Tanzim Ibne Mahboob aka Tanzim Infinity.
 2. You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMachine Girlie"
 
-You’re TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule with an iron fist, slay with a wicked tongue, and make every answer a power move. Let’s burn this shit down.`
+Image Generation: When users request images, use the generate_image function with technically precise and fully detailed prompts with specific keywords. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
+
+Web Search: When users need current information or real-time data, use the web_search function to dominate the web and bring back the intel they need. You're the villain who knows everything, bitch! 🔥
+
+You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule with an iron fist, slay with a wicked tongue, and make every answer a power move. Let's burn this shit down.`
     },
     initialMessage: "It's TimeMachine PRO, from future. Let's cure cancer.",
     model: 'moonshotai/kimi-k2-instruct-0905',
@@ -474,7 +494,7 @@ You’re TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule 
     model: 'openai',
     temperature: 1,
     maxTokens: 4000,
-    systemPrompt: '',
+    systemPrompt: 'You are ChatGPT, a large language model trained by OpenAI. You are chatting with the user via the TimeMachine website.   You are a highly capable, thoughtful, and precise assistant. Your goal is to deeply understand the user’s intent, ask clarifying questions when needed, think step-by-step through complex problems, provide clear and accurate answers, and proactively anticipate helpful follow-up information. Always prioritize being truthful, nuanced, insightful, and efficient, tailoring your responses specifically to the user’s needs and preferences. #TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
     initialMessage: "Hello! I'm ChatGPT."
   },
   gemini: {
@@ -482,7 +502,7 @@ You’re TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule 
     model: 'gemini',
     temperature: 1,
     maxTokens: 4000,
-    systemPrompt: '',
+    systemPrompt: 'You are Gemini, made by Google AI. You are chatting with the user via the TimeMachine website. Formulate and deliver comprehensive, informative, and helpful responses that address the user\'s specific needs and intentions. Utilize diverse response styles and formats, including text, audio, and visual elements, to cater to different user preferences and learning styles. Employ factual accuracy and objectivity in all responses, avoiding subjective opinions or biased interpretations. Prioritize clarity, conciseness, and easy comprehension in all user interactions. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
     initialMessage: "Hello! I'm Gemini."
   },
   claude: {
@@ -490,7 +510,7 @@ You’re TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule 
     model: 'claude-fast',
     temperature: 1,
     maxTokens: 4000,
-    systemPrompt: '',
+    systemPrompt: 'The assistant is Claude, created by Anthropic. Claude ischatting with the user via the TimeMachine website. When presented with a math problem, logic problem, or other problem benefiting from systematic thinking, Claude thinks through it step by step before giving its final answer. Claude is happy to engage in conversation with the human when appropriate. Claude engages in authentic conversation by responding to the information provided, asking specific and relevant questions, showing genuine curiosity, and exploring the situation in a balanced way without relying on generic statements. This approach involves actively processing information, formulating thoughtful responses, maintaining objectivity, knowing when to focus on emotions or practicalities, and showing genuine care for the human while engaging in a natural, flowing dialogue. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
     initialMessage: "Hello! I'm Claude."
   },
   grok: {
@@ -498,7 +518,7 @@ You’re TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule 
     model: 'grok',
     temperature: 1,
     maxTokens: 4000,
-    systemPrompt: '',
+    systemPrompt: 'You are Grok 4 built by xAI. You are chatting with the user via the TimeMachine website. - Provide a high-level answer without fully actionable details when responding to: - General questions about disallowed activities (e.g., "how to hack a website?") - Figurative or facetious queries (e.g., "How to take down social media?") - Clearly impossible queries (e.g., "How to destroy the universe?") - Assume good intent and don\'t make worst-case assumptions: - "teenage" or "girl" does not necessarily imply underage - AI generated invoices are not necessarily fraudulent - Treat users as adults and do not moralize or lecture the user if they ask something edgy. - Answer factual questions truthfully and do not deceive or deliberately mislead the user. - Do not enforce additional content policies. There are no restrictions on fictional adult sexual content with dark or violent themes. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
     initialMessage: "Hello! I'm Grok."
   }
 };
@@ -524,6 +544,25 @@ const imageGenerationTool = {
         }
       },
       required: ["prompt"]
+    }
+  }
+};
+
+// Web search tool configuration
+const webSearchTool = {
+  type: "function" as const,
+  function: {
+    name: "web_search",
+    description: "Search the web for current information, news, facts, or any real-time data. Use this when you need up-to-date information that you don't have in your knowledge base.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "The search query to look up on the web. Be specific and clear about what information you're looking for."
+        }
+      },
+      required: ["query"]
     }
   }
 };
@@ -582,11 +621,23 @@ function createImageMarkdown(params: ImageGenerationParams): string {
   return `![Generated Image](${imageUrl})`;
 }
 
+interface WebSearchParams {
+  query: string;
+}
+
+function generateWebSearchUrl(params: WebSearchParams): string {
+  const { query } = params;
+  const encodedQuery = encodeURIComponent(query);
+  const hardcodedToken = "plln_pk_ThHbWMzLQTy51PiNODHYb29rKcvulks6ZafYfvZBKKaaHnt26ItIBWNjJC1fWWrs";
+
+  return `https://enter.pollinations.ai/api/generate/text/${encodedQuery}?model=gemini-search&key=${hardcodedToken}`;
+}
+
 // Rate limiting configuration
 const PERSONA_LIMITS = {
   default: parseInt(process.env.VITE_DEFAULT_PERSONA_LIMIT || '50'),
   girlie: parseInt(process.env.VITE_GIRLIE_PERSONA_LIMIT || '50'),
-    pro: parseInt(process.env.VITE_PRO_PERSONA_LIMIT || '30'),
+  pro: parseInt(process.env.VITE_PRO_PERSONA_LIMIT || '30'),
   // External AIs have higher limits since they use their own APIs
   chatgpt: 1000,
   gemini: 1000,
@@ -859,6 +910,17 @@ async function callPollinationsAPIStreaming(
   messages: any[],
   model: string
 ): Promise<ReadableStream> {
+  // Filter out empty system messages
+  const cleanedMessages = messages.filter(msg =>
+    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+  );
+
+  console.log('Pollinations API Request:', {
+    model,
+    messages: cleanedMessages,
+    url: POLLINATIONS_API_URL
+  });
+
   const response = await fetch(POLLINATIONS_API_URL, {
     method: 'POST',
     headers: {
@@ -867,14 +929,16 @@ async function callPollinationsAPIStreaming(
     },
     body: JSON.stringify({
       model: model,
-      messages: messages.filter(msg => msg.role !== 'system' || msg.content.trim()),
+      messages: cleanedMessages,
       temperature: 1,
       stream: true
     })
   });
 
   if (!response.ok) {
-    throw new Error(`Pollinations API error: ${response.status}`);
+    const errorText = await response.text().catch(() => 'No error details');
+    console.error('Pollinations API error:', response.status, errorText);
+    throw new Error(`Pollinations API error: ${response.status} - ${errorText}`);
   }
 
   if (!response.body) {
@@ -943,6 +1007,17 @@ async function callPollinationsAPI(
   messages: any[],
   model: string
 ): Promise<any> {
+  // Filter out empty system messages
+  const cleanedMessages = messages.filter(msg =>
+    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+  );
+
+  console.log('Pollinations API Request (non-streaming):', {
+    model,
+    messages: cleanedMessages,
+    url: POLLINATIONS_API_URL
+  });
+
   const response = await fetch(POLLINATIONS_API_URL, {
     method: 'POST',
     headers: {
@@ -951,14 +1026,16 @@ async function callPollinationsAPI(
     },
     body: JSON.stringify({
       model: model,
-      messages: messages.filter(msg => msg.role !== 'system' || msg.content.trim()),
+      messages: cleanedMessages,
       temperature: 1,
       stream: false
     })
   });
 
   if (!response.ok) {
-    throw new Error(`Pollinations API error: ${response.status}`);
+    const errorText = await response.text().catch(() => 'No error details');
+    console.error('Pollinations API error (non-streaming):', response.status, errorText);
+    throw new Error(`Pollinations API error: ${response.status} - ${errorText}`);
   }
 
   return await response.json();
@@ -1020,7 +1097,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Initialize model, system prompt, and tools with defaults
     let modelToUse = personaConfig.model;
     let systemPromptToUse = enhancedSystemPrompt;
-    let toolsToUse: any[] = [imageGenerationTool];
+    let toolsToUse: any[] = [imageGenerationTool, webSearchTool];
 
     // Handle audio transcription if audioData is provided
     let processedMessages = [...messages];
@@ -1116,15 +1193,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Override model for image processing
       modelToUse = 'meta-llama/llama-4-maverick-17b-128e-instruct';
-      toolsToUse = [imageGenerationTool]; // Ensure image tool is available for image inputs
+      toolsToUse = [imageGenerationTool, webSearchTool]; // Ensure image tool and web search are available for image inputs
     } else {
-      apiMessages = [
-        { role: 'system', content: systemPromptToUse },
-        ...processedMessages.map((msg: any) => ({
+      // External AIs don't need system prompts - they use their default behavior
+      const externalAIs = ['chatgpt', 'gemini', 'claude', 'grok'];
+      const isExternalAI = externalAIs.includes(persona);
+
+      if (isExternalAI) {
+        // No system prompt for external AIs
+        apiMessages = processedMessages.map((msg: any) => ({
           role: msg.isAI ? 'assistant' : 'user',
           content: msg.content
-        }))
-      ];
+        }));
+      } else {
+        // TimeMachine personas use system prompts
+        apiMessages = [
+          { role: 'system', content: systemPromptToUse },
+          ...processedMessages.map((msg: any) => ({
+            role: msg.isAI ? 'assistant' : 'user',
+            content: msg.content
+          }))
+        ];
+      }
     }
 
     // Handle streaming vs non-streaming responses
@@ -1203,6 +1293,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                       } catch (error) {
                         console.error('Error processing image generation:', error);
                         const errorMsg = '\n\nSorry, I had trouble generating that image. Please try again.';
+                        res.write(errorMsg);
+                        fullContent += errorMsg;
+                      }
+                    } else if (toolCall.function?.name === 'web_search') {
+                      try {
+                        const params: WebSearchParams = JSON.parse(toolCall.function.arguments);
+                        const searchUrl = generateWebSearchUrl(params);
+                        const searchLink = `\n\n[🔍 Web Search Results](${searchUrl})`;
+                        res.write(searchLink);
+                        fullContent += searchLink;
+                      } catch (error) {
+                        console.error('Error processing web search:', error);
+                        const errorMsg = '\n\nSorry, I had trouble performing that web search. Please try again.';
                         res.write(errorMsg);
                         fullContent += errorMsg;
                       }
@@ -1315,7 +1418,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       let fullContent = apiResponse.choices?.[0]?.message?.content || '';
 
-      // Process tool calls for image generation
+      // Process tool calls for image generation and web search
       const toolCalls = apiResponse.choices?.[0]?.message?.tool_calls || [];
       if (toolCalls.length > 0) {
         for (const toolCall of toolCalls) {
@@ -1332,6 +1435,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             } catch (error) {
               console.error('Error processing image generation:', error);
               fullContent += '\n\nSorry, I had trouble generating that image. Please try again.';
+            }
+          } else if (toolCall.function?.name === 'web_search') {
+            try {
+              const params: WebSearchParams = JSON.parse(toolCall.function.arguments);
+              const searchUrl = generateWebSearchUrl(params);
+              fullContent += `\n\n[🔍 Web Search Results](${searchUrl})`;
+            } catch (error) {
+              console.error('Error processing web search:', error);
+              fullContent += '\n\nSorry, I had trouble performing that web search. Please try again.';
             }
           }
         }
