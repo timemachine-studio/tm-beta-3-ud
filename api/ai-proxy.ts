@@ -625,12 +625,24 @@ interface WebSearchParams {
   query: string;
 }
 
-function generateWebSearchUrl(params: WebSearchParams): string {
+async function fetchWebSearchResults(params: WebSearchParams): Promise<string> {
   const { query } = params;
   const encodedQuery = encodeURIComponent(query);
   const hardcodedToken = "plln_pk_ThHbWMzLQTy51PiNODHYb29rKcvulks6ZafYfvZBKKaaHnt26ItIBWNjJC1fWWrs";
 
-  return `https://enter.pollinations.ai/api/generate/text/${encodedQuery}?model=gemini-search&key=${hardcodedToken}`;
+  const url = `https://enter.pollinations.ai/api/generate/text/${encodedQuery}?model=gemini-search&key=${hardcodedToken}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Web search failed: ${response.status}`);
+    }
+    const text = await response.text();
+    return text;
+  } catch (error) {
+    console.error('Web search error:', error);
+    throw error;
+  }
 }
 
 // Rate limiting configuration
@@ -1299,10 +1311,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     } else if (toolCall.function?.name === 'web_search') {
                       try {
                         const params: WebSearchParams = JSON.parse(toolCall.function.arguments);
-                        const searchUrl = generateWebSearchUrl(params);
-                        const searchLink = `\n\n[🔍 Web Search Results](${searchUrl})`;
-                        res.write(searchLink);
-                        fullContent += searchLink;
+
+                        // Show loading state
+                        const loadingMsg = '\n\n*Searching the web...*';
+                        res.write(loadingMsg);
+
+                        // Fetch actual search results
+                        const searchResults = await fetchWebSearchResults(params);
+
+                        // Clear loading message and show results
+                        const resultsMsg = `\n\n${searchResults}`;
+                        res.write(resultsMsg);
+                        fullContent += resultsMsg;
                       } catch (error) {
                         console.error('Error processing web search:', error);
                         const errorMsg = '\n\nSorry, I had trouble performing that web search. Please try again.';
@@ -1439,8 +1459,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           } else if (toolCall.function?.name === 'web_search') {
             try {
               const params: WebSearchParams = JSON.parse(toolCall.function.arguments);
-              const searchUrl = generateWebSearchUrl(params);
-              fullContent += `\n\n[🔍 Web Search Results](${searchUrl})`;
+
+              // Fetch actual search results
+              const searchResults = await fetchWebSearchResults(params);
+              fullContent += `\n\n${searchResults}`;
             } catch (error) {
               console.error('Error processing web search:', error);
               fullContent += '\n\nSorry, I had trouble performing that web search. Please try again.';
