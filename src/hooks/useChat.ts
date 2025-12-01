@@ -253,11 +253,25 @@ export function useChat() {
 
     // If external AI is mentioned, use external AI service
     if (externalAI) {
+      // Filter out initial message (index 0) for external AI to save tokens
+      const contextMessages = messages.length > 1 ? messages.slice(1) : [];
+      const messagesToSend = [...contextMessages, userMessage];
+
+      const aiMessageWithModel: typeof aiMessage = {
+        ...aiMessage,
+        aiModel: externalAI
+      };
+
+      // Update the message with aiModel
+      setMessages(prev =>
+        prev.map(msg => msg.id === aiMessageId ? aiMessageWithModel : msg)
+      );
+
       if (useStreaming) {
         let accumulatedContent = '';
         generateExternalAIResponseStreaming(
           externalAI,
-          [...messages, userMessage],
+          messagesToSend,
           // onChunk callback
           (chunk: string) => {
             accumulatedContent += chunk;
@@ -278,7 +292,7 @@ export function useChat() {
         );
       } else {
         try {
-          const aiResponse = await generateExternalAIResponse(externalAI, [...messages, userMessage]);
+          const aiResponse = await generateExternalAIResponse(externalAI, messagesToSend);
           completeStreamingMessage(aiMessageId, aiResponse.content);
         } catch (error) {
           console.error('Failed to generate external AI response:', error);

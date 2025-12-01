@@ -11,30 +11,32 @@ interface ChatMessageProps extends Message {
   previousMessage?: string | null;
   isStreaming?: boolean;
   streamingMessageId?: number | null;
+  aiModel?: 'chatgpt' | 'gemini' | 'claude' | 'grok';
 }
 
-export function ChatMessage({ 
-  content, 
-  thinking, 
-  isAI, 
-  isChatMode, 
-  id, 
-  hasAnimated, 
-  onAnimationComplete, 
+export function ChatMessage({
+  content,
+  thinking,
+  isAI,
+  isChatMode,
+  id,
+  hasAnimated,
+  onAnimationComplete,
   currentPersona,
   previousMessage,
   imageData,
   audioData,
   audioUrl,
   isStreaming,
-  streamingMessageId
+  streamingMessageId,
+  aiModel
 }: ChatMessageProps) {
   if (isAI) {
     return (
-      <AIMessage 
-        content={content} 
+      <AIMessage
+        content={content}
         thinking={thinking}
-        isChatMode={isChatMode} 
+        isChatMode={isChatMode}
         messageId={id}
         hasAnimated={hasAnimated}
         onAnimationComplete={onAnimationComplete}
@@ -43,6 +45,7 @@ export function ChatMessage({
         isStreaming={isStreaming}
         audioUrl={audioUrl}
         isStreamingActive={streamingMessageId === id}
+        aiModel={aiModel}
       />
     );
   }

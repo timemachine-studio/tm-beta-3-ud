@@ -11,20 +11,20 @@ interface ExternalAIConfig {
 
 const AI_CONFIGS: Record<ExternalAIModel, ExternalAIConfig> = {
   chatgpt: {
-    baseUrl: 'https://text.pollinations.ai/openai',
-    model: 'openai'
+    baseUrl: 'https://text.pollinations.ai',
+    model: 'openai-gpt-4o'
   },
   gemini: {
-    baseUrl: 'https://text.pollinations.ai/openai',
-    model: 'gemini'
+    baseUrl: 'https://text.pollinations.ai',
+    model: 'google-gemini-2.0-flash'
   },
   claude: {
-    baseUrl: 'https://text.pollinations.ai/openai',
-    model: 'claude-fast'
+    baseUrl: 'https://text.pollinations.ai',
+    model: 'anthropic-claude-3.5-sonnet'
   },
   grok: {
-    baseUrl: 'https://text.pollinations.ai/openai',
-    model: 'grok'
+    baseUrl: 'https://text.pollinations.ai',
+    model: 'xai-grok-beta'
   }
 };
 
@@ -48,7 +48,7 @@ export async function generateExternalAIResponse(
     const config = AI_CONFIGS[model];
     const openAIMessages = convertMessagesToOpenAIFormat(messages);
 
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
+    const response = await fetch(`${config.baseUrl}/openai/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -94,7 +94,7 @@ export async function generateExternalAIResponseStreaming(
     const config = AI_CONFIGS[model];
     const openAIMessages = convertMessagesToOpenAIFormat(messages);
 
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
+    const response = await fetch(`${config.baseUrl}/openai/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

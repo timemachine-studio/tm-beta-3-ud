@@ -21,7 +21,53 @@ interface AIMessageProps extends MessageProps {
   isStreaming?: boolean;
   audioUrl?: string;
   isStreamingActive?: boolean;
+  aiModel?: 'chatgpt' | 'gemini' | 'claude' | 'grok';
 }
+
+const getExternalAIColor = (model: 'chatgpt' | 'gemini' | 'claude' | 'grok') => {
+  switch (model) {
+    case 'chatgpt':
+      return 'text-green-400';
+    case 'gemini':
+      return 'text-blue-400';
+    case 'claude':
+      return 'text-orange-400';
+    case 'grok':
+      return 'text-purple-400';
+    default:
+      return 'text-white';
+  }
+};
+
+const getExternalAIName = (model: 'chatgpt' | 'gemini' | 'claude' | 'grok') => {
+  switch (model) {
+    case 'chatgpt':
+      return 'ChatGPT';
+    case 'gemini':
+      return 'Gemini';
+    case 'claude':
+      return 'Claude';
+    case 'grok':
+      return 'Grok';
+    default:
+      return 'AI';
+  }
+};
+
+const getExternalAIShimmerColors = (model: 'chatgpt' | 'gemini' | 'claude' | 'grok') => {
+  switch (model) {
+    case 'chatgpt':
+      return { baseColor: '#22c55e', shimmerColor: '#ffffff' };
+    case 'gemini':
+      return { baseColor: '#3b82f6', shimmerColor: '#ffffff' };
+    case 'claude':
+      return { baseColor: '#f97316', shimmerColor: '#ffffff' };
+    case 'grok':
+      return { baseColor: '#a855f7', shimmerColor: '#ffffff' };
+    default:
+      return { baseColor: '#ffffff', shimmerColor: '#ffffff' };
+  }
+};
 
 const getPersonaColor = (persona: keyof typeof AI_PERSONAS = 'default') => {
   switch (persona) {
@@ -37,11 +83,11 @@ const getPersonaColor = (persona: keyof typeof AI_PERSONAS = 'default') => {
 const getPersonaShimmerColors = (persona: keyof typeof AI_PERSONAS = 'default') => {
   switch (persona) {
     case 'girlie':
-      return { baseColor: '#ec4899', shimmerColor: '#ffffff' }; // Pink base with white shimmer
+      return { baseColor: '#ec4899', shimmerColor: '#ffffff' };
     case 'pro':
-      return { baseColor: '#06b6d4', shimmerColor: '#ffffff' }; // Cyan base with white shimmer
+      return { baseColor: '#06b6d4', shimmerColor: '#ffffff' };
     default:
-      return { baseColor: '#a855f7', shimmerColor: '#ffffff' }; // Purple base with white shimmer
+      return { baseColor: '#a855f7', shimmerColor: '#ffffff' };
   }
 };
 
@@ -51,26 +97,49 @@ const extractMentionedPersona = (message: string | null): keyof typeof AI_PERSON
   return match ? match[1] as keyof typeof AI_PERSONAS : null;
 };
 
-export function AIMessage({ 
-  content, 
+const extractMentionedAI = (message: string | null): 'chatgpt' | 'gemini' | 'claude' | 'grok' | null => {
+  if (!message) return null;
+  const match = message.match(/^@(chatgpt|gemini|claude|grok)\s/i);
+  return match ? match[1].toLowerCase() as 'chatgpt' | 'gemini' | 'claude' | 'grok' : null;
+};
+
+export function AIMessage({
+  content,
   thinking: reasoning,
-  isChatMode, 
-  messageId, 
-  hasAnimated, 
-  onAnimationComplete, 
+  isChatMode,
+  messageId,
+  hasAnimated,
+  onAnimationComplete,
   currentPersona = 'default',
   previousMessage = null,
   isStreaming = false,
   audioUrl,
-  isStreamingActive = false
+  isStreamingActive = false,
+  aiModel
 }: AIMessageProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+
+  const mentionedAI = extractMentionedAI(previousMessage);
+  const displayAI = aiModel || mentionedAI;
   const mentionedPersona = extractMentionedPersona(previousMessage);
   const displayPersona = mentionedPersona || currentPersona;
-  const personaColor = getPersonaColor(displayPersona);
-  const shimmerColors = getPersonaShimmerColors(displayPersona);
+
+  let personaColor: string;
+  let shimmerColors: { baseColor: string; shimmerColor: string };
+  let displayName: string;
+
+  if (displayAI) {
+    personaColor = getExternalAIColor(displayAI);
+    shimmerColors = getExternalAIShimmerColors(displayAI);
+    displayName = getExternalAIName(displayAI);
+  } else {
+    personaColor = getPersonaColor(displayPersona);
+    shimmerColors = getPersonaShimmerColors(displayPersona);
+    displayName = AI_PERSONAS[displayPersona].name;
+  }
+
   const contentEndRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
 
@@ -295,7 +364,7 @@ export function AIMessage({
         <div className="w-full max-w-2xl mx-auto my-4">
           <div className="flex flex-col gap-1">
             <div className={`text-xs font-medium ${personaColor} opacity-60`}>
-              {AI_PERSONAS[displayPersona].name}
+              {displayName}
             </div>
             <AudioPlayerBubble
               audioSrc={audioUrl}
@@ -312,7 +381,7 @@ export function AIMessage({
           {isChatMode ? (
             <div className="flex flex-col gap-1">
               <div className={`text-xs font-medium ${personaColor} opacity-60`}>
-                {AI_PERSONAS[displayPersona].name}
+                {displayName}
                 {isStreamingActive && (
                   <span className="ml-2 inline-flex items-center">
                     <motion.div
