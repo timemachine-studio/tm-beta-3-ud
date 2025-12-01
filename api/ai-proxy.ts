@@ -479,7 +479,7 @@ You’re TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule 
   },
   gemini: {
     name: 'Gemini',
-    model: 'google',
+    model: 'gemini',
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: '',
@@ -487,7 +487,7 @@ You’re TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule 
   },
   claude: {
     name: 'Claude',
-    model: 'anthropic',
+    model: 'claude-fast',
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: '',
@@ -495,7 +495,7 @@ You’re TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule 
   },
   grok: {
     name: 'Grok',
-    model: 'xai',
+    model: 'grok',
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: '',
