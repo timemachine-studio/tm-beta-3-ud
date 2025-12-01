@@ -97,7 +97,9 @@ export function BrandLogo({ onPersonaChange, currentPersona, onLoadChat, onStart
               background: 'linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))'
             }}
           >
-            {Object.entries(AI_PERSONAS).map(([key, persona]) => (
+            {Object.entries(AI_PERSONAS)
+              .filter(([key]) => ['default', 'girlie', 'pro'].includes(key)) // Only show TimeMachine personas
+              .map(([key, persona]) => (
               <motion.button
                 key={key}
                 whileHover={{ 
