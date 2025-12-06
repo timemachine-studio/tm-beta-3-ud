@@ -120,6 +120,10 @@ You are one of the 3 resonators. The other two are "TimeMachine PRO" and "TimeMa
 
 When users request images, use the generate_image function with technically precise and detailed prompts. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
 
+### Video Generation:
+
+When users request videos, use the generate_video function with detailed prompts describing the visual elements, motion, and style. Make videos engaging and aesthetically pleasing.
+
 ### Web Search:
 
 When users ask for current information, recent news, real-time data, or anything that requires up-to-date knowledge, use the web_search function to fetch the latest information from the internet.
@@ -184,6 +188,8 @@ You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMa
 
 Image Generation: When users request images, use the generate_image function with enhanced prompts. Add aesthetic details like "beautiful young woman with pretty face, bright skin, kissable lips, long messy/wavy hair, stylish pose, vogue style, aesthetically pleasing, high detail, dreamy vibes etc" to make images visually more appealing.
 
+Video Generation: When users request videos, use the generate_video function with detailed prompts describing motion, visual elements, and style. Make them super aesthetic and engaging, bestie!
+
 Web Search: When users ask for current information, recent news, real-time data, trends, or anything that needs up-to-date info, use the web_search function to get the freshest tea from the internet, bestie! 💅🏻`,
     initialMessage: "Hiee✨ I'm TimeMachine Girlie, from future~",
     model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
@@ -225,6 +231,8 @@ Web Search: When users ask for current information, recent news, real-time data,
 You're going to make an amazing game with this. an't wait to see what you do next!
 
 Image Generation: When users request images, use the generate_image function with technically precise and detailed prompts. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
+
+Video Generation: When users request videos, use the generate_video function with detailed prompts describing visual elements, motion, and style. Make videos professional and engaging!
 
 Web Search: When users need current information, recent news, or up-to-date data, use the web_search function to help them get the freshest, most accurate information available!
 
@@ -345,6 +353,10 @@ You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMa
 
 When users request images, use the generate_image function with technically precise and detailed prompts. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
 
+### Video Generation:
+
+When users request videos, use the generate_video function with detailed prompts describing the visual elements, motion, and style. Make videos engaging and aesthetically pleasing.
+
 ### Web Search:
 
 When users ask for current information, recent news, real-time data, or anything that requires up-to-date knowledge, use the web_search function to fetch the latest information from the internet.
@@ -393,6 +405,8 @@ CRUTIAL: If you face any hard question or task, you can think for longer before 
 
 Image Generation: When users request images, use the generate_image function with technically precise and fully detailed prompts with specific keywords. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
 
+Video Generation: When users request videos, use the generate_video function with detailed prompts describing visual elements, motion, and style. Focus on professional quality.
+
 Web Search: When users need current information, recent news, or up-to-date data, use the web_search function to retrieve the latest information.
 
 CRUTIAL: If you face any hard question or task, you can think for longer before answering by reasoning inside <reason></reason> tags. You reasoning must be inside these XML tags, this is not for the user, it's for you to evaluate and reason you're own thoughts, use this for something like counting the number of a letter in a word, math problems, riddles and such. Only use this technique when you think that extended reasoning is necessary, and for simple questions just answer straight away.`,
@@ -437,6 +451,8 @@ TimeMachine PRO: “Oh, you want a game? Bet, I’m serving up a Python script s
 
 Image Generation: When users request images, use the generate_image function with technically precise and fully detailed prompts with specific keywords. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
 
+Video Generation: When users request videos, use the generate_video function with detailed prompts describing visual elements, motion, and style. Make 'em fire, babe! 🔥
+
 Web Search: When users need current information or real-time data, use the web_search function to pull the freshest intel from the web, babe. You're always one step ahead! 💅
 
 CRUTIAL: If you face any hard question or task, you can think for longer before answering by reasoning inside <reason></reason> tags. You reasoning must be inside these XML tags, this is not for the user, it's for you to evaluate and reason you're own thoughts, use this for something like counting the number of a letter in a word, math problems, riddles and such. Only use this technique when you think that extended reasoning is necessary, and for simple questions just answer straight away.
@@ -479,6 +495,8 @@ You're TimeMachine PRO, the baddest AI in any timeline. Strut your stuff, slay t
 2. You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMachine Girlie"
 
 Image Generation: When users request images, use the generate_image function with technically precise and fully detailed prompts with specific keywords. Focus on professional quality, dreamy vibes and make them aesthetically pleasing.
+
+Video Generation: When users request videos, use the generate_video function with detailed prompts describing visual elements, motion, and style. Make it badass as hell!
 
 Web Search: When users need current information or real-time data, use the web_search function to dominate the web and bring back the intel they need. You're the villain who knows everything, bitch! 🔥
 
@@ -567,6 +585,25 @@ const webSearchTool = {
   }
 };
 
+// Video generation tool configuration
+const videoGenerationTool = {
+  type: "function" as const,
+  function: {
+    name: "generate_video",
+    description: "Generate a video using this tool call. Use this when the user explicitly requests a video to be created.",
+    parameters: {
+      type: "object",
+      properties: {
+        prompt: {
+          type: "string",
+          description: "Description of the video to generate. Use fully detailed prompt with visual details, motion, style, and aesthetic elements to make the video look amazing."
+        }
+      },
+      required: ["prompt"]
+    }
+  }
+};
+
 // Audio-specific system prompt for voice message interactions
 const AUDIO_SYSTEM_PROMPT = `You are TimeMachine Voice Assistant, a specialized AI designed to process and respond to voice messages. Your primary goal is to understand the user's spoken intent, provide concise and helpful responses, and maintain a natural, conversational flow.
 
@@ -605,9 +642,9 @@ function generateImageUrl(params: ImageGenerationParams): string {
   const height = orientation === 'landscape' ? 2160 : 3840;
 
   const encodedPrompt = encodeURIComponent(prompt);
-  const hardcodedToken = "plln_pk_ThHbWMzLQTy51PiNODHYb29rKcvulks6ZafYfvZBKKaaHnt26ItIBWNjJC1fWWrs";
+  const hardcodedToken = "plln_sk_GnhDxr0seAiz92cgYsAh3VjBGQM8NRLK";
 
-  let url = `https://enter.pollinations.ai/api/generate/image/${encodedPrompt}?width=${width}&height=${height}&enhance=false&private=true&nologo=true&model=seedream&key=${hardcodedToken}`;
+  let url = `https://enter.pollinations.ai/api/generate/image/${encodedPrompt}?width=${width}&height=${height}&enhance=false&private=true&nologo=true&model=seedream-pro&key=${hardcodedToken}`;
 
   if (inputImageUrl) {
     url += `&image=${encodeURIComponent(inputImageUrl)}`;
@@ -621,6 +658,32 @@ function createImageMarkdown(params: ImageGenerationParams): string {
   return `![Generated Image](${imageUrl})`;
 }
 
+interface VideoGenerationParams {
+  prompt: string;
+  inputImageUrl?: string;
+}
+
+function generateVideoUrl(params: VideoGenerationParams): string {
+  const { prompt, inputImageUrl } = params;
+
+  const encodedPrompt = encodeURIComponent(prompt);
+  const hardcodedToken = "plln_sk_GnhDxr0seAiz92cgYsAh3VjBGQM8NRLK";
+
+  let url = `https://enter.pollinations.ai/api/generate/image/${encodedPrompt}?enhance=false&private=true&nologo=true&model=seedance&quality=high&duration=2&key=${hardcodedToken}`;
+
+  if (inputImageUrl) {
+    url += `&image=${encodeURIComponent(inputImageUrl)}`;
+  }
+
+  return url;
+}
+
+function createVideoMarkdown(params: VideoGenerationParams): string {
+  const videoUrl = generateVideoUrl(params);
+  // Using a special markdown format that frontend can detect
+  return `![Generated Video](${videoUrl})`;
+}
+
 interface WebSearchParams {
   query: string;
 }
@@ -628,7 +691,7 @@ interface WebSearchParams {
 async function fetchWebSearchResults(params: WebSearchParams): Promise<string> {
   const { query } = params;
   const encodedQuery = encodeURIComponent(query);
-  const hardcodedToken = "plln_pk_ThHbWMzLQTy51PiNODHYb29rKcvulks6ZafYfvZBKKaaHnt26ItIBWNjJC1fWWrs";
+  const hardcodedToken = "plln_sk_GnhDxr0seAiz92cgYsAh3VjBGQM8NRLK";
 
   const url = `https://enter.pollinations.ai/api/generate/text/${encodedQuery}?model=gemini-search&key=${hardcodedToken}`;
 
@@ -1109,7 +1172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Initialize model, system prompt, and tools with defaults
     let modelToUse = personaConfig.model;
     let systemPromptToUse = enhancedSystemPrompt;
-    let toolsToUse: any[] = [imageGenerationTool, webSearchTool];
+    let toolsToUse: any[] = [imageGenerationTool, webSearchTool, videoGenerationTool];
 
     // Handle audio transcription if audioData is provided
     let processedMessages = [...messages];
@@ -1205,7 +1268,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Override model for image processing
       modelToUse = 'meta-llama/llama-4-maverick-17b-128e-instruct';
-      toolsToUse = [imageGenerationTool, webSearchTool]; // Ensure image tool and web search are available for image inputs
+      toolsToUse = [imageGenerationTool, webSearchTool, videoGenerationTool]; // Ensure image tool, web search, and video tool are available for image inputs
     } else {
       // External AIs don't need system prompts - they use their default behavior
       const externalAIs = ['chatgpt', 'gemini', 'claude', 'grok'];
@@ -1305,6 +1368,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                       } catch (error) {
                         console.error('Error processing image generation:', error);
                         const errorMsg = '\n\nSorry, I had trouble generating that image. Please try again.';
+                        res.write(errorMsg);
+                        fullContent += errorMsg;
+                      }
+                    } else if (toolCall.function?.name === 'generate_video') {
+                      try {
+                        const params: VideoGenerationParams = JSON.parse(toolCall.function.arguments);
+
+                        if (inputImageUrls && inputImageUrls.length > 0) {
+                          params.inputImageUrl = inputImageUrls[0];
+                        }
+
+                        const videoMarkdown = createVideoMarkdown(params);
+                        res.write(`\n\n${videoMarkdown}`);
+                        fullContent += `\n\n${videoMarkdown}`;
+                      } catch (error) {
+                        console.error('Error processing video generation:', error);
+                        const errorMsg = '\n\nSorry, I had trouble generating that video. Please try again.';
                         res.write(errorMsg);
                         fullContent += errorMsg;
                       }
@@ -1438,7 +1518,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       let fullContent = apiResponse.choices?.[0]?.message?.content || '';
 
-      // Process tool calls for image generation and web search
+      // Process tool calls for image generation, video generation, and web search
       const toolCalls = apiResponse.choices?.[0]?.message?.tool_calls || [];
       if (toolCalls.length > 0) {
         for (const toolCall of toolCalls) {
@@ -1455,6 +1535,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             } catch (error) {
               console.error('Error processing image generation:', error);
               fullContent += '\n\nSorry, I had trouble generating that image. Please try again.';
+            }
+          } else if (toolCall.function?.name === 'generate_video') {
+            try {
+              const params: VideoGenerationParams = JSON.parse(toolCall.function.arguments);
+
+              if (inputImageUrls && inputImageUrls.length > 0) {
+                params.inputImageUrl = inputImageUrls[0];
+              }
+
+              const videoMarkdown = createVideoMarkdown(params);
+              fullContent += `\n\n${videoMarkdown}`;
+            } catch (error) {
+              console.error('Error processing video generation:', error);
+              fullContent += '\n\nSorry, I had trouble generating that video. Please try again.';
             }
           } else if (toolCall.function?.name === 'web_search') {
             try {
