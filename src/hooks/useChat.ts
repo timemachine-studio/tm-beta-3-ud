@@ -64,8 +64,19 @@ export function useChat() {
       } else {
         // Create new session
         const firstUserMessage = messagesToSave.find(msg => !msg.isAI);
-        const sessionName = firstUserMessage ? firstUserMessage.content.slice(0, 50) : 'New Chat';
-        
+        let sessionName = 'New Chat';
+
+        if (firstUserMessage) {
+          // Use content if available, otherwise check for image or audio
+          if (firstUserMessage.content && firstUserMessage.content.trim()) {
+            sessionName = firstUserMessage.content.slice(0, 50);
+          } else if (firstUserMessage.imageData) {
+            sessionName = 'Image message';
+          } else if (firstUserMessage.audioData) {
+            sessionName = 'Audio message';
+          }
+        }
+
         const newSession: ChatSession = {
           id: sessionId,
           name: sessionName,
@@ -76,7 +87,7 @@ export function useChat() {
         };
         chatSessions.push(newSession);
       }
-      
+
       localStorage.setItem('chatSessions', JSON.stringify(chatSessions));
     } catch (error) {
       console.error('Failed to save chat session:', error);

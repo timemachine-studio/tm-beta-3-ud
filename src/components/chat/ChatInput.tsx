@@ -201,8 +201,8 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length > 3) {
-      alert('You can upload a maximum of 3 images.');
+    if (files.length > 4) {
+      alert('You can upload a maximum of 4 images.');
       return;
     }
     const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -226,8 +226,8 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     if (!isDesktop) return;
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
-    if (files.length > 3) {
-      alert('You can upload a maximum of 3 images.');
+    if (files.length > 4) {
+      alert('You can upload a maximum of 4 images.');
       return;
     }
     const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -295,7 +295,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading || isUploading || selectedImages.length >= 3}
+            disabled={isLoading || isUploading || selectedImages.length >= 4}
             className={`p-3 rounded-full
               bg-gradient-to-r ${personaStyles.borderColors[currentPersona]}
               backdrop-blur-xl ${theme.text}

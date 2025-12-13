@@ -9,7 +9,6 @@ import { AI_PERSONAS } from '../../config/constants';
 import { Brain } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { GeneratedImage } from './GeneratedImage';
-import { GeneratedVideo } from './GeneratedVideo';
 import { AnimatedShinyText } from '../ui/AnimatedShinyText';
 import { AudioPlayerBubble } from './AudioPlayerBubble';
 
@@ -68,13 +67,13 @@ const extractMentionedPersona = (message: string | null): keyof typeof AI_PERSON
   return match ? match[1].toLowerCase() as keyof typeof AI_PERSONAS : null;
 };
 
-export function AIMessage({
-  content,
+export function AIMessage({ 
+  content, 
   thinking: reasoning,
-  isChatMode,
-  messageId,
-  hasAnimated,
-  onAnimationComplete,
+  isChatMode, 
+  messageId, 
+  hasAnimated, 
+  onAnimationComplete, 
   currentPersona = 'default',
   previousMessage = null,
   isStreaming = false,
@@ -83,7 +82,6 @@ export function AIMessage({
 }: AIMessageProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const mentionedPersona = extractMentionedPersona(previousMessage);
   const displayPersona = mentionedPersona || currentPersona;
@@ -148,29 +146,12 @@ export function AIMessage({
     if (content.includes('![Image](https://enter.pollinations.ai/')) {
       const imageRegex = /!\[Image\]\(https:\/\/enter\.pollinations\.ai\/api\/generate\/image\/[^)]+\)/g;
       const matches = content.match(imageRegex);
-
+      
       if (matches) {
         // Complete image markdown found, show generating state briefly
         setIsGeneratingImage(true);
         setTimeout(() => {
           setIsGeneratingImage(false);
-        }, 1500);
-      }
-    }
-  }, [content]);
-
-  // Handle video generation detection
-  useEffect(() => {
-    // Check if we have a complete video link (contains model=seedance)
-    if (content.includes('![Generated Video](https://enter.pollinations.ai/') && content.includes('model=seedance')) {
-      const videoRegex = /!\[Generated Video\]\(https:\/\/enter\.pollinations\.ai\/api\/generate\/image\/[^)]+model=seedance[^)]*\)/g;
-      const matches = content.match(videoRegex);
-
-      if (matches) {
-        // Complete video markdown found, show generating state briefly
-        setIsGeneratingVideo(true);
-        setTimeout(() => {
-          setIsGeneratingVideo(false);
         }, 1500);
       }
     }
@@ -235,21 +216,16 @@ export function AIMessage({
       </pre>
     ),
     img: ({ src, alt }: { src?: string; alt?: string }) => {
-      // Check if this is a Pollinations.ai generated video (contains model=seedance)
-      if (src && src.includes('enter.pollinations.ai') && src.includes('model=seedance')) {
-        return <GeneratedVideo src={src} alt={alt || 'Generated video'} />;
-      }
-
       // Check if this is a Pollinations.ai generated image
       if (src && src.includes('enter.pollinations.ai')) {
         return <GeneratedImage src={src} alt={alt || 'Generated image'} />;
       }
-
+      
       // Fallback to regular image for other sources
       return (
-        <img
-          src={src}
-          alt={alt}
+        <img 
+          src={src} 
+          alt={alt} 
           className="max-w-full h-auto rounded-xl my-4"
           loading="lazy"
         />
@@ -324,28 +300,7 @@ export function AIMessage({
               gradientAnimationDuration={2}
               textClassName="text-base"
               className="py-1"
-              style={{
-                fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
-                fontSize: '16px'
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Generating video state */}
-      {isGeneratingVideo && (
-        <div className="w-full max-w-2xl mx-auto my-4">
-          <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
-            <AnimatedShinyText
-              text="Generating Video"
-              useShimmer={true}
-              baseColor={shimmerColors.baseColor}
-              shimmerColor={shimmerColors.shimmerColor}
-              gradientAnimationDuration={2}
-              textClassName="text-base"
-              className="py-1"
-              style={{
+              style={{ 
                 fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
                 fontSize: '16px'
               }}
@@ -392,7 +347,7 @@ export function AIMessage({
         </div>
       )}
       {/* Show content when not generating or when generation is complete */}
-      {!isGeneratingImage && !isGeneratingVideo && !isRecordingVoice && (content || isStreamingActive) && !audioUrl && (
+      {!isGeneratingImage && !isRecordingVoice && (content || isStreamingActive) && !audioUrl && (
         <>
           {isChatMode ? (
             <div className="flex flex-col gap-1">
