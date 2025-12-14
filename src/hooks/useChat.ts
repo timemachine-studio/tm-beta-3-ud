@@ -68,9 +68,9 @@ export function useChat() {
 
         if (firstUserMessage) {
           // Use content if available, otherwise check for image or audio
-          if (firstUserMessage.content && firstUserMessage.content.trim()) {
+          if (firstUserMessage.content && firstUserMessage.content.trim() && firstUserMessage.content !== '[Image message]' && firstUserMessage.content !== '[Audio message]') {
             sessionName = firstUserMessage.content.slice(0, 50);
-          } else if (firstUserMessage.imageData) {
+          } else if (firstUserMessage.imageData || (firstUserMessage.inputImageUrls && firstUserMessage.inputImageUrls.length > 0)) {
             sessionName = 'Image message';
           } else if (firstUserMessage.audioData) {
             sessionName = 'Audio message';
@@ -220,16 +220,20 @@ export function useChat() {
       messageContent = mentionMatch[2];
     }
 
-    // Handle audio data - if we have audio but no text content, create a message indicating audio input
+    // Handle audio/image data - if we have audio/images but no text content, create a message indicating the input type
     let finalContent = messageContent;
     if (audioData && !messageContent.trim()) {
       finalContent = '[Audio message]'; // Placeholder text for UI
+    } else if ((imageData || (inputImageUrls && inputImageUrls.length > 0)) && !messageContent.trim()) {
+      finalContent = '[Image message]'; // Placeholder text for UI
     }
 
-    // Create user message with original content (including @mention) for display
+    // Create user message with content for display
+    // Use finalContent if it's a placeholder for image/audio-only messages, otherwise keep original content
+    const displayContent = (finalContent === '[Image message]' || finalContent === '[Audio message]') ? finalContent : content;
     const userMessage: Message = {
       id: Date.now(),
-      content: content, // Keep original content with @mention for display
+      content: displayContent, // Use placeholder for image/audio-only, otherwise original content
       isAI: false,
       hasAnimated: false,
       imageData: imageData,

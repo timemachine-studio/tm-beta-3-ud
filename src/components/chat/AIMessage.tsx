@@ -142,12 +142,14 @@ export function AIMessage({
 
   // Handle image generation detection
   useEffect(() => {
-    // Check if we have a complete image link
-    if (content.includes('![Image](https://enter.pollinations.ai/')) {
-      const imageRegex = /!\[Image\]\(https:\/\/enter\.pollinations\.ai\/api\/generate\/image\/[^)]+\)/g;
-      const matches = content.match(imageRegex);
-      
-      if (matches) {
+    // Check if we have a complete image link (either proxy URL or legacy Pollinations URL)
+    if (content.includes('![Generated Image](/api/image?') || content.includes('![Image](https://enter.pollinations.ai/')) {
+      const proxyImageRegex = /!\[Generated Image\]\(\/api\/image\?[^)]+\)/g;
+      const legacyImageRegex = /!\[Image\]\(https:\/\/enter\.pollinations\.ai\/api\/generate\/image\/[^)]+\)/g;
+      const proxyMatches = content.match(proxyImageRegex);
+      const legacyMatches = content.match(legacyImageRegex);
+
+      if (proxyMatches || legacyMatches) {
         // Complete image markdown found, show generating state briefly
         setIsGeneratingImage(true);
         setTimeout(() => {
@@ -216,16 +218,16 @@ export function AIMessage({
       </pre>
     ),
     img: ({ src, alt }: { src?: string; alt?: string }) => {
-      // Check if this is a Pollinations.ai generated image
-      if (src && src.includes('enter.pollinations.ai')) {
-        return <GeneratedImage src={src} alt={alt || 'Generated image'} />;
+      // Check if this is a generated image (proxy URL or legacy Pollinations URL)
+      if (src && (src.startsWith('/api/image?') || src.includes('enter.pollinations.ai'))) {
+        return <GeneratedImage src={src} alt={alt || 'Generated image'} persona={displayPersona} />;
       }
-      
+
       // Fallback to regular image for other sources
       return (
-        <img 
-          src={src} 
-          alt={alt} 
+        <img
+          src={src}
+          alt={alt}
           className="max-w-full h-auto rounded-xl my-4"
           loading="lazy"
         />

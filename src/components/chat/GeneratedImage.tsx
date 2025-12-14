@@ -3,13 +3,34 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, ZoomIn } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { AnimatedShinyText } from '../ui/AnimatedShinyText';
+import { AI_PERSONAS } from '../../config/constants';
 
 interface GeneratedImageProps {
   src: string;
   alt: string;
+  persona?: keyof typeof AI_PERSONAS;
 }
 
-export function GeneratedImage({ src, alt }: GeneratedImageProps) {
+const getPersonaShimmerColors = (persona: keyof typeof AI_PERSONAS = 'default') => {
+  switch (persona) {
+    case 'girlie':
+      return { baseColor: '#ec4899', shimmerColor: '#ffffff' }; // Pink
+    case 'pro':
+      return { baseColor: '#06b6d4', shimmerColor: '#ffffff' }; // Cyan
+    case 'chatgpt':
+      return { baseColor: '#22c55e', shimmerColor: '#ffffff' }; // Green
+    case 'gemini':
+      return { baseColor: '#3b82f6', shimmerColor: '#ffffff' }; // Blue
+    case 'claude':
+      return { baseColor: '#f97316', shimmerColor: '#ffffff' }; // Orange
+    case 'grok':
+      return { baseColor: '#9ca3af', shimmerColor: '#ffffff' }; // Gray
+    default:
+      return { baseColor: '#a855f7', shimmerColor: '#ffffff' }; // Purple (Air)
+  }
+};
+
+export function GeneratedImage({ src, alt, persona = 'default' }: GeneratedImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -78,8 +99,8 @@ export function GeneratedImage({ src, alt }: GeneratedImageProps) {
               <AnimatedShinyText
                 text="Let me cook"
                 useShimmer={true}
-                baseColor="#a855f7"
-                shimmerColor="#ffffff"
+                baseColor={getPersonaShimmerColors(persona).baseColor}
+                shimmerColor={getPersonaShimmerColors(persona).shimmerColor}
                 gradientAnimationDuration={2}
                 textClassName="text-base"
                 className="py-2"
