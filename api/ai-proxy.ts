@@ -599,6 +599,8 @@ interface ImageGenerationParams {
   process?: 'create' | 'edit';
   inputImageUrls?: string[];
   persona?: keyof typeof AI_PERSONAS;
+  imageWidth?: number;
+  imageHeight?: number;
 }
 
 function generateImageUrl(params: ImageGenerationParams): string {
@@ -607,7 +609,9 @@ function generateImageUrl(params: ImageGenerationParams): string {
     orientation = 'portrait',
     process = 'create',
     inputImageUrls,
-    persona = 'default'
+    persona = 'default',
+    imageWidth,
+    imageHeight
   } = params;
 
   // Generate a proxy URL that points to our secure image endpoint
@@ -615,6 +619,11 @@ function generateImageUrl(params: ImageGenerationParams): string {
   const encodedPrompt = encodeURIComponent(prompt);
 
   let url = `/api/image?prompt=${encodedPrompt}&orientation=${orientation}&process=${process}&persona=${persona}`;
+
+  // For edit process, include the original image dimensions if available
+  if (process === 'edit' && imageWidth && imageHeight) {
+    url += `&width=${imageWidth}&height=${imageHeight}`;
+  }
 
   // Handle multiple reference images (up to 4)
   if (inputImageUrls && inputImageUrls.length > 0) {
@@ -1077,7 +1086,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { messages, persona = 'default', imageData, audioData, heatLevel = 2, stream = false, inputImageUrls } = req.body;
+    const { messages, persona = 'default', imageData, audioData, heatLevel = 2, stream = false, inputImageUrls, imageDimensions } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Invalid messages format' });
@@ -1308,6 +1317,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                           params.inputImageUrls = inputImageUrls;
                         }
 
+                        // Pass original image dimensions for edit operations
+                        if (imageDimensions) {
+                          params.imageWidth = imageDimensions.width;
+                          params.imageHeight = imageDimensions.height;
+                        }
+
                         params.persona = persona;
 
                         const imageMarkdown = createImageMarkdown(params);
@@ -1459,6 +1474,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
               if (inputImageUrls && inputImageUrls.length > 0) {
                 params.inputImageUrls = inputImageUrls;
+              }
+
+              // Pass original image dimensions for edit operations
+              if (imageDimensions) {
+                params.imageWidth = imageDimensions.width;
+                params.imageHeight = imageDimensions.height;
               }
 
               params.persona = persona;

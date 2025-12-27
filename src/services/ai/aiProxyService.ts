@@ -1,4 +1,4 @@
-import { Message } from '../../types/chat';
+import { Message, ImageDimensions } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 
 interface AIResponse {
@@ -10,7 +10,7 @@ interface AIResponse {
 // Custom error class for rate limits
 class RateLimitError extends Error {
   type: string;
-  
+
   constructor(message: string) {
     super(message);
     this.type = 'rateLimit';
@@ -27,6 +27,7 @@ export async function generateAIResponseStreaming(
   audioData?: string,
   heatLevel?: number,
   inputImageUrls?: string[],
+  imageDimensions?: ImageDimensions,
   onChunk?: (chunk: string) => void,
   onComplete?: (response: AIResponse) => void,
   onError?: (error: Error) => void
@@ -48,6 +49,7 @@ export async function generateAIResponseStreaming(
         audioData,
         heatLevel,
         inputImageUrls,
+        imageDimensions,
         stream: true
       })
     });
@@ -141,7 +143,8 @@ export async function generateAIResponse(
   currentPersona: keyof typeof AI_PERSONAS = 'default',
   audioData?: string,
   heatLevel?: number,
-  inputImageUrls?: string[]
+  inputImageUrls?: string[],
+  imageDimensions?: ImageDimensions
 ): Promise<AIResponse> {
   try {
     // Call the Vercel API route without streaming
@@ -160,6 +163,7 @@ export async function generateAIResponse(
         audioData,
         heatLevel,
         inputImageUrls,
+        imageDimensions,
         stream: false
       })
     });

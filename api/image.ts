@@ -13,6 +13,8 @@ interface ImageParams {
   process: Process;
   persona: Persona;
   inputImageUrls?: string[];
+  width?: number;  // Original image width for edit operations
+  height?: number; // Original image height for edit operations
 }
 
 function constructPollinationsUrl(params: ImageParams): string {
@@ -21,7 +23,9 @@ function constructPollinationsUrl(params: ImageParams): string {
     orientation = 'portrait',
     process = 'create',
     persona = 'default',
-    inputImageUrls
+    inputImageUrls,
+    width: originalWidth,
+    height: originalHeight
   } = params;
 
   const encodedPrompt = encodeURIComponent(prompt);
@@ -38,8 +42,13 @@ function constructPollinationsUrl(params: ImageParams): string {
 
   let url: string;
   if (process === 'edit') {
-    // For edit process: no width/height parameters
-    url = `https://enter.pollinations.ai/api/generate/image/${encodedPrompt}?enhance=false&private=true&nologo=true&model=${model}&key=${POLLINATIONS_API_KEY}`;
+    // For edit process: use original image dimensions if provided
+    if (originalWidth && originalHeight) {
+      url = `https://enter.pollinations.ai/api/generate/image/${encodedPrompt}?width=${originalWidth}&height=${originalHeight}&enhance=false&private=true&nologo=true&model=${model}&key=${POLLINATIONS_API_KEY}`;
+    } else {
+      // Fallback: no dimensions for edit if not provided
+      url = `https://enter.pollinations.ai/api/generate/image/${encodedPrompt}?enhance=false&private=true&nologo=true&model=${model}&key=${POLLINATIONS_API_KEY}`;
+    }
   } else {
     // For create process: include width/height based on orientation
     const width = orientation === 'landscape' ? 3840 : 2160;
@@ -76,7 +85,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       orientation = 'portrait',
       process = 'create',
       persona = 'default',
-      inputImageUrls
+      inputImageUrls,
+      width,
+      height
     } = req.query;
 
     // Validate required parameters
@@ -94,13 +105,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // Parse width and height for edit operations
+    const parsedWidth = width && typeof width === 'string' ? parseInt(width, 10) : undefined;
+    const parsedHeight = height && typeof height === 'string' ? parseInt(height, 10) : undefined;
+
     // Construct the Pollinations URL with secret key (server-side only)
     const pollinationsUrl = constructPollinationsUrl({
       prompt,
       orientation: (orientation as Orientation) || 'portrait',
       process: (process as Process) || 'create',
       persona: (persona as Persona) || 'default',
-      inputImageUrls: parsedImageUrls
+      inputImageUrls: parsedImageUrls,
+      width: parsedWidth,
+      height: parsedHeight
     });
 
     // Fetch the image from Pollinations server-side

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Message } from '../types/chat';
+import { Message, ImageDimensions } from '../types/chat';
 import { generateAIResponse, generateAIResponseStreaming } from '../services/ai/aiProxyService';
 import { INITIAL_MESSAGE, AI_PERSONAS } from '../config/constants';
 
@@ -208,7 +208,7 @@ export function useChat() {
     }
   }, [currentSessionId]);
 
-  const handleSendMessage = useCallback(async (content: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[]) => {
+  const handleSendMessage = useCallback(async (content: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[], imageDimensions?: ImageDimensions) => {
     let messagePersona = currentPersona;
     let messageContent = content;
 
@@ -238,7 +238,8 @@ export function useChat() {
       hasAnimated: false,
       imageData: imageData,
       audioData: audioData,
-      inputImageUrls: inputImageUrls
+      inputImageUrls: inputImageUrls,
+      imageDimensions: imageDimensions
     };
 
     // Create API message with cleaned content (without @mention) for API call
@@ -249,7 +250,8 @@ export function useChat() {
       hasAnimated: false,
       imageData: imageData,
       audioData: audioData,
-      inputImageUrls: inputImageUrls
+      inputImageUrls: inputImageUrls,
+      imageDimensions: imageDimensions
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -281,6 +283,7 @@ export function useChat() {
         audioData,
         messagePersona === 'pro' ? currentProHeatLevel : undefined,
         inputImageUrls,
+        imageDimensions,
         // onChunk callback
         (chunk: string) => {
           updateStreamingMessage(aiMessageId, chunk, true);
@@ -323,7 +326,8 @@ export function useChat() {
           messagePersona,
           audioData,
           messagePersona === 'pro' ? currentProHeatLevel : undefined,
-          inputImageUrls
+          inputImageUrls,
+          imageDimensions
         );
         
         const emotion = extractEmotion(aiResponse.content);

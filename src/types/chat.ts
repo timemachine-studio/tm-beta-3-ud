@@ -1,3 +1,8 @@
+export interface ImageDimensions {
+  width: number;
+  height: number;
+}
+
 export interface Message {
   id: number;
   content: string;
@@ -8,6 +13,7 @@ export interface Message {
   audioData?: string; // Add audioData field for base64 encoded audio
   audioUrl?: string; // Add audioUrl field for AI audio responses
   inputImageUrls?: string[]; // Add inputImageUrls field for publicly accessible image URLs
+  imageDimensions?: ImageDimensions; // Dimensions of the first uploaded image (for edit operations)
 }
 
 export interface ChatState {
@@ -17,12 +23,12 @@ export interface ChatState {
 }
 
 export interface ChatActions {
-  handleSendMessage: (message: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[]) => Promise<void>;
+  handleSendMessage: (message: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[], imageDimensions?: ImageDimensions) => Promise<void>;
   setChatMode: (isChatMode: boolean) => void;
 }
 
 export interface ChatInputProps {
-  onSendMessage: (message: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[]) => Promise<void>;
+  onSendMessage: (message: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[], imageDimensions?: ImageDimensions) => Promise<void>;
   isLoading?: boolean;
 }
 
