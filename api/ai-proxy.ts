@@ -695,33 +695,63 @@ interface YouTubeMusicResult {
 }
 
 // YouTube Music search function using YouTube Data API v3
+const YOUTUBE_API_KEY = 'AIzaSyD3E75yZWjl7p2_bsZq3mzBwAaaFG3uwbQ';
+
 async function searchYouTubeMusic(params: YouTubeMusicParams): Promise<YouTubeMusicResult | null> {
   const { query } = params;
-  const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
-  if (!YOUTUBE_API_KEY) {
-    console.error('YOUTUBE_API_KEY not configured');
-    throw new Error('YouTube API key not configured');
-  }
+  // Add "music" or "audio" to query for better music results
+  const musicQuery = query.toLowerCase().includes('music') || query.toLowerCase().includes('song')
+    ? query
+    : `${query} music`;
 
   const searchUrl = new URL('https://www.googleapis.com/youtube/v3/search');
   searchUrl.searchParams.set('part', 'snippet');
-  searchUrl.searchParams.set('q', query);
+  searchUrl.searchParams.set('q', musicQuery);
   searchUrl.searchParams.set('type', 'video');
   searchUrl.searchParams.set('videoCategoryId', '10'); // Music category
-  searchUrl.searchParams.set('maxResults', '1');
+  searchUrl.searchParams.set('maxResults', '5'); // Get more results to find a good match
   searchUrl.searchParams.set('key', YOUTUBE_API_KEY);
+
+  console.log('YouTube Music search URL:', searchUrl.toString().replace(YOUTUBE_API_KEY, 'REDACTED'));
 
   try {
     const response = await fetch(searchUrl.toString());
+    const responseText = await response.text();
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('YouTube API error:', errorText);
+      console.error('YouTube API error response:', responseText);
+
+      // Try fallback search without videoCategoryId
+      console.log('Trying fallback search without music category filter...');
+      const fallbackUrl = new URL('https://www.googleapis.com/youtube/v3/search');
+      fallbackUrl.searchParams.set('part', 'snippet');
+      fallbackUrl.searchParams.set('q', `${query} official audio`);
+      fallbackUrl.searchParams.set('type', 'video');
+      fallbackUrl.searchParams.set('maxResults', '1');
+      fallbackUrl.searchParams.set('key', YOUTUBE_API_KEY);
+
+      const fallbackResponse = await fetch(fallbackUrl.toString());
+      if (!fallbackResponse.ok) {
+        throw new Error(`YouTube API failed: ${response.status}`);
+      }
+
+      const fallbackData = await fallbackResponse.json();
+      if (fallbackData.items && fallbackData.items.length > 0) {
+        const item = fallbackData.items[0];
+        return {
+          videoId: item.id.videoId,
+          title: item.snippet.title,
+          artist: item.snippet.channelTitle,
+          thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || ''
+        };
+      }
+
       throw new Error(`YouTube API failed: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = JSON.parse(responseText);
+    console.log('YouTube API response items count:', data.items?.length || 0);
 
     if (data.items && data.items.length > 0) {
       const item = data.items[0];
@@ -729,6 +759,8 @@ async function searchYouTubeMusic(params: YouTubeMusicParams): Promise<YouTubeMu
       const title = item.snippet.title;
       const channelTitle = item.snippet.channelTitle;
       const thumbnail = item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '';
+
+      console.log('Found YouTube video:', { videoId, title, artist: channelTitle });
 
       return {
         videoId,
@@ -738,6 +770,7 @@ async function searchYouTubeMusic(params: YouTubeMusicParams): Promise<YouTubeMu
       };
     }
 
+    console.log('No YouTube results found for query:', query);
     return null;
   } catch (error) {
     console.error('YouTube Music search error:', error);
