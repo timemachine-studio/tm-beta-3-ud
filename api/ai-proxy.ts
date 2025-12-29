@@ -700,15 +700,15 @@ const YOUTUBE_API_KEY = 'AIzaSyD3E75yZWjl7p2_bsZq3mzBwAaaFG3uwbQ';
 async function searchYouTubeMusic(params: YouTubeMusicParams): Promise<YouTubeMusicResult | null> {
   const { query } = params;
 
-  // Add "lyrics" or "audio" to query to find embeddable versions
-  // Official music videos are often blocked, but lyric videos and audio versions usually work
-  const musicQuery = `${query} audio lyrics`;
+  // Add "music" or "audio" to query for better music results
+  const musicQuery = query.toLowerCase().includes('music') || query.toLowerCase().includes('song')
+    ? query
+    : `${query} music`;
 
   const searchUrl = new URL('https://www.googleapis.com/youtube/v3/search');
   searchUrl.searchParams.set('part', 'snippet');
   searchUrl.searchParams.set('q', musicQuery);
   searchUrl.searchParams.set('type', 'video');
-  searchUrl.searchParams.set('videoEmbeddable', 'true'); // Only find embeddable videos
   searchUrl.searchParams.set('videoCategoryId', '10'); // Music category
   searchUrl.searchParams.set('maxResults', '5'); // Get more results to find a good match
   searchUrl.searchParams.set('key', YOUTUBE_API_KEY);
@@ -726,9 +726,8 @@ async function searchYouTubeMusic(params: YouTubeMusicParams): Promise<YouTubeMu
       console.log('Trying fallback search without music category filter...');
       const fallbackUrl = new URL('https://www.googleapis.com/youtube/v3/search');
       fallbackUrl.searchParams.set('part', 'snippet');
-      fallbackUrl.searchParams.set('q', `${query} audio lyrics`);
+      fallbackUrl.searchParams.set('q', `${query} official audio`);
       fallbackUrl.searchParams.set('type', 'video');
-      fallbackUrl.searchParams.set('videoEmbeddable', 'true'); // Only find embeddable videos
       fallbackUrl.searchParams.set('maxResults', '1');
       fallbackUrl.searchParams.set('key', YOUTUBE_API_KEY);
 
