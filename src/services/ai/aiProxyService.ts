@@ -1,10 +1,18 @@
 import { Message, ImageDimensions } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 
+export interface YouTubeMusicData {
+  videoId: string;
+  title: string;
+  artist: string;
+  thumbnail: string;
+}
+
 interface AIResponse {
   content: string;
   thinking?: string;
   audioUrl?: string;
+  youtubeMusic?: YouTubeMusicData;
 }
 
 // Custom error class for rate limits
@@ -74,30 +82,38 @@ export async function generateAIResponseStreaming(
     const decoder = new TextDecoder();
     let fullContent = '';
     let audioUrl: string | undefined;
+    let youtubeMusic: YouTubeMusicData | undefined;
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        
+        let chunk = decoder.decode(value, { stream: true });
+
         // Check for audio URL marker
         const audioMatch = chunk.match(/\[AUDIO_URL\](.*?)\[\/AUDIO_URL\]/);
         if (audioMatch) {
           audioUrl = audioMatch[1];
-          const cleanChunk = chunk.replace(/\[AUDIO_URL\].*?\[\/AUDIO_URL\]/, '');
-          if (cleanChunk && onChunk) {
-            onChunk(cleanChunk);
-          }
-          fullContent += cleanChunk;
-        } else {
-          if (onChunk) {
-            onChunk(chunk);
-          }
-          fullContent += chunk;
+          chunk = chunk.replace(/\[AUDIO_URL\].*?\[\/AUDIO_URL\]/, '');
         }
+
+        // Check for YouTube Music marker
+        const musicMatch = chunk.match(/\[YOUTUBE_MUSIC\](.*?)\[\/YOUTUBE_MUSIC\]/);
+        if (musicMatch) {
+          try {
+            youtubeMusic = JSON.parse(musicMatch[1]);
+          } catch (e) {
+            console.error('Error parsing YouTube music data:', e);
+          }
+          chunk = chunk.replace(/\[YOUTUBE_MUSIC\].*?\[\/YOUTUBE_MUSIC\]/, '');
+        }
+
+        if (chunk && onChunk) {
+          onChunk(chunk);
+        }
+        fullContent += chunk;
       }
 
       // Extract reasoning and clean content
@@ -109,7 +125,8 @@ export async function generateAIResponseStreaming(
         onComplete({
           content: cleanContent,
           thinking,
-          audioUrl
+          audioUrl,
+          youtubeMusic
         });
       }
 

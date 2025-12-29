@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Message, ImageDimensions } from '../types/chat';
-import { generateAIResponse, generateAIResponseStreaming } from '../services/ai/aiProxyService';
+import { generateAIResponse, generateAIResponseStreaming, YouTubeMusicData } from '../services/ai/aiProxyService';
 import { INITIAL_MESSAGE, AI_PERSONAS } from '../config/constants';
 
 interface ChatSession {
@@ -25,6 +25,7 @@ export function useChat() {
   const [currentSessionId, setCurrentSessionId] = useState<string>('');
   const [streamingMessageId, setStreamingMessageId] = useState<number | null>(null);
   const [useStreaming, setUseStreaming] = useState(true); // Toggle for streaming vs non-streaming
+  const [youtubeMusic, setYoutubeMusic] = useState<YouTubeMusicData | null>(null);
 
   // Set theme based on persona
   const setPersonaTheme = useCallback((persona: keyof typeof AI_PERSONAS) => {
@@ -194,6 +195,11 @@ export function useChat() {
     setShowRateLimitModal(false);
   }, []);
 
+  // Clear YouTube music
+  const clearYoutubeMusic = useCallback(() => {
+    setYoutubeMusic(null);
+  }, []);
+
   // Save chat session when messages change (but not on initial load)
   useEffect(() => {
     if (messages.length > 1 && currentSessionId) {
@@ -297,6 +303,11 @@ export function useChat() {
             setCurrentEmotion(emotion);
           }
 
+          // Handle YouTube music if present
+          if (response.youtubeMusic) {
+            setYoutubeMusic(response.youtubeMusic);
+          }
+
           completeStreamingMessage(aiMessageId, cleanedContent, response.thinking, response.audioUrl);
         },
         // onError callback
@@ -391,6 +402,7 @@ export function useChat() {
     showRateLimitModal,
     streamingMessageId,
     useStreaming,
+    youtubeMusic,
     setChatMode,
     handleSendMessage,
     handlePersonaChange,
@@ -400,6 +412,7 @@ export function useChat() {
     dismissAboutUs,
     dismissRateLimitModal,
     loadChat,
-    setUseStreaming
+    setUseStreaming,
+    clearYoutubeMusic
   };
 }

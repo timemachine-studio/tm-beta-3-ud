@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { ChatInput } from './components/chat/ChatInput';
 import { BrandLogo } from './components/brand/BrandLogo';
 import { MusicPlayer } from './components/music/MusicPlayer';
+import { YouTubePlayer } from './components/music/YouTubePlayer';
 import { Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChat } from './hooks/useChat';
@@ -14,10 +15,10 @@ import { WelcomeModal } from './components/modals/WelcomeModal';
 import { ACCESS_TOKEN_REQUIRED, MAINTENANCE_MODE, PRO_HEAT_LEVELS } from './config/constants';
 
 function AppContent() {
-  const { 
-    messages, 
-    isChatMode, 
-    isLoading, 
+  const {
+    messages,
+    isChatMode,
+    isLoading,
     currentPersona,
     currentProHeatLevel,
     currentEmotion,
@@ -26,8 +27,9 @@ function AppContent() {
     showRateLimitModal,
     streamingMessageId,
     useStreaming,
-    setChatMode, 
-    handleSendMessage, 
+    youtubeMusic,
+    setChatMode,
+    handleSendMessage,
     handlePersonaChange,
     setCurrentProHeatLevel,
     startNewChat,
@@ -35,7 +37,8 @@ function AppContent() {
     dismissAboutUs,
     dismissRateLimitModal,
     loadChat,
-    setUseStreaming
+    setUseStreaming,
+    clearYoutubeMusic
   } = useChat();
   
   const { theme } = useTheme();
@@ -236,11 +239,20 @@ function AppContent() {
           </div>
         </header>
         
-        <MusicPlayer 
+        <MusicPlayer
           currentPersona={currentPersona}
           currentEmotion={currentEmotion}
           isCenterStage={isCenterStage}
         />
+
+        {/* YouTube Music Player */}
+        {youtubeMusic && (
+          <YouTubePlayer
+            musicData={youtubeMusic}
+            onClose={clearYoutubeMusic}
+            currentPersona={currentPersona}
+          />
+        )}
 
         <div className="flex-1 overflow-y-auto custom-scrollbar message-container">
           {isChatMode ? (
