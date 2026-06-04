@@ -11,16 +11,23 @@ interface VoiceRecorderProps {
   currentPersona?: keyof typeof AI_PERSONAS;
 }
 
-const personaGlowColors = {
-  default: 'rgba(168,85,247,0.2)',
-  girlie: 'rgba(255,0,128,0.5)',
-  pro: 'rgba(34,211,238,0.2)'
-} as const;
-
-const personaBorderColors = {
-  default: 'from-purple-600/20 to-blue-600/20',
-  girlie: 'from-pink-500 to-rose-400',
-  pro: 'from-cyan-600/20 to-blue-600/20'
+// Persona-colored glass styling (matches ChatInput buttons)
+const personaStyles = {
+  tintColors: {
+    default: 'rgba(168, 85, 247, 0.2)',    // Purple tint (brighter)
+    girlie: 'rgba(236, 72, 153, 0.15)',    // Pink tint
+    pro: 'rgba(34, 211, 238, 0.15)'        // Cyan tint
+  },
+  borderColors: {
+    default: 'rgba(168, 85, 247, 0.4)',    // Purple border (brighter)
+    girlie: 'rgba(236, 72, 153, 0.3)',      // Pink border
+    pro: 'rgba(34, 211, 238, 0.3)'          // Cyan border
+  },
+  glowShadow: {
+    default: '0 0 15px rgba(168, 85, 247, 0.35)',  // Purple glow (brighter, larger)
+    girlie: '0 0 12px rgba(236, 72, 153, 0.25)',
+    pro: '0 0 12px rgba(34, 211, 238, 0.25)'
+  }
 } as const;
 
 const personaVisualizerColors = {
@@ -125,35 +132,31 @@ export function VoiceRecorder({ onSendMessage, disabled, currentPersona = 'defau
         whileTap={{ scale: 0.95 }}
         onClick={handleToggleRecording}
         disabled={disabled && !isRecording}
-        className={`p-3 rounded-full transition-all duration-300 relative group
-          backdrop-blur-xl border border-white/10
-          disabled:opacity-50 disabled:cursor-not-allowed
-          ${isRecording 
-            ? 'bg-gradient-to-r from-red-600/20 to-pink-600/20 shadow-[0_0_15px_rgba(239,68,68,0.2)]' 
-            : `bg-gradient-to-r ${personaBorderColors[currentPersona]} shadow-[0_0_15px_${personaGlowColors[currentPersona]}]
-               ${currentPersona === 'girlie' ? 'hover:shadow-[0_0_25px_rgba(255,0,128,0.7)]' : ''}`
-          }`}
+        className="p-3 rounded-full transition-all duration-300 relative group disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{
+          background: isRecording
+            ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(255, 255, 255, 0.05))'
+            : `linear-gradient(135deg, ${personaStyles.tintColors[currentPersona]}, rgba(255, 255, 255, 0.05))`,
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: isRecording
+            ? '1px solid rgba(239, 68, 68, 0.4)'
+            : `1px solid ${personaStyles.borderColors[currentPersona]}`,
+          boxShadow: isRecording
+            ? '0 0 12px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+            : `${personaStyles.glowShadow[currentPersona]}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`
+        }}
         type="button"
       >
-        {/* Premium glow effect */}
-        <div className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100
-          transition-opacity duration-300 animate-pulse"
-          style={{
-            background: isRecording
-              ? 'linear-gradient(to right, rgba(239,68,68,0), rgba(239,68,68,0.3), rgba(239,68,68,0))'
-              : `linear-gradient(to right, transparent, ${personaGlowColors[currentPersona]}, transparent)`
-          }}
-        />
-        
         <div className="relative z-10 flex items-center justify-center w-5 h-5">
           {isRecording ? (
             analyser ? (
               <AudioVisualizer analyser={analyser} currentPersona={currentPersona} />
             ) : (
-              <Square className="w-5 h-5 text-white drop-shadow-glow" />
+              <Square className="w-5 h-5 text-white" />
             )
           ) : (
-            <AiMicIcon className="w-5 h-5 text-white drop-shadow-glow" />
+            <AiMicIcon className="w-5 h-5 text-white" />
           )}
         </div>
       </motion.button>

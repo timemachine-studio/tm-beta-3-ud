@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Pollinations API secret key - NEVER expose this to the client
-const POLLINATIONS_API_KEY = 'plln_sk_GnhDxr0seAiz92cgYsAh3VjBGQM8NRLK';
+// Pollinations API key from environment variable
+const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || '';
 
 type Persona = 'default' | 'girlie' | 'pro' | 'chatgpt' | 'gemini' | 'claude' | 'grok';
 type Process = 'create' | 'edit';
@@ -17,7 +17,7 @@ interface ImageParams {
   height?: number; // Original image height for edit operations
 }
 
-function constructPollinationsUrl(params: ImageParams): string {
+function constructPollinationsUrl(params: ImageParams): URL {
   const {
     prompt,
     orientation = 'portrait',
@@ -28,38 +28,53 @@ function constructPollinationsUrl(params: ImageParams): string {
     height: originalHeight
   } = params;
 
-  const encodedPrompt = encodeURIComponent(prompt);
-
   // Select model based on process type and persona
   let model: string;
   if (process === 'edit') {
     // Edit process: use nanobanana models
-    model = persona === 'girlie' ? 'nanobanana' : 'nanobanana-pro';
+    model = persona === 'girlie' ? 'klein' : 'klein';
   } else {
     // Create process: use seedream/zimage models
-    model = persona === 'girlie' ? 'zimage' : 'seedream-pro';
+    model = persona === 'girlie' ? 'zimage' : 'zimage';
   }
 
-  let url: string;
+  // Use WHATWG URL API to avoid url.parse() deprecation warning
+  const url = new URL(`https://gen.pollinations.ai/image/${encodeURIComponent(prompt)}`);
+
+  // Add common parameters
+  url.searchParams.set('enhance', 'false');
+  url.searchParams.set('private', 'true');
+  url.searchParams.set('nologo', 'true');
+  url.searchParams.set('model', model);
+  url.searchParams.set('key', POLLINATIONS_API_KEY);
+
   if (process === 'edit') {
-    // For edit process: use original image dimensions if provided
+    // For edit process: use original image dimensions if provided, otherwise use defaults based on orientation
     if (originalWidth && originalHeight) {
-      url = `https://enter.pollinations.ai/api/generate/image/${encodedPrompt}?width=${originalWidth}&height=${originalHeight}&enhance=false&private=true&nologo=true&model=${model}&key=${POLLINATIONS_API_KEY}`;
+      url.searchParams.set('width', String(originalWidth));
+      url.searchParams.set('height', String(originalHeight));
     } else {
-      // Fallback: no dimensions for edit if not provided
-      url = `https://enter.pollinations.ai/api/generate/image/${encodedPrompt}?enhance=false&private=true&nologo=true&model=${model}&key=${POLLINATIONS_API_KEY}`;
+      // Default dimensions for edit when not provided
+      const defaultWidth = orientation === 'landscape' ? 1920 : 1080;
+      const defaultHeight = orientation === 'landscape' ? 1080 : 1920;
+      url.searchParams.set('width', String(defaultWidth));
+      url.searchParams.set('height', String(defaultHeight));
     }
   } else {
     // For create process: include width/height based on orientation
-    const width = orientation === 'landscape' ? 3840 : 2160;
-    const height = orientation === 'landscape' ? 2160 : 3840;
-    url = `https://enter.pollinations.ai/api/generate/image/${encodedPrompt}?width=${width}&height=${height}&enhance=false&private=true&nologo=true&model=${model}&key=${POLLINATIONS_API_KEY}`;
+    const width = orientation === 'landscape' ? 2048 : 1152;
+    const height = orientation === 'landscape' ? 1152 : 2048;
+    url.searchParams.set('width', String(width));
+    url.searchParams.set('height', String(height));
   }
 
   // Handle multiple reference images (up to 4)
+  // IMPORTANT: Pollinations expects image URLs WITHOUT percent-encoding for : and /
+  // URLSearchParams.set() encodes these (https%3A%2F%2F), but Pollinations needs (https://)
+  // So we manually append the image parameter to preserve the raw URL format
   if (inputImageUrls && inputImageUrls.length > 0) {
-    const imageUrls = inputImageUrls.slice(0, 4).map(encodeURIComponent).join(',');
-    url += `&image=${imageUrls}`;
+    const imageUrls = inputImageUrls.slice(0, 4).join(',');
+    return new URL(url.toString() + '&image=' + imageUrls);
   }
 
   return url;
@@ -120,6 +135,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       height: parsedHeight
     });
 
+    // Log the URL for debugging (mask the API key)
+    const debugUrl = pollinationsUrl.toString().replace(/key=[^&]+/, 'key=***');
+    console.log('Pollinations request URL:', debugUrl);
+    console.log('Parsed image URLs:', parsedImageUrls);
+
     // Fetch the image from Pollinations server-side
     const imageResponse = await fetch(pollinationsUrl, {
       method: 'GET',
@@ -129,8 +149,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     if (!imageResponse.ok) {
-      console.error('Pollinations API error:', imageResponse.status, await imageResponse.text().catch(() => ''));
-      return res.status(502).json({ error: 'Failed to generate image' });
+      const errorText = await imageResponse.text().catch(() => '');
+      console.error('Pollinations API error:', imageResponse.status, errorText);
+      console.error('Request URL was:', debugUrl);
+      return res.status(502).json({
+        error: 'Failed to generate image',
+        pollinationsStatus: imageResponse.status,
+        pollinationsError: errorText,
+        requestUrl: debugUrl
+      });
     }
 
     // Get the image as a buffer

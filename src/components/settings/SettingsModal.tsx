@@ -11,7 +11,7 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps) => {
-  const { theme, mode, season, setMode, setSeason, defaultTheme, setDefaultTheme, clearDefaultTheme } = useTheme();
+  const { mode, season, setMode, setSeason, defaultTheme, setDefaultTheme, clearDefaultTheme } = useTheme();
   const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
 
   // Clear confirmation message after 3 seconds
@@ -22,6 +22,20 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
     }
   }, [confirmationMessage]);
 
+  // Handle mode change - also update season to match
+  const handleModeChange = (newMode: 'light' | 'dark' | 'monochrome') => {
+    setMode(newMode);
+    // When switching to light/dark mode, we need to update season too for visual effect
+    // Light themes: spring, summer, autumn, winter (white backgrounds)
+    // Dark themes: springDark, summerDark, autumnDark, winterDark (black backgrounds)
+    if (newMode === 'light') {
+      setSeason('autumn'); // Light theme with purple tones
+    } else if (newMode === 'dark') {
+      setSeason('autumnDark'); // Dark theme with purple tones
+    }
+    // Monochrome is handled separately by setMode
+  };
+
   // Memoized season buttons to prevent re-renders
   const seasonButtons = React.useMemo(
     () =>
@@ -31,23 +45,29 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
           <div key={key} className="flex flex-col items-center">
             <button
               onClick={() => setSeason(key as keyof typeof seasonThemes)}
-              className={`w-12 h-12 rounded-full
-                ${seasonTheme.background} bg-opacity-20 backdrop-blur-md
-                border border-white/20 dark:border-gray-800/20
-                ${season === key ? 'ring-2 ring-white/50 ring-offset-2 ring-offset-transparent' : ''}
-                hover:bg-opacity-30 relative group transition-all duration-200`}
+              className={`w-12 h-12 rounded-full transition-all duration-200
+                ${season === key ? 'ring-2 ring-purple-400/60 ring-offset-2 ring-offset-transparent scale-110' : 'hover:scale-105'}`}
+              style={{
+                background: seasonTheme.background.includes('gradient')
+                  ? seasonTheme.background.replace('bg-gradient-to-br', 'linear-gradient(to bottom right,').replace(/-/g, ' ').replace('from ', '').replace('to ', ', ') + ')'
+                  : 'rgba(255, 255, 255, 0.1)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: season === key ? '2px solid rgba(168, 85, 247, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+              }}
               aria-label={`Select ${seasonTheme.name} theme`}
             >
               {season === key && (
                 <Palette className="w-4 h-4 text-white/80 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
               )}
             </button>
-            <span className={`text-xs font-medium mt-1 text-center ${theme.text}`}>
+            <span className="text-xs font-medium mt-1 text-center text-white/70">
               {seasonTheme.name}
             </span>
           </div>
         )),
-    [season, theme.text, setSeason]
+    [season, setSeason]
   );
 
   return (
@@ -60,7 +80,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm z-50"
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
               />
             </Dialog.Overlay>
 
@@ -72,11 +92,14 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                 className="fixed inset-0 flex items-center justify-center p-4 z-50"
               >
                 <div
-                  className={`relative w-full max-w-md sm:max-w-lg p-6 rounded-xl
-                    bg-white/10 dark:bg-black/10 backdrop-blur-lg
-                    border border-white/20 dark:border-gray-800/20
-                    shadow-[0_8px_32px_rgba(31,38,135,0.2)]
-                    transition-all duration-300`}
+                  className="relative w-full max-w-md sm:max-w-lg p-6 rounded-2xl transition-all duration-300"
+                  style={{
+                    background: 'linear-gradient(to bottom, rgba(88, 28, 135, 0.3), rgba(0, 0, 0, 0.9))',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(168, 85, 247, 0.2)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                  }}
                 >
                   {/* Confirmation Message */}
                   <AnimatePresence>
@@ -86,42 +109,48 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                         aria-live="polite"
-                        className={`absolute top-2 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-full
-                          bg-white/20 dark:bg-black/20 backdrop-blur-md
-                          border border-white/30 dark:border-gray-800/30
-                          text-white/80 dark:text-gray-200/80 text-sm`}
+                        className="absolute top-2 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-full text-sm"
+                        style={{
+                          background: 'rgba(168, 85, 247, 0.3)',
+                          backdropFilter: 'blur(12px)',
+                          WebkitBackdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(168, 85, 247, 0.3)',
+                          color: 'rgba(255, 255, 255, 0.9)'
+                        }}
                       >
                         {confirmationMessage}
                       </motion.div>
                     )}
                   </AnimatePresence>
 
-                  <Dialog.Title className={`text-xl font-semibold mb-4 ${theme.text}`}>
+                  <Dialog.Title className="text-xl font-semibold mb-4 text-white">
                     Appearance
                   </Dialog.Title>
 
                   <div className="space-y-6">
                     {/* Theme Mode Selector */}
                     <div className="space-y-3">
-                      <label className={`text-sm font-medium ${theme.text}`}>
+                      <label className="text-sm font-medium text-white/70">
                         Theme Mode
                       </label>
                       <div className="flex space-x-2">
                         {['light', 'dark', 'monochrome'].map((option) => (
                           <button
                             key={option}
-                            onClick={() => {
-                              setMode(option as 'light' | 'dark' | 'monochrome');
+                            onClick={() => handleModeChange(option as 'light' | 'dark' | 'monochrome')}
+                            className="flex-1 py-2.5 px-4 rounded-full text-sm transition-all duration-200 flex items-center justify-center space-x-2"
+                            style={{
+                              background: mode === option
+                                ? 'rgba(168, 85, 247, 0.3)'
+                                : 'rgba(255, 255, 255, 0.05)',
+                              backdropFilter: 'blur(12px)',
+                              WebkitBackdropFilter: 'blur(12px)',
+                              border: mode === option
+                                ? '1px solid rgba(168, 85, 247, 0.5)'
+                                : '1px solid rgba(255, 255, 255, 0.1)',
+                              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                              color: mode === option ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.7)'
                             }}
-                            className={`flex-1 py-2 px-4 rounded-full text-sm
-                              ${mode === option
-                                ? 'bg-white/20 dark:bg-black/20 backdrop-blur-md border-white/30 dark:border-gray-800/30'
-                                : 'bg-white/10 dark:bg-black/10 backdrop-blur-md border-white/20 dark:border-gray-800/20'
-                              }
-                              hover:bg-white/20 dark:hover:bg-gray-800/20
-                              text-white/80 dark:text-gray-200/80
-                              transition-all duration-200
-                              flex items-center justify-center space-x-2`}
                             aria-label={`Select ${option} mode`}
                           >
                             {option === 'light' && <Sun className="w-4 h-4" />}
@@ -135,16 +164,16 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
 
                     {/* Default Theme Section */}
                     <div className="space-y-3">
-                      <label className={`text-sm font-medium ${theme.text}`}>
+                      <label className="text-sm font-medium text-white/70">
                         Default Theme
                       </label>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-sm ${theme.text}`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        <span className="text-sm text-white/60 flex-1">
                           {defaultTheme
-                            ? `Current Default: ${defaultTheme.mode.charAt(0).toUpperCase() + defaultTheme.mode.slice(1)}${
+                            ? `${defaultTheme.mode.charAt(0).toUpperCase() + defaultTheme.mode.slice(1)}${
                                 defaultTheme.season ? `, ${seasonThemes[defaultTheme.season]?.name || defaultTheme.season}` : ''
                               }`
-                            : 'No default theme set'}
+                            : 'No default set (uses persona theme)'}
                         </span>
                         <div className="flex space-x-2">
                           <button
@@ -152,14 +181,16 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                               setDefaultTheme({ mode, season });
                               setConfirmationMessage(defaultTheme ? 'Default theme changed!' : 'Default theme set!');
                             }}
-                            className={`px-3 py-1 rounded-full text-sm
-                              bg-white/10 dark:bg-black/10 backdrop-blur-md
-                              border border-white/20 dark:border-gray-800/20
-                              hover:bg-white/20 dark:hover:bg-gray-800/20
-                              text-white/80 dark:text-gray-200/80
-                              transition-all duration-200`}
+                            className="px-3 py-1.5 rounded-full text-sm transition-all duration-200"
+                            style={{
+                              background: 'rgba(168, 85, 247, 0.2)',
+                              backdropFilter: 'blur(12px)',
+                              WebkitBackdropFilter: 'blur(12px)',
+                              border: '1px solid rgba(168, 85, 247, 0.3)',
+                              color: 'rgba(255, 255, 255, 0.8)'
+                            }}
                           >
-                            {defaultTheme ? 'Change Default' : 'Set as Default'}
+                            {defaultTheme ? 'Update' : 'Set as Default'}
                           </button>
                           {defaultTheme && (
                             <button
@@ -167,14 +198,16 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                                 clearDefaultTheme();
                                 setConfirmationMessage('Default theme cleared!');
                               }}
-                              className={`px-3 py-1 rounded-full text-sm
-                                bg-white/10 dark:bg-black/10 backdrop-blur-md
-                                border border-white/20 dark:border-gray-800/20
-                                hover:bg-white/20 dark:hover:bg-gray-800/20
-                                text-white/80 dark:text-gray-200/80
-                                transition-all duration-200`}
+                              className="px-3 py-1.5 rounded-full text-sm transition-all duration-200"
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                backdropFilter: 'blur(12px)',
+                                WebkitBackdropFilter: 'blur(12px)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                color: 'rgba(255, 255, 255, 0.6)'
+                              }}
                             >
-                              Clear Default
+                              Clear
                             </button>
                           )}
                         </div>
@@ -183,22 +216,24 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
 
                     {/* Season Themes */}
                     <div className="space-y-3">
-                      <label className={`text-sm font-medium ${theme.text}`}>
+                      <label className="text-sm font-medium text-white/70">
                         Seasons
                       </label>
                       <div
-                        className="max-h-[60vh] overflow-y-auto rounded-lg hide-scrollbar"
+                        className="max-h-[50vh] overflow-y-auto rounded-xl p-3"
                         style={{
-                          scrollbarWidth: 'none', // Firefox
-                          msOverflowStyle: 'none', // IE/Edge
+                          scrollbarWidth: 'none',
+                          msOverflowStyle: 'none',
+                          background: 'rgba(0, 0, 0, 0.2)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)'
                         }}
                       >
-                        <style jsx>{`
+                        <style>{`
                           .hide-scrollbar::-webkit-scrollbar {
                             display: none;
                           }
                         `}</style>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                           {seasonButtons}
                         </div>
                       </div>
@@ -207,14 +242,16 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
 
                   <Dialog.Close asChild>
                     <button
-                      className="absolute top-4 right-4 p-2 rounded-full
-                        bg-white/10 dark:bg-black/10 backdrop-blur-md
-                        border border-white/20 dark:border-gray-800/20
-                        hover:bg-white/20 dark:hover:bg-gray-800/20
-                        transition-all duration-200"
+                      className="absolute top-4 right-4 p-2 rounded-full transition-all duration-200"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}
                       aria-label="Close settings modal"
                     >
-                      <X className="w-4 h-4 text-white/80 dark:text-gray-200/80" />
+                      <X className="w-4 h-4 text-white/70" />
                     </button>
                   </Dialog.Close>
                 </div>

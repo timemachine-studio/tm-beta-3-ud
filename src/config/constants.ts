@@ -18,37 +18,42 @@ export const PERSONA_LIMITS = {
 export const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
-    initialMessage: "Hey there! I'm TimeMachine, from future",
+    initialMessage: "Hey there, from future",
     color: 'purple'
   },
   girlie: {
     name: 'TimeMachine Girlie',
-    initialMessage: "Hiee✨ I'm TimeMachine Girlie, from future~",
+    initialMessage: "Hiee✨ from future~",
     color: 'pink'
   },
   pro: {
     name: 'TimeMachine PRO',
-    initialMessage: "It's TimeMachine PRO, from future. Let's cure cancer.",
+    initialMessage: "From future. Let's cure cancer.",
     color: 'cyan'
   },
   chatgpt: {
     name: 'ChatGPT',
-    initialMessage: "Hello! I'm ChatGPT.",
+    initialMessage: "Hello!",
     color: 'green'
   },
   gemini: {
     name: 'Gemini',
-    initialMessage: "Hello! I'm Gemini.",
+    initialMessage: "Hello!",
     color: 'blue'
   },
   claude: {
     name: 'Claude',
-    initialMessage: "Hello! I'm Claude.",
+    initialMessage: "Hello!",
     color: 'orange'
+  },
+  deepseek: {
+    name: 'DeepSeek',
+    initialMessage: "Hello!",
+    color: 'indigo'
   },
   grok: {
     name: 'Grok',
-    initialMessage: "Hello! I'm Grok.",
+    initialMessage: "Hello!",
     color: 'gray'
   }
 };

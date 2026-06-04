@@ -1,16 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { X } from 'lucide-react';
 import { MessageProps } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { Brain } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { GeneratedImage } from './GeneratedImage';
+import { GeneratedVideo } from './GeneratedVideo';
 import { AnimatedShinyText } from '../ui/AnimatedShinyText';
 import { AudioPlayerBubble } from './AudioPlayerBubble';
+import { CodeBlock } from './CodeBlock';
+import { BrandOverride } from '../brand/BrandLogo';
+import { MusicComposeCard, SavedVariation } from './MusicComposeCard';
 
 interface AIMessageProps extends MessageProps {
   isChatMode: boolean;
@@ -21,7 +27,19 @@ interface AIMessageProps extends MessageProps {
   isStreaming?: boolean;
   audioUrl?: string;
   isStreamingActive?: boolean;
+  loadingPhase?: 'analyzing_photo' | 'thinking' | null;
+  specialMode?: string;
+  brandOverride?: BrandOverride;
+  musicVariations?: SavedVariation[];
+  onMusicVariationsChange?: (messageId: number, variations: SavedVariation[]) => void;
 }
+
+const SPECIAL_MODE_SHIMMER_TEXT: Record<string, string> = {
+  'web-coding': 'Thinking outside the box',
+  'music-compose': 'Thinking about the melody',
+  'tm-healthcare': 'Talking with the medical researcher',
+  'video-generation': 'Generating video',
+};
 
 const getPersonaColor = (persona: keyof typeof AI_PERSONAS = 'default') => {
   switch (persona) {
@@ -67,18 +85,38 @@ const extractMentionedPersona = (message: string | null): keyof typeof AI_PERSON
   return match ? match[1].toLowerCase() as keyof typeof AI_PERSONAS : null;
 };
 
-export function AIMessage({ 
-  content, 
+// Helper to process memory tags and marker from content
+const processMemoryContent = (content: string): { cleanContent: string; hasSavedMemory: boolean } => {
+  // Check for memory saved marker
+  const hasSavedMemory = content.includes('[MEMORY_SAVED]');
+
+  // Remove memory tags and marker
+  let cleanContent = content
+    .replace(/<memory>[\s\S]*?<\/memory>/gi, '') // Remove memory tags
+    .replace(/\[MEMORY_SAVED\]/g, '') // Remove marker
+    .replace(/!\[Generated Image\]\([^)]*$/, '') // Hide incomplete image markdown during streaming
+    .trim();
+
+  return { cleanContent, hasSavedMemory };
+};
+
+function AIMessageComponent({
+  content,
   thinking: reasoning,
-  isChatMode, 
-  messageId, 
-  hasAnimated, 
-  onAnimationComplete, 
+  isChatMode,
+  messageId,
+  hasAnimated,
+  onAnimationComplete,
   currentPersona = 'default',
   previousMessage = null,
   isStreaming = false,
   audioUrl,
-  isStreamingActive = false
+  isStreamingActive = false,
+  loadingPhase,
+  specialMode,
+  brandOverride,
+  musicVariations,
+  onMusicVariationsChange
 }: AIMessageProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
@@ -89,6 +127,9 @@ export function AIMessage({
   const shimmerColors = getPersonaShimmerColors(displayPersona);
   const contentEndRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
+
+  // Process content to handle memory tags
+  const { cleanContent, hasSavedMemory } = processMemoryContent(content);
 
   // Get persona-specific colors for reasoning display
   const getPersonaReasoningColors = (persona: keyof typeof AI_PERSONAS) => {
@@ -168,58 +209,90 @@ export function AIMessage({
       const timeout = setTimeout(() => {
         setIsRecordingVoice(false);
       }, 3000);
-      
+
       return () => clearTimeout(timeout);
     } else if (audioUrl && content) {
       setIsRecordingVoice(false);
     }
   }, [audioUrl, content]);
-  const MarkdownComponents = {
-    h1: ({ children }: { children: React.ReactNode }) => (
+
+  // Memoize MarkdownComponents to prevent re-creating on every render
+  // This is critical to prevent GeneratedImage from re-mounting on parent re-renders
+  const MarkdownComponents = useMemo(() => ({
+    h1: ({ children }: { children?: React.ReactNode }) => (
       <h1 className={`text-2xl font-bold mt-6 mb-4 ${theme.text}`}>{children}</h1>
     ),
-    h2: ({ children }: { children: React.ReactNode }) => (
+    h2: ({ children }: { children?: React.ReactNode }) => (
       <h2 className={`text-xl font-bold mt-5 mb-3 ${theme.text}`}>{children}</h2>
     ),
-    h3: ({ children }: { children: React.ReactNode }) => (
+    h3: ({ children }: { children?: React.ReactNode }) => (
       <h3 className={`text-lg font-bold mt-4 mb-2 ${theme.text}`}>{children}</h3>
     ),
-    p: ({ children }: { children: React.ReactNode }) => (
+    p: ({ children }: { children?: React.ReactNode }) => (
       <p className={`mb-4 leading-relaxed ${theme.text}`}>{children}</p>
     ),
-    strong: ({ children }: { children: React.ReactNode }) => (
+    strong: ({ children }: { children?: React.ReactNode }) => (
       <strong className={`font-bold ${personaColor}`}>{children}</strong>
     ),
-    em: ({ children }: { children: React.ReactNode }) => (
+    em: ({ children }: { children?: React.ReactNode }) => (
       <em className={`italic opacity-80 ${theme.text}`}>{children}</em>
     ),
-    ul: ({ children }: { children: React.ReactNode }) => (
+    ul: ({ children }: { children?: React.ReactNode }) => (
       <ul className="list-disc ml-4 mb-4 space-y-2">{children}</ul>
     ),
-    ol: ({ children }: { children: React.ReactNode }) => (
+    ol: ({ children }: { children?: React.ReactNode }) => (
       <ol className="list-decimal ml-4 mb-4 space-y-2">{children}</ol>
     ),
-    li: ({ children }: { children: React.ReactNode }) => (
+    li: ({ children }: { children?: React.ReactNode }) => (
       <li className={`leading-relaxed ${theme.text}`}>{children}</li>
     ),
-    blockquote: ({ children }: { children: React.ReactNode }) => (
+    blockquote: ({ children }: { children?: React.ReactNode }) => (
       <blockquote className={`border-l-4 border-purple-500/50 pl-4 my-4 italic opacity-70 ${theme.text}`}>
         {children}
       </blockquote>
     ),
-    code: ({ children }: { children: React.ReactNode }) => (
-      <code className={`bg-white/10 rounded px-1.5 py-0.5 text-sm font-mono ${theme.text}`}>
-        {children}
-      </code>
-    ),
-    pre: ({ children }: { children: React.ReactNode }) => (
-      <pre className={`bg-white/10 rounded-lg p-4 mb-4 overflow-x-auto font-mono text-sm ${theme.text}`}>
-        {children}
-      </pre>
-    ),
+    code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
+      // Inline code only — block code is handled by the pre component
+      if (className) return <code className={className}>{children}</code>;
+      return (
+        <code className={`bg-white/10 rounded px-1.5 py-0.5 text-sm font-mono ${theme.text}`}>
+          {children}
+        </code>
+      );
+    },
+    pre: ({ children }: { children?: React.ReactNode }) => {
+      // Extract language and code from the child <code> element
+      const child = React.Children.toArray(children)[0] as React.ReactElement<{
+        className?: string;
+        children?: React.ReactNode;
+      }> | undefined;
+      if (child && child.props) {
+        const langMatch = /language-(\w+)/.exec(child.props.className || '');
+        const language = langMatch ? langMatch[1] : undefined;
+        const code = String(child.props.children || '').replace(/\n$/, '');
+        return <CodeBlock language={language} code={code} themeText={theme.text} />;
+      }
+      // Fallback for non-code children
+      return (
+        <pre className={`bg-white/10 rounded-lg p-4 mb-4 overflow-x-auto font-mono text-sm ${theme.text}`}>
+          {children}
+        </pre>
+      );
+    },
     img: ({ src, alt }: { src?: string; alt?: string }) => {
-      // Check if this is a generated image (proxy URL or legacy Pollinations URL)
-      if (src && (src.startsWith('/api/image?') || src.includes('enter.pollinations.ai'))) {
+      // Check if this is a generated image:
+      // 1. Alt text is "Generated Image" (preserved after URL replacement to Supabase)
+      // 2. OR proxy URL (/api/image?)
+      // 3. OR legacy Pollinations URL
+      // 4. OR Supabase storage URL (permanent storage for generated images)
+      const isGeneratedImage = alt === 'Generated Image' ||
+        (src && (
+          src.startsWith('/api/image?') ||
+          src.includes('enter.pollinations.ai') ||
+          src.includes('.supabase.co/storage/')
+        ));
+
+      if (src && isGeneratedImage) {
         return <GeneratedImage src={src} alt={alt || 'Generated image'} persona={displayPersona} />;
       }
 
@@ -233,9 +306,36 @@ export function AIMessage({
         />
       );
     },
-  };
+    a: ({ href, children, node: _node, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { node?: unknown }) => {
+      const isGeneratedVideo = href?.startsWith('https://gen.pollinations.ai/video/');
 
-  const MessageContent = () => (
+      if (href && isGeneratedVideo) {
+        return (
+          <GeneratedVideo
+            src={href}
+            title={children ? String(children) : 'Generated video'}
+            persona={displayPersona}
+          />
+        );
+      }
+
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className={`${personaColor} underline underline-offset-4 hover:opacity-80`}
+          {...props}
+        >
+          {children}
+        </a>
+      );
+    },
+  }), [theme.text, personaColor, displayPersona]);
+
+  // Inline the message content JSX - DO NOT use a function component here
+  // as it would cause remounting on every parent re-render
+  const messageContent = (
     <>
       {reasoning && (
         <div className="w-full max-w-4xl mx-auto mb-6">
@@ -278,7 +378,8 @@ export function AIMessage({
                   <X className="w-4 h-4 text-white/80" />
                 </button>
                 <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                  remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
                   components={MarkdownComponents}
                   className={`text-sm ${theme.text}`}
                 >
@@ -302,7 +403,7 @@ export function AIMessage({
               gradientAnimationDuration={2}
               textClassName="text-base"
               className="py-1"
-              style={{ 
+              style={{
                 fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
                 fontSize: '16px'
               }}
@@ -323,7 +424,28 @@ export function AIMessage({
               gradientAnimationDuration={2}
               textClassName="text-base"
               className="py-1"
-              style={{ 
+              style={{
+                fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
+                fontSize: '16px'
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Special mode thinking state — replaces the normal "Thinking..." spinner */}
+      {isStreamingActive && !cleanContent && specialMode && SPECIAL_MODE_SHIMMER_TEXT[specialMode] && (
+        <div className="w-full max-w-2xl mx-auto my-4">
+          <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
+            <AnimatedShinyText
+              text={SPECIAL_MODE_SHIMMER_TEXT[specialMode]}
+              useShimmer={true}
+              baseColor={shimmerColors.baseColor}
+              shimmerColor={shimmerColors.shimmerColor}
+              gradientAnimationDuration={2}
+              textClassName="text-base"
+              className="py-1"
+              style={{
                 fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
                 fontSize: '16px'
               }}
@@ -335,45 +457,63 @@ export function AIMessage({
       {/* Display audio response if present */}
       {audioUrl && !isRecordingVoice && (
         <div className="w-full max-w-2xl mx-auto my-4">
-          <div className="flex flex-col gap-1">
-            <div className={`text-xs font-medium ${personaColor} opacity-60`}>
-              {AI_PERSONAS[displayPersona].name}
-            </div>
-            <AudioPlayerBubble
-              audioSrc={audioUrl}
-              isUserMessage={false}
-              className="max-w-full"
-              currentPersona={displayPersona}
-            />
-          </div>
+          <AudioPlayerBubble
+            audioSrc={audioUrl}
+            isUserMessage={false}
+            className="max-w-full"
+            currentPersona={displayPersona}
+          />
         </div>
       )}
       {/* Show content when not generating or when generation is complete */}
-      {!isGeneratingImage && !isRecordingVoice && (content || isStreamingActive) && !audioUrl && (
+      {!isGeneratingImage && !isRecordingVoice && !(isStreamingActive && !cleanContent && specialMode && SPECIAL_MODE_SHIMMER_TEXT[specialMode as string]) && (cleanContent || isStreamingActive) && !audioUrl && (
         <>
           {isChatMode ? (
             <div className="flex flex-col gap-1">
-              <div className={`text-xs font-medium ${personaColor} opacity-60`}>
-                {AI_PERSONAS[displayPersona].name}
+              {/* Persona name with streaming indicator */}
+              <div className={`text-xs font-medium ${personaColor} opacity-60 flex items-center gap-2`}>
+                {brandOverride?.personaName || AI_PERSONAS[displayPersona].name}
                 {isStreamingActive && (
-                  <span className="ml-2 inline-flex items-center">
-                    <motion.div
-                      animate={{ opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                      className="w-2 h-2 bg-current rounded-full"
-                    />
-                  </span>
+                  <motion.div
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                    className="w-2 h-2 bg-current rounded-full"
+                  />
                 )}
               </div>
               <div className={`${theme.text} text-base leading-relaxed max-w-[85%]`}>
-                {content ? (
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                    components={MarkdownComponents}
-                    className="prose prose-invert prose-sm max-w-none"
-                  >
-                    {content}
-                  </ReactMarkdown>
+                {cleanContent ? (
+                  specialMode === 'music-compose' ? (
+                    <MusicComposeCard
+                      content={cleanContent}
+                      isStreamingActive={isStreamingActive}
+                      personaColor={personaColor}
+                      displayPersona={displayPersona}
+                      savedVariations={musicVariations}
+                      onVariationsChange={(variations) => onMusicVariationsChange?.(messageId, variations)}
+                    />
+                  ) : (
+                  <>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
+                      components={MarkdownComponents}
+                      className="prose prose-invert prose-sm max-w-none"
+                    >
+                      {cleanContent}
+                    </ReactMarkdown>
+                    {/* Saved to Memory indicator */}
+                    {hasSavedMemory && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-3 text-xs text-white/30 italic"
+                      >
+                        Saved to Memory
+                      </motion.div>
+                    )}
+                  </>
+                  )
                 ) : isStreamingActive ? (
                   <div className="flex items-center gap-2 text-sm opacity-60">
                     <motion.div
@@ -381,25 +521,48 @@ export function AIMessage({
                       transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                       className="w-4 h-4 border-2 border-current border-t-transparent rounded-full"
                     />
-                    Thinking...
+                    {loadingPhase === 'analyzing_photo' ? 'Analyzing photo...' : 'Thinking...'}
                   </div>
                 ) : null}
               </div>
             </div>
           ) : (
-            <div className={`${theme.text} ${
-              isChatMode 
-                ? 'text-base sm:text-lg' 
+            <div className={`${theme.text} ${isChatMode
+                ? 'text-base sm:text-lg'
                 : 'text-xl sm:text-2xl md:text-3xl'
-            } w-full max-w-4xl mx-auto text-center`}>
-              {content ? (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkBreaks]}
-                  components={MarkdownComponents}
-                  className="prose prose-invert max-w-none"
-                >
-                  {content}
-                </ReactMarkdown>
+              } w-full max-w-4xl mx-auto text-center`}>
+              {cleanContent ? (
+                specialMode === 'music-compose' ? (
+                  <MusicComposeCard
+                    content={cleanContent}
+                    isStreamingActive={isStreamingActive}
+                    personaColor={personaColor}
+                    displayPersona={displayPersona}
+                    savedVariations={musicVariations}
+                    onVariationsChange={(variations) => onMusicVariationsChange?.(messageId, variations)}
+                  />
+                ) : (
+                <>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                    components={MarkdownComponents}
+                    className="prose prose-invert max-w-none"
+                  >
+                    {cleanContent}
+                  </ReactMarkdown>
+                  {/* Saved to Memory indicator */}
+                  {hasSavedMemory && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-4 text-sm text-white/30 italic"
+                    >
+                      Saved to Memory
+                    </motion.div>
+                  )}
+                </>
+                )
               ) : isStreamingActive ? (
                 <div className="flex items-center justify-center gap-3 text-lg opacity-60">
                   <motion.div
@@ -407,7 +570,7 @@ export function AIMessage({
                     transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                     className="w-6 h-6 border-2 border-current border-t-transparent rounded-full"
                   />
-                  Thinking...
+                  {loadingPhase === 'analyzing_photo' ? 'Analyzing photo...' : 'Thinking...'}
                 </div>
               ) : null}
             </div>
@@ -422,14 +585,17 @@ export function AIMessage({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ 
+      transition={{
         duration: 0.6,
         ease: [0.25, 0.1, 0.25, 1],
       }}
       onAnimationComplete={() => !hasAnimated && onAnimationComplete(messageId)}
       className={`w-full`}
     >
-      <MessageContent />
+      {messageContent}
     </motion.div>
   );
 }
+
+// Memoize AIMessage to prevent re-renders when parent hover state changes
+export const AIMessage = memo(AIMessageComponent);

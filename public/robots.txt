@@ -1,0 +1,23 @@
+# TimeMachine Chat - robots.txt
+# https://timemachinechat.com
+
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /personas
+Allow: /features
+Allow: /contact
+Allow: /help
+
+# Disallow private/authenticated routes
+Disallow: /account
+Disallow: /history
+Disallow: /settings
+Disallow: /album
+Disallow: /memories
+Disallow: /chat/
+Disallow: /groupchat/
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://timemachinechat.com/sitemap.xml

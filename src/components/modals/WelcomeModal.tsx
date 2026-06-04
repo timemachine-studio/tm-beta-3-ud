@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Key, Sparkles, Clock } from 'lucide-react';
@@ -15,6 +15,22 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
   const [accessToken, setAccessToken] = useState('');
   const [error, setError] = useState('');
   const [isValidating, setIsValidating] = useState(false);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = '0';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+    };
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,29 +72,26 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
 
             <Dialog.Content asChild>
               <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                className="fixed inset-0 flex items-center justify-center p-4 z-50"
-                style={{ 
-                  minHeight: '100vh',
-                  minHeight: '100dvh', // Dynamic viewport height for mobile
+                className="fixed z-50"
+                style={{
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '100%',
+                  maxWidth: '28rem',
+                  padding: '0 1rem',
                 }}
               >
                 <div
-                  className="relative w-full max-w-md mx-auto p-8 rounded-2xl
+                  className="relative w-full p-8 rounded-2xl
                     bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-3xl
                     border border-white/20 shadow-[0_8px_32px_rgba(139,92,246,0.2)]
                     overflow-hidden
-                    min-h-fit max-h-[90vh] overflow-y-auto"
-                  style={{
-                    // Ensure proper centering on mobile
-                    position: 'relative',
-                    top: 'auto',
-                    left: 'auto',
-                    transform: 'none',
-                  }}
+                    max-h-[90vh] max-h-[90dvh] overflow-y-auto"
                 >
                   {/* Animated background elements */}
                   <div className="absolute inset-0 overflow-hidden">

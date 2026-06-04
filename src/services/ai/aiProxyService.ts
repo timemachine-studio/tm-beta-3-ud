@@ -26,6 +26,12 @@ class RateLimitError extends Error {
   }
 }
 
+// User profile info for memory context
+export interface UserMemoryContext {
+  nickname?: string;
+  about_me?: string;
+}
+
 // Streaming response handler
 export async function generateAIResponseStreaming(
   messages: Message[],
@@ -38,7 +44,14 @@ export async function generateAIResponseStreaming(
   imageDimensions?: ImageDimensions,
   onChunk?: (chunk: string) => void,
   onComplete?: (response: AIResponse) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
+  userId?: string,
+  userMemories?: UserMemoryContext,
+  specialMode?: string,
+  onStatusChange?: (status: 'analyzing_photo' | 'thinking') => void,
+  pdfData?: string,
+  pdfFileName?: string,
+  pdfExtractedText?: string
 ): Promise<void> {
   try {
     // Call the Vercel API route with streaming enabled
@@ -58,18 +71,24 @@ export async function generateAIResponseStreaming(
         heatLevel,
         inputImageUrls,
         imageDimensions,
-        stream: true
+        stream: true,
+        userId,
+        userMemories,
+        specialMode,
+        pdfData,
+        pdfFileName,
+        pdfExtractedText
       })
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       // Check for rate limit errors
       if (response.status === 429 || errorData.type === 'rateLimit') {
         throw new RateLimitError('Rate limit exceeded');
       }
-      
+
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
@@ -91,6 +110,18 @@ export async function generateAIResponseStreaming(
         if (done) break;
 
         let chunk = decoder.decode(value, { stream: true });
+
+
+
+        // Check for image analysis status markers
+        if (chunk.includes('[IMAGE_ANALYZING]')) {
+          chunk = chunk.replace('[IMAGE_ANALYZING]', '');
+          if (onStatusChange) onStatusChange('analyzing_photo');
+        }
+        if (chunk.includes('[IMAGE_ANALYZED]')) {
+          chunk = chunk.replace('[IMAGE_ANALYZED]', '');
+          if (onStatusChange) onStatusChange('thinking');
+        }
 
         // Check for audio URL marker
         const audioMatch = chunk.match(/\[AUDIO_URL\](.*?)\[\/AUDIO_URL\]/);
@@ -126,7 +157,7 @@ export async function generateAIResponseStreaming(
           content: cleanContent,
           thinking,
           audioUrl,
-          youtubeMusic
+          youtubeMusic,
         });
       }
 
@@ -139,12 +170,12 @@ export async function generateAIResponseStreaming(
 
   } catch (error) {
     console.error('Error calling AI proxy:', error);
-    
+
     if (error instanceof RateLimitError) {
       if (onError) onError(error);
       return;
     }
-    
+
     const fallbackError = error instanceof Error ? error : new Error('Unknown error occurred');
     if (onError) {
       onError(fallbackError);
@@ -161,7 +192,13 @@ export async function generateAIResponse(
   audioData?: string,
   heatLevel?: number,
   inputImageUrls?: string[],
-  imageDimensions?: ImageDimensions
+  imageDimensions?: ImageDimensions,
+  userId?: string,
+  userMemories?: UserMemoryContext,
+  specialMode?: string,
+  pdfData?: string,
+  pdfFileName?: string,
+  pdfExtractedText?: string
 ): Promise<AIResponse> {
   try {
     // Call the Vercel API route without streaming
@@ -181,18 +218,24 @@ export async function generateAIResponse(
         heatLevel,
         inputImageUrls,
         imageDimensions,
-        stream: false
+        stream: false,
+        userId,
+        userMemories,
+        specialMode,
+        pdfData,
+        pdfFileName,
+        pdfExtractedText
       })
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       // Check for rate limit errors
       if (response.status === 429 || errorData.type === 'rateLimit') {
         throw new RateLimitError('Rate limit exceeded');
       }
-      
+
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
@@ -202,20 +245,20 @@ export async function generateAIResponse(
 
   } catch (error) {
     console.error('Error calling AI proxy:', error);
-    
+
     if (error instanceof RateLimitError) {
       throw error; // Re-throw rate limit errors to be handled by the UI
     }
-    
+
     if (error instanceof Error) {
       // Return simplified error message for other errors
-      return { 
-        content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment." 
+      return {
+        content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
       };
     }
-    
-    return { 
-      content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment." 
+
+    return {
+      content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
     };
   }
 }

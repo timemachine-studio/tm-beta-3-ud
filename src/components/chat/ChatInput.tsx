@@ -1,37 +1,51 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Send, Plus } from 'lucide-react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Send, Plus, X, CornerDownRight, ImagePlus, Code, Music, HeartPulse, FileText, Video } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { VoiceRecorder } from './VoiceRecorder';
 import { ChatInputProps, ImageDimensions } from '../../types/chat';
 import { LoadingSpinner } from '../loading/LoadingSpinner';
 import { ImagePreview } from './ImagePreview';
+import { PdfPreview } from './PdfPreview';
+import { extractPdfText } from '../../services/pdf/pdfService';
 import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { MentionCall } from './MentionCall';
-import { uploadToImageBB } from '../../services/imagebb/imageBBService';
+import { PlusMenu, PlusMenuOption } from './PlusMenu';
+import { uploadImage } from '../../services/image/imageService';
+import { GroupChatParticipant } from '../../types/groupChat';
+import { useContour } from '../contour/useContour';
+import { ContourPanel } from '../contour/ContourPanel';
+import { ContourCommand, recordCommandUsage } from '../contour/modules/commands';
+import { saveQuickNote } from '../contour/modules/quickNote';
+import { saveQuickEvent } from '../contour/modules/quickEvent';
 
 type Persona = keyof typeof AI_PERSONAS;
 
+export interface ReplyTo {
+  id: number;
+  content: string;
+  sender_nickname?: string;
+  isAI: boolean;
+}
+
 const personaStyles = {
-  glowColors: {
-    default: 'rgba(139,0,255,0.7)',
-    girlie: 'rgba(199,21,133,0.7)',
-    pro: 'rgba(34,211,238,0.7)'
+  // Subtle tint colors for glass buttons
+  tintColors: {
+    default: 'rgba(168, 85, 247, 0.2)',    // Purple tint (brighter)
+    girlie: 'rgba(236, 72, 153, 0.15)',    // Pink tint
+    pro: 'rgba(34, 211, 238, 0.15)'        // Cyan tint
   },
   borderColors: {
-    default: 'from-purple-600/20 to-blue-600/20',
-    girlie: 'from-pink-500/20 to-rose-400/20',
-    pro: 'from-cyan-600/20 to-blue-600/20'
+    default: 'rgba(168, 85, 247, 0.4)',    // Purple border (brighter)
+    girlie: 'rgba(236, 72, 153, 0.3)',      // Pink border
+    pro: 'rgba(34, 211, 238, 0.3)'          // Cyan border
   },
-  focusGlow: {
-    default: 'focus:shadow-[0_0_30px_2px_rgba(139,0,255,0.4)]',
-    girlie: 'focus:shadow-[0_0_30px_2px_rgba(199,21,133,0.4)]',
-    pro: 'focus:shadow-[0_0_30px_2px_rgba(34,211,238,0.4)]'
-  },
-  hoverGlow: {
-    default: 'hover:shadow-[0_0_25px_rgba(139,0,255,0.5)]',
-    girlie: 'hover:shadow-[0_0_25px_rgba(199,21,133,0.7)]',
-    pro: 'hover:shadow-[0_0_25px_rgba(34,211,238,0.5)]'
+  glowShadow: {
+    default: '0 0 15px rgba(168, 85, 247, 0.35)',  // Purple glow (brighter, larger)
+    girlie: '0 0 12px rgba(236, 72, 153, 0.25)',
+    pro: '0 0 12px rgba(34, 211, 238, 0.25)'
   }
 } as const;
 
@@ -48,6 +62,13 @@ const convertImageToBase64 = (file: File): Promise<string> => {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+};
+
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
 // Get image dimensions from a File
@@ -67,17 +88,52 @@ const getImageDimensions = (file: File): Promise<ImageDimensions> => {
   });
 };
 
-export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default' as Persona }: ChatInputProps & { currentPersona?: Persona }) {
+interface ExtendedChatInputProps extends ChatInputProps {
+  currentPersona?: Persona;
+  isGroupMode?: boolean;
+  participants?: GroupChatParticipant[];
+  replyTo?: ReplyTo | null;
+  onClearReply?: () => void;
+  initialMode?: PlusMenuOption | null;
+  onModeChange?: (mode: PlusMenuOption | null) => void;
+}
+
+export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default' as Persona, isGroupMode, participants, replyTo, onClearReply, initialMode, onModeChange }: ExtendedChatInputProps) {
   const [message, setMessage] = useState('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
+  const [pdfExtractedText, setPdfExtractedText] = useState<string | null>(null);
+  const [isPdfExtracting, setIsPdfExtracting] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [showMentionCall, setShowMentionCall] = useState(false);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [selectedPlusOption, setSelectedPlusOption] = useState<PlusMenuOption | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const plusMenuRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const contour = useContour();
+  const contourRef = useRef<HTMLDivElement>(null);
+
+  // Auto-set plus option when initialMode is provided (e.g., from healthcare page navigation)
+  useEffect(() => {
+    if (initialMode && initialMode !== selectedPlusOption) {
+      setSelectedPlusOption(initialMode);
+    }
+  }, [initialMode]);
+
+  // Notify parent of mode changes
+  useEffect(() => {
+    if (onModeChange) {
+      onModeChange(selectedPlusOption);
+    }
+  }, [selectedPlusOption, onModeChange]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -96,19 +152,63 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
-      const resize = () => {
-        textarea.style.height = 'auto';
-        const newHeight = Math.min(textarea.scrollHeight, 240);
-        textarea.style.height = `${newHeight}px`;
-      };
-      const debounceResize = setTimeout(resize, 100);
-      return () => clearTimeout(debounceResize);
+      // Store scroll position before resize
+      const scrollTop = textarea.scrollTop;
+
+      // Reset height to measure content
+      textarea.style.height = 'auto';
+      const newHeight = Math.min(textarea.scrollHeight, 150);
+      textarea.style.height = `${newHeight}px`;
+
+      // Restore scroll position
+      textarea.scrollTop = scrollTop;
     }
   }, [message]);
 
-  // Global keydown listener for type-to-chat functionality
+  // Close plus menu on outside click
+  useEffect(() => {
+    if (!showPlusMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node)) {
+        setShowPlusMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPlusMenu]);
+
+  // Close contour on outside click
+  useEffect(() => {
+    if (!contour.isVisible) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        contourRef.current && !contourRef.current.contains(e.target as Node) &&
+        textareaRef.current && !textareaRef.current.contains(e.target as Node)
+      ) {
+        contour.dismiss();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [contour.isVisible, contour]);
+
+  // Global keydown listener for Cmd+K shortcut and type-to-chat
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      // Cmd+K / Ctrl+K: Toggle Contour command palette
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+        event.preventDefault();
+        if (contour.isVisible) {
+          contour.dismiss();
+          setMessage('');
+        } else {
+          textareaRef.current?.focus();
+          setMessage('/');
+          contour.analyze('/');
+        }
+        return;
+      }
+
       // Check if any input element is currently focused
       const activeElement = document.activeElement;
       if (activeElement && (
@@ -125,8 +225,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
         event.key.length === 1 &&
         !event.ctrlKey &&
         !event.altKey &&
-        !event.metaKey &&
-        !event.shiftKey // Allow shift for capital letters
+        !event.metaKey
       ) {
         // Focus the textarea and let the browser handle the input
         textareaRef.current?.focus();
@@ -135,11 +234,29 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
+  }, [contour]);
+
+  const handlePlusMenuSelect = (option: PlusMenuOption) => {
+    setSelectedPlusOption(option);
+    setShowPlusMenu(false);
+
+    if (option === 'upload-photos') {
+      fileInputRef.current?.click();
+    } else if (option === 'upload-pdf') {
+      pdfInputRef.current?.click();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((message.trim() || selectedImages.length > 0) && !isLoading && !isUploading) {
+    // Don't send messages when contour is focused (textbox belongs to the tool)
+    if (contour.isFocused) return;
+    if ((message.trim() || selectedImages.length > 0 || selectedPdf) && !isLoading && !isUploading && !isPdfExtracting) {
+      if (selectedPlusOption === 'video-generation' && !message.trim()) {
+        alert('Please describe the video you want to generate.');
+        return;
+      }
+
       // Close mention modal when sending message
       setShowMentionCall(false);
 
@@ -151,14 +268,15 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
           const base64Images = await Promise.all(selectedImages.map(convertImageToBase64));
 
+          // Upload images using the new service (uses Supabase for logged in users, ImgBB for anonymous)
           const uploadResults = await Promise.all(
-            base64Images.map(base64Image => uploadToImageBB(base64Image))
+            base64Images.map(base64Image => uploadImage(base64Image, user?.id))
           );
 
           const successfulUploads = uploadResults.filter(result => result.success);
 
           if (successfulUploads.length === 0) {
-            alert('Failed to upload images to ImageBB. Please try again.');
+            alert('Failed to upload images. Please try again.');
             setIsUploading(false);
             return;
           }
@@ -166,7 +284,8 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           const publicUrls = successfulUploads.map(result => result.url);
           setUploadedImageUrls(publicUrls);
 
-          await onSendMessage(message, base64Images, undefined, publicUrls, firstImageDimensions);
+          const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-pdf' ? selectedPlusOption : undefined;
+          await onSendMessage(message, base64Images, undefined, publicUrls, firstImageDimensions, undefined, activeMode);
           setSelectedImages([]);
           setImagePreviewUrls([]);
           setUploadedImageUrls([]);
@@ -176,25 +295,197 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
         } finally {
           setIsUploading(false);
         }
+      } else if (selectedPdf && pdfExtractedText) {
+        setIsUploading(true);
+        try {
+          const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-pdf' ? selectedPlusOption : undefined;
+          await onSendMessage(message, undefined, undefined, undefined, undefined, undefined, activeMode, pdfExtractedText, selectedPdf.name);
+          setSelectedPdf(null);
+          setPdfExtractedText(null);
+          if (pdfInputRef.current) pdfInputRef.current.value = '';
+        } catch (error) {
+          alert('Failed to process PDF. Please try again.');
+          console.error('Error processing PDF:', error);
+        } finally {
+          setIsUploading(false);
+        }
       } else {
-        await onSendMessage(message);
+        const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-pdf' ? selectedPlusOption : undefined;
+        await onSendMessage(message, undefined, undefined, undefined, undefined, undefined, activeMode);
       }
       setMessage('');
+      contour.dismiss();
     }
   };
 
+  const handleCopyValue = useCallback((value: string) => {
+    navigator.clipboard.writeText(value).catch(() => { });
+  }, []);
+
+  const handleContourCommandSelect = useCallback((command: ContourCommand) => {
+    recordCommandUsage(command.id);
+    switch (command.action.type) {
+      case 'navigate':
+        navigate(command.action.path);
+        setMessage('');
+        contour.dismiss();
+        break;
+      case 'mode': {
+        const modeMap: Record<string, PlusMenuOption> = {
+          'web-coding': 'web-coding',
+          'music-compose': 'music-compose',
+          'tm-healthcare': 'tm-healthcare',
+          'video-generation': 'video-generation',
+        };
+        const plusOption = modeMap[command.action.mode];
+        if (plusOption) {
+          handlePlusMenuSelect(plusOption);
+        }
+        setMessage('');
+        contour.dismiss();
+        break;
+      }
+      case 'clipboard': {
+        let clipboardValue = '';
+        if (command.action.handler === 'uuid') {
+          clipboardValue = crypto.randomUUID?.() ||
+            'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+              const r = (Math.random() * 16) | 0;
+              return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+            });
+        } else if (command.action.handler === 'timestamp') {
+          clipboardValue = Math.floor(Date.now() / 1000).toString();
+        }
+        if (clipboardValue) {
+          navigator.clipboard.writeText(clipboardValue).catch(() => { });
+        }
+        setMessage('');
+        contour.dismiss();
+        break;
+      }
+      case 'inline':
+        // Open the tool INSIDE the contour panel (focused mode)
+        if (contour.focusOnModule(command.action.handler)) {
+          setMessage('');
+        } else {
+          setMessage('');
+          contour.dismiss();
+        }
+        break;
+    }
+  }, [navigate, contour, handlePlusMenuSelect]);
+
+  /**
+   * Get a copyable result value from the current module state
+   */
+  const getModuleCopyValue = (): string | null => {
+    const mod = contour.state.module;
+    if (!mod) return null;
+    if (mod.calculator && !mod.calculator.isPartial) return mod.calculator.result.toString();
+    if (mod.units && !mod.units.isPartial) return mod.units.toValue.toFixed(4).replace(/\.?0+$/, '');
+    if (mod.currency?.toValue != null && !mod.currency.isPartial && !mod.currency.isLoading) return mod.currency.toValue.toFixed(2);
+    if (mod.color) return mod.color.hex;
+    if (mod.timezone && !mod.timezone.isPartial) return mod.timezone.toTime;
+    if (mod.date && !mod.date.isPartial) return mod.date.display;
+    if (mod.random) return mod.random.value;
+    if (mod.translator?.translatedText && !mod.translator.isLoading) return mod.translator.translatedText;
+    if (mod.dictionary?.meanings?.length && !mod.dictionary.isLoading) {
+      const firstDef = mod.dictionary.meanings[0]?.definitions[0]?.definition;
+      return firstDef ? `${mod.dictionary.word}: ${firstDef}` : null;
+    }
+    if (mod.wordcount) return `${mod.wordcount.words} words, ${mod.wordcount.characters} characters`;
+    if (mod.lorem && !mod.lorem.isPartial) return mod.lorem.text;
+    if (mod.jsonFormat?.isValid && !mod.jsonFormat.isPartial) return mod.jsonFormat.formatted;
+    if (mod.base64 && !mod.base64.isPartial && !mod.base64.error) return mod.base64.mode === 'encode' ? mod.base64.encoded : mod.base64.decoded;
+    if (mod.urlEncode && !mod.urlEncode.isPartial && !mod.urlEncode.error) return mod.urlEncode.mode === 'encode' ? mod.urlEncode.encoded : mod.urlEncode.decoded;
+    if (mod.hash?.sha256 && !mod.hash.isLoading) return mod.hash.sha256;
+    if (mod.regex?.isValid && mod.regex.pattern) return `/${mod.regex.pattern}/${mod.regex.flags}`;
+    return null;
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Command palette navigation
+    if (contour.isVisible && contour.state.mode === 'commands') {
+      if (e.key === 'ArrowUp') { e.preventDefault(); contour.selectUp(); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); contour.selectDown(); return; }
+      if (e.key === 'Tab') { e.preventDefault(); contour.selectDown(); return; }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (contour.selectedCommand) handleContourCommandSelect(contour.selectedCommand);
+        return;
+      }
+    }
+
+    // Module mode: Enter copies result or starts timer
+    if (contour.isVisible && contour.state.mode === 'module' && contour.state.module) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        const mod = contour.state.module;
+
+        // Timer: Enter starts the timer
+        if (mod.id === 'timer' && mod.timer && !mod.timer.isRunning && !mod.timer.isComplete) {
+          e.preventDefault();
+          contour.startTimer();
+          return;
+        }
+
+        // Interactive modules that consume Enter
+        if (['quick-note', 'quick-event', 'navigation'].includes(mod.id)) {
+          e.preventDefault();
+          if (mod.id === 'quick-note' && mod.quickNote) {
+            saveQuickNote(mod.quickNote.content);
+            contour.dismiss();
+            setMessage('');
+          } else if (mod.id === 'quick-event' && mod.quickEvent) {
+            saveQuickEvent(mod.quickEvent);
+            contour.dismiss();
+            setMessage('');
+          } else if (mod.id === 'navigation' && mod.navigation) {
+            navigate(mod.navigation.path);
+            contour.dismiss();
+            setMessage('');
+          }
+          return;
+        }
+
+        // Other modules: Enter copies the result
+        const copyValue = getModuleCopyValue();
+        if (copyValue) {
+          e.preventDefault();
+          navigator.clipboard.writeText(copyValue).catch(() => { });
+          if (!contour.isFocused) {
+            setMessage('');
+            contour.dismiss();
+          }
+          return;
+        }
+
+        // In focused mode with no result yet, don't send message
+        if (contour.isFocused) {
+          e.preventDefault();
+          return;
+        }
+      }
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey && isDesktop) {
       e.preventDefault();
       handleSubmit(e);
-    } else if (e.key === 'Escape' && showMentionCall) {
-      setShowMentionCall(false);
+    } else if (e.key === 'Escape') {
+      if (contour.isVisible) {
+        contour.dismiss();
+        return;
+      }
+      if (showPlusMenu) setShowPlusMenu(false);
+      if (showMentionCall) setShowMentionCall(false);
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setMessage(newValue);
+
+    // Feed input to Contour for smart detection
+    contour.analyze(newValue);
 
     if (newValue.endsWith('@')) {
       setShowMentionCall(true);
@@ -219,6 +510,26 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     }
   };
 
+  const plusOptionIcons: Record<PlusMenuOption, React.ComponentType<{ className?: string }>> = {
+    'upload-photos': ImagePlus,
+    'upload-pdf': FileText,
+    'web-coding': Code,
+    'music-compose': Music,
+    'tm-healthcare': HeartPulse,
+    'video-generation': Video,
+  };
+
+  const handlePlusButtonClick = () => {
+    if (selectedPlusOption) {
+      // Already has a selected option — reset and show card
+      setSelectedPlusOption(null);
+      setShowPlusMenu(true);
+    } else {
+      // Toggle the card
+      setShowPlusMenu(prev => !prev);
+    }
+  };
+
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 4) {
@@ -236,6 +547,37 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     setImagePreviewUrls(urls);
   };
 
+  const handlePdfSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      alert('Please select a valid PDF file.');
+      return;
+    }
+    // 10 MB limit for PDFs
+    if (file.size > 10 * 1024 * 1024) {
+      alert('PDF file size must be under 10 MB.');
+      return;
+    }
+    setSelectedPdf(file);
+    setIsPdfExtracting(true);
+    try {
+      const result = await extractPdfText(file);
+      setPdfExtractedText(result.text);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to read PDF file. Please try again.');
+      setSelectedPdf(null);
+    } finally {
+      setIsPdfExtracting(false);
+    }
+  };
+
+  const removePdf = () => {
+    setSelectedPdf(null);
+    setPdfExtractedText(null);
+    if (pdfInputRef.current) pdfInputRef.current.value = '';
+  };
+
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     if (isDesktop) {
       e.preventDefault();
@@ -246,6 +588,29 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     if (!isDesktop) return;
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
+
+    // Check if any dropped file is a PDF
+    const pdfFile = files.find(f => f.type === 'application/pdf');
+    if (pdfFile) {
+      if (pdfFile.size > 10 * 1024 * 1024) {
+        alert('PDF file size must be under 10 MB.');
+        return;
+      }
+      setSelectedPdf(pdfFile);
+      setSelectedPlusOption('upload-pdf');
+      setIsPdfExtracting(true);
+      try {
+        const result = await extractPdfText(pdfFile);
+        setPdfExtractedText(result.text);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to read PDF file. Please try again.');
+        setSelectedPdf(null);
+      } finally {
+        setIsPdfExtracting(false);
+      }
+      return;
+    }
+
     if (files.length > 4) {
       alert('You can upload a maximum of 4 images.');
       return;
@@ -253,7 +618,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     const validImageFiles = files.filter(file => validImageTypes.includes(file.type));
     if (validImageFiles.length === 0) {
-      alert('Please drop valid image files (JPEG, PNG, GIF, WebP).');
+      alert('Please drop valid image or PDF files.');
       return;
     }
     setSelectedImages(validImageFiles);
@@ -275,6 +640,35 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto sticky bottom-4">
+      {/* Reply preview */}
+      <AnimatePresence>
+        {replyTo && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="flex items-center gap-2 mb-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl"
+          >
+            <CornerDownRight className="w-4 h-4 text-purple-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <span className="text-purple-400 text-xs font-medium">
+                Replying to {replyTo.isAI ? 'TimeMachine' : replyTo.sender_nickname || 'User'}
+              </span>
+              <p className="text-white/50 text-sm truncate">{replyTo.content}</p>
+            </div>
+            {onClearReply && (
+              <button
+                type="button"
+                onClick={onClearReply}
+                className="p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {imagePreviewUrls.length > 0 && currentPersona === 'default' && (
         <div className="flex gap-2 mb-4">
           {imagePreviewUrls.map((url, index) => (
@@ -299,6 +693,16 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           ))}
         </div>
       )}
+      {selectedPdf && (
+        <div className="flex gap-2 mb-4">
+          <PdfPreview
+            fileName={selectedPdf.name}
+            fileSize={formatFileSize(selectedPdf.size)}
+            onRemove={removePdf}
+            isUploading={isUploading || isPdfExtracting}
+          />
+        </div>
+      )}
       <div className="relative" onDragOver={handleDragOver} onDrop={handleDrop}>
         <div className="relative flex items-center gap-2">
           <input
@@ -309,24 +713,45 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
             ref={fileInputRef}
             multiple
           />
-          
-          <motion.button
-            type="button"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading || isUploading || selectedImages.length >= 4}
-            className={`p-3 rounded-full
-              bg-gradient-to-r ${personaStyles.borderColors[currentPersona]}
-              backdrop-blur-xl ${theme.text}
-              disabled:opacity-50 relative group
-              border border-white/10
-              shadow-[0_0_15px_${personaStyles.glowColors[currentPersona]}]
-              ${personaStyles.hoverGlow[currentPersona]}
-              transition-all duration-300`}
-          >
-            <Plus className="w-5 h-5 relative z-10" />
-          </motion.button>
+          <input
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={handlePdfSelect}
+            ref={pdfInputRef}
+          />
+
+          <div className="relative" ref={plusMenuRef}>
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handlePlusButtonClick}
+              disabled={isLoading || isUploading}
+              className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
+              style={{
+                background: `linear-gradient(135deg, ${(personaStyles.tintColors as Record<string, string>)[currentPersona] || personaStyles.tintColors.default}, rgba(255, 255, 255, 0.05))`,
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: `1px solid ${(personaStyles.borderColors as Record<string, string>)[currentPersona] || personaStyles.borderColors.default}`,
+                boxShadow: `${(personaStyles.glowShadow as Record<string, string>)[currentPersona] || personaStyles.glowShadow.default}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`
+              }}
+            >
+              {selectedPlusOption ? (
+                (() => {
+                  const IconComponent = plusOptionIcons[selectedPlusOption];
+                  return <IconComponent className="w-5 h-5 relative z-10" />;
+                })()
+              ) : (
+                <Plus className="w-5 h-5 relative z-10" />
+              )}
+            </motion.button>
+
+            <PlusMenu
+              isVisible={showPlusMenu}
+              onSelect={handlePlusMenuSelect}
+            />
+          </div>
 
           <div className="relative flex-1">
             <div className="relative flex items-center">
@@ -335,27 +760,33 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                 value={message}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Explore future"
+                placeholder="Type / for contour"
                 disabled={isLoading || isUploading}
-                className={`w-full px-6 py-4 pr-32 rounded-full
-                  bg-gray-200/5 backdrop-blur-xl
+                className={`w-full px-6 pr-32 rounded-[28px]
                   ${theme.input.text} placeholder-gray-400
-                  outline-none ${personaStyles.focusGlow[currentPersona]}
+                  outline-none
                   disabled:opacity-50
-                  transition-shadow duration-300
-                  text-base sm:text-base resize-none
-                  [overflow-y:hidden] [&::-webkit-scrollbar]:hidden [&::-moz-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
+                  transition-all duration-300
+                  text-base resize-none
+                  overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
                 style={{
-                  textShadow: '0 0 10px rgba(255,255,255,0.1)',
-                  fontSize: '16px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                  fontSize: '1rem',
                   minHeight: '56px',
-                  maxHeight: '240px'
+                  maxHeight: '150px',
+                  paddingTop: '16px',
+                  paddingBottom: '16px',
+                  lineHeight: '24px'
                 }}
                 rows={1}
               />
 
-              <div className="absolute right-2 flex items-center gap-2">
-                <VoiceRecorder 
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <VoiceRecorder
                   onSendMessage={onSendMessage}
                   disabled={isLoading || isUploading || message.trim().length > 0}
                   currentPersona={currentPersona}
@@ -365,16 +796,15 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                   type="submit"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  disabled={isLoading || isUploading || (!message.trim() && selectedImages.length === 0)}
-                  className={`p-3 rounded-full
-                    bg-gradient-to-r ${personaStyles.borderColors[currentPersona]}
-                    backdrop-blur-xl
-                    ${theme.text}
-                    disabled:opacity-50 relative group
-                    border border-white/10
-                    shadow-[0_0_15px_${personaStyles.glowColors[currentPersona]}]
-                    ${personaStyles.hoverGlow[currentPersona]}
-                    transition-all duration-300`}
+                  disabled={isLoading || isUploading || isPdfExtracting || (!message.trim() && selectedImages.length === 0 && !selectedPdf)}
+                  className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
+                  style={{
+                    background: `linear-gradient(135deg, ${personaStyles.tintColors[currentPersona]}, rgba(255, 255, 255, 0.05))`,
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: `1px solid ${personaStyles.borderColors[currentPersona]}`,
+                    boxShadow: `${personaStyles.glowShadow[currentPersona]}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`
+                  }}
                 >
                   {isLoading || isUploading ? (
                     <LoadingSpinner size="sm" />
@@ -389,7 +819,26 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
               isVisible={showMentionCall}
               onSelect={handleMentionSelect}
               currentPersona={currentPersona}
+              isGroupMode={isGroupMode}
+              participants={participants}
+              currentUserId={user?.id}
             />
+
+            {/* TimeMachine Contour - Smart Assist Overlay */}
+            <div ref={contourRef}>
+              <ContourPanel
+                state={contour.state}
+                isVisible={contour.isVisible}
+                onCommandSelect={handleContourCommandSelect}
+                selectedIndex={contour.state.selectedIndex}
+                persona={currentPersona}
+                onTimerStart={contour.startTimer}
+                onTimerToggle={contour.toggleTimer}
+                onTimerReset={contour.resetTimer}
+                onSetTimerDuration={contour.setTimerDuration}
+                onCopyValue={handleCopyValue}
+              />
+            </div>
           </div>
         </div>
       </div>
