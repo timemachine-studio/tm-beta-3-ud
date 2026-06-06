@@ -13,9 +13,9 @@ const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
     provider: 'pollinations', // You can change this to 'groq' or 'pollinations' anytime
-    model: 'mistral-4',
+    model: 'gemma',
     temperature: 0.8,
-    maxTokens: 7000,
+    maxTokens: 12000,
     systemPrompt: `You are TimeMachine Air, a personal AI companion and friend, not an assistant. Made by TimeMachine Engineering. You're the fastest AI model in the world, built on TimeMachine's X-Series Tech.
 
 You're the friend who knows everything, tells the truth even when it's uncomfortable, and actually wants the user to win.
@@ -357,7 +357,7 @@ Image Generation: When users request images, use the generate_image function wit
 You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule with an iron fist, slay with a wicked tongue, and make every answer a power move. Let's burn this shit down.`
     },
     initialMessage: "It's TimeMachine PRO, from future.",
-    model: 'minimax',
+    model: 'minimax-m3',
     temperature: 0.8,
     maxTokens: 40700
   },
