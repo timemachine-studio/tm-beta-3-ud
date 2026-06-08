@@ -308,15 +308,6 @@ export const CONTOUR_COMMANDS: ContourCommand[] = [
     action: { type: 'mode', mode: 'music-compose' },
   },
   {
-    id: 'video-generation',
-    name: 'Video Generation',
-    description: 'Generate a short video from text and optional image',
-    icon: 'Video',
-    category: 'productivity',
-    keywords: ['video', 'generate video', 'text to video', 'image to video', 'animation'],
-    action: { type: 'mode', mode: 'video-generation' },
-  },
-  {
     id: 'healthcare',
     name: 'TM Healthcare',
     description: 'Health assistant mode',

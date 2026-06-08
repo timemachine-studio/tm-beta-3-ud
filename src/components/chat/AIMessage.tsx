@@ -11,7 +11,6 @@ import { AI_PERSONAS } from '../../config/constants';
 import { Brain } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { GeneratedImage } from './GeneratedImage';
-import { GeneratedVideo } from './GeneratedVideo';
 import { AnimatedShinyText } from '../ui/AnimatedShinyText';
 import { AudioPlayerBubble } from './AudioPlayerBubble';
 import { CodeBlock } from './CodeBlock';
@@ -38,7 +37,6 @@ const SPECIAL_MODE_SHIMMER_TEXT: Record<string, string> = {
   'web-coding': 'Thinking outside the box',
   'music-compose': 'Thinking about the melody',
   'tm-healthcare': 'Talking with the medical researcher',
-  'video-generation': 'Generating video',
 };
 
 const getPersonaColor = (persona: keyof typeof AI_PERSONAS = 'default') => {
@@ -219,39 +217,39 @@ function AIMessageComponent({
   // Memoize MarkdownComponents to prevent re-creating on every render
   // This is critical to prevent GeneratedImage from re-mounting on parent re-renders
   const MarkdownComponents = useMemo(() => ({
-    h1: ({ children }: { children?: React.ReactNode }) => (
+    h1: ({ children }: { children: React.ReactNode }) => (
       <h1 className={`text-2xl font-bold mt-6 mb-4 ${theme.text}`}>{children}</h1>
     ),
-    h2: ({ children }: { children?: React.ReactNode }) => (
+    h2: ({ children }: { children: React.ReactNode }) => (
       <h2 className={`text-xl font-bold mt-5 mb-3 ${theme.text}`}>{children}</h2>
     ),
-    h3: ({ children }: { children?: React.ReactNode }) => (
+    h3: ({ children }: { children: React.ReactNode }) => (
       <h3 className={`text-lg font-bold mt-4 mb-2 ${theme.text}`}>{children}</h3>
     ),
-    p: ({ children }: { children?: React.ReactNode }) => (
+    p: ({ children }: { children: React.ReactNode }) => (
       <p className={`mb-4 leading-relaxed ${theme.text}`}>{children}</p>
     ),
-    strong: ({ children }: { children?: React.ReactNode }) => (
+    strong: ({ children }: { children: React.ReactNode }) => (
       <strong className={`font-bold ${personaColor}`}>{children}</strong>
     ),
-    em: ({ children }: { children?: React.ReactNode }) => (
+    em: ({ children }: { children: React.ReactNode }) => (
       <em className={`italic opacity-80 ${theme.text}`}>{children}</em>
     ),
-    ul: ({ children }: { children?: React.ReactNode }) => (
+    ul: ({ children }: { children: React.ReactNode }) => (
       <ul className="list-disc ml-4 mb-4 space-y-2">{children}</ul>
     ),
-    ol: ({ children }: { children?: React.ReactNode }) => (
+    ol: ({ children }: { children: React.ReactNode }) => (
       <ol className="list-decimal ml-4 mb-4 space-y-2">{children}</ol>
     ),
-    li: ({ children }: { children?: React.ReactNode }) => (
+    li: ({ children }: { children: React.ReactNode }) => (
       <li className={`leading-relaxed ${theme.text}`}>{children}</li>
     ),
-    blockquote: ({ children }: { children?: React.ReactNode }) => (
+    blockquote: ({ children }: { children: React.ReactNode }) => (
       <blockquote className={`border-l-4 border-purple-500/50 pl-4 my-4 italic opacity-70 ${theme.text}`}>
         {children}
       </blockquote>
     ),
-    code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
+    code: ({ className, children }: { className?: string; children: React.ReactNode }) => {
       // Inline code only — block code is handled by the pre component
       if (className) return <code className={className}>{children}</code>;
       return (
@@ -260,7 +258,7 @@ function AIMessageComponent({
         </code>
       );
     },
-    pre: ({ children }: { children?: React.ReactNode }) => {
+    pre: ({ children }: { children: React.ReactNode }) => {
       // Extract language and code from the child <code> element
       const child = React.Children.toArray(children)[0] as React.ReactElement<{
         className?: string;
@@ -304,31 +302,6 @@ function AIMessageComponent({
           className="max-w-full h-auto rounded-xl my-4"
           loading="lazy"
         />
-      );
-    },
-    a: ({ href, children, node: _node, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { node?: unknown }) => {
-      const isGeneratedVideo = href?.startsWith('https://gen.pollinations.ai/video/');
-
-      if (href && isGeneratedVideo) {
-        return (
-          <GeneratedVideo
-            src={href}
-            title={children ? String(children) : 'Generated video'}
-            persona={displayPersona}
-          />
-        );
-      }
-
-      return (
-        <a
-          href={href}
-          target="_blank"
-          rel="noreferrer"
-          className={`${personaColor} underline underline-offset-4 hover:opacity-80`}
-          {...props}
-        >
-          {children}
-        </a>
       );
     },
   }), [theme.text, personaColor, displayPersona]);

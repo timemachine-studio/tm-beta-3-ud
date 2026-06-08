@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Plus, X, CornerDownRight, ImagePlus, Code, Music, HeartPulse, FileText, Video } from 'lucide-react';
+import { Send, Plus, X, CornerDownRight, ImagePlus, Code, Music, HeartPulse, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { VoiceRecorder } from './VoiceRecorder';
 import { ChatInputProps, ImageDimensions } from '../../types/chat';
@@ -252,11 +252,6 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     // Don't send messages when contour is focused (textbox belongs to the tool)
     if (contour.isFocused) return;
     if ((message.trim() || selectedImages.length > 0 || selectedPdf) && !isLoading && !isUploading && !isPdfExtracting) {
-      if (selectedPlusOption === 'video-generation' && !message.trim()) {
-        alert('Please describe the video you want to generate.');
-        return;
-      }
-
       // Close mention modal when sending message
       setShowMentionCall(false);
 
@@ -335,7 +330,6 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           'web-coding': 'web-coding',
           'music-compose': 'music-compose',
           'tm-healthcare': 'tm-healthcare',
-          'video-generation': 'video-generation',
         };
         const plusOption = modeMap[command.action.mode];
         if (plusOption) {
@@ -516,7 +510,6 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     'web-coding': Code,
     'music-compose': Music,
     'tm-healthcare': HeartPulse,
-    'video-generation': Video,
   };
 
   const handlePlusButtonClick = () => {

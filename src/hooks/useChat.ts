@@ -14,7 +14,6 @@ import {
   getGroupChatMusic
 } from '../services/groupChat/groupChatService';
 import { GroupChatParticipant } from '../types/groupChat';
-import { createVideoMarkdown } from '../services/video/videoService';
 
 // Generate a proper UUID for session IDs
 function generateUUID(): string {
@@ -84,7 +83,8 @@ export function useChat(
   userProfile?: { nickname?: string | null; about_me?: string | null },
   initialPersona?: keyof typeof AI_PERSONAS,
   authLoading?: boolean,
-  initialSession?: { messages: Message[]; id: string; heat_level?: number } | null
+  initialSession?: { messages: Message[]; id: string; heat_level?: number } | null,
+  flowStateActive?: boolean
 ) {
   // Start with empty state - will be initialized once we know the persona
   // Unless we have an initialSession (loading from history)
@@ -545,7 +545,7 @@ export function useChat(
       const mentionsTimeMachine = /(@timemachine|timemachine)/i.test(content);
       const isReplyingToAI = replyTo?.isAI === true;
 
-      if (!mentionsTimeMachine && !isReplyingToAI && specialMode !== 'video-generation') {
+      if (!mentionsTimeMachine && !isReplyingToAI) {
         // Just send the message, no AI response
         setIsLoading(false);
         return;
@@ -565,28 +565,6 @@ export function useChat(
     setMessages(prev => [...prev, aiMessage]);
     setStreamingMessageId(aiMessageId);
     isStreamingRef.current = true; // Mark streaming as started
-
-    if (specialMode === 'video-generation') {
-      try {
-        const videoMarkdown = createVideoMarkdown({
-          prompt: messageContent,
-          inputImageUrls,
-          duration: 5
-        });
-
-        setLoadingPhase(null);
-        await completeStreamingMessage(aiMessageId, videoMarkdown);
-      } catch (error) {
-        console.error('Failed to generate video:', error);
-        setError('Failed to generate video. Please try again.');
-        setMessages(prev => prev.filter(msg => msg.id !== aiMessageId));
-        setStreamingMessageId(null);
-        setIsLoading(false);
-        setLoadingPhase(null);
-        isStreamingRef.current = false;
-      }
-      return;
-    }
 
     // Filter out initial welcome message (ID: 1) - it's just for UI aesthetics
     let apiMessages = [...messages, apiUserMessage].filter(msg => msg.id !== 1);
@@ -668,7 +646,9 @@ export function useChat(
         pdfData,
         pdfFileName,
         // Pass cached PDF text for follow-up messages (avoids re-extraction)
-        activePdfText || undefined
+        activePdfText || undefined,
+        // Flow State: route through Groq for faster speeds
+        currentPersona === 'default' ? flowStateActive : undefined
       );
     } else {
       // Use non-streaming response (fallback) - send API messages (without @mention in content and without initial message)
@@ -687,7 +667,9 @@ export function useChat(
           specialMode,
           pdfData,
           pdfFileName,
-          activePdfText || undefined
+          activePdfText || undefined,
+          // Flow State: route through Groq for faster speeds
+          currentPersona === 'default' ? flowStateActive : undefined
         );
 
         const emotion = extractEmotion(aiResponse.content);
@@ -718,7 +700,7 @@ export function useChat(
         isStreamingRef.current = false; // Clear streaming flag on error
       }
     }
-  }, [messages, currentPersona, currentProHeatLevel, userId, userProfile, isCollaborative, collaborativeId, completeStreamingMessage]);
+  }, [messages, currentPersona, currentProHeatLevel, userId, userProfile, isCollaborative, collaborativeId, flowStateActive]);
 
   const markMessageAsAnimated = useCallback((messageId: number) => {
     setMessages(prev => prev.map(msg =>

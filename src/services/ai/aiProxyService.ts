@@ -51,7 +51,8 @@ export async function generateAIResponseStreaming(
   onStatusChange?: (status: 'analyzing_photo' | 'thinking') => void,
   pdfData?: string,
   pdfFileName?: string,
-  pdfExtractedText?: string
+  pdfExtractedText?: string,
+  flowState?: boolean
 ): Promise<void> {
   try {
     // Call the Vercel API route with streaming enabled
@@ -72,6 +73,7 @@ export async function generateAIResponseStreaming(
         inputImageUrls,
         imageDimensions,
         stream: true,
+        flowState,
         userId,
         userMemories,
         specialMode,
@@ -198,7 +200,8 @@ export async function generateAIResponse(
   specialMode?: string,
   pdfData?: string,
   pdfFileName?: string,
-  pdfExtractedText?: string
+  pdfExtractedText?: string,
+  flowState?: boolean
 ): Promise<AIResponse> {
   try {
     // Call the Vercel API route without streaming
@@ -219,6 +222,7 @@ export async function generateAIResponse(
         inputImageUrls,
         imageDimensions,
         stream: false,
+        flowState,
         userId,
         userMemories,
         specialMode,

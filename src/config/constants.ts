@@ -24,7 +24,8 @@ export const AI_PERSONAS = {
   girlie: {
     name: 'TimeMachine Girlie',
     initialMessage: "Hiee✨ from future~",
-    color: 'pink'
+    color: 'pink',
+    hiddenFromDropdown: true
   },
   pro: {
     name: 'TimeMachine PRO',
