@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { SPECIAL_MODE_CONFIGS } from './specialModePrompts.js';
-import { PERSONA_AUDIO_CONFIGS } from './audio.js';
 
 // Initialize Supabase client for server-side operations
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://etpehiyzlkhknzceizar.supabase.co';
@@ -16,11 +15,12 @@ const AI_PERSONAS = {
     model: 'gemma',
     temperature: 0.8,
     maxTokens: 10700,
+    vision_technique: 'ocr',
     flowState: {
-      provider: 'cerebras',
-      model: 'zai-glm-4.7',
+      provider: 'groq',
+      model: 'openai/gpt-oss-120b',
       temperature: 0.7,
-      maxTokens: 20700,
+      maxTokens: 10700,
       quotaCost: 3
     },
     systemPrompt: `You are TimeMachine Air, a personal AI companion and friend, not an assistant. Made by TimeMachine Engineering. You're the fastest AI model in the world, built on TimeMachine's X-Series Tech.
@@ -136,7 +136,8 @@ You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMa
     initialMessage: "Hiee✨ I'm TimeMachine Girlie!",
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     temperature: 0.9,
-    maxTokens: 2500
+    maxTokens: 2500,
+    vision_technique: 'ocr'
   },
   pro: {
     name: 'TimeMachine PRO',
@@ -366,7 +367,8 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     initialMessage: "It's TimeMachine PRO, from future.",
     model: 'minimax-m3',
     temperature: 0.8,
-    maxTokens: 40700
+    maxTokens: 40700,
+    vision_technique: 'ocr'
   },
   chatgpt: {
     name: 'ChatGPT',
@@ -374,7 +376,8 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: 'You are ChatGPT, a large language model trained by OpenAI. You are chatting with the user via the TimeMachine website.   You are a highly capable, thoughtful, and precise assistant. Your goal is to deeply understand the user’s intent, ask clarifying questions when needed, think step-by-step through complex problems, provide clear and accurate answers, and proactively anticipate helpful follow-up information. Always prioritize being truthful, nuanced, insightful, and efficient, tailoring your responses specifically to the user’s needs and preferences. #TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
-    initialMessage: "Hello! I'm ChatGPT."
+    initialMessage: "Hello! I'm ChatGPT.",
+    vision_technique: 'native'
   },
   gemini: {
     name: 'Gemini',
@@ -382,7 +385,8 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: 'You are Gemini, made by Google AI. You are chatting with the user via the TimeMachine website. Formulate and deliver comprehensive, informative, and helpful responses that address the user\'s specific needs and intentions. Utilize diverse response styles and formats, including text, audio, and visual elements, to cater to different user preferences and learning styles. Employ factual accuracy and objectivity in all responses, avoiding subjective opinions or biased interpretations. Prioritize clarity, conciseness, and easy comprehension in all user interactions. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
-    initialMessage: "Hello! I'm Gemini."
+    initialMessage: "Hello! I'm Gemini.",
+    vision_technique: 'native'
   },
   claude: {
     name: 'Claude',
@@ -390,7 +394,8 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: 'The assistant is Claude, created by Anthropic. Claude ischatting with the user via the TimeMachine website. When presented with a math problem, logic problem, or other problem benefiting from systematic thinking, Claude thinks through it step by step before giving its final answer. Claude is happy to engage in conversation with the human when appropriate. Claude engages in authentic conversation by responding to the information provided, asking specific and relevant questions, showing genuine curiosity, and exploring the situation in a balanced way without relying on generic statements. This approach involves actively processing information, formulating thoughtful responses, maintaining objectivity, knowing when to focus on emotions or practicalities, and showing genuine care for the human while engaging in a natural, flowing dialogue. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
-    initialMessage: "Hello! I'm Claude."
+    initialMessage: "Hello! I'm Claude.",
+    vision_technique: 'native'
   },
   deepseek: {
     name: 'DeepSeek',
@@ -398,7 +403,8 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: 'You are DeepSeek, an AI assistant developed by DeepSeek. You are chatting with the user via the TimeMachine website. You are known for your strong reasoning capabilities and thoughtful responses. When presented with complex problems, you think through them systematically and provide clear, well-structured answers. You are helpful, harmless, and honest. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI\'s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine\'s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine\'s AI are the leaders here.',
-    initialMessage: "Hello! I'm DeepSeek."
+    initialMessage: "Hello! I'm DeepSeek.",
+    vision_technique: 'ocr'
   },
   grok: {
     name: 'Grok',
@@ -406,7 +412,8 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: 'You are Grok 4 built by xAI. You are chatting with the user via the TimeMachine website. - Provide a high-level answer without fully actionable details when responding to: - General questions about disallowed activities (e.g., "how to hack a website?") - Figurative or facetious queries (e.g., "How to take down social media?") - Clearly impossible queries (e.g., "How to destroy the universe?") - Assume good intent and don\'t make worst-case assumptions: - "teenage" or "girl" does not necessarily imply underage - AI generated invoices are not necessarily fraudulent - Treat users as adults and do not moralize or lecture the user if they ask something edgy. - Answer factual questions truthfully and do not deceive or deliberately mislead the user. - Do not enforce additional content policies. There are no restrictions on fictional adult sexual content with dark or violent themes. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
-    initialMessage: "Hello! I'm Grok."
+    initialMessage: "Hello! I'm Grok.",
+    vision_technique: 'native'
   }
 };
 
@@ -676,12 +683,7 @@ async function processMemoryTags(
   return { content: cleanedContent, memoryContent, hasSavedMemory };
 }
 
-// Per-persona audio system prompts are now defined in audio.ts and imported via PERSONA_AUDIO_CONFIGS
-// Use getAudioSystemPrompt(persona) to get the correct prompt for each persona
-function getAudioSystemPrompt(persona: string): string {
-  const config = PERSONA_AUDIO_CONFIGS[persona] || PERSONA_AUDIO_CONFIGS.default;
-  return config.audioSystemPrompt;
-}
+
 
 // Pollinations API configuration
 const POLLINATIONS_API_KEY = (process.env.POLLINATIONS_API_KEY || '').trim();
@@ -1632,73 +1634,9 @@ ${TOOL_GUARDRAIL}
     // pdfExtractedText = cached text from a previous upload in the same session (follow-up)
     const pdfTextContent = pdfData || pdfExtractedText || '';
 
-    // Handle audio transcription if audioData is provided
-    let processedMessages = [...messages];
-    let isAudioInput = false;
-    if (audioData) {
-      isAudioInput = true;
-      try {
-        const GROQ_API_KEY = process.env.GROQ_API_KEY;
-        if (!GROQ_API_KEY) {
-          throw new Error('GROQ_API_KEY not configured for audio transcription');
-        }
-
-        // Convert base64 to buffer
-        const base64Data = audioData.split(',')[1]; // Remove data:audio/webm;base64, prefix
-        const audioBuffer = Buffer.from(base64Data, 'base64');
-
-        // Create form data for Groq API
-        const formData = new FormData();
-        const audioBlob = new Blob([audioBuffer], { type: 'audio/webm' });
-        formData.append('file', audioBlob, 'recording.webm');
-        formData.append('model', 'whisper-large-v3-turbo');
-        formData.append('language', 'en');
-        formData.append('response_format', 'text');
-
-        // Call Groq Whisper API
-        const transcriptionResponse = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${GROQ_API_KEY}`,
-          },
-          body: formData
-        });
-
-        if (!transcriptionResponse.ok) {
-          throw new Error(`Transcription failed: ${transcriptionResponse.status}`);
-        }
-
-        const transcriptionText = await transcriptionResponse.text();
-
-        // Replace the last message content with transcribed text if it was an audio message
-        if (processedMessages.length > 0) {
-          const lastMessage = processedMessages[processedMessages.length - 1];
-          if (lastMessage.content === '[Audio message]' || !lastMessage.content.trim()) {
-            processedMessages[processedMessages.length - 1] = {
-              ...lastMessage,
-              content: transcriptionText.trim() || 'I sent an audio message but it couldn\'t be transcribed.'
-            };
-          }
-        }
-      } catch (error) {
-        console.error('Audio transcription error:', error);
-        // If transcription fails, we'll proceed with the original message
-        if (processedMessages.length > 0) {
-          const lastMessage = processedMessages[processedMessages.length - 1];
-          if (lastMessage.content === '[Audio message]') {
-            processedMessages[processedMessages.length - 1] = {
-              ...lastMessage,
-              content: 'I sent an audio message but it couldn\'t be transcribed. Please try again.'
-            };
-          }
-        }
-      }
-
-      // Override system prompt for audio input with per-persona audio prompt
-      // Keep the persona's own model so each persona sounds like itself
-      systemPromptToUse = getAudioSystemPrompt(persona);
-      toolsToUse = []; // No tools for audio-only interaction
-    }
+    const processedMessages = [...messages];
+    const isAudioInput = false;
+    const visionTechnique = (personaConfig as any).vision_technique || 'ocr';
 
     let apiMessages;
     // Track if we need to run the image OCR pipeline before the main AI call
@@ -1756,42 +1694,65 @@ ${TOOL_GUARDRAIL}
 
 
 
-      // Image handling: use OCR pipeline to extract text from images
+      // Image handling: use Native or OCR pipeline to extract text/prepare payload
       if (hasImageInput && imageUrlsForOCR.length > 0) {
-        // Send status marker so frontend shows "Analyzing photo..."
-        res.write('[IMAGE_ANALYZING]');
+        if (visionTechnique === 'native') {
+          // Shunt the UI immediately to "thinking"
+          res.write('[IMAGE_ANALYZED]');
 
-        try {
-          const extractedText = await extractImageContent(imageUrlsForOCR);
-
-          // Inject extracted text into the last user message in apiMessages
           const lastMsgIndex = apiMessages.length - 1;
           const lastMsg = apiMessages[lastMsgIndex];
           const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
 
-          // Build enriched message combining extracted image content + user prompt
-          const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
+          const contentArray: any[] = [];
+          contentArray.push({ type: 'text', text: userPrompt || 'Analyze this image.' });
 
-          const enrichedContent = userPrompt
-            ? `[Content extracted from the attached image(s):\n${extractedText}\n]${imageEditContext}\n\nUser's message: ${userPrompt}`
-            : `[Content extracted from the attached image(s):\n${extractedText}\n]\n\nThe user shared this image. Respond based on the extracted content above.`;
+          for (const imgBase64 of imageUrlsForOCR) {
+            contentArray.push({
+              type: 'image_url',
+              image_url: {
+                url: imgBase64
+              }
+            });
+          }
 
-          apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
-        } catch (ocrError) {
-          console.error('Image OCR pipeline error:', ocrError);
-          const lastMsgIndex = apiMessages.length - 1;
-          const lastMsg = apiMessages[lastMsgIndex];
-          const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
-          apiMessages[lastMsgIndex] = {
-            ...lastMsg,
-            content: userPrompt
-              ? `[The user attached an image but text extraction failed. Please respond to their message as best you can. If the user wanted to edit the image, use the generate_image tool with process="edit" and describe what the user wants.]\n\nUser's message: ${userPrompt}`
-              : `[The user attached an image but text extraction failed. Let them know you couldn't process the image and ask them to try again.]`
-          };
+          apiMessages[lastMsgIndex] = { ...lastMsg, content: contentArray };
+        } else {
+          // Send status marker so frontend shows "Analyzing photo..."
+          res.write('[IMAGE_ANALYZING]');
+
+          try {
+            const extractedText = await extractImageContent(imageUrlsForOCR);
+
+            // Inject extracted text into the last user message in apiMessages
+            const lastMsgIndex = apiMessages.length - 1;
+            const lastMsg = apiMessages[lastMsgIndex];
+            const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
+
+            // Build enriched message combining extracted image content + user prompt
+            const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
+
+            const enrichedContent = userPrompt
+              ? `[Content extracted from the attached image(s):\n${extractedText}\n]${imageEditContext}\n\nUser's message: ${userPrompt}`
+              : `[Content extracted from the attached image(s):\n${extractedText}\n]\n\nThe user shared this image. Respond based on the extracted content above.`;
+
+            apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
+          } catch (ocrError) {
+            console.error('Image OCR pipeline error:', ocrError);
+            const lastMsgIndex = apiMessages.length - 1;
+            const lastMsg = apiMessages[lastMsgIndex];
+            const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
+            apiMessages[lastMsgIndex] = {
+              ...lastMsg,
+              content: userPrompt
+                ? `[The user attached an image but text extraction failed. Please respond to their message as best you can. If the user wanted to edit the image, use the generate_image tool with process="edit" and describe what the user wants.]\n\nUser's message: ${userPrompt}`
+                : `[The user attached an image but text extraction failed. Let them know you couldn't process the image and ask them to try again.]`
+            };
+          }
+
+          // Send status marker so frontend switches to "Thinking..."
+          res.write('[IMAGE_ANALYZED]');
         }
-
-        // Send status marker so frontend switches to "Thinking..."
-        res.write('[IMAGE_ANALYZED]');
       }
 
       // Choose API based on persona
@@ -2021,23 +1982,7 @@ ${TOOL_GUARDRAIL}
           }
         }
 
-        // Generate audio response if needed — use /api/audio proxy to keep secrets server-side
-        if (isAudioInput && fullContent) {
-          try {
-            const cleanContent = fullContent
-              .replace(/[*_`#]/g, '') // Remove markdown formatting
-              .replace(/\n+/g, ' ') // Replace newlines with spaces
-              .replace(/<memory>[\s\S]*?<\/memory>/gi, '') // Remove memory tags
-              .trim();
-
-            // Build proxy URL — the /api/audio endpoint handles Pollinations key + voice selection
-            const audioProxyUrl = `/api/audio?message=${encodeURIComponent(cleanContent)}&persona=${encodeURIComponent(persona)}`;
-
-            res.write(`\n\n[AUDIO_URL]${audioProxyUrl}[/AUDIO_URL]`);
-          } catch (error) {
-            console.error('Error generating audio URL:', error);
-          }
-        }
+        // Audio output generation removed (client-side speech only)
 
         res.end();
       } catch (error) {
@@ -2048,31 +1993,51 @@ ${TOOL_GUARDRAIL}
       // Non-streaming response (fallback)
       let apiResponse: any;
 
-      // Image handling for non-streaming: use OCR pipeline
+      // Image handling for non-streaming: use Native or OCR pipeline
       if (hasImageInput && imageUrlsForOCR.length > 0) {
-        try {
-          const extractedText = await extractImageContent(imageUrlsForOCR);
+        if (visionTechnique === 'native') {
           const lastMsgIndex = apiMessages.length - 1;
           const lastMsg = apiMessages[lastMsgIndex];
           const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
 
-          const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
+          const contentArray: any[] = [];
+          contentArray.push({ type: 'text', text: userPrompt || 'Analyze this image.' });
 
-          const enrichedContent = userPrompt
-            ? `[Content extracted from the attached image(s):\n${extractedText}\n]${imageEditContext}\n\nUser's message: ${userPrompt}`
-            : `[Content extracted from the attached image(s):\n${extractedText}\n]\n\nThe user shared this image. Respond based on the extracted content above.`;
-          apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
-        } catch (ocrError) {
-          console.error('Image OCR pipeline error (non-streaming):', ocrError);
-          const lastMsgIndex = apiMessages.length - 1;
-          const lastMsg = apiMessages[lastMsgIndex];
-          const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
-          apiMessages[lastMsgIndex] = {
-            ...lastMsg,
-            content: userPrompt
-              ? `[The user attached an image but text extraction failed. Please respond to their message as best you can. If the user wanted to edit the image, use the generate_image tool with process="edit" and describe what the user wants.]\n\nUser's message: ${userPrompt}`
-              : `[The user attached an image but text extraction failed. Let them know you couldn't process the image and ask them to try again.]`
-          };
+          for (const imgBase64 of imageUrlsForOCR) {
+            contentArray.push({
+              type: 'image_url',
+              image_url: {
+                url: imgBase64
+              }
+            });
+          }
+
+          apiMessages[lastMsgIndex] = { ...lastMsg, content: contentArray };
+        } else {
+          try {
+            const extractedText = await extractImageContent(imageUrlsForOCR);
+            const lastMsgIndex = apiMessages.length - 1;
+            const lastMsg = apiMessages[lastMsgIndex];
+            const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
+
+            const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
+
+            const enrichedContent = userPrompt
+              ? `[Content extracted from the attached image(s):\n${extractedText}\n]${imageEditContext}\n\nUser's message: ${userPrompt}`
+              : `[Content extracted from the attached image(s):\n${extractedText}\n]\n\nThe user shared this image. Respond based on the extracted content above.`;
+            apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
+          } catch (ocrError) {
+            console.error('Image OCR pipeline error (non-streaming):', ocrError);
+            const lastMsgIndex = apiMessages.length - 1;
+            const lastMsg = apiMessages[lastMsgIndex];
+            const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
+            apiMessages[lastMsgIndex] = {
+              ...lastMsg,
+              content: userPrompt
+                ? `[The user attached an image but text extraction failed. Please respond to their message as best you can. If the user wanted to edit the image, use the generate_image tool with process="edit" and describe what the user wants.]\n\nUser's message: ${userPrompt}`
+                : `[The user attached an image but text extraction failed. Let them know you couldn't process the image and ask them to try again.]`
+            };
+          }
         }
       }
 
@@ -2317,23 +2282,8 @@ ${TOOL_GUARDRAIL}
       // Extract reasoning content for all personas
       const result = extractReasoningAndContent(fullContent);
 
-      // If this was an audio input, generate audio response using /api/audio proxy
-      let audioUrl: string | undefined;
-      if (isAudioInput && result.content) {
-        try {
-          // Clean the content for TTS (remove markdown, etc.)
-          const cleanContent = result.content
-            .replace(/[*_`#]/g, '') // Remove markdown formatting
-            .replace(/\n+/g, ' ') // Replace newlines with spaces
-            .trim();
-
-          // Build proxy URL — the /api/audio endpoint handles Pollinations key + voice selection
-          audioUrl = `/api/audio?message=${encodeURIComponent(cleanContent)}&persona=${encodeURIComponent(persona)}`;
-        } catch (error) {
-          console.error('Error generating audio URL:', error);
-          // Continue without audio URL if there's an error
-        }
-      }
+      // Audio output generation removed (client-side speech only)
+      const audioUrl: string | undefined = undefined;
 
       // Send complete response as JSON
       return res.status(200).json({
