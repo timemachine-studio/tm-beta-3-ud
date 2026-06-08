@@ -43,7 +43,7 @@ import {
   toggleMessageReaction
 } from './services/groupChat/groupChatService';
 import { GroupChat } from './types/groupChat';
-import { ACCESS_TOKEN_REQUIRED, MAINTENANCE_MODE, PRO_HEAT_LEVELS, AI_PERSONAS } from './config/constants';
+import { ACCESS_TOKEN_REQUIRED, MAINTENANCE_MODE, PRO_HEAT_LEVELS, AI_PERSONAS, HIDE_GIRLIE_PERSONA } from './config/constants';
 import { ChatSession, getSupabaseSessions, getLocalSessions } from './services/chat/chatService';
 import { SEOHead } from './components/seo/SEOHead';
 
@@ -153,9 +153,14 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   // Get initial persona from profile (validated against AI_PERSONAS)
   // If loading from history, use the session's persona instead
   const savedPersona = profile?.last_persona as keyof typeof AI_PERSONAS | null;
+  const normalizeDeprecatedPersona = (persona?: keyof typeof AI_PERSONAS | null): keyof typeof AI_PERSONAS | undefined => {
+    if (!persona) return undefined;
+    if (HIDE_GIRLIE_PERSONA && persona === 'girlie') return 'default';
+    return persona;
+  };
   const initialPersona = sessionToLoad
-    ? sessionToLoad.persona
-    : (!authLoading && savedPersona && savedPersona in AI_PERSONAS ? savedPersona : undefined);
+    ? normalizeDeprecatedPersona(sessionToLoad.persona)
+    : (!authLoading && savedPersona && savedPersona in AI_PERSONAS ? normalizeDeprecatedPersona(savedPersona) : undefined);
 
   const {
     messages,

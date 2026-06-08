@@ -45,6 +45,10 @@ const personaGlowColors = {
   pro: 'rgba(34,211,238,0.6)'
 } as const;
 
+const visibleBrandPersonaKeys = HIDE_GIRLIE_PERSONA
+  ? ['default', 'pro']
+  : ['default', 'girlie', 'pro'];
+
 export function BrandLogo({
   onPersonaChange,
   currentPersona,
@@ -207,11 +211,7 @@ export function BrandLogo({
             <div className="h-px bg-white/10" />
 
             {Object.entries(AI_PERSONAS)
-              .filter(([key, persona]) =>
-                ['default', 'girlie', 'pro'].includes(key) &&
-                !(key === 'girlie' && HIDE_GIRLIE_PERSONA) &&
-                !('hideFromModelDropdown' in persona && persona.hideFromModelDropdown)
-              ) // Only show visible TimeMachine personas
+              .filter(([key]) => visibleBrandPersonaKeys.includes(key)) // Only show active TimeMachine personas
               .map(([key, persona]) => (
                 <motion.button
                   key={key}
