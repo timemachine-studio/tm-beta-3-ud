@@ -17,8 +17,8 @@ const AI_PERSONAS = {
     temperature: 0.8,
     maxTokens: 10700,
     flowState: {
-      provider: 'groq',
-      model: 'openai/gpt-oss-120b',
+      provider: 'cerebras',
+      model: 'zai-glm-4.7',
       temperature: 0.7,
       maxTokens: 10700,
       quotaCost: 3
