@@ -15,7 +15,7 @@ const AI_PERSONAS = {
     model: 'gemma',
     temperature: 0.8,
     maxTokens: 10700,
-    vision_technique: 'ocr',
+    vision_technique: 'native',
     flowState: {
       provider: 'groq',
       model: 'openai/gpt-oss-120b',
