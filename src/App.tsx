@@ -334,10 +334,14 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   }), [currentPersona, theme.text, personaBackgroundColors]);
 
   const heatLevelButtonStyles = useMemo(() => ({
-    border: isHeatLevelExpanded ? '1px solid rgb(30,144,255)' : 'none',
-    bg: isHeatLevelExpanded ? 'rgba(30,144,255,0.3)' : 'rgba(30,144,255,0.2)',
-    shadow: isHeatLevelExpanded ? '0 0 20px rgba(30,144,255,0.8)' : 'none',
-    text: isHeatLevelExpanded ? 'rgb(135,206,250)' : theme.text,
+    background: isHeatLevelExpanded
+      ? 'linear-gradient(135deg, rgba(30,144,255,0.28), rgba(255,255,255,0.07))'
+      : 'rgba(255, 255, 255, 0.05)',
+    border: isHeatLevelExpanded ? '1px solid rgba(30,144,255,0.45)' : '1px solid rgba(255,255,255,0.1)',
+    shadow: isHeatLevelExpanded
+      ? '0 0 18px rgba(30,144,255,0.38), inset 0 1px 0 rgba(255,255,255,0.16)'
+      : '0 4px 12px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.15)',
+    text: isHeatLevelExpanded ? 'rgb(165,225,255)' : theme.text,
   }), [isHeatLevelExpanded, theme.text]);
 
   const flowStateButtonStyles = useMemo(() => ({
@@ -541,14 +545,14 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setIsHeatLevelExpanded(!isHeatLevelExpanded)}
                     style={{
-                      background: heatLevelButtonStyles.bg,
+                      background: heatLevelButtonStyles.background,
                       color: heatLevelButtonStyles.text,
                       border: heatLevelButtonStyles.border,
                       boxShadow: heatLevelButtonStyles.shadow,
                       borderRadius: '9999px',
                       backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
                       outline: 'none',
-                      borderWidth: '0px',
                       padding: '8px 16px',
                       display: 'flex',
                       alignItems: 'center',

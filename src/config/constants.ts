@@ -3,6 +3,14 @@ export const MAINTENANCE_MODE = import.meta.env.VITE_MAINTENANCE_MODE === 'true'
 export const ACCESS_TOKEN_REQUIRED = import.meta.env.VITE_ACCESS_TOKEN_REQUIRED === 'true';
 export const BETA_ACCESS_TOKEN = import.meta.env.VITE_BETA_ACCESS_TOKEN || 'WE_WILL_LET_YOU_COOK';
 
+const isTruthyEnv = (value: unknown): boolean =>
+  typeof value === 'string' && ['true', '1', 'yes', 'on'].includes(value.trim().toLowerCase());
+
+export const HIDE_GIRLIE_PERSONA =
+  isTruthyEnv(import.meta.env.VITE_HIDE_GIRLIE_PERSONA) ||
+  isTruthyEnv(import.meta.env.VITE_GIRLIE_HIDE_MODEL) ||
+  isTruthyEnv(import.meta.env.VITE_HIDE_GIRLIE_MODEL);
+
 // API Keys
 export const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 export const CEREBRAS_API_KEY = import.meta.env.VITE_CEREBRAS_API_KEY;
@@ -25,7 +33,7 @@ export const AI_PERSONAS = {
     name: 'TimeMachine Girlie',
     initialMessage: "Hiee✨ from future~",
     color: 'pink',
-    hideFromModelDropdown: import.meta.env.VITE_HIDE_GIRLIE_PERSONA === 'true'
+    hideFromModelDropdown: HIDE_GIRLIE_PERSONA
   },
   pro: {
     name: 'TimeMachine PRO',

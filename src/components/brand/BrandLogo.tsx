@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Settings, Wand2, History, Plus, User, LogIn } from 'lucide-react';
-import { AI_PERSONAS } from '../../config/constants';
+import { AI_PERSONAS, HIDE_GIRLIE_PERSONA } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { AgentsModal } from '../agents/AgentsModal';
@@ -209,6 +209,7 @@ export function BrandLogo({
             {Object.entries(AI_PERSONAS)
               .filter(([key, persona]) =>
                 ['default', 'girlie', 'pro'].includes(key) &&
+                !(key === 'girlie' && HIDE_GIRLIE_PERSONA) &&
                 !('hideFromModelDropdown' in persona && persona.hideFromModelDropdown)
               ) // Only show visible TimeMachine personas
               .map(([key, persona]) => (
