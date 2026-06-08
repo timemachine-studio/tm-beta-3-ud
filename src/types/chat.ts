@@ -55,12 +55,12 @@ export interface ReplyToData {
 }
 
 export interface ChatActions {
-  handleSendMessage: (message: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[], imageDimensions?: ImageDimensions, replyTo?: ReplyToData, specialMode?: string, pdfData?: string, pdfFileName?: string) => Promise<void>;
+  handleSendMessage: (message: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[], imageDimensions?: ImageDimensions, replyTo?: ReplyToData, specialMode?: string, pdfData?: string, pdfFileName?: string, flowState?: boolean) => Promise<void>;
   setChatMode: (isChatMode: boolean) => void;
 }
 
 export interface ChatInputProps {
-  onSendMessage: (message: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[], imageDimensions?: ImageDimensions, replyTo?: ReplyToData, specialMode?: string, pdfData?: string, pdfFileName?: string) => Promise<void>;
+  onSendMessage: (message: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[], imageDimensions?: ImageDimensions, replyTo?: ReplyToData, specialMode?: string, pdfData?: string, pdfFileName?: string, flowState?: boolean) => Promise<void>;
   isLoading?: boolean;
 }
 

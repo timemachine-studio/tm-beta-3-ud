@@ -76,12 +76,12 @@ export function useAnonymousRateLimit() {
   }, [user, rateLimitData]);
 
   // Increment the count for a persona
-  const incrementCount = useCallback((persona: string) => {
+  const incrementCount = useCallback((persona: string, amount: number = 1) => {
     if (user) return; // Don't track for logged in users
 
     setRateLimitData(prev => {
       const newCounts = { ...prev.counts };
-      newCounts[persona] = (newCounts[persona] || 0) + 1;
+      newCounts[persona] = (newCounts[persona] || 0) + amount;
 
       // Set reset time to 24 hours from now if not already set
       const resetTime = prev.resetTime || Date.now() + 24 * 60 * 60 * 1000;

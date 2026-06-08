@@ -25,7 +25,7 @@ export const AI_PERSONAS = {
     name: 'TimeMachine Girlie',
     initialMessage: "Hiee✨ from future~",
     color: 'pink',
-    hiddenFromDropdown: true
+    hideFromModelDropdown: import.meta.env.VITE_HIDE_GIRLIE_PERSONA === 'true'
   },
   pro: {
     name: 'TimeMachine PRO',

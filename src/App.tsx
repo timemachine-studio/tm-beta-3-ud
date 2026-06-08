@@ -203,8 +203,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
       messages: sessionToLoad.messages.filter(msg => msg.content && msg.content.trim() !== ''),
       id: sessionToLoad.id,
       heat_level: sessionToLoad.heat_level
-    } : null,
-    flowStateActive
+    } : null
   );
 
   // Clear navigation state after loading session/healthcare mode to prevent reload on refresh
@@ -234,7 +233,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
 
   const [showGroupChatModal, setShowGroupChatModal] = useState(false);
   const [isHeatLevelExpanded, setIsHeatLevelExpanded] = useState(false);
-  const [flowStateActive, setFlowStateActive] = useState(false);
+  const [isFlowStateEnabled, setIsFlowStateEnabled] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
     if (!ACCESS_TOKEN_REQUIRED) return false;
     const accessGranted = localStorage.getItem('timeMachine_accessGranted');
@@ -335,26 +334,22 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   }), [currentPersona, theme.text, personaBackgroundColors]);
 
   const heatLevelButtonStyles = useMemo(() => ({
-    border: isHeatLevelExpanded ? '1px solid rgba(34, 211, 238, 0.5)' : '1px solid rgba(34, 211, 238, 0.3)',
-    bg: isHeatLevelExpanded
-      ? 'linear-gradient(135deg, rgba(34, 211, 238, 0.3), rgba(255, 255, 255, 0.05))'
-      : 'linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(255, 255, 255, 0.05))',
-    shadow: isHeatLevelExpanded
-      ? '0 0 20px rgba(34, 211, 238, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
-      : '0 0 12px rgba(34, 211, 238, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+    border: isHeatLevelExpanded ? '1px solid rgb(30,144,255)' : 'none',
+    bg: isHeatLevelExpanded ? 'rgba(30,144,255,0.3)' : 'rgba(30,144,255,0.2)',
+    shadow: isHeatLevelExpanded ? '0 0 20px rgba(30,144,255,0.8)' : 'none',
     text: isHeatLevelExpanded ? 'rgb(135,206,250)' : theme.text,
   }), [isHeatLevelExpanded, theme.text]);
 
   const flowStateButtonStyles = useMemo(() => ({
-    border: flowStateActive ? '1px solid rgba(168, 85, 247, 0.5)' : '1px solid rgba(168, 85, 247, 0.4)',
-    bg: flowStateActive
-      ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(255, 255, 255, 0.05))'
-      : 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(255, 255, 255, 0.05))',
-    shadow: flowStateActive
-      ? '0 0 20px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
-      : '0 0 15px rgba(168, 85, 247, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
-    text: flowStateActive ? 'rgb(216, 180, 254)' : theme.text,
-  }), [flowStateActive, theme.text]);
+    background: isFlowStateEnabled
+      ? 'linear-gradient(135deg, rgba(168,85,247,0.28), rgba(255,255,255,0.07))'
+      : 'rgba(255, 255, 255, 0.05)',
+    border: isFlowStateEnabled ? '1px solid rgba(168,85,247,0.45)' : '1px solid rgba(255,255,255,0.1)',
+    shadow: isFlowStateEnabled
+      ? '0 0 18px rgba(168,85,247,0.38), inset 0 1px 0 rgba(255,255,255,0.16)'
+      : '0 4px 12px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.15)',
+    text: isFlowStateEnabled ? 'rgb(216,180,254)' : theme.text,
+  }), [isFlowStateEnabled, theme.text]);
 
   const handleAccessGranted = useCallback(() => {
     setShowWelcomeModal(false);
@@ -374,8 +369,10 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   ) => {
     const mentionMatch = message.match(/^@(chatgpt|gemini|claude|grok|girlie|pro)\s/i);
     const targetModel = mentionMatch ? mentionMatch[1].toLowerCase() : currentPersona;
+    const useFlowStateForRequest = isFlowStateEnabled && currentPersona === 'default' && !mentionMatch;
+    const quotaCost = useFlowStateForRequest ? 3 : 1;
 
-    if (isAnonymous && isRateLimited(targetModel)) {
+    if (isAnonymous && (isRateLimited(targetModel) || getRemainingMessages(targetModel) < quotaCost)) {
       let authMessage: string;
       if (targetModel === 'pro') {
         authMessage = "PRO mode requires a TimeMachine ID. Create one to access advanced features!";
@@ -396,13 +393,13 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     }
 
     if (isAnonymous) {
-      incrementCount(targetModel);
+      incrementCount(targetModel, quotaCost);
     }
 
-    await handleSendMessage(message, imageUrl, audioData, imageUrls, imageDimensions, replyToData || replyTo || undefined, specialMode, pdfData, pdfFileName);
+    await handleSendMessage(message, imageUrl, audioData, imageUrls, imageDimensions, replyToData || replyTo || undefined, specialMode, pdfData, pdfFileName, useFlowStateForRequest);
     // Clear reply after sending
     setReplyTo(null);
-  }, [currentPersona, isAnonymous, isRateLimited, incrementCount, handleSendMessage, replyTo]);
+  }, [currentPersona, isFlowStateEnabled, isAnonymous, isRateLimited, getRemainingMessages, incrementCount, handleSendMessage, replyTo]);
 
   // Reply handlers for group chat
   const handleReply = useCallback((message: { id: number; content: string; sender_nickname?: string; isAI: boolean }) => {
@@ -549,9 +546,9 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                       border: heatLevelButtonStyles.border,
                       boxShadow: heatLevelButtonStyles.shadow,
                       borderRadius: '9999px',
-                      backdropFilter: 'blur(20px)',
-                      WebkitBackdropFilter: 'blur(20px)',
+                      backdropFilter: 'blur(10px)',
                       outline: 'none',
+                      borderWidth: '0px',
                       padding: '8px 16px',
                       display: 'flex',
                       alignItems: 'center',
@@ -583,7 +580,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                             key={level}
                             whileHover={{
                               scale: 1.03,
-                              background: 'linear-gradient(90deg, rgba(34,211,238,0.2) 0%, transparent 100%)'
+                              background: 'linear-gradient(90deg, rgba(30,144,255,0.2) 0%, transparent 100%)'
                             }}
                             whileTap={{ scale: 0.97 }}
                             onClick={() => {
@@ -596,7 +593,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                               flex flex-col gap-1 border-b border-white/5 last:border-b-0`}
                             style={{
                               background: currentProHeatLevel === parseInt(level) ?
-                                'linear-gradient(to right, rgba(34,211,238,0.2), rgba(0,0,0,0.1))' :
+                                'linear-gradient(to right, rgba(30,144,255,0.2), rgba(0,0,0,0.1))' :
                                 'transparent'
                             }}
                           >
@@ -610,35 +607,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                     )}
                   </AnimatePresence>
                 </div>
-              ) : currentPersona === 'default' ? (
-                // Flow State button for Air persona — liquid glass style
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setFlowStateActive(!flowStateActive)}
-                  style={{
-                    background: flowStateButtonStyles.bg,
-                    color: flowStateButtonStyles.text,
-                    border: flowStateButtonStyles.border,
-                    boxShadow: flowStateButtonStyles.shadow,
-                    borderRadius: '9999px',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    outline: 'none',
-                    padding: '8px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.3s ease',
-                  }}
-                  aria-label={flowStateActive ? "Disable Flow State" : "Enable Flow State"}
-                >
-                  <Zap style={{ width: '16px', height: '16px', color: flowStateButtonStyles.text, fill: flowStateActive ? flowStateButtonStyles.text : 'none' }} />
-                  <span style={{ fontSize: '14px', color: flowStateButtonStyles.text }}>
-                    Flow State{flowStateActive ? ' ⚡' : ''}
-                  </span>
-                </motion.button>
-              ) : currentPersona === 'girlie' && (
+              ) : (
                 isCollaborative && collaborativeId ? (
                   // Group Settings button when in collaborative mode
                   <motion.button
@@ -662,17 +631,19 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                     <Settings style={{ width: '16px', height: '16px', color: buttonStyles.text }} />
                     <span style={{ fontSize: '14px', color: buttonStyles.text }}>Group Settings</span>
                   </motion.button>
-                ) : (
-                  // Create Group Chat button
+                ) : currentPersona === 'default' ? (
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowGroupChatModal(true)}
+                    onClick={() => setIsFlowStateEnabled((value) => !value)}
                     style={{
-                      background: buttonStyles.bg,
-                      color: buttonStyles.text,
+                      background: flowStateButtonStyles.background,
+                      color: flowStateButtonStyles.text,
+                      border: flowStateButtonStyles.border,
+                      boxShadow: flowStateButtonStyles.shadow,
                       borderRadius: '9999px',
                       backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
                       outline: 'none',
                       padding: '8px 16px',
                       display: 'flex',
@@ -680,12 +651,13 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                       gap: '8px',
                       transition: 'all 0.3s ease',
                     }}
-                    aria-label="Open Group Chat"
+                    aria-pressed={isFlowStateEnabled}
+                    aria-label={isFlowStateEnabled ? "Turn off Flow State" : "Turn on Flow State"}
                   >
-                    <Users style={{ width: '16px', height: '16px', color: buttonStyles.text }} />
-                    <span style={{ fontSize: '14px', color: buttonStyles.text }}>Group Chat</span>
+                    <Zap style={{ width: '16px', height: '16px', color: flowStateButtonStyles.text }} />
+                    <span style={{ fontSize: '14px', color: flowStateButtonStyles.text }}>Flow State</span>
                   </motion.button>
-                )
+                ) : null
               )}
             </div>
           </div>

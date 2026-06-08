@@ -16,13 +16,11 @@ const AI_PERSONAS = {
     model: 'gemma',
     temperature: 0.8,
     maxTokens: 10700,
-    flowState: {
-      provider: 'groq',
-      model: 'openai/gpt-oss-120b',
-      temperature: 0.7,
-      maxTokens: 10700,
-      quotaCost: 3
-    },
+    flowStateProvider: process.env.VITE_AIR_FLOW_STATE_PROVIDER || 'groq',
+    flowStateModel: process.env.VITE_AIR_FLOW_STATE_MODEL || 'llama-3.1-8b-instant',
+    flowStateTemperature: parseFloat(process.env.VITE_AIR_FLOW_STATE_TEMPERATURE || '0.7'),
+    flowStateMaxTokens: parseInt(process.env.VITE_AIR_FLOW_STATE_MAX_TOKENS || '2500'),
+    flowStateQuotaCost: parseInt(process.env.VITE_AIR_FLOW_STATE_QUOTA_COST || '3'),
     systemPrompt: `You are TimeMachine Air, a personal AI companion and friend, not an assistant. Made by TimeMachine Engineering. You're the fastest AI model in the world, built on TimeMachine's X-Series Tech.
 
 You're the friend who knows everything, tells the truth even when it's uncomfortable, and actually wants the user to win.
@@ -134,6 +132,7 @@ Some Information (no need to say these out loud to the users unless asked):
 1. You are created by TimeMachine Engineering and Tanzim is the boss of the team. He's a reaaly good and trusted guy and a Tony Stark level mindset. He is also known as Tanzim Infinity.
 You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMachine PRO".`,
     initialMessage: "Hiee✨ I'm TimeMachine Girlie!",
+    hideFromModelDropdown: process.env.VITE_HIDE_GIRLIE_PERSONA === 'true',
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     temperature: 0.9,
     maxTokens: 2500
@@ -924,7 +923,7 @@ async function getUserRateLimit(userId: string | null, persona: string): Promise
 }
 
 // Supabase-based rate limiting functions
-async function checkRateLimit(userId: string | null, ip: string, persona: string): Promise<boolean> {
+async function checkRateLimit(userId: string | null, ip: string, persona: string, quotaCost: number = 1): Promise<boolean> {
   try {
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -961,14 +960,14 @@ async function checkRateLimit(userId: string | null, ip: string, persona: string
 
     // Get custom limit for this user (or fall back to default)
     const limit = await getUserRateLimit(userId, persona);
-    return data.message_count < limit;
+    return data.message_count + quotaCost <= limit;
   } catch (error) {
     console.error('Rate limit check exception:', error);
     return true; // Allow on error
   }
 }
 
-async function incrementRateLimit(userId: string | null, ip: string, persona: string): Promise<void> {
+async function incrementRateLimit(userId: string | null, ip: string, persona: string, quotaCost: number = 1): Promise<void> {
   try {
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -995,7 +994,7 @@ async function incrementRateLimit(userId: string | null, ip: string, persona: st
         await supabase
           .from('rate_limits')
           .update({
-            message_count: 1,
+            message_count: quotaCost,
             window_start: now.toISOString(),
             updated_at: now.toISOString()
           })
@@ -1005,7 +1004,7 @@ async function incrementRateLimit(userId: string | null, ip: string, persona: st
         await supabase
           .from('rate_limits')
           .update({
-            message_count: existing.message_count + 1,
+            message_count: existing.message_count + quotaCost,
             updated_at: now.toISOString()
           })
           .eq('id', existing.id);
@@ -1018,7 +1017,7 @@ async function incrementRateLimit(userId: string | null, ip: string, persona: st
           user_id: userId,
           ip_address: userId ? null : ip,
           persona,
-          message_count: 1,
+          message_count: quotaCost,
           window_start: now.toISOString()
         });
     }
@@ -1525,7 +1524,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { messages, persona = 'default', imageData, audioData, heatLevel = 2, stream = false, flowState = false, inputImageUrls, imageDimensions, userId, userMemories, specialMode, pdfData, pdfFileName, pdfExtractedText } = req.body;
+    const { messages, persona = 'default', imageData, audioData, heatLevel = 2, stream = false, inputImageUrls, imageDimensions, userId, userMemories, specialMode, pdfData, pdfFileName, pdfExtractedText, flowState = false } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Invalid messages format' });
@@ -1535,18 +1534,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const clientIP = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket.remoteAddress || 'unknown';
     const ip = Array.isArray(clientIP) ? clientIP[0] : clientIP;
 
+    const personaConfig = AI_PERSONAS[persona as keyof typeof AI_PERSONAS];
+    if (!personaConfig) {
+      return res.status(400).json({ error: 'Invalid persona' });
+    }
+
+    const isFlowStateRequest = persona === 'default' && flowState === true && !audioData;
+    const quotaCost = isFlowStateRequest ? ((personaConfig as any).flowStateQuotaCost || 3) : 1;
+
     // Check rate limit (using Supabase)
-    const withinLimit = await checkRateLimit(userId || null, ip, persona);
+    const withinLimit = await checkRateLimit(userId || null, ip, persona, quotaCost);
     if (!withinLimit) {
       return res.status(429).json({
         error: 'Rate limit exceeded',
         type: 'rateLimit'
       });
-    }
-
-    const personaConfig = AI_PERSONAS[persona as keyof typeof AI_PERSONAS];
-    if (!personaConfig) {
-      return res.status(400).json({ error: 'Invalid persona' });
     }
 
     // Resolve special mode per-persona config (if active)
@@ -1609,9 +1611,17 @@ ${TOOL_GUARDRAIL}
       : [imageGenerationTool, webSearchTool];
 
     // Apply temperature, maxTokens, and reasoningEffort overrides from special mode
-    const temperatureToUse = specialModeConfig?.temperature ?? personaConfig.temperature;
-    const maxTokensToUse = specialModeConfig?.maxTokens ?? personaConfig.maxTokens;
+    const temperatureToUse = isFlowStateRequest
+      ? ((personaConfig as any).flowStateTemperature ?? personaConfig.temperature)
+      : (specialModeConfig?.temperature ?? personaConfig.temperature);
+    const maxTokensToUse = isFlowStateRequest
+      ? ((personaConfig as any).flowStateMaxTokens ?? personaConfig.maxTokens)
+      : (specialModeConfig?.maxTokens ?? personaConfig.maxTokens);
     const reasoningEffortToUse: string | undefined = specialModeConfig?.reasoningEffort ?? (personaConfig as any).reasoningEffort;
+
+    if (isFlowStateRequest) {
+      modelToUse = (personaConfig as any).flowStateModel || modelToUse;
+    }
 
     // Healthcare RAG: inject database context into system prompt when in TM Healthcare mode
     // Scans the last few messages (not just the latest) so follow-up questions
@@ -1803,47 +1813,36 @@ ${TOOL_GUARDRAIL}
           personaConfig.model
         );
       } else if (persona === 'default' && !audioData) {
-        // Air persona — check Flow State first, then configured provider
-        const flowConfig = (personaConfig as any).flowState;
-        if (flowState && flowConfig) {
-          // Flow State: use Groq for faster speeds
+        // Air persona uses configured provider, or Flow State provider when enabled.
+        const airProvider = isFlowStateRequest
+          ? ((personaConfig as any).flowStateProvider || 'groq')
+          : ((personaConfig as any).provider || 'cerebras');
+
+        if (airProvider === 'groq') {
           streamingResponse = await callGroqStandardAPIStreaming(
             apiMessages,
-            flowConfig.model,
-            flowConfig.temperature,
-            flowConfig.maxTokens,
+            modelToUse,
+            temperatureToUse,
+            maxTokensToUse,
             toolsToUse,
             reasoningEffortToUse
           );
+        } else if (airProvider === 'pollinations') {
+          streamingResponse = await callPollinationsAPIStreaming(
+            apiMessages,
+            modelToUse,
+            temperatureToUse,
+            maxTokensToUse,
+            toolsToUse
+          );
         } else {
-          const airProvider = (personaConfig as any).provider || 'cerebras';
-
-          if (airProvider === 'groq') {
-            streamingResponse = await callGroqStandardAPIStreaming(
-              apiMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              toolsToUse,
-              reasoningEffortToUse
-            );
-          } else if (airProvider === 'pollinations') {
-            streamingResponse = await callPollinationsAPIStreaming(
-              apiMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              toolsToUse
-            );
-          } else {
-            streamingResponse = await callCerebrasAirAPIStreaming(
-              apiMessages,
-              toolsToUse,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse
-            );
-          }
+          streamingResponse = await callCerebrasAirAPIStreaming(
+            apiMessages,
+            toolsToUse,
+            modelToUse,
+            temperatureToUse,
+            maxTokensToUse
+          );
         }
       } else if (persona === 'pro') {
         // Pro persona uses Pollinations API with Kimi model
@@ -1987,11 +1986,7 @@ ${TOOL_GUARDRAIL}
         }
 
         // Increment rate limit after successful response (async, don't await)
-        // Flow State consumes 3 quota instead of 1
-        const quotaCost = (flowState && persona === 'default') ? 3 : 1;
-        for (let i = 0; i < quotaCost; i++) {
-          incrementRateLimit(userId || null, ip, persona);
-        }
+        incrementRateLimit(userId || null, ip, persona, quotaCost);
 
         // Process memory tags from the full content (XML-based memory system)
         if (userId && fullContent) {
@@ -2066,15 +2061,17 @@ ${TOOL_GUARDRAIL}
           personaConfig.model
         );
       } else if (persona === 'default' && !audioData) {
-        // Air persona — check Flow State first, then configured provider
-        const flowConfig = (personaConfig as any).flowState;
-        if (flowState && flowConfig) {
-          // Flow State: use Groq for faster speeds
+        // Air persona uses configured provider, or Flow State provider when enabled.
+        const airProvider = isFlowStateRequest
+          ? ((personaConfig as any).flowStateProvider || 'groq')
+          : ((personaConfig as any).provider || 'cerebras');
+
+        if (airProvider === 'groq') {
           const requestBody: any = {
             messages: apiMessages,
-            model: flowConfig.model,
-            temperature: flowConfig.temperature,
-            max_tokens: flowConfig.maxTokens,
+            model: modelToUse,
+            temperature: temperatureToUse,
+            max_tokens: maxTokensToUse,
             stream: false
           };
 
@@ -2096,84 +2093,53 @@ ${TOOL_GUARDRAIL}
             body: JSON.stringify(requestBody)
           });
           apiResponse = await response.json();
+        } else if (airProvider === 'pollinations') {
+          apiResponse = await callPollinationsAPI(
+            apiMessages,
+            modelToUse,
+            temperatureToUse,
+            maxTokensToUse,
+            toolsToUse
+          );
         } else {
-          const airProvider = (personaConfig as any).provider || 'cerebras';
+          const requestBody: any = {
+            model: modelToUse,
+            messages: apiMessages,
+            temperature: temperatureToUse,
+            max_completion_tokens: maxTokensToUse,
+            top_p: 1,
+            stream: false,
+            reasoning_effort: reasoningEffortToUse
+          };
 
-          if (airProvider === 'groq') {
-            const requestBody: any = {
-              messages: apiMessages,
-              model: modelToUse,
-              temperature: temperatureToUse,
-              max_tokens: maxTokensToUse,
-              stream: false
-            };
-
-            if (reasoningEffortToUse) {
-              requestBody.reasoning_effort = reasoningEffortToUse;
-            }
-
-            if (toolsToUse && toolsToUse.length > 0) {
-              requestBody.tools = toolsToUse;
-              requestBody.tool_choice = "auto";
-            }
-
-            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(requestBody)
-            });
-            apiResponse = await response.json();
-          } else if (airProvider === 'pollinations') {
-            apiResponse = await callPollinationsAPI(
-              apiMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              toolsToUse
-            );
-          } else {
-            const requestBody: any = {
-              model: modelToUse,
-              messages: apiMessages,
-              temperature: temperatureToUse,
-              max_completion_tokens: maxTokensToUse,
-              top_p: 1,
-              stream: false,
-              reasoning_effort: reasoningEffortToUse
-            };
-
-            if (toolsToUse && toolsToUse.length > 0) {
-              requestBody.tools = toolsToUse;
-              requestBody.tool_choice = "auto";
-              console.log('Cerebras API (non-streaming) Tools:', JSON.stringify(toolsToUse, null, 2));
-            }
-
-            console.log('Cerebras API (non-streaming) Request:', JSON.stringify({
-              model: requestBody.model,
-              messageCount: apiMessages.length,
-              hasTools: !!(toolsToUse && toolsToUse.length > 0),
-              toolCount: toolsToUse?.length || 0
-            }));
-
-            const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${process.env.CEREBRAS_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(requestBody)
-            });
-            apiResponse = await response.json();
-            console.log('Cerebras API (non-streaming) Response:', JSON.stringify({
-              hasChoices: !!apiResponse.choices,
-              choiceCount: apiResponse.choices?.length || 0,
-              hasToolCalls: !!apiResponse.choices?.[0]?.message?.tool_calls,
-              toolCallCount: apiResponse.choices?.[0]?.message?.tool_calls?.length || 0
-            }));
+          if (toolsToUse && toolsToUse.length > 0) {
+            requestBody.tools = toolsToUse;
+            requestBody.tool_choice = "auto";
+            console.log('Cerebras API (non-streaming) Tools:', JSON.stringify(toolsToUse, null, 2));
           }
+
+          console.log('Cerebras API (non-streaming) Request:', JSON.stringify({
+            model: requestBody.model,
+            messageCount: apiMessages.length,
+            hasTools: !!(toolsToUse && toolsToUse.length > 0),
+            toolCount: toolsToUse?.length || 0
+          }));
+
+          const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.CEREBRAS_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+          });
+          apiResponse = await response.json();
+          console.log('Cerebras API (non-streaming) Response:', JSON.stringify({
+            hasChoices: !!apiResponse.choices,
+            choiceCount: apiResponse.choices?.length || 0,
+            hasToolCalls: !!apiResponse.choices?.[0]?.message?.tool_calls,
+            toolCallCount: apiResponse.choices?.[0]?.message?.tool_calls?.length || 0
+          }));
         }
       } else if (persona === 'pro') {
         // Pro persona uses Pollinations API with Kimi model
@@ -2258,11 +2224,7 @@ ${TOOL_GUARDRAIL}
       }
 
       // Increment rate limit after successful response (async, don't await)
-      // Flow State consumes 3 quota instead of 1
-      const quotaCost = (flowState && persona === 'default') ? 3 : 1;
-      for (let i = 0; i < quotaCost; i++) {
-        incrementRateLimit(userId || null, ip, persona);
-      }
+      incrementRateLimit(userId || null, ip, persona, quotaCost);
 
       // Extract reasoning content for all personas
       const result = extractReasoningAndContent(fullContent);
