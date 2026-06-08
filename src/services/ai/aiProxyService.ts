@@ -73,13 +73,13 @@ export async function generateAIResponseStreaming(
         inputImageUrls,
         imageDimensions,
         stream: true,
+        flowState,
         userId,
         userMemories,
         specialMode,
         pdfData,
         pdfFileName,
-        pdfExtractedText,
-        flowState
+        pdfExtractedText
       })
     });
 
@@ -222,13 +222,13 @@ export async function generateAIResponse(
         inputImageUrls,
         imageDimensions,
         stream: false,
+        flowState,
         userId,
         userMemories,
         specialMode,
         pdfData,
         pdfFileName,
-        pdfExtractedText,
-        flowState
+        pdfExtractedText
       })
     });
 

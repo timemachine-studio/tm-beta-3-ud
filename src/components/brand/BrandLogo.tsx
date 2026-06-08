@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Settings, Wand2, History, Plus, User, LogIn } from 'lucide-react';
-import { AI_PERSONAS, HIDE_GIRLIE_PERSONA } from '../../config/constants';
+import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { AgentsModal } from '../agents/AgentsModal';
@@ -44,10 +44,6 @@ const personaGlowColors = {
   girlie: 'rgba(255,20,147,0.8)',
   pro: 'rgba(34,211,238,0.6)'
 } as const;
-
-const visibleBrandPersonaKeys = HIDE_GIRLIE_PERSONA
-  ? ['default', 'pro']
-  : ['default', 'girlie', 'pro'];
 
 export function BrandLogo({
   onPersonaChange,
@@ -211,7 +207,7 @@ export function BrandLogo({
             <div className="h-px bg-white/10" />
 
             {Object.entries(AI_PERSONAS)
-              .filter(([key]) => visibleBrandPersonaKeys.includes(key)) // Only show active TimeMachine personas
+              .filter(([key, persona]) => ['default', 'girlie', 'pro'].includes(key) && !(persona as any).hiddenFromDropdown) // Only show visible TimeMachine personas
               .map(([key, persona]) => (
                 <motion.button
                   key={key}

@@ -83,7 +83,8 @@ export function useChat(
   userProfile?: { nickname?: string | null; about_me?: string | null },
   initialPersona?: keyof typeof AI_PERSONAS,
   authLoading?: boolean,
-  initialSession?: { messages: Message[]; id: string; heat_level?: number } | null
+  initialSession?: { messages: Message[]; id: string; heat_level?: number } | null,
+  flowStateActive?: boolean
 ) {
   // Start with empty state - will be initialized once we know the persona
   // Unless we have an initialSession (loading from history)
@@ -461,8 +462,7 @@ export function useChat(
     replyTo?: { id: number; content: string; sender_nickname?: string; isAI: boolean },
     specialMode?: string,
     pdfData?: string,
-    pdfFileName?: string,
-    flowState?: boolean
+    pdfFileName?: string
   ) => {
     let messagePersona = currentPersona;
     let messageContent = content;
@@ -647,7 +647,8 @@ export function useChat(
         pdfFileName,
         // Pass cached PDF text for follow-up messages (avoids re-extraction)
         activePdfText || undefined,
-        flowState
+        // Flow State: route through Groq for faster speeds
+        currentPersona === 'default' ? flowStateActive : undefined
       );
     } else {
       // Use non-streaming response (fallback) - send API messages (without @mention in content and without initial message)
@@ -667,7 +668,8 @@ export function useChat(
           pdfData,
           pdfFileName,
           activePdfText || undefined,
-          flowState
+          // Flow State: route through Groq for faster speeds
+          currentPersona === 'default' ? flowStateActive : undefined
         );
 
         const emotion = extractEmotion(aiResponse.content);
@@ -698,7 +700,7 @@ export function useChat(
         isStreamingRef.current = false; // Clear streaming flag on error
       }
     }
-  }, [messages, currentPersona, currentProHeatLevel, userId, userProfile, isCollaborative, collaborativeId]);
+  }, [messages, currentPersona, currentProHeatLevel, userId, userProfile, isCollaborative, collaborativeId, flowStateActive]);
 
   const markMessageAsAnimated = useCallback((messageId: number) => {
     setMessages(prev => prev.map(msg =>
