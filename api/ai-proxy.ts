@@ -17,8 +17,8 @@ const AI_PERSONAS = {
     temperature: 0.8,
     maxTokens: 10700,
     flowState: {
-      provider: 'cerebras',
-      model: 'zai-glm-4.7',
+      provider: 'groq',
+      model: 'openai/gpt-oss-120b',
       temperature: 0.7,
       maxTokens: 10700,
       quotaCost: 3
@@ -1806,15 +1806,34 @@ ${TOOL_GUARDRAIL}
         // Air persona — check Flow State first, then configured provider
         const flowConfig = (personaConfig as any).flowState;
         if (flowState && flowConfig) {
-          // Flow State: use Groq for faster speeds
-          streamingResponse = await callGroqStandardAPIStreaming(
-            apiMessages,
-            flowConfig.model,
-            flowConfig.temperature,
-            flowConfig.maxTokens,
-            toolsToUse,
-            reasoningEffortToUse
-          );
+          // Flow State: route based on configured provider
+          const fsProvider = flowConfig.provider || 'groq';
+          if (fsProvider === 'groq') {
+            streamingResponse = await callGroqStandardAPIStreaming(
+              apiMessages,
+              flowConfig.model,
+              flowConfig.temperature,
+              flowConfig.maxTokens,
+              toolsToUse,
+              reasoningEffortToUse
+            );
+          } else if (fsProvider === 'pollinations') {
+            streamingResponse = await callPollinationsAPIStreaming(
+              apiMessages,
+              flowConfig.model,
+              flowConfig.temperature,
+              flowConfig.maxTokens,
+              toolsToUse
+            );
+          } else {
+            streamingResponse = await callCerebrasAirAPIStreaming(
+              apiMessages,
+              toolsToUse,
+              flowConfig.model,
+              flowConfig.temperature,
+              flowConfig.maxTokens
+            );
+          }
         } else {
           const airProvider = (personaConfig as any).provider || 'cerebras';
 
@@ -2069,33 +2088,64 @@ ${TOOL_GUARDRAIL}
         // Air persona — check Flow State first, then configured provider
         const flowConfig = (personaConfig as any).flowState;
         if (flowState && flowConfig) {
-          // Flow State: use Groq for faster speeds
-          const requestBody: any = {
-            messages: apiMessages,
-            model: flowConfig.model,
-            temperature: flowConfig.temperature,
-            max_tokens: flowConfig.maxTokens,
-            stream: false
-          };
-
-          if (reasoningEffortToUse) {
-            requestBody.reasoning_effort = reasoningEffortToUse;
+          // Flow State: route based on configured provider
+          const fsProvider = flowConfig.provider || 'groq';
+          if (fsProvider === 'groq') {
+            const requestBody: any = {
+              messages: apiMessages,
+              model: flowConfig.model,
+              temperature: flowConfig.temperature,
+              max_tokens: flowConfig.maxTokens,
+              stream: false
+            };
+            if (reasoningEffortToUse) {
+              requestBody.reasoning_effort = reasoningEffortToUse;
+            }
+            if (toolsToUse && toolsToUse.length > 0) {
+              requestBody.tools = toolsToUse;
+              requestBody.tool_choice = "auto";
+            }
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(requestBody)
+            });
+            apiResponse = await response.json();
+          } else if (fsProvider === 'pollinations') {
+            apiResponse = await callPollinationsAPI(
+              apiMessages,
+              flowConfig.model,
+              flowConfig.temperature,
+              flowConfig.maxTokens,
+              toolsToUse
+            );
+          } else {
+            const requestBody: any = {
+              model: flowConfig.model,
+              messages: apiMessages,
+              temperature: flowConfig.temperature,
+              max_completion_tokens: flowConfig.maxTokens,
+              top_p: 1,
+              stream: false,
+              reasoning_effort: reasoningEffortToUse
+            };
+            if (toolsToUse && toolsToUse.length > 0) {
+              requestBody.tools = toolsToUse;
+              requestBody.tool_choice = "auto";
+            }
+            const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${process.env.CEREBRAS_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(requestBody)
+            });
+            apiResponse = await response.json();
           }
-
-          if (toolsToUse && toolsToUse.length > 0) {
-            requestBody.tools = toolsToUse;
-            requestBody.tool_choice = "auto";
-          }
-
-          const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody)
-          });
-          apiResponse = await response.json();
         } else {
           const airProvider = (personaConfig as any).provider || 'cerebras';
 

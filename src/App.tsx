@@ -636,7 +636,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                 >
                   <Zap style={{ width: '16px', height: '16px', color: flowStateButtonStyles.text, fill: flowStateActive ? flowStateButtonStyles.text : 'none' }} />
                   <span style={{ fontSize: '14px', color: flowStateButtonStyles.text }}>
-                    Flow State{flowStateActive ? ' ⚡' : ''}
+                    Flow State
                   </span>
                 </motion.button>
               ) : currentPersona === 'girlie' && (
