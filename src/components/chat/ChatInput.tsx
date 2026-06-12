@@ -117,8 +117,6 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { theme } = useTheme();
   const { user } = useAuth();
-  const initialTextRef = useRef('');
-  const [isListeningSpeech, setIsListeningSpeech] = useState(false);
   const navigate = useNavigate();
   const contour = useContour();
   const contourRef = useRef<HTMLDivElement>(null);
@@ -755,8 +753,8 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                 value={message}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
-                placeholder={isListeningSpeech ? "Listening..." : "Type / for contour"}
-                disabled={isLoading || isUploading || isListeningSpeech}
+                placeholder="Type / for contour"
+                disabled={isLoading || isUploading}
                 className={`w-full px-6 pr-32 rounded-[28px]
                   ${theme.input.text} placeholder-gray-400
                   outline-none
@@ -782,16 +780,8 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <VoiceRecorder
-                  onTranscription={(text) => {
-                    const initial = initialTextRef.current || '';
-                    setMessage(initial + (initial ? ' ' : '') + text);
-                  }}
-                  onListeningChange={(listening) => {
-                    setIsListeningSpeech(listening);
-                    if (listening) {
-                      initialTextRef.current = message;
-                    }
-                  }}
+                  message={message}
+                  setMessage={setMessage}
                   disabled={isLoading || isUploading}
                   currentPersona={currentPersona}
                 />

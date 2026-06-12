@@ -12,7 +12,6 @@ import { Brain } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { GeneratedImage } from './GeneratedImage';
 import { AnimatedShinyText } from '../ui/AnimatedShinyText';
-import { AudioPlayerBubble } from './AudioPlayerBubble';
 import { CodeBlock } from './CodeBlock';
 import { BrandOverride } from '../brand/BrandLogo';
 import { MusicComposeCard, SavedVariation } from './MusicComposeCard';
@@ -118,7 +117,6 @@ function AIMessageComponent({
 }: AIMessageProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const mentionedPersona = extractMentionedPersona(previousMessage);
   const displayPersona = mentionedPersona || currentPersona;
   const personaColor = getPersonaColor(displayPersona);
@@ -198,21 +196,7 @@ function AIMessageComponent({
     }
   }, [content]);
 
-  // Handle audio URL detection and loading
-  useEffect(() => {
-    if (audioUrl && !content) {
-      setIsRecordingVoice(true);
-      // The audio will load automatically in AudioPlayerBubble
-      // We can remove the recording state once content is available or after a timeout
-      const timeout = setTimeout(() => {
-        setIsRecordingVoice(false);
-      }, 3000);
 
-      return () => clearTimeout(timeout);
-    } else if (audioUrl && content) {
-      setIsRecordingVoice(false);
-    }
-  }, [audioUrl, content]);
 
   // Memoize MarkdownComponents to prevent re-creating on every render
   // This is critical to prevent GeneratedImage from re-mounting on parent re-renders
@@ -385,26 +369,6 @@ function AIMessageComponent({
         </div>
       )}
 
-      {/* Recording voice state */}
-      {isRecordingVoice && (
-        <div className="w-full max-w-2xl mx-auto my-4">
-          <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
-            <AnimatedShinyText
-              text="Recording voice"
-              useShimmer={true}
-              baseColor={shimmerColors.baseColor}
-              shimmerColor={shimmerColors.shimmerColor}
-              gradientAnimationDuration={2}
-              textClassName="text-base"
-              className="py-1"
-              style={{
-                fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
-                fontSize: '16px'
-              }}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Special mode thinking state — replaces the normal "Thinking..." spinner */}
       {isStreamingActive && !cleanContent && specialMode && SPECIAL_MODE_SHIMMER_TEXT[specialMode] && (
@@ -427,19 +391,8 @@ function AIMessageComponent({
         </div>
       )}
 
-      {/* Display audio response if present */}
-      {audioUrl && !isRecordingVoice && (
-        <div className="w-full max-w-2xl mx-auto my-4">
-          <AudioPlayerBubble
-            audioSrc={audioUrl}
-            isUserMessage={false}
-            className="max-w-full"
-            currentPersona={displayPersona}
-          />
-        </div>
-      )}
       {/* Show content when not generating or when generation is complete */}
-      {!isGeneratingImage && !isRecordingVoice && !(isStreamingActive && !cleanContent && specialMode && SPECIAL_MODE_SHIMMER_TEXT[specialMode as string]) && (cleanContent || isStreamingActive) && !audioUrl && (
+      {!isGeneratingImage && !(isStreamingActive && !cleanContent && specialMode && SPECIAL_MODE_SHIMMER_TEXT[specialMode as string]) && (cleanContent || isStreamingActive) && (
         <>
           {isChatMode ? (
             <div className="flex flex-col gap-1">

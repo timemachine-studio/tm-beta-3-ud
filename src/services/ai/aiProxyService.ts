@@ -11,7 +11,6 @@ export interface YouTubeMusicData {
 interface AIResponse {
   content: string;
   thinking?: string;
-  audioUrl?: string;
   youtubeMusic?: YouTubeMusicData;
 }
 
@@ -102,7 +101,6 @@ export async function generateAIResponseStreaming(
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullContent = '';
-    let audioUrl: string | undefined;
     let youtubeMusic: YouTubeMusicData | undefined;
 
     try {
@@ -123,13 +121,6 @@ export async function generateAIResponseStreaming(
         if (chunk.includes('[IMAGE_ANALYZED]')) {
           chunk = chunk.replace('[IMAGE_ANALYZED]', '');
           if (onStatusChange) onStatusChange('thinking');
-        }
-
-        // Check for audio URL marker
-        const audioMatch = chunk.match(/\[AUDIO_URL\](.*?)\[\/AUDIO_URL\]/);
-        if (audioMatch) {
-          audioUrl = audioMatch[1];
-          chunk = chunk.replace(/\[AUDIO_URL\].*?\[\/AUDIO_URL\]/, '');
         }
 
         // Check for YouTube Music marker
@@ -158,7 +149,6 @@ export async function generateAIResponseStreaming(
         onComplete({
           content: cleanContent,
           thinking,
-          audioUrl,
           youtubeMusic,
         });
       }

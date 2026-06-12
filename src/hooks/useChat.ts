@@ -616,7 +616,7 @@ export function useChat(
 
 
           setLoadingPhase(null);
-          completeStreamingMessage(aiMessageId, cleanedContent, response.thinking, response.audioUrl);
+          completeStreamingMessage(aiMessageId, cleanedContent, response.thinking);
         },
         // onError callback
         (error) => {
@@ -681,7 +681,7 @@ export function useChat(
 
 
         setLoadingPhase(null);
-        completeStreamingMessage(aiMessageId, cleanedContent, aiResponse.thinking, aiResponse.audioUrl);
+        completeStreamingMessage(aiMessageId, cleanedContent, aiResponse.thinking);
       } catch (error) {
         console.error('Failed to generate response:', error);
 
