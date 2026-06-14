@@ -12,7 +12,7 @@ const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
     provider: 'pollinations', // allowed change to 'groq' or 'cerebras' or 'pollinations'
-    model: 'gemma',
+    model: 'deepseek',
     temperature: 0.8,
     maxTokens: 10700,
     flowState: {
