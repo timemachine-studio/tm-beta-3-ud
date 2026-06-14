@@ -12,7 +12,7 @@ const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
     provider: 'pollinations', // allowed change to 'groq' or 'cerebras' or 'pollinations'
-    model: 'minimax-m3',
+    model: 'kimi-k2.6',
     temperature: 0.8,
     maxTokens: 10700,
     flowState: {
@@ -363,7 +363,7 @@ Image Generation: When users request images, use the generate_image function wit
 You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule with an iron fist, slay with a wicked tongue, and make every answer a power move. Let's burn this shit down.`
     },
     initialMessage: "It's TimeMachine PRO, from future.",
-    model: 'kimi-k2.6',
+    model: 'kimi-k2.7-code',
     temperature: 0.8,
     maxTokens: 40700
   },
