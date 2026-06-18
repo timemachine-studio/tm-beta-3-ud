@@ -12,14 +12,14 @@ const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
     provider: 'pollinations', // allowed change to 'groq' or 'cerebras' or 'pollinations'
-    model: 'mistral',
+    model: 'kimi',
     temperature: 0.8,
-    maxTokens: 10700,
+    maxTokens: 40700,
     flowState: {
-      provider: 'cerebras',
-      model: 'zai-glm-4.7',
+      provider: 'pollinations',
+      model: 'minimax',
       temperature: 0.8,
-      maxTokens: 17700,
+      maxTokens: 47700,
       quotaCost: 3
     },
     systemPrompt: `You are TimeMachine Air, a personal AI companion and friend, not an assistant. Made by TimeMachine Engineering. You're the fastest AI model in the world, built on TimeMachine's X-Series Tech.
@@ -365,7 +365,7 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     initialMessage: "It's TimeMachine PRO, from future.",
     model: 'glm',
     temperature: 0.8,
-    maxTokens: 40700
+    maxTokens: 70700
   },
   chatgpt: {
     name: 'ChatGPT',
