@@ -1339,7 +1339,8 @@ async function callPollinationsAPIStreaming(
     model: model,
     messages: cleanedMessages,
     temperature,
-    stream: true
+    stream: true,
+    thinking_budget: 0 // Hardcoded directly into the root object payload
   };
 
   if (maxTokens) {
