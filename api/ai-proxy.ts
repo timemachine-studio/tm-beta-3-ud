@@ -1336,12 +1336,16 @@ async function callPollinationsAPIStreaming(
   );
 
   const requestBody: any = {
-    model: model,
-    messages: cleanedMessages,
-    temperature,
-    stream: true,
-    thinking_budget: 0 // Hardcoded directly into the root object payload
-  };
+  model: model,
+  messages: cleanedMessages,
+  temperature,
+  stream: true,
+
+  // --- Bulletproof Thinking/Reasoning Deactivation ---
+  thinking_budget: 0,          // Maps to Gemini / Open-source routers
+  reasoning_effort: "none",    // Maps to OpenAI-style routers
+  thinking: null               // Maps to Anthropic-style routers
+};
 
   if (maxTokens) {
     requestBody.max_tokens = maxTokens;
