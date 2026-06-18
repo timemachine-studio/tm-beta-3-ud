@@ -12,12 +12,12 @@ const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
     provider: 'pollinations', // allowed change to 'groq' or 'cerebras' or 'pollinations'
-    model: 'minimax-m2.7',
+    model: 'nova',
     temperature: 0.8,
     maxTokens: 10700,
     flowState: {
       provider: 'pollinations',
-      model: 'qwen-large',
+      model: 'openai-fast',
       temperature: 0.8,
       maxTokens: 17700,
       quotaCost: 3
