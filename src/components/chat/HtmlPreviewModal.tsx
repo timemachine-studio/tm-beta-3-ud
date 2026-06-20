@@ -35,40 +35,56 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
           transition={{ duration: 0.2 }}
           onClick={handleBackdropClick}
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-          style={{ background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(8px)' }}
+          style={{ background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(10px)' }}
         >
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="relative w-full max-w-5xl rounded-2xl overflow-hidden"
+            className="relative w-[96vw] h-[92vh] max-w-none rounded-2xl overflow-hidden flex flex-col"
             style={{
-              aspectRatio: '16 / 10',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: '0 24px 64px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+              background: 'rgba(25, 25, 25, 0.45)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(20px)',
             }}
           >
-            {/* Close button */}
-            <button
-              onClick={onClose}
-              className="absolute top-3 right-3 z-10 p-2 rounded-full transition-all duration-200 hover:scale-105"
-              style={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-              }}
-            >
-              <X className="w-4 h-4 text-white/80" />
-            </button>
+            {/* Header bar styled like a browser window */}
+            <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" style={{
+              background: 'rgba(255, 255, 255, 0.04)',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            }}>
+              {/* Mock browser dots */}
+              <div className="flex items-center gap-1.5 select-none">
+                <span className="w-3 h-3 rounded-full bg-red-500/80" />
+                <span className="w-3 h-3 rounded-full bg-yellow-500/80" />
+                <span className="w-3 h-3 rounded-full bg-green-500/80" />
+                <span className="ml-3 text-xs font-semibold text-white/50 tracking-wider font-sans uppercase">
+                  HTML Live Preview
+                </span>
+              </div>
 
-            {/* iframe rendering the HTML */}
+              {/* Close Button */}
+              <button
+                onClick={onClose}
+                className="p-1 rounded-lg transition-all duration-200 hover:scale-105 hover:bg-white/10 active:scale-95"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                }}
+                title="Close Preview"
+              >
+                <X className="w-4 h-4 text-white/80" />
+              </button>
+            </div>
+
+            {/* Iframe rendering the HTML */}
             <iframe
               srcDoc={htmlCode}
               title="HTML Preview"
               sandbox="allow-scripts allow-modals allow-forms allow-same-origin"
-              className="w-full h-full border-0 rounded-2xl bg-white"
+              className="w-full flex-1 border-0 bg-white"
             />
           </motion.div>
         </motion.div>

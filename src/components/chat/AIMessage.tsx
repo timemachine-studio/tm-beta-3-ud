@@ -290,7 +290,23 @@ function AIMessageComponent({
         const langMatch = /language-(\w+)/.exec(child.props.className || '');
         const language = langMatch ? langMatch[1] : undefined;
         const code = String(child.props.children || '').replace(/\n$/, '');
-        return <CodeBlock language={language} code={code} themeText={theme.text} />;
+
+        // Determine if this code block has finished streaming
+        const isComplete = !isStreamingActive || (() => {
+          const index = cleanContent.lastIndexOf(code);
+          if (index === -1) return false;
+          const afterCode = cleanContent.substring(index + code.length);
+          return afterCode.includes('```');
+        })();
+
+        return (
+          <CodeBlock
+            language={language}
+            code={code}
+            themeText={theme.text}
+            isComplete={isComplete}
+          />
+        );
       }
       // Fallback for non-code children
       return (
@@ -326,7 +342,7 @@ function AIMessageComponent({
         />
       );
     },
-  }), [theme.text, personaColor, displayPersona]);
+  }), [theme.text, personaColor, displayPersona, cleanContent, isStreamingActive]);
 
   // Dedicated components for reasoning content to keep everything consistently grey/zinc-styled
   const ReasoningMarkdownComponents = useMemo(() => ({
