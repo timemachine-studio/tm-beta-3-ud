@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Square, AlertCircle } from 'lucide-react';
+import { useAudioRecording } from '../../hooks/useAudioRecording';
 import { AI_PERSONAS } from '../../config/constants';
 import AiMicIcon from '../icons/AiMicIcon';
 
 interface VoiceRecorderProps {
-  message: string;
-  setMessage: React.Dispatch<React.SetStateAction<string>>;
+  onSendMessage: (message: string, imageData?: string | string[], audioData?: string) => void;
   disabled?: boolean;
   currentPersona?: keyof typeof AI_PERSONAS;
 }
@@ -30,163 +30,131 @@ const personaStyles = {
   }
 } as const;
 
-export function VoiceRecorder({ message, setMessage, disabled, currentPersona = 'default' }: VoiceRecorderProps) {
-  const [isListening, setIsListening] = useState(false);
-  const [isSupported, setIsSupported] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showError, setShowError] = useState(false);
+const personaVisualizerColors = {
+  default: '#a855f7',
+  girlie: '#ec4899',
+  pro: '#06b6d4'
+} as const;
 
-  const recognitionRef = useRef<any>(null);
-  const baseTextRef = useRef<string>('');
+function AudioVisualizer({ analyser, currentPersona = 'default' }: { analyser: AnalyserNode | null; currentPersona?: keyof typeof AI_PERSONAS }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationRef = useRef<number>();
 
   useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setIsSupported(false);
-    }
+    if (!analyser || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const draw = () => {
+      analyser.getByteFrequencyData(dataArray);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const barWidth = canvas.width / bufferLength * 2.5;
+      let barHeight;
+      let x = 0;
+
+      const color = personaVisualizerColors[currentPersona];
+
+      for (let i = 0; i < bufferLength; i++) {
+        barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
+
+        // Create gradient for bars
+        const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
+        gradient.addColorStop(0, color + '80'); // Semi-transparent
+        gradient.addColorStop(1, color + 'FF'); // Full opacity
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+
+        // Add glow effect
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+        ctx.shadowBlur = 0;
+
+        x += barWidth + 1;
+      }
+
+      animationRef.current = requestAnimationFrame(draw);
+    };
+
+    draw();
 
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.abort();
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
       }
     };
-  }, []);
+  }, [analyser, currentPersona]);
 
-  const startListening = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+  return (
+    <canvas
+      ref={canvasRef}
+      width={20}
+      height={20}
+      className="w-5 h-5"
+      style={{ filter: 'blur(0.5px)' }}
+    />
+  );
+}
 
-    setError(null);
-    setShowError(false);
-    baseTextRef.current = message;
+export function VoiceRecorder({ onSendMessage, disabled, currentPersona = 'default' }: VoiceRecorderProps) {
+  const { isRecording, startRecording, stopRecording, error, analyser } = useAudioRecording();
+  const [showError, setShowError] = useState(false);
 
+  const handleToggleRecording = async () => {
     try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        if (event.error === 'not-allowed') {
-          setError('Microphone permission denied.');
-        } else if (event.error === 'no-speech') {
-          // Silent errors are fine, just stop listening
-          return;
-        } else {
-          setError('Error occurred during speech recognition.');
+      setShowError(false);
+      if (isRecording) {
+        const audioData = await stopRecording();
+        if (audioData) {
+          await onSendMessage('', undefined, audioData);
         }
-        setShowError(true);
-        setTimeout(() => setShowError(false), 3000);
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.onresult = (event: any) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
-
-        for (let i = 0; i < event.results.length; ++i) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-
-        const baseText = baseTextRef.current;
-        const spacing = (baseText && !baseText.endsWith(' ')) ? ' ' : '';
-        setMessage(baseText + spacing + finalTranscript + interimTranscript);
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (e) {
-      console.error('Failed to initialize speech recognition:', e);
-      setError('Could not start speech recognition.');
+      } else if (!disabled) {
+        await startRecording();
+      }
+    } catch (error) {
       setShowError(true);
       setTimeout(() => setShowError(false), 3000);
-      setIsListening(false);
     }
   };
-
-  const handleToggleListening = () => {
-    if (isListening) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-      setIsListening(false);
-    } else if (!disabled) {
-      startListening();
-    }
-  };
-
-  if (!isSupported) {
-    return (
-      <button
-        disabled
-        title="Speech recognition is not supported in this browser. Try Chrome or Safari."
-        className="p-3 rounded-full opacity-30 cursor-not-allowed transition-all duration-300"
-        type="button"
-        style={{
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          background: 'rgba(255, 255, 255, 0.02)'
-        }}
-      >
-        <AiMicIcon className="w-5 h-5 text-white/50" />
-      </button>
-    );
-  }
-
-  const activePersona = currentPersona in personaStyles.tintColors ? currentPersona : 'default';
 
   return (
     <div className="relative">
       <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={handleToggleListening}
-        disabled={disabled && !isListening}
+        onClick={handleToggleRecording}
+        disabled={disabled && !isRecording}
         className="p-3 rounded-full transition-all duration-300 relative group disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
-          background: isListening
-            ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(255, 255, 255, 0.05))'
-            : `linear-gradient(135deg, ${personaStyles.tintColors[activePersona]}, rgba(255, 255, 255, 0.05))`,
+          background: isRecording
+            ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(255, 255, 255, 0.05))'
+            : `linear-gradient(135deg, ${personaStyles.tintColors[currentPersona]}, rgba(255, 255, 255, 0.05))`,
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          border: isListening
-            ? '1px solid rgba(239, 68, 68, 0.5)'
-            : `1px solid ${personaStyles.borderColors[activePersona]}`,
-          boxShadow: isListening
-            ? '0 0 15px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
-            : `${personaStyles.glowShadow[activePersona]}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`
+          border: isRecording
+            ? '1px solid rgba(239, 68, 68, 0.4)'
+            : `1px solid ${personaStyles.borderColors[currentPersona]}`,
+          boxShadow: isRecording
+            ? '0 0 12px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+            : `${personaStyles.glowShadow[currentPersona]}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`
         }}
-        animate={isListening ? {
-          scale: [1, 1.05, 1],
-          boxShadow: [
-            '0 0 15px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
-            '0 0 25px rgba(239, 68, 68, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
-            '0 0 15px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
-          ]
-        } : {}}
-        transition={isListening ? {
-          duration: 1.5,
-          repeat: Infinity,
-          ease: "easeInOut"
-        } : undefined}
         type="button"
       >
         <div className="relative z-10 flex items-center justify-center w-5 h-5">
-          {isListening ? (
-            <Square className="w-4 h-4 text-white fill-white animate-pulse" />
+          {isRecording ? (
+            analyser ? (
+              <AudioVisualizer analyser={analyser} currentPersona={currentPersona} />
+            ) : (
+              <Square className="w-5 h-5 text-white" />
+            )
           ) : (
             <AiMicIcon className="w-5 h-5 text-white" />
           )}

@@ -283,12 +283,69 @@ export function useChat(
   }, [currentSessionId, messages, currentPersona, saveChatSession]);
 
   // Handle streaming message updates
-  const updateStreamingMessage = useCallback((messageId: number, content: string, append: boolean = true) => {
-    setMessages(prev => prev.map(msg =>
-      msg.id === messageId
-        ? { ...msg, content: append ? msg.content + content : content }
-        : msg
-    ));
+  const updateStreamingMessage = useCallback((messageId: number, chunk: string) => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id !== messageId) return msg;
+
+      // Accumulate raw content
+      const rawContent = (msg.rawContent || '') + chunk;
+      
+      // Parse rawContent to extract thinking and content on the fly
+      let thinking = msg.thinking;
+      let content = msg.content;
+      
+      const reasonStartIdx = rawContent.indexOf('<reason>');
+      const reasonEndIdx = rawContent.indexOf('</reason>');
+      
+      if (reasonStartIdx !== -1) {
+        const textBeforeReason = rawContent.substring(0, reasonStartIdx).trim();
+        const closeTagPrefixes = ['</', '</r', '</re', '</rea', '</reas', '</reaso', '</reason'];
+        const endsWithCloseTagPrefix = closeTagPrefixes.some(prefix => rawContent.endsWith(prefix));
+
+        if (reasonEndIdx !== -1) {
+          // Both tags exist
+          thinking = rawContent.substring(reasonStartIdx + 8, reasonEndIdx).trim();
+          content = (textBeforeReason ? textBeforeReason + '\n' : '') + rawContent.substring(reasonEndIdx + 9).trim();
+        } else if (endsWithCloseTagPrefix) {
+          // Started, but ends with a partial close tag - avoid displaying the partial close tag in thinking
+          for (const prefix of closeTagPrefixes) {
+            if (rawContent.endsWith(prefix)) {
+              thinking = rawContent.substring(reasonStartIdx + 8, rawContent.length - prefix.length).trim();
+              break;
+            }
+          }
+          content = textBeforeReason;
+        } else {
+          // Started but not ended (and no partial close tag)
+          thinking = rawContent.substring(reasonStartIdx + 8).trim();
+          content = textBeforeReason;
+        }
+      } else {
+        // No <reason> tag yet
+        const openTagPrefixes = ['<', '<r', '<re', '<rea', '<reas', '<reaso', '<reason'];
+        const endsWithOpenTagPrefix = openTagPrefixes.some(prefix => rawContent.endsWith(prefix));
+        
+        if (endsWithOpenTagPrefix) {
+          // Strip the partial open tag from the clean content
+          for (const prefix of openTagPrefixes) {
+            if (rawContent.endsWith(prefix)) {
+              content = rawContent.substring(0, rawContent.length - prefix.length);
+              break;
+            }
+          }
+        } else {
+          content = rawContent;
+        }
+        thinking = undefined;
+      }
+      
+      return {
+        ...msg,
+        rawContent,
+        content,
+        thinking
+      };
+    }));
   }, []);
 
   // Complete streaming message
@@ -557,6 +614,7 @@ export function useChat(
     const aiMessage: Message = {
       id: aiMessageId,
       content: '',
+      rawContent: '',
       isAI: true,
       hasAnimated: false,
       specialMode: specialMode
@@ -598,7 +656,7 @@ export function useChat(
         imageDimensions,
         // onChunk callback
         (chunk: string) => {
-          updateStreamingMessage(aiMessageId, chunk, true);
+          updateStreamingMessage(aiMessageId, chunk);
         },
         // onComplete callback
         (response) => {
@@ -616,7 +674,7 @@ export function useChat(
 
 
           setLoadingPhase(null);
-          completeStreamingMessage(aiMessageId, cleanedContent, response.thinking);
+          completeStreamingMessage(aiMessageId, cleanedContent, response.thinking, response.audioUrl);
         },
         // onError callback
         (error) => {
@@ -681,7 +739,7 @@ export function useChat(
 
 
         setLoadingPhase(null);
-        completeStreamingMessage(aiMessageId, cleanedContent, aiResponse.thinking);
+        completeStreamingMessage(aiMessageId, cleanedContent, aiResponse.thinking, aiResponse.audioUrl);
       } catch (error) {
         console.error('Failed to generate response:', error);
 

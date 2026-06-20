@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const url = new URL(`https://gen.pollinations.ai/api/generate/image/${encodeURIComponent(prompt)}`);
 
     // Add common parameters for cover
-    url.searchParams.set('model', 'zimage');
+    url.searchParams.set('model', 'gptimage');
     url.searchParams.set('nologo', 'true');
     url.searchParams.set('width', typeof width === 'string' ? width : '1024');
     url.searchParams.set('height', typeof height === 'string' ? height : '1024');

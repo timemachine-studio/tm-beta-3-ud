@@ -12,6 +12,7 @@ import { Brain } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { GeneratedImage } from './GeneratedImage';
 import { AnimatedShinyText } from '../ui/AnimatedShinyText';
+import { AudioPlayerBubble } from './AudioPlayerBubble';
 import { CodeBlock } from './CodeBlock';
 import { BrandOverride } from '../brand/BrandLogo';
 import { MusicComposeCard, SavedVariation } from './MusicComposeCard';
@@ -30,6 +31,7 @@ interface AIMessageProps extends MessageProps {
   brandOverride?: BrandOverride;
   musicVariations?: SavedVariation[];
   onMusicVariationsChange?: (messageId: number, variations: SavedVariation[]) => void;
+  rawContent?: string;
 }
 
 const SPECIAL_MODE_SHIMMER_TEXT: Record<string, string> = {
@@ -113,10 +115,32 @@ function AIMessageComponent({
   specialMode,
   brandOverride,
   musicVariations,
-  onMusicVariationsChange
+  onMusicVariationsChange,
+  rawContent
 }: AIMessageProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const hasAutoCollapsedRef = useRef(false);
+
+  const isThinkingFinished = useMemo(() => {
+    if (!isStreamingActive) return true;
+    return !!(rawContent && rawContent.includes('</reason>'));
+  }, [isStreamingActive, rawContent]);
+
+  // Auto-expand reasoning when it starts streaming, and auto-collapse when it finishes
+  useEffect(() => {
+    if (isStreamingActive && reasoning) {
+      if (!isThinkingFinished) {
+        // Keep reasoning visible while it is streaming
+        setShowReasoning(true);
+      } else if (!hasAutoCollapsedRef.current) {
+        // Automatically hide it the moment the reasoning concludes
+        setShowReasoning(false);
+        hasAutoCollapsedRef.current = true;
+      }
+    }
+  }, [isStreamingActive, reasoning, isThinkingFinished]);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const mentionedPersona = extractMentionedPersona(previousMessage);
   const displayPersona = mentionedPersona || currentPersona;
   const personaColor = getPersonaColor(displayPersona);
@@ -196,7 +220,21 @@ function AIMessageComponent({
     }
   }, [content]);
 
+  // Handle audio URL detection and loading
+  useEffect(() => {
+    if (audioUrl && !content) {
+      setIsRecordingVoice(true);
+      // The audio will load automatically in AudioPlayerBubble
+      // We can remove the recording state once content is available or after a timeout
+      const timeout = setTimeout(() => {
+        setIsRecordingVoice(false);
+      }, 3000);
 
+      return () => clearTimeout(timeout);
+    } else if (audioUrl && content) {
+      setIsRecordingVoice(false);
+    }
+  }, [audioUrl, content]);
 
   // Memoize MarkdownComponents to prevent re-creating on every render
   // This is critical to prevent GeneratedImage from re-mounting on parent re-renders
@@ -290,6 +328,57 @@ function AIMessageComponent({
     },
   }), [theme.text, personaColor, displayPersona]);
 
+  // Dedicated components for reasoning content to keep everything consistently grey/zinc-styled
+  const ReasoningMarkdownComponents = useMemo(() => ({
+    h1: ({ children }: { children: React.ReactNode }) => (
+      <h1 className="text-base font-bold mt-3 mb-2 text-zinc-300">{children}</h1>
+    ),
+    h2: ({ children }: { children: React.ReactNode }) => (
+      <h2 className="text-sm font-bold mt-2.5 mb-2 text-zinc-300">{children}</h2>
+    ),
+    h3: ({ children }: { children: React.ReactNode }) => (
+      <h3 className="text-sm font-semibold mt-2 mb-1.5 text-zinc-300">{children}</h3>
+    ),
+    p: ({ children }: { children: React.ReactNode }) => (
+      <p className="mb-3 leading-relaxed text-zinc-400">{children}</p>
+    ),
+    strong: ({ children }: { children: React.ReactNode }) => (
+      <strong className="font-bold text-zinc-300">{children}</strong>
+    ),
+    em: ({ children }: { children: React.ReactNode }) => (
+      <em className="italic text-zinc-400/80">{children}</em>
+    ),
+    ul: ({ children }: { children: React.ReactNode }) => (
+      <ul className="list-disc ml-4 mb-3 space-y-1.5 text-zinc-400">{children}</ul>
+    ),
+    ol: ({ children }: { children: React.ReactNode }) => (
+      <ol className="list-decimal ml-4 mb-3 space-y-1.5 text-zinc-400">{children}</ol>
+    ),
+    li: ({ children }: { children: React.ReactNode }) => (
+      <li className="leading-relaxed text-zinc-400">{children}</li>
+    ),
+    blockquote: ({ children }: { children: React.ReactNode }) => (
+      <blockquote className="border-l-4 border-zinc-600 pl-4 my-3 italic text-zinc-500">
+        {children}
+      </blockquote>
+    ),
+    code: ({ className, children }: { className?: string; children: React.ReactNode }) => {
+      return (
+        <code className="bg-white/10 rounded px-1.5 py-0.5 text-xs font-mono text-zinc-300">
+          {children}
+        </code>
+      );
+    },
+    pre: ({ children }: { children: React.ReactNode }) => {
+      return (
+        <pre className="bg-white/5 rounded-lg p-3 mb-3 overflow-x-auto font-mono text-xs text-zinc-400 border border-white/5">
+          {children}
+        </pre>
+      );
+    },
+    img: () => null, // Don't render images inside reasoning
+  }), []);
+
   // Inline the message content JSX - DO NOT use a function component here
   // as it would cause remounting on every parent re-render
   const messageContent = (
@@ -337,8 +426,8 @@ function AIMessageComponent({
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
                   rehypePlugins={[rehypeKatex]}
-                  components={MarkdownComponents}
-                  className={`text-sm ${theme.text}`}
+                  components={ReasoningMarkdownComponents}
+                  className="text-sm text-zinc-400"
                 >
                   {reasoning}
                 </ReactMarkdown>
@@ -369,6 +458,26 @@ function AIMessageComponent({
         </div>
       )}
 
+      {/* Recording voice state */}
+      {isRecordingVoice && (
+        <div className="w-full max-w-2xl mx-auto my-4">
+          <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
+            <AnimatedShinyText
+              text="Recording voice"
+              useShimmer={true}
+              baseColor={shimmerColors.baseColor}
+              shimmerColor={shimmerColors.shimmerColor}
+              gradientAnimationDuration={2}
+              textClassName="text-base"
+              className="py-1"
+              style={{
+                fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
+                fontSize: '16px'
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Special mode thinking state — replaces the normal "Thinking..." spinner */}
       {isStreamingActive && !cleanContent && specialMode && SPECIAL_MODE_SHIMMER_TEXT[specialMode] && (
@@ -391,8 +500,19 @@ function AIMessageComponent({
         </div>
       )}
 
+      {/* Display audio response if present */}
+      {audioUrl && !isRecordingVoice && (
+        <div className="w-full max-w-2xl mx-auto my-4">
+          <AudioPlayerBubble
+            audioSrc={audioUrl}
+            isUserMessage={false}
+            className="max-w-full"
+            currentPersona={displayPersona}
+          />
+        </div>
+      )}
       {/* Show content when not generating or when generation is complete */}
-      {!isGeneratingImage && !(isStreamingActive && !cleanContent && specialMode && SPECIAL_MODE_SHIMMER_TEXT[specialMode as string]) && (cleanContent || isStreamingActive) && (
+      {!isGeneratingImage && !isRecordingVoice && !(isStreamingActive && !cleanContent && specialMode && SPECIAL_MODE_SHIMMER_TEXT[specialMode as string]) && (cleanContent || isStreamingActive) && !audioUrl && (
         <>
           {isChatMode ? (
             <div className="flex flex-col gap-1">

@@ -30,6 +30,7 @@ const QUICK_REACTIONS = ['❤️', '👍', '😂', '😮', '😢', '🔥'];
 export function ChatMessage({
   content,
   thinking,
+  rawContent,
   isAI,
   isChatMode,
   id,
@@ -249,6 +250,7 @@ export function ChatMessage({
         <AIMessage
           content={content}
           thinking={thinking}
+          rawContent={rawContent}
           isChatMode={isChatMode}
           messageId={id}
           hasAnimated={hasAnimated}

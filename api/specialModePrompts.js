@@ -15,7 +15,7 @@ export const SPECIAL_MODE_CONFIGS = {
   'web-coding': {
 
     default: {
-      model: 'mistral-4',
+      model: 'gemma',
       temperature: 0.9,
       maxTokens: 8500,
       tools: [],
@@ -105,7 +105,7 @@ Remember: You are capable of extraordinary creative work. Don't hold back, show 
     },
 
     pro: {
-      model: 'minimax',
+      model: 'kimi-k2.7-code',
       temperature: 0.8,
       maxTokens: 45000,
       tools: [],
@@ -157,7 +157,7 @@ Remember: You are capable of extraordinary creative work. Don't hold back, show 
   'music-compose': {
 
     default: {
-      model: 'mistral-4',
+      model: 'gemma',
       temperature: 0.8,
       maxTokens: 4000,
       tools: [],
@@ -297,7 +297,7 @@ Example output:
   'tm-healthcare': {
 
     default: {
-      model: 'mistral-4',
+      model: 'gemma',
       temperature: 0.7,
       maxTokens: 3000,
       tools: ['webSearch'],

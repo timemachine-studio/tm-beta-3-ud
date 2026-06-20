@@ -780,9 +780,8 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <VoiceRecorder
-                  message={message}
-                  setMessage={setMessage}
-                  disabled={isLoading || isUploading}
+                  onSendMessage={onSendMessage}
+                  disabled={isLoading || isUploading || message.trim().length > 0}
                   currentPersona={currentPersona}
                 />
 

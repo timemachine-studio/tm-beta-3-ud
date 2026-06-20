@@ -15,6 +15,7 @@ export interface Message {
   isAI: boolean;
   hasAnimated?: boolean;
   thinking?: string;
+  rawContent?: string; // Raw content received during streaming before parsing
   imageData?: string | string[]; // Add imageData field
   audioData?: string; // Add audioData field for base64 encoded audio
   audioUrl?: string; // Add audioUrl field for AI audio responses
