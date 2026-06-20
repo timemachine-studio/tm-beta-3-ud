@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 
@@ -24,7 +25,9 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
     if (e.target === backdropRef.current) onClose();
   };
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -34,7 +37,7 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           onClick={handleBackdropClick}
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-4 animate-none"
           style={{ background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(10px)' }}
         >
           <motion.div
@@ -42,7 +45,7 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="relative w-[96vw] h-[92vh] max-w-none rounded-2xl overflow-hidden flex flex-col"
+            className="relative w-full h-full sm:w-[96vw] sm:h-[92vh] max-w-none rounded-none sm:rounded-2xl overflow-hidden flex flex-col"
             style={{
               background: 'rgba(25, 25, 25, 0.45)',
               border: '1px solid rgba(255, 255, 255, 0.12)',
@@ -85,6 +88,7 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
