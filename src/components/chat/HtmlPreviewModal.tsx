@@ -55,13 +55,9 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
               background: 'rgba(255, 255, 255, 0.04)',
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
             }}>
-              {/* Mock browser dots */}
-              <div className="flex items-center gap-1.5 select-none">
-                <span className="w-3 h-3 rounded-full bg-red-500/80" />
-                <span className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                <span className="w-3 h-3 rounded-full bg-green-500/80" />
-                <span className="ml-3 text-xs font-semibold text-white/50 tracking-wider font-sans uppercase">
-                  HTML Live Preview
+              <div className="flex items-center select-none">
+                <span className="text-xs font-semibold text-white/50 tracking-wider font-sans uppercase">
+                  BY TIMEMACHINE CHAT
                 </span>
               </div>
 

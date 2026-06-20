@@ -236,6 +236,11 @@ function AIMessageComponent({
     }
   }, [audioUrl, content]);
 
+  const cleanContentRef = useRef(cleanContent);
+  cleanContentRef.current = cleanContent;
+  const isStreamingActiveRef = useRef(isStreamingActive);
+  isStreamingActiveRef.current = isStreamingActive;
+
   // Memoize MarkdownComponents to prevent re-creating on every render
   // This is critical to prevent GeneratedImage from re-mounting on parent re-renders
   const MarkdownComponents = useMemo(() => ({
@@ -292,10 +297,10 @@ function AIMessageComponent({
         const code = String(child.props.children || '').replace(/\n$/, '');
 
         // Determine if this code block has finished streaming
-        const isComplete = !isStreamingActive || (() => {
-          const index = cleanContent.lastIndexOf(code);
+        const isComplete = !isStreamingActiveRef.current || (() => {
+          const index = cleanContentRef.current.lastIndexOf(code);
           if (index === -1) return false;
-          const afterCode = cleanContent.substring(index + code.length);
+          const afterCode = cleanContentRef.current.substring(index + code.length);
           return afterCode.includes('```');
         })();
 
@@ -342,7 +347,7 @@ function AIMessageComponent({
         />
       );
     },
-  }), [theme.text, personaColor, displayPersona, cleanContent, isStreamingActive]);
+  }), [theme.text, personaColor, displayPersona]);
 
   // Dedicated components for reasoning content to keep everything consistently grey/zinc-styled
   const ReasoningMarkdownComponents = useMemo(() => ({
