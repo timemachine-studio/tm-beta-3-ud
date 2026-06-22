@@ -1885,12 +1885,14 @@ ${TOOL_GUARDRAIL}
               try {
                 const data = JSON.parse(line);
                 if (data.type === 'content') {
-                  if (isFirstContentOfIteration && fullContent.trim().length > 0) {
-                    const gap = '\n\n';
-                    assistantContent += gap;
-                    res.write(gap);
-                    fullContent += gap;
+                  if (isFirstContentOfIteration) {
                     isFirstContentOfIteration = false;
+                    if (fullContent.trim().length > 0) {
+                      const gap = '\n\n';
+                      assistantContent += gap;
+                      res.write(gap);
+                      fullContent += gap;
+                    }
                   }
                   assistantContent += data.content;
                   res.write(data.content);
