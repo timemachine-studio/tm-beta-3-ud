@@ -1887,6 +1887,7 @@ ${TOOL_GUARDRAIL}
                 if (data.type === 'content') {
                   if (isFirstContentOfIteration) {
                     isFirstContentOfIteration = false;
+                    res.write('[STATUS_END]');
                     if (fullContent.trim().length > 0) {
                       const gap = '\n\n';
                       assistantContent += gap;
@@ -1945,12 +1946,10 @@ ${TOOL_GUARDRAIL}
                   // Write status marker to user for shimmering effect
                   res.write(`[STATUS:Searching the web for "${params.query}"]`);
                   const searchResults = await fetchWebSearchResults(params);
-                  res.write('[STATUS_END]');
 
                   // Truncate search results to protect context window
                   result = searchResults.slice(0, 10000);
                 } catch (err: any) {
-                  res.write('[STATUS_END]');
                   result = `Error: ${err.message}`;
                 }
               } else if (name === 'generate_image') {
@@ -1966,41 +1965,33 @@ ${TOOL_GUARDRAIL}
                   });
                   // Stream the markdown directly to the user response
                   res.write(`\n\n${imageMarkdown}\n\n`);
-                  res.write('[STATUS_END]');
 
                   result = `Image generated successfully. Markdown link: ${imageMarkdown}`;
                 } catch (err: any) {
-                  res.write('[STATUS_END]');
                   result = `Error: ${err.message}`;
                 }
               } else if (name === 'list_skills') {
                 try {
                   res.write('[STATUS:Reading skills library]');
-                  await new Promise(resolve => setTimeout(resolve, 1000));
                   const list = Object.keys(SKILLS_DATA).map(key => ({
                     name: SKILLS_DATA[key].name,
                     description: SKILLS_DATA[key].description
                   }));
                   result = JSON.stringify(list, null, 2);
-                  res.write('[STATUS_END]');
                 } catch (err: any) {
-                  res.write('[STATUS_END]');
                   result = `Error: ${err.message}`;
                 }
               } else if (name === 'read_skill') {
                 try {
                   const params = JSON.parse(argsStr);
                   res.write(`[STATUS:Reading skill instructions for ${params.name}]`);
-                  await new Promise(resolve => setTimeout(resolve, 1000));
                   const skill = SKILLS_DATA[params.name];
                   if (skill) {
                     result = skill.content;
                   } else {
                     result = `Error: Skill "${params.name}" not found. Available skills: ${Object.keys(SKILLS_DATA).join(', ')}`;
                   }
-                  res.write('[STATUS_END]');
                 } catch (err: any) {
-                  res.write('[STATUS_END]');
                   result = `Error: ${err.message}`;
                 }
               }
@@ -2041,6 +2032,7 @@ ${TOOL_GUARDRAIL}
           }
         }
 
+        res.write('[STATUS_END]');
         res.end();
         return;
       } else {
