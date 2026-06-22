@@ -291,59 +291,66 @@ export function useChat(
       const rawContent = (msg.rawContent || '') + chunk;
       
       // Parse rawContent to extract thinking and content on the fly
-      let thinking = msg.thinking;
-      let content = msg.content;
-      
-      const reasonStartIdx = rawContent.indexOf('<reason>');
-      const reasonEndIdx = rawContent.indexOf('</reason>');
-      
-      if (reasonStartIdx !== -1) {
-        const textBeforeReason = rawContent.substring(0, reasonStartIdx).trim();
-        const closeTagPrefixes = ['</', '</r', '</re', '</rea', '</reas', '</reaso', '</reason'];
-        const endsWithCloseTagPrefix = closeTagPrefixes.some(prefix => rawContent.endsWith(prefix));
+      let thinking = '';
+      let content = '';
+      let isInsideReason = false;
+      let i = 0;
 
-        if (reasonEndIdx !== -1) {
-          // Both tags exist
-          thinking = rawContent.substring(reasonStartIdx + 8, reasonEndIdx).trim();
-          content = (textBeforeReason ? textBeforeReason + '\n' : '') + rawContent.substring(reasonEndIdx + 9).trim();
-        } else if (endsWithCloseTagPrefix) {
-          // Started, but ends with a partial close tag - avoid displaying the partial close tag in thinking
-          for (const prefix of closeTagPrefixes) {
-            if (rawContent.endsWith(prefix)) {
-              thinking = rawContent.substring(reasonStartIdx + 8, rawContent.length - prefix.length).trim();
-              break;
+      while (i < rawContent.length) {
+        if (!isInsideReason) {
+          const nextReasonStart = rawContent.indexOf('<reason>', i);
+          if (nextReasonStart !== -1) {
+            content += rawContent.substring(i, nextReasonStart);
+            isInsideReason = true;
+            i = nextReasonStart + 8;
+          } else {
+            const openTagPrefixes = ['<', '<r', '<re', '<rea', '<reas', '<reaso', '<reason'];
+            const endsWithOpenTagPrefix = openTagPrefixes.some(prefix => rawContent.endsWith(prefix));
+            if (endsWithOpenTagPrefix) {
+              for (const prefix of openTagPrefixes) {
+                if (rawContent.endsWith(prefix)) {
+                  content += rawContent.substring(i, rawContent.length - prefix.length);
+                  break;
+                }
+              }
+            } else {
+              content += rawContent.substring(i);
             }
-          }
-          content = textBeforeReason;
-        } else {
-          // Started but not ended (and no partial close tag)
-          thinking = rawContent.substring(reasonStartIdx + 8).trim();
-          content = textBeforeReason;
-        }
-      } else {
-        // No <reason> tag yet
-        const openTagPrefixes = ['<', '<r', '<re', '<rea', '<reas', '<reaso', '<reason'];
-        const endsWithOpenTagPrefix = openTagPrefixes.some(prefix => rawContent.endsWith(prefix));
-        
-        if (endsWithOpenTagPrefix) {
-          // Strip the partial open tag from the clean content
-          for (const prefix of openTagPrefixes) {
-            if (rawContent.endsWith(prefix)) {
-              content = rawContent.substring(0, rawContent.length - prefix.length);
-              break;
-            }
+            break;
           }
         } else {
-          content = rawContent;
+          const nextReasonEnd = rawContent.indexOf('</reason>', i);
+          if (nextReasonEnd !== -1) {
+            thinking += (thinking ? '\n\n' : '') + rawContent.substring(i, nextReasonEnd).trim();
+            isInsideReason = false;
+            i = nextReasonEnd + 9;
+          } else {
+            const closeTagPrefixes = ['</', '</r', '</re', '</rea', '</reas', '</reaso', '</reason'];
+            const endsWithCloseTagPrefix = closeTagPrefixes.some(prefix => rawContent.endsWith(prefix));
+            if (endsWithCloseTagPrefix) {
+              for (const prefix of closeTagPrefixes) {
+                if (rawContent.endsWith(prefix)) {
+                  thinking += (thinking ? '\n\n' : '') + rawContent.substring(i, rawContent.length - prefix.length).trim();
+                  break;
+                }
+              }
+            } else {
+              thinking += (thinking ? '\n\n' : '') + rawContent.substring(i).trim();
+            }
+            break;
+          }
         }
-        thinking = undefined;
       }
+
+      // Format thinking as undefined if empty
+      const finalThinking = thinking.trim() ? thinking.trim() : undefined;
+      const finalContent = content;
       
       return {
         ...msg,
         rawContent,
-        content,
-        thinking
+        content: finalContent,
+        thinking: finalThinking
       };
     }));
   }, []);

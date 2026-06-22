@@ -1976,6 +1976,7 @@ ${TOOL_GUARDRAIL}
               } else if (name === 'list_skills') {
                 try {
                   res.write('[STATUS:Reading skills library]');
+                  await new Promise(resolve => setTimeout(resolve, 1000));
                   const list = Object.keys(SKILLS_DATA).map(key => ({
                     name: SKILLS_DATA[key].name,
                     description: SKILLS_DATA[key].description
@@ -1990,6 +1991,7 @@ ${TOOL_GUARDRAIL}
                 try {
                   const params = JSON.parse(argsStr);
                   res.write(`[STATUS:Reading skill instructions for ${params.name}]`);
+                  await new Promise(resolve => setTimeout(resolve, 1000));
                   const skill = SKILLS_DATA[params.name];
                   if (skill) {
                     result = skill.content;
