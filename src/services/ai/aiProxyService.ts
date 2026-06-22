@@ -48,7 +48,7 @@ export async function generateAIResponseStreaming(
   userId?: string,
   userMemories?: UserMemoryContext,
   specialMode?: string,
-  onStatusChange?: (status: 'analyzing_photo' | 'thinking') => void,
+  onStatusChange?: (status: string) => void,
   pdfData?: string,
   pdfFileName?: string,
   pdfExtractedText?: string,
@@ -122,6 +122,21 @@ export async function generateAIResponseStreaming(
         }
         if (chunk.includes('[IMAGE_ANALYZED]')) {
           chunk = chunk.replace('[IMAGE_ANALYZED]', '');
+          if (onStatusChange) onStatusChange('thinking');
+        }
+
+        // Check for custom tool/status markers
+        if (chunk.includes('[STATUS:')) {
+          const regex = /\[STATUS:(.*?)\]/g;
+          let match;
+          while ((match = regex.exec(chunk)) !== null) {
+            const statusText = match[1];
+            if (onStatusChange) onStatusChange(statusText);
+          }
+          chunk = chunk.replace(/\[STATUS:.*?\]/g, '');
+        }
+        if (chunk.includes('[STATUS_END]')) {
+          chunk = chunk.replaceAll('[STATUS_END]', '');
           if (onStatusChange) onStatusChange('thinking');
         }
 

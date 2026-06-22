@@ -151,6 +151,13 @@ function AIMessageComponent({
   // Process content to handle memory tags
   const { cleanContent, hasSavedMemory } = processMemoryContent(content);
 
+  const isSpecialLoadingPhase = !!(
+    isStreamingActive &&
+    loadingPhase &&
+    loadingPhase !== 'analyzing_photo' &&
+    loadingPhase !== 'thinking'
+  );
+
   // Get persona-specific colors for reasoning display
   const getPersonaReasoningColors = (persona: keyof typeof AI_PERSONAS) => {
     switch (persona) {
@@ -569,6 +576,25 @@ function AIMessageComponent({
                     >
                       {cleanContent}
                     </ReactMarkdown>
+                    {isSpecialLoadingPhase && (
+                      <div className="w-full max-w-2xl my-2">
+                        <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-sm w-fit">
+                          <AnimatedShinyText
+                            text={loadingPhase as string}
+                            useShimmer={true}
+                            baseColor={shimmerColors.baseColor}
+                            shimmerColor={shimmerColors.shimmerColor}
+                            gradientAnimationDuration={2}
+                            textClassName="text-sm"
+                            className="py-0.5"
+                            style={{
+                              fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
+                              fontSize: '14px'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     {/* Saved to Memory indicator */}
                     {hasSavedMemory && (
                       <motion.div
@@ -582,14 +608,34 @@ function AIMessageComponent({
                   </>
                   )
                 ) : isStreamingActive ? (
-                  <div className="flex items-center gap-2 text-sm opacity-60">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      className="w-4 h-4 border-2 border-current border-t-transparent rounded-full"
-                    />
-                    {loadingPhase === 'analyzing_photo' ? 'Analyzing photo...' : 'Thinking...'}
-                  </div>
+                  isSpecialLoadingPhase ? (
+                    <div className="w-full max-w-2xl my-2">
+                      <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-sm w-fit">
+                        <AnimatedShinyText
+                          text={loadingPhase as string}
+                          useShimmer={true}
+                          baseColor={shimmerColors.baseColor}
+                          shimmerColor={shimmerColors.shimmerColor}
+                          gradientAnimationDuration={2}
+                          textClassName="text-sm"
+                          className="py-0.5"
+                          style={{
+                            fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm opacity-60">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="w-4 h-4 border-2 border-current border-t-transparent rounded-full"
+                      />
+                      {loadingPhase === 'analyzing_photo' ? 'Analyzing photo...' : 'Thinking...'}
+                    </div>
+                  )
                 ) : null}
               </div>
             </div>
@@ -618,6 +664,25 @@ function AIMessageComponent({
                   >
                     {cleanContent}
                   </ReactMarkdown>
+                  {isSpecialLoadingPhase && (
+                    <div className="w-full max-w-2xl mx-auto my-4">
+                      <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
+                        <AnimatedShinyText
+                          text={loadingPhase as string}
+                          useShimmer={true}
+                          baseColor={shimmerColors.baseColor}
+                          shimmerColor={shimmerColors.shimmerColor}
+                          gradientAnimationDuration={2}
+                          textClassName="text-base"
+                          className="py-1"
+                          style={{
+                            fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
+                            fontSize: '16px'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                   {/* Saved to Memory indicator */}
                   {hasSavedMemory && (
                     <motion.div
@@ -631,14 +696,34 @@ function AIMessageComponent({
                 </>
                 )
               ) : isStreamingActive ? (
-                <div className="flex items-center justify-center gap-3 text-lg opacity-60">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                    className="w-6 h-6 border-2 border-current border-t-transparent rounded-full"
-                  />
-                  {loadingPhase === 'analyzing_photo' ? 'Analyzing photo...' : 'Thinking...'}
-                </div>
+                isSpecialLoadingPhase ? (
+                  <div className="w-full max-w-2xl mx-auto my-4">
+                    <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
+                      <AnimatedShinyText
+                        text={loadingPhase as string}
+                        useShimmer={true}
+                        baseColor={shimmerColors.baseColor}
+                        shimmerColor={shimmerColors.shimmerColor}
+                        gradientAnimationDuration={2}
+                        textClassName="text-base"
+                        className="py-1"
+                        style={{
+                          fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
+                          fontSize: '16px'
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-3 text-lg opacity-60">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      className="w-6 h-6 border-2 border-current border-t-transparent rounded-full"
+                    />
+                    {loadingPhase === 'analyzing_photo' ? 'Analyzing photo...' : 'Thinking...'}
+                  </div>
+                )
               ) : null}
             </div>
           )}
