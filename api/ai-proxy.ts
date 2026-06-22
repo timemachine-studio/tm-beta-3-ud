@@ -1871,6 +1871,7 @@ ${TOOL_GUARDRAIL}
           const decoder = new TextDecoder();
           let assistantContent = '';
           let hasToolCalls = false;
+          let isFirstContentOfIteration = true;
           toolCallsMap.clear();
 
           while (true) {
@@ -1884,6 +1885,13 @@ ${TOOL_GUARDRAIL}
               try {
                 const data = JSON.parse(line);
                 if (data.type === 'content') {
+                  if (isFirstContentOfIteration && fullContent.trim().length > 0) {
+                    const gap = '\n\n';
+                    assistantContent += gap;
+                    res.write(gap);
+                    fullContent += gap;
+                    isFirstContentOfIteration = false;
+                  }
                   assistantContent += data.content;
                   res.write(data.content);
                   fullContent += data.content;
@@ -2007,6 +2015,13 @@ ${TOOL_GUARDRAIL}
 
           // No tool calls, meaning the assistant responded with final text. Done!
           break;
+        }
+
+        // Check if max iterations reached and last response had tool calls
+        if (iteration >= maxIterations && toolCallsMap.size > 0) {
+          const warning = '\n\n*System: Maximum reasoning iterations (5) reached. Stopped further tool executions.*';
+          res.write(warning);
+          fullContent += warning;
         }
 
         // Finalize rate limits & memories
@@ -2457,6 +2472,16 @@ ${TOOL_GUARDRAIL}
 
           finalContent += (finalContent ? '\n\n' : '') + content;
           break;
+        }
+
+        // Check if max iterations reached and last response had tool calls
+        if (iteration >= maxIterations) {
+          const assistantMessage = apiResponse.choices?.[0]?.message;
+          const toolCalls = assistantMessage?.tool_calls || [];
+          if (toolCalls.length > 0) {
+            const warning = '\n\n*System: Maximum reasoning iterations (5) reached. Stopped further tool executions.*';
+            finalContent += warning;
+          }
         }
 
         // Finalize rate limits & memories
