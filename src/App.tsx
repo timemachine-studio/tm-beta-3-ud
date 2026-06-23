@@ -46,6 +46,7 @@ import { GroupChat } from './types/groupChat';
 import { ACCESS_TOKEN_REQUIRED, MAINTENANCE_MODE, PRO_HEAT_LEVELS, AI_PERSONAS } from './config/constants';
 import { ChatSession, getSupabaseSessions, getLocalSessions } from './services/chat/chatService';
 import { SEOHead } from './components/seo/SEOHead';
+import { ProMaxPage } from './components/personas/ProMaxPage';
 
 // Chat by ID page component - defined OUTSIDE to prevent re-renders
 function ChatByIdPage() {
@@ -588,7 +589,12 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                             }}
                             whileTap={{ scale: 0.97 }}
                             onClick={() => {
-                              setCurrentProHeatLevel(parseInt(level));
+                              const lvl = parseInt(level);
+                              if (lvl === 6) {
+                                navigate('/promax');
+                              } else {
+                                setCurrentProHeatLevel(lvl);
+                              }
                               setIsHeatLevelExpanded(false);
                             }}
                             className={`w-full px-4 py-3 text-left transition-all duration-300
@@ -925,6 +931,7 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/" element={<><SEOHead /><MainChatPage /></>} />
+      <Route path="/promax" element={<><SEOHead title="PRO MAX Mode" description="Isolated web coding sandbox" path="/promax" noIndex /><ProMaxPage /></>} />
       <Route path="/reveoule" element={
         <>
           <SEOHead title="Rêveoulé" description="Beauty products collab" path="/reveoule" noIndex />

@@ -103,5 +103,9 @@ export const PRO_HEAT_LEVELS = {
   5: {
     name: 'Heat Level 5',
     description: 'Maximum intensity and directness'
+  },
+  6: {
+    name: 'PRO MAX',
+    description: 'Isolated developer sandbox with full codebase access'
   }
 } as const;
