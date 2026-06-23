@@ -290,13 +290,13 @@ export function ProMaxPage() {
 
   // Virtual Filesystem State
   const [vfs, setVfs] = useState<VFS>(() => {
-    const saved = localStorage.getItem('timeMachine_promax_vfs');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('timeMachine_promax_vfs');
+      if (saved) {
         return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to restore VFS', e);
       }
+    } catch (e) {
+      console.error('Failed to restore VFS from localStorage', e);
     }
     // Load initial react template
     return Object.fromEntries(
@@ -338,7 +338,11 @@ export function ProMaxPage() {
 
   // Sync VFS to localStorage on change
   useEffect(() => {
-    localStorage.setItem('timeMachine_promax_vfs', JSON.stringify(vfs));
+    try {
+      localStorage.setItem('timeMachine_promax_vfs', JSON.stringify(vfs));
+    } catch (e) {
+      console.warn('Failed to save VFS to localStorage: quota exceeded', e);
+    }
   }, [vfs]);
 
   // Sync editor field to active file
