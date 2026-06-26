@@ -41,7 +41,7 @@ function formatMessagesAsDialogue(messages: Message[]): Message[] {
       if (userMessagesBuffer.length > 0) {
         const dialogueContent = userMessagesBuffer
           .map(m => {
-            const sender = m.senderNickname || 'User';
+            const sender = m.sender_nickname || 'User';
             return `[${sender}]: ${m.content}`;
           })
           .join('\n');
@@ -64,7 +64,7 @@ function formatMessagesAsDialogue(messages: Message[]): Message[] {
   if (userMessagesBuffer.length > 0) {
     const dialogueContent = userMessagesBuffer
       .map(m => {
-        const sender = m.senderNickname || 'User';
+        const sender = m.sender_nickname || 'User';
         return `[${sender}]: ${m.content}`;
       })
       .join('\n');
@@ -168,14 +168,16 @@ export function useChat(
 
         if (firstUserMessage) {
           if (firstUserMessage.content && firstUserMessage.content.trim() &&
-            firstUserMessage.content !== '[Image message]' && firstUserMessage.content !== '[Audio message]' && !firstUserMessage.content.startsWith('[PDF:')) {
+            firstUserMessage.content !== '[Image message]' && firstUserMessage.content !== '[Audio message]' && 
+            !firstUserMessage.content.startsWith('[PDF:') && !firstUserMessage.content.startsWith('[File:')) {
             sessionName = firstUserMessage.content.slice(0, 50);
           } else if (firstUserMessage.imageData || (firstUserMessage.inputImageUrls && firstUserMessage.inputImageUrls.length > 0)) {
             sessionName = 'Image message';
           } else if (firstUserMessage.audioData) {
             sessionName = 'Audio message';
           } else if (firstUserMessage.pdfFileName) {
-            sessionName = `PDF: ${firstUserMessage.pdfFileName}`;
+            const isPdf = firstUserMessage.pdfFileName.toLowerCase().endsWith('.pdf');
+            sessionName = isPdf ? `PDF: ${firstUserMessage.pdfFileName}` : `File: ${firstUserMessage.pdfFileName}`;
           }
         }
 
@@ -539,19 +541,20 @@ export function useChat(
       messageContent = mentionMatch[2];
     }
 
-    // Handle audio/image/pdf data - if we have audio/images/pdf but no text content, create a message indicating the input type
+    // Handle audio/image/file data - if we have audio/images/files but no text content, create a message indicating the input type
     let finalContent = messageContent;
     if (audioData && !messageContent.trim()) {
       finalContent = '[Audio message]'; // Placeholder text for UI
     } else if ((imageData || (inputImageUrls && inputImageUrls.length > 0)) && !messageContent.trim()) {
       finalContent = '[Image message]'; // Placeholder text for UI
     } else if (pdfData && !messageContent.trim()) {
-      finalContent = `[PDF: ${pdfFileName || 'document.pdf'}]`; // Placeholder text for UI
+      const isPdf = pdfFileName?.toLowerCase().endsWith('.pdf');
+      finalContent = isPdf ? `[PDF: ${pdfFileName || 'document.pdf'}]` : `[File: ${pdfFileName || 'document.txt'}]`; // Placeholder text for UI
     }
 
     // Create user message with content for display
-    // Use finalContent if it's a placeholder for image/audio/pdf-only messages, otherwise keep original content
-    const displayContent = (finalContent === '[Image message]' || finalContent === '[Audio message]' || finalContent.startsWith('[PDF:')) ? finalContent : content;
+    // Use finalContent if it's a placeholder for image/audio/file-only messages, otherwise keep original content
+    const displayContent = (finalContent === '[Image message]' || finalContent === '[Audio message]' || finalContent.startsWith('[PDF:') || finalContent.startsWith('[File:')) ? finalContent : content;
     const userMessage: Message = {
       id: Date.now(),
       content: displayContent, // Use placeholder for image/audio/pdf-only, otherwise original content
@@ -706,7 +709,7 @@ export function useChat(
         specialMode,
         // onStatusChange callback for image pipeline UX
         (status) => {
-          setLoadingPhase(status);
+          setLoadingPhase(status as any);
         },
         pdfData,
         pdfFileName,

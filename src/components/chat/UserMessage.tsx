@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { motion } from 'framer-motion';
-import { FileText } from 'lucide-react';
+import { FileText, FileCode, FileEdit, File } from 'lucide-react';
 import { MessageProps } from '../../types/chat';
 import { slideInFromRight, slideInFromLeft } from '../../utils/animations';
 import { useTheme } from '../../context/ThemeContext';
@@ -99,18 +99,70 @@ function UserMessageComponent({ content, imageData, audioData, inputImageUrls, p
             </div>
           )}
 
-            {/* Display PDF attachment indicator if present */}
-            {pdfFileName && (
-              <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10">
-                <div className="flex items-center justify-center w-8 h-8 rounded-md bg-red-500/20 border border-red-500/30 flex-shrink-0">
-                  <FileText className="w-4 h-4 text-red-400" />
-                </div>
-                <span className="text-white/70 text-sm truncate">{pdfFileName}</span>
-              </div>
-            )}
+            {/* Display file attachment indicator if present */}
+            {(() => {
+              if (!pdfFileName) return null;
+              
+              const getFileDetails = (name: string) => {
+                const extension = name.split('.').pop()?.toLowerCase();
+                
+                switch (extension) {
+                  case 'pdf':
+                    return {
+                      Icon: FileText,
+                      colorClass: 'text-red-400',
+                      bgClass: 'bg-red-500/20 border-red-500/30'
+                    };
+                  case 'md':
+                    return {
+                      Icon: FileEdit,
+                      colorClass: 'text-indigo-400',
+                      bgClass: 'bg-indigo-500/20 border-indigo-500/30'
+                    };
+                  case 'txt':
+                    return {
+                      Icon: FileText,
+                      colorClass: 'text-emerald-400',
+                      bgClass: 'bg-emerald-500/20 border-emerald-500/30'
+                    };
+                  case 'js':
+                  case 'jsx':
+                  case 'ts':
+                  case 'tsx':
+                  case 'json':
+                  case 'csv':
+                  case 'html':
+                  case 'css':
+                  case 'yaml':
+                  case 'yml':
+                  case 'xml':
+                    return {
+                      Icon: FileCode,
+                      colorClass: 'text-amber-400',
+                      bgClass: 'bg-amber-500/20 border-amber-500/30'
+                    };
+                  default:
+                    return {
+                      Icon: File,
+                      colorClass: 'text-white/60',
+                      bgClass: 'bg-white/10 border-white/20'
+                    };
+                }
+              };
 
-            {/* Display text content if present (hide placeholder for PDF-only messages) */}
-            {content && !content.startsWith('[PDF:') && <div style={{ whiteSpace: 'pre-wrap' }}>{content}</div>}
+              const { Icon, colorClass, bgClass } = getFileDetails(pdfFileName);
+              return (
+                <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10">
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-md border flex-shrink-0 ${bgClass}`}>
+                    <Icon className={`w-4 h-4 ${colorClass}`} />
+                  </div>
+                  <span className="text-white/70 text-sm truncate" title={pdfFileName}>{pdfFileName}</span>
+                </div>
+              );
+            })()}
+
+            {/* Display text content if present (hide placeholder for PDF/File-only messages) */}
+            {content && !content.startsWith('[PDF:') && !content.startsWith('[File:') && <div style={{ whiteSpace: 'pre-wrap' }}>{content}</div>}
           </div>
         )}
       </div>

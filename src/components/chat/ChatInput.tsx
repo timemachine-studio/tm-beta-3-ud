@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Plus, X, CornerDownRight, ImagePlus, Code, Music, HeartPulse, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -6,7 +6,7 @@ import { VoiceRecorder } from './VoiceRecorder';
 import { ChatInputProps, ImageDimensions } from '../../types/chat';
 import { LoadingSpinner } from '../loading/LoadingSpinner';
 import { ImagePreview } from './ImagePreview';
-import { PdfPreview } from './PdfPreview';
+import { FilePreview } from './FilePreview';
 import { extractPdfText } from '../../services/pdf/pdfService';
 import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
@@ -102,17 +102,16 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const [message, setMessage] = useState('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
-  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
-  const [pdfExtractedText, setPdfExtractedText] = useState<string | null>(null);
-  const [isPdfExtracting, setIsPdfExtracting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileExtractedText, setFileExtractedText] = useState<string | null>(null);
+  const [isFileReading, setIsFileReading] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [showMentionCall, setShowMentionCall] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [selectedPlusOption, setSelectedPlusOption] = useState<PlusMenuOption | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
   const plusMenuRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { theme } = useTheme();
@@ -242,8 +241,8 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
     if (option === 'upload-photos') {
       fileInputRef.current?.click();
-    } else if (option === 'upload-pdf') {
-      pdfInputRef.current?.click();
+    } else if (option === 'upload-file') {
+      docInputRef.current?.click();
     }
   };
 
@@ -251,7 +250,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     e.preventDefault();
     // Don't send messages when contour is focused (textbox belongs to the tool)
     if (contour.isFocused) return;
-    if ((message.trim() || selectedImages.length > 0 || selectedPdf) && !isLoading && !isUploading && !isPdfExtracting) {
+    if ((message.trim() || selectedImages.length > 0 || selectedFile) && !isLoading && !isUploading && !isFileReading) {
       // Close mention modal when sending message
       setShowMentionCall(false);
 
@@ -277,35 +276,33 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           }
 
           const publicUrls = successfulUploads.map(result => result.url);
-          setUploadedImageUrls(publicUrls);
 
-          const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-pdf' ? selectedPlusOption : undefined;
+          const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-file' ? selectedPlusOption : undefined;
           await onSendMessage(message, base64Images, undefined, publicUrls, firstImageDimensions, undefined, activeMode);
           setSelectedImages([]);
           setImagePreviewUrls([]);
-          setUploadedImageUrls([]);
         } catch (error) {
           alert('Failed to process images. Please try again.');
           console.error('Error processing images:', error);
         } finally {
           setIsUploading(false);
         }
-      } else if (selectedPdf && pdfExtractedText) {
+      } else if (selectedFile && fileExtractedText) {
         setIsUploading(true);
         try {
-          const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-pdf' ? selectedPlusOption : undefined;
-          await onSendMessage(message, undefined, undefined, undefined, undefined, undefined, activeMode, pdfExtractedText, selectedPdf.name);
-          setSelectedPdf(null);
-          setPdfExtractedText(null);
-          if (pdfInputRef.current) pdfInputRef.current.value = '';
+          const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-file' ? selectedPlusOption : undefined;
+          await onSendMessage(message, undefined, undefined, undefined, undefined, undefined, activeMode, fileExtractedText, selectedFile.name);
+          setSelectedFile(null);
+          setFileExtractedText(null);
+          if (docInputRef.current) docInputRef.current.value = '';
         } catch (error) {
-          alert('Failed to process PDF. Please try again.');
-          console.error('Error processing PDF:', error);
+          alert('Failed to process file. Please try again.');
+          console.error('Error processing file:', error);
         } finally {
           setIsUploading(false);
         }
       } else {
-        const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-pdf' ? selectedPlusOption : undefined;
+        const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-file' ? selectedPlusOption : undefined;
         await onSendMessage(message, undefined, undefined, undefined, undefined, undefined, activeMode);
       }
       setMessage('');
@@ -506,7 +503,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
   const plusOptionIcons: Record<PlusMenuOption, React.ComponentType<{ className?: string }>> = {
     'upload-photos': ImagePlus,
-    'upload-pdf': FileText,
+    'upload-file': FileText,
     'web-coding': Code,
     'music-compose': Music,
     'tm-healthcare': HeartPulse,
@@ -540,35 +537,77 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     setImagePreviewUrls(urls);
   };
 
-  const handlePdfSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const readTextFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        // Basic check for binary content (null bytes)
+        if (text.includes('\u0000')) {
+          reject(new Error("The file appears to be a binary file. Only text files and PDFs are supported."));
+        } else {
+          resolve(text);
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to read file."));
+      reader.readAsText(file);
+    });
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.type !== 'application/pdf') {
-      alert('Please select a valid PDF file.');
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const isPdf = file.type === 'application/pdf' || ext === 'pdf';
+    
+    // Check if it's text-based
+    const knownTextExtensions = ['md', 'txt', 'js', 'jsx', 'ts', 'tsx', 'json', 'csv', 'xml', 'yaml', 'yml', 'ini', 'cfg', 'log', 'toml', 'env', 'sh', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'go', 'rs', 'rb', 'php', 'sql'];
+    const isText = file.type.startsWith('text/') || knownTextExtensions.includes(ext) || file.type === '';
+
+    if (!isPdf && !isText) {
+      alert('Unsupported file format. Please upload a PDF, markdown, plain text, or source code file.');
       return;
     }
-    // 10 MB limit for PDFs
+
     if (file.size > 10 * 1024 * 1024) {
-      alert('PDF file size must be under 10 MB.');
+      alert('File size must be under 10 MB.');
       return;
     }
-    setSelectedPdf(file);
-    setIsPdfExtracting(true);
+
+    setSelectedFile(file);
+    setIsFileReading(true);
     try {
-      const result = await extractPdfText(file);
-      setPdfExtractedText(result.text);
+      let extractedText = '';
+      if (isPdf) {
+        const result = await extractPdfText(file);
+        extractedText = result.text;
+      } else {
+        extractedText = await readTextFile(file);
+        
+        // Truncate to a safe limit if it's too large (e.g. 100,000 characters)
+        const MAX_CHARS = 100000;
+        if (extractedText.length > MAX_CHARS) {
+          const keepEnd = Math.floor(MAX_CHARS * 0.15);
+          const keepStart = MAX_CHARS - keepEnd;
+          extractedText = extractedText.slice(0, keepStart)
+            + '\n\n[... DOCUMENT TRUNCATED — middle portion omitted due to length. The beginning and end of the document are shown. ...]\n\n'
+            + extractedText.slice(-keepEnd);
+        }
+      }
+      setFileExtractedText(extractedText);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to read PDF file. Please try again.');
-      setSelectedPdf(null);
+      alert(err instanceof Error ? err.message : 'Failed to read file. Please try again.');
+      setSelectedFile(null);
     } finally {
-      setIsPdfExtracting(false);
+      setIsFileReading(false);
     }
   };
 
-  const removePdf = () => {
-    setSelectedPdf(null);
-    setPdfExtractedText(null);
-    if (pdfInputRef.current) pdfInputRef.current.value = '';
+  const removeFile = () => {
+    setSelectedFile(null);
+    setFileExtractedText(null);
+    if (docInputRef.current) docInputRef.current.value = '';
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -582,24 +621,51 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
 
-    // Check if any dropped file is a PDF
-    const pdfFile = files.find(f => f.type === 'application/pdf');
-    if (pdfFile) {
-      if (pdfFile.size > 10 * 1024 * 1024) {
-        alert('PDF file size must be under 10 MB.');
+    // Check if any dropped file is a PDF or text file
+    const docFile = files.find(f => {
+      const ext = f.name.split('.').pop()?.toLowerCase() || '';
+      const isPdf = f.type === 'application/pdf' || ext === 'pdf';
+      const knownTextExtensions = ['md', 'txt', 'js', 'jsx', 'ts', 'tsx', 'json', 'csv', 'xml', 'yaml', 'yml', 'ini', 'cfg', 'log', 'toml', 'env', 'sh', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'go', 'rs', 'rb', 'php', 'sql'];
+      const isText = f.type.startsWith('text/') || knownTextExtensions.includes(ext) || f.type === '';
+      return isPdf || isText;
+    });
+
+    if (docFile) {
+      if (docFile.size > 10 * 1024 * 1024) {
+        alert('File size must be under 10 MB.');
         return;
       }
-      setSelectedPdf(pdfFile);
-      setSelectedPlusOption('upload-pdf');
-      setIsPdfExtracting(true);
+      
+      const ext = docFile.name.split('.').pop()?.toLowerCase() || '';
+      const isPdf = docFile.type === 'application/pdf' || ext === 'pdf';
+
+      setSelectedFile(docFile);
+      setSelectedPlusOption('upload-file');
+      setIsFileReading(true);
       try {
-        const result = await extractPdfText(pdfFile);
-        setPdfExtractedText(result.text);
+        let extractedText = '';
+        if (isPdf) {
+          const result = await extractPdfText(docFile);
+          extractedText = result.text;
+        } else {
+          extractedText = await readTextFile(docFile);
+          
+          // Truncate to a safe limit if it's too large (e.g. 100,000 characters)
+          const MAX_CHARS = 100000;
+          if (extractedText.length > MAX_CHARS) {
+            const keepEnd = Math.floor(MAX_CHARS * 0.15);
+            const keepStart = MAX_CHARS - keepEnd;
+            extractedText = extractedText.slice(0, keepStart)
+              + '\n\n[... DOCUMENT TRUNCATED — middle portion omitted due to length. The beginning and end of the document are shown. ...]\n\n'
+              + extractedText.slice(-keepEnd);
+          }
+        }
+        setFileExtractedText(extractedText);
       } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to read PDF file. Please try again.');
-        setSelectedPdf(null);
+        alert(err instanceof Error ? err.message : 'Failed to read file. Please try again.');
+        setSelectedFile(null);
       } finally {
-        setIsPdfExtracting(false);
+        setIsFileReading(false);
       }
       return;
     }
@@ -611,7 +677,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     const validImageFiles = files.filter(file => validImageTypes.includes(file.type));
     if (validImageFiles.length === 0) {
-      alert('Please drop valid image or PDF files.');
+      alert('Please drop valid image or document files.');
       return;
     }
     setSelectedImages(validImageFiles);
@@ -686,13 +752,13 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           ))}
         </div>
       )}
-      {selectedPdf && (
+      {selectedFile && (
         <div className="flex gap-2 mb-4">
-          <PdfPreview
-            fileName={selectedPdf.name}
-            fileSize={formatFileSize(selectedPdf.size)}
-            onRemove={removePdf}
-            isUploading={isUploading || isPdfExtracting}
+          <FilePreview
+            fileName={selectedFile.name}
+            fileSize={formatFileSize(selectedFile.size)}
+            onRemove={removeFile}
+            isUploading={isUploading || isFileReading}
           />
         </div>
       )}
@@ -708,10 +774,10 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           />
           <input
             type="file"
-            accept="application/pdf"
+            accept="application/pdf,text/*,application/json,application/javascript,application/typescript,.md,.txt,.js,.jsx,.ts,.tsx,.json,.html,.css,.csv,.xml,.yaml,.yml,.ini,.cfg,.log"
             className="hidden"
-            onChange={handlePdfSelect}
-            ref={pdfInputRef}
+            onChange={handleFileSelect}
+            ref={docInputRef}
           />
 
           <div className="relative" ref={plusMenuRef}>
@@ -789,14 +855,14 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                   type="submit"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  disabled={isLoading || isUploading || isPdfExtracting || (!message.trim() && selectedImages.length === 0 && !selectedPdf)}
+                  disabled={isLoading || isUploading || isFileReading || (!message.trim() && selectedImages.length === 0 && !selectedFile)}
                   className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
                   style={{
-                    background: `linear-gradient(135deg, ${personaStyles.tintColors[currentPersona]}, rgba(255, 255, 255, 0.05))`,
+                    background: `linear-gradient(135deg, ${(personaStyles.tintColors as Record<string, string>)[currentPersona] || personaStyles.tintColors.default}, rgba(255, 255, 255, 0.05))`,
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
-                    border: `1px solid ${personaStyles.borderColors[currentPersona]}`,
-                    boxShadow: `${personaStyles.glowShadow[currentPersona]}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`
+                    border: `1px solid ${(personaStyles.borderColors as Record<string, string>)[currentPersona] || personaStyles.borderColors.default}`,
+                    boxShadow: `${(personaStyles.glowShadow as Record<string, string>)[currentPersona] || personaStyles.glowShadow.default}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`
                   }}
                 >
                   {isLoading || isUploading ? (

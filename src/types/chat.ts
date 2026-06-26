@@ -21,8 +21,8 @@ export interface Message {
   audioUrl?: string; // Add audioUrl field for AI audio responses
   inputImageUrls?: string[]; // Add inputImageUrls field for publicly accessible image URLs
   imageDimensions?: ImageDimensions; // Dimensions of the first uploaded image (for edit operations)
-  pdfData?: string; // Base64-encoded PDF file data
-  pdfFileName?: string; // Original PDF filename for display
+  pdfData?: string; // Text content of the uploaded document (PDF, TXT, MD, etc.)
+  pdfFileName?: string; // Original filename of the uploaded document for display
   // Group chat sender info (optional - only present in group mode)
   sender_id?: string;
   sender_nickname?: string;
