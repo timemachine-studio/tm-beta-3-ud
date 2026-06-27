@@ -9,11 +9,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // AI Personas configuration
-const AI_PERSONAS = {
+export const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
-    provider: 'pollinations', // allowed change to 'groq' or 'cerebras' or 'pollinations'
-    model: 'gemma',
+    provider: 'secretstoai', // allowed change to 'groq' or 'cerebras' or 'pollinations'
+    model: 'glm/glm-5-turbo',
     temperature: 0.8,
     maxTokens: 20700,
     flowState: {
@@ -369,7 +369,8 @@ Image Generation: When users request images, use the generate_image function wit
 You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule with an iron fist, slay with a wicked tongue, and make every answer a power move. Let's burn this shit down.`
     },
     initialMessage: "It's TimeMachine PRO, from future.",
-    model: 'glm',
+    provider: 'secretstoai',
+    model: 'min/minimax-m3',
     temperature: 0.8,
     maxTokens: 70700
   },
@@ -672,7 +673,7 @@ const readSkillTool = {
       properties: {
         name: {
           type: "string",
-          description: "The name of the skill to read (e.g., 'frontend_aesthetics')."
+          description: "The name of the skill to read (e.g., 'frontend_design')."
         }
       },
       required: ["name"],
@@ -722,6 +723,10 @@ async function processMemoryTags(
 // Pollinations API configuration
 const POLLINATIONS_API_KEY = (process.env.POLLINATIONS_API_KEY || '').trim();
 const POLLINATIONS_API_URL = 'https://gen.pollinations.ai/v1/chat/completions';
+
+// Secrets to AI (FreeTheAI) API configuration
+const SECRETSTOAI_API_KEY = (process.env.SECRETSTOAI_API_KEY || process.env.SECRETS_TO_AI_API_KEY || '').trim();
+const SECRETSTOAI_API_URL = 'https://api.freetheai.xyz/v1/chat/completions';
 
 interface ImageGenerationParams {
   prompt: string;
@@ -1360,6 +1365,136 @@ function extractReasoningAndContent(response: string): { content: string; thinki
   return { content, thinking };
 }
 
+// Secrets to AI (FreeTheAI) API function (streaming)
+async function callSecretsToAIAPIStreaming(
+  messages: any[],
+  model: string,
+  temperature: number = 1,
+  maxTokens?: number,
+  tools?: any[]
+): Promise<ReadableStream> {
+  if (!SECRETSTOAI_API_KEY) {
+    throw new Error('SECRETSTOAI_API_KEY is not configured for Secrets to AI requests');
+  }
+
+  // Filter out empty system messages
+  const cleanedMessages = messages.filter(msg =>
+    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+  );
+
+  const requestBody: any = {
+    model: model,
+    messages: cleanedMessages,
+    temperature,
+    stream: true
+  };
+
+  if (maxTokens) {
+    requestBody.max_tokens = maxTokens;
+  }
+
+  if (tools && tools.length > 0) {
+    requestBody.tools = tools;
+    requestBody.tool_choice = "auto";
+  }
+
+  console.log('Secrets to AI API Request:', {
+    model,
+    messages: cleanedMessages,
+    url: SECRETSTOAI_API_URL,
+    hasTools: !!(tools && tools.length > 0),
+    toolCount: tools?.length || 0
+  });
+
+  const response = await fetch(SECRETSTOAI_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SECRETSTOAI_API_KEY}`
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'No error details');
+    console.error('Secrets to AI API error:', response.status, errorText);
+    throw new Error(`Secrets to AI API error: ${response.status} - ${errorText}`);
+  }
+
+  if (!response.body) {
+    throw new Error('No response body from Secrets to AI API');
+  }
+
+  // Transform the response stream to match our format
+  return new ReadableStream({
+    async start(controller) {
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
+
+            if (trimmedLine.startsWith('data: ')) {
+              try {
+                const jsonStr = trimmedLine.slice(6);
+                const data = JSON.parse(jsonStr);
+
+                if (data.choices && data.choices[0]) {
+                  const choice = data.choices[0];
+                  if (choice.delta && choice.delta.content) {
+                    controller.enqueue(new TextEncoder().encode(
+                      JSON.stringify({
+                        type: 'content',
+                        content: choice.delta.content
+                      }) + '\n'
+                    ));
+                  }
+
+                  // Handle tool calls
+                  if (choice.delta && choice.delta.tool_calls) {
+                    controller.enqueue(new TextEncoder().encode(
+                      JSON.stringify({
+                        type: 'tool_calls',
+                        tool_calls: choice.delta.tool_calls
+                      }) + '\n'
+                    ));
+                  }
+
+                  if (choice.finish_reason) {
+                    controller.enqueue(new TextEncoder().encode(
+                      JSON.stringify({ type: 'finish', reason: choice.finish_reason }) + '\n'
+                    ));
+                  }
+                }
+              } catch (error) {
+                console.error('Error parsing streaming chunk:', error);
+              }
+            }
+          }
+        }
+
+        controller.enqueue(new TextEncoder().encode(
+          JSON.stringify({ type: 'finish' }) + '\n'
+        ));
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    }
+  });
+}
+
 // Pollinations API function for external AI models (streaming)
 async function callPollinationsAPIStreaming(
   messages: any[],
@@ -1490,6 +1625,65 @@ async function callPollinationsAPIStreaming(
       }
     }
   });
+}
+
+// Secrets to AI (FreeTheAI) API function (non-streaming)
+async function callSecretsToAIAPI(
+  messages: any[],
+  model: string,
+  temperature: number = 1,
+  maxTokens?: number,
+  tools?: any[]
+): Promise<any> {
+  if (!SECRETSTOAI_API_KEY) {
+    throw new Error('SECRETSTOAI_API_KEY is not configured for Secrets to AI requests');
+  }
+
+  // Filter out empty system messages
+  const cleanedMessages = messages.filter(msg =>
+    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+  );
+
+  const requestBody: any = {
+    model: model,
+    messages: cleanedMessages,
+    temperature,
+    stream: false
+  };
+
+  if (maxTokens) {
+    requestBody.max_tokens = maxTokens;
+  }
+
+  if (tools && tools.length > 0) {
+    requestBody.tools = tools;
+    requestBody.tool_choice = "auto";
+  }
+
+  console.log('Secrets to AI API Request (non-streaming):', {
+    model,
+    messages: cleanedMessages,
+    url: SECRETSTOAI_API_URL,
+    hasTools: !!(tools && tools.length > 0),
+    toolCount: tools?.length || 0
+  });
+
+  const response = await fetch(SECRETSTOAI_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SECRETSTOAI_API_KEY}`
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'No error details');
+    console.error('Secrets to AI API error:', response.status, errorText);
+    throw new Error(`Secrets to AI API error: ${response.status} - ${errorText}`);
+  }
+
+  return await response.json();
 }
 
 // Pollinations API function for external AI models (non-streaming)
@@ -1813,6 +2007,14 @@ ${TOOL_GUARDRAIL}
               flowConfig.maxTokens,
               toolsToUse
             );
+          } else if (fsProvider === 'secretstoai' || fsProvider === 'secrectstoai') {
+            streamingResponse = await callSecretsToAIAPIStreaming(
+              apiMessages,
+              flowConfig.model,
+              flowConfig.temperature,
+              flowConfig.maxTokens,
+              toolsToUse
+            );
           } else {
             streamingResponse = await callCerebrasAirAPIStreaming(
               apiMessages,
@@ -1836,6 +2038,14 @@ ${TOOL_GUARDRAIL}
             );
           } else if (airProvider === 'pollinations') {
             streamingResponse = await callPollinationsAPIStreaming(
+              apiMessages,
+              modelToUse,
+              temperatureToUse,
+              maxTokensToUse,
+              toolsToUse
+            );
+          } else if (airProvider === 'secretstoai' || airProvider === 'secrectstoai') {
+            streamingResponse = await callSecretsToAIAPIStreaming(
               apiMessages,
               modelToUse,
               temperatureToUse,
@@ -1868,13 +2078,42 @@ ${TOOL_GUARDRAIL}
 
           console.log(`PRO Persona Agent Loop: Iteration ${iteration} of ${maxIterations}`);
 
-          const streamingResponse = await callPollinationsAPIStreaming(
-            currentMessages,
-            modelToUse,
-            temperatureToUse,
-            maxTokensToUse,
-            activeTools
-          );
+          const proProvider = (personaConfig as any).provider || 'pollinations';
+          let streamingResponse;
+          if (proProvider === 'secretstoai' || proProvider === 'secrectstoai') {
+            streamingResponse = await callSecretsToAIAPIStreaming(
+              currentMessages,
+              modelToUse,
+              temperatureToUse,
+              maxTokensToUse,
+              activeTools
+            );
+          } else if (proProvider === 'groq') {
+            streamingResponse = await callGroqStandardAPIStreaming(
+              currentMessages,
+              modelToUse,
+              temperatureToUse,
+              maxTokensToUse,
+              activeTools,
+              reasoningEffortToUse
+            );
+          } else if (proProvider === 'cerebras') {
+            streamingResponse = await callCerebrasAirAPIStreaming(
+              currentMessages,
+              activeTools,
+              modelToUse,
+              temperatureToUse,
+              maxTokensToUse
+            );
+          } else {
+            streamingResponse = await callPollinationsAPIStreaming(
+              currentMessages,
+              modelToUse,
+              temperatureToUse,
+              maxTokensToUse,
+              activeTools
+            );
+          }
 
           const reader = streamingResponse.getReader();
           const decoder = new TextDecoder();
@@ -2045,15 +2284,41 @@ ${TOOL_GUARDRAIL}
         res.end();
         return;
       } else {
-        // Girlie persona uses standard Groq API
-        streamingResponse = await callGroqStandardAPIStreaming(
-          apiMessages,
-          modelToUse,
-          temperatureToUse,
-          maxTokensToUse,
-          toolsToUse,
-          reasoningEffortToUse
-        );
+        const provider = (personaConfig as any).provider || 'groq';
+        if (provider === 'secretstoai' || provider === 'secrectstoai') {
+          streamingResponse = await callSecretsToAIAPIStreaming(
+            apiMessages,
+            modelToUse,
+            temperatureToUse,
+            maxTokensToUse,
+            toolsToUse
+          );
+        } else if (provider === 'pollinations') {
+          streamingResponse = await callPollinationsAPIStreaming(
+            apiMessages,
+            modelToUse,
+            temperatureToUse,
+            maxTokensToUse,
+            toolsToUse
+          );
+        } else if (provider === 'cerebras') {
+          streamingResponse = await callCerebrasAirAPIStreaming(
+            apiMessages,
+            toolsToUse,
+            modelToUse,
+            temperatureToUse,
+            maxTokensToUse
+          );
+        } else {
+          streamingResponse = await callGroqStandardAPIStreaming(
+            apiMessages,
+            modelToUse,
+            temperatureToUse,
+            maxTokensToUse,
+            toolsToUse,
+            reasoningEffortToUse
+          );
+        }
       }
 
       // Process streaming response
@@ -2276,6 +2541,14 @@ ${TOOL_GUARDRAIL}
               flowConfig.maxTokens,
               toolsToUse
             );
+          } else if (fsProvider === 'secretstoai' || fsProvider === 'secrectstoai') {
+            apiResponse = await callSecretsToAIAPI(
+              apiMessages,
+              flowConfig.model,
+              flowConfig.temperature,
+              flowConfig.maxTokens,
+              toolsToUse
+            );
           } else {
             const requestBody: any = {
               model: flowConfig.model,
@@ -2338,6 +2611,14 @@ ${TOOL_GUARDRAIL}
               maxTokensToUse,
               toolsToUse
             );
+          } else if (airProvider === 'secretstoai' || airProvider === 'secrectstoai') {
+            apiResponse = await callSecretsToAIAPI(
+              apiMessages,
+              modelToUse,
+              temperatureToUse,
+              maxTokensToUse,
+              toolsToUse
+            );
           } else {
             const requestBody: any = {
               model: modelToUse,
@@ -2393,13 +2674,70 @@ ${TOOL_GUARDRAIL}
 
           console.log(`PRO Persona Agent Loop (non-streaming): Iteration ${iteration} of ${maxIterations}`);
 
-          const apiResponse = await callPollinationsAPI(
-            currentMessages,
-            modelToUse,
-            temperatureToUse,
-            maxTokensToUse,
-            activeTools
-          );
+          const proProvider = (personaConfig as any).provider || 'pollinations';
+          let apiResponse;
+          if (proProvider === 'secretstoai' || proProvider === 'secrectstoai') {
+            apiResponse = await callSecretsToAIAPI(
+              currentMessages,
+              modelToUse,
+              temperatureToUse,
+              maxTokensToUse,
+              activeTools
+            );
+          } else if (proProvider === 'groq') {
+            const requestBody: any = {
+              messages: currentMessages,
+              model: modelToUse,
+              temperature: temperatureToUse,
+              max_tokens: maxTokensToUse,
+              stream: false
+            };
+            if (reasoningEffortToUse) requestBody.reasoning_effort = reasoningEffortToUse;
+            if (activeTools && activeTools.length > 0) {
+              requestBody.tools = activeTools;
+              requestBody.tool_choice = "auto";
+            }
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(requestBody)
+            });
+            apiResponse = await response.json();
+          } else if (proProvider === 'cerebras') {
+            const requestBody: any = {
+              model: modelToUse,
+              messages: currentMessages,
+              temperature: temperatureToUse,
+              max_completion_tokens: maxTokensToUse,
+              top_p: 1,
+              stream: false,
+              reasoning_effort: reasoningEffortToUse
+            };
+            if (activeTools && activeTools.length > 0) {
+              requestBody.tools = activeTools;
+              requestBody.tool_choice = "auto";
+            }
+            const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${process.env.CEREBRAS_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(requestBody)
+            });
+            apiResponse = await response.json();
+          } else {
+            apiResponse = await callPollinationsAPI(
+              currentMessages,
+              modelToUse,
+              temperatureToUse,
+              maxTokensToUse,
+              activeTools
+            );
+          }
 
           const assistantMessage = apiResponse.choices?.[0]?.message;
           const toolCalls = assistantMessage?.tool_calls || [];
@@ -2508,24 +2846,65 @@ ${TOOL_GUARDRAIL}
           thinking: result.thinking
         });
       } else {
-        // Girlie persona uses standard Groq API
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messages: apiMessages,
+        const provider = (personaConfig as any).provider || 'groq';
+        if (provider === 'secretstoai' || provider === 'secrectstoai') {
+          apiResponse = await callSecretsToAIAPI(
+            apiMessages,
+            modelToUse,
+            temperatureToUse,
+            maxTokensToUse,
+            toolsToUse
+          );
+        } else if (provider === 'pollinations') {
+          apiResponse = await callPollinationsAPI(
+            apiMessages,
+            modelToUse,
+            temperatureToUse,
+            maxTokensToUse,
+            toolsToUse
+          );
+        } else if (provider === 'cerebras') {
+          const requestBody: any = {
             model: modelToUse,
+            messages: apiMessages,
             temperature: temperatureToUse,
-            max_tokens: maxTokensToUse,
-            tools: toolsToUse,
-            tool_choice: "auto",
-            stream: false
-          })
-        });
-        apiResponse = await response.json();
+            max_completion_tokens: maxTokensToUse,
+            top_p: 1,
+            stream: false,
+            reasoning_effort: reasoningEffortToUse
+          };
+          if (toolsToUse && toolsToUse.length > 0) {
+            requestBody.tools = toolsToUse;
+            requestBody.tool_choice = "auto";
+          }
+          const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.CEREBRAS_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+          });
+          apiResponse = await response.json();
+        } else {
+          const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messages: apiMessages,
+              model: modelToUse,
+              temperature: temperatureToUse,
+              max_tokens: maxTokensToUse,
+              tools: toolsToUse,
+              tool_choice: "auto",
+              stream: false
+            })
+          });
+          apiResponse = await response.json();
+        }
       }
 
       let fullContent = apiResponse.choices?.[0]?.message?.content || '';
