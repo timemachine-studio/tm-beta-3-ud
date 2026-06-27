@@ -12,8 +12,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 export const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
-    provider: 'pollinations', // allowed change to 'groq' or 'cerebras' or 'pollinations'
-    model: 'gemma',
+    provider: 'secrectstoai', // allowed change to 'groq' or 'cerebras' or 'pollinations'
+    model: 'mim/mimo-v2.5',
     temperature: 0.8,
     maxTokens: 20700,
     flowState: {
@@ -370,7 +370,7 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     },
     initialMessage: "It's TimeMachine PRO, from future.",
     provider: 'secretstoai',
-    model: 'min/minimax-m3',
+    model: 'glm/glm-5.2',
     temperature: 0.8,
     maxTokens: 70700
   },
