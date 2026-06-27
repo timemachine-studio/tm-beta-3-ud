@@ -296,17 +296,35 @@ export function useChat(
       let thinking = '';
       let content = '';
       let isInsideReason = false;
+      let reasonTagType: 'reason' | 'think' | null = null;
       let i = 0;
 
       while (i < rawContent.length) {
         if (!isInsideReason) {
           const nextReasonStart = rawContent.indexOf('<reason>', i);
-          if (nextReasonStart !== -1) {
-            content += rawContent.substring(i, nextReasonStart);
+          const nextThinkStart = rawContent.indexOf('<think>', i);
+          
+          let startTagIndex = -1;
+          let tagLength = 0;
+          let currentTagType: 'reason' | 'think' | null = null;
+
+          if (nextReasonStart !== -1 && (nextThinkStart === -1 || nextReasonStart < nextThinkStart)) {
+            startTagIndex = nextReasonStart;
+            tagLength = 8; // '<reason>'.length
+            currentTagType = 'reason';
+          } else if (nextThinkStart !== -1) {
+            startTagIndex = nextThinkStart;
+            tagLength = 7; // '<think>'.length
+            currentTagType = 'think';
+          }
+
+          if (startTagIndex !== -1) {
+            content += rawContent.substring(i, startTagIndex);
             isInsideReason = true;
-            i = nextReasonStart + 8;
+            reasonTagType = currentTagType;
+            i = startTagIndex + tagLength;
           } else {
-            const openTagPrefixes = ['<', '<r', '<re', '<rea', '<reas', '<reaso', '<reason'];
+            const openTagPrefixes = ['<', '<r', '<re', '<rea', '<reas', '<reaso', '<reason', '<t', '<th', '<thi', '<thin', '<think'];
             const endsWithOpenTagPrefix = openTagPrefixes.some(prefix => rawContent.endsWith(prefix));
             if (endsWithOpenTagPrefix) {
               for (const prefix of openTagPrefixes) {
@@ -321,13 +339,17 @@ export function useChat(
             break;
           }
         } else {
-          const nextReasonEnd = rawContent.indexOf('</reason>', i);
+          const closeTag = reasonTagType === 'think' ? '</think>' : '</reason>';
+          const nextReasonEnd = rawContent.indexOf(closeTag, i);
           if (nextReasonEnd !== -1) {
             thinking += (thinking ? '\n\n' : '') + rawContent.substring(i, nextReasonEnd).trim();
             isInsideReason = false;
-            i = nextReasonEnd + 9;
+            reasonTagType = null;
+            i = nextReasonEnd + closeTag.length;
           } else {
-            const closeTagPrefixes = ['</', '</r', '</re', '</rea', '</reas', '</reaso', '</reason'];
+            const closeTagPrefixes = reasonTagType === 'think'
+              ? ['</', '</t', '</th', '</thi', '</thin', '</think']
+              : ['</', '</r', '</re', '</rea', '</reas', '</reaso', '</reason'];
             const endsWithCloseTagPrefix = closeTagPrefixes.some(prefix => rawContent.endsWith(prefix));
             if (endsWithCloseTagPrefix) {
               for (const prefix of closeTagPrefixes) {
@@ -426,9 +448,9 @@ export function useChat(
   const cleanContent = (content: string): string => {
     const emotion = extractEmotion(content);
     if (emotion) {
-      return content.replace(/<emotion>[a-z]+<\/emotion>/i, '').replace(/<reason>[\s\S]*?<\/reason>/i, '').trim();
+      return content.replace(/<emotion>[a-z]+<\/emotion>/i, '').replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
     }
-    return content.replace(/<reason>[\s\S]*?<\/reason>/i, '').trim();
+    return content.replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
   };
 
   // Dismiss rate limit modal

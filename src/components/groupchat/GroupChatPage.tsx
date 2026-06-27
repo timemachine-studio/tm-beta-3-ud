@@ -230,7 +230,7 @@ export function GroupChatPage() {
         // Clean up the response content
         const cleanContent = response.content
           .replace(/<emotion>[a-z]+<\/emotion>/gi, '')
-          .replace(/<reason>[\s\S]*?<\/reason>/gi, '')
+          .replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '')
           .trim();
 
         // Send AI message to group chat

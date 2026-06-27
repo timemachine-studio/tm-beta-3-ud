@@ -165,9 +165,9 @@ export async function generateAIResponseStreaming(
       }
 
       // Extract reasoning and clean content
-      const reasoningBlocks = [...fullContent.matchAll(/<reason>([\s\S]*?)<\/reason>/gi)].map(m => m[1].trim());
+      const reasoningBlocks = [...fullContent.matchAll(/<(reason|think)>([\s\S]*?)<\/\1>/gi)].map(m => m[2].trim());
       const thinking = reasoningBlocks.length > 0 ? reasoningBlocks.join('\n\n') : undefined;
-      const cleanContent = fullContent.replace(/<reason>[\s\S]*?<\/reason>/gi, '').trim();
+      const cleanContent = fullContent.replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
 
       if (onComplete) {
         onComplete({

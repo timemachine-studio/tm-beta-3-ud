@@ -92,6 +92,7 @@ const processMemoryContent = (content: string): { cleanContent: string; hasSaved
   // Remove memory tags and marker
   let cleanContent = content
     .replace(/<memory>[\s\S]*?<\/memory>/gi, '') // Remove memory tags
+    .replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '') // Remove reasoning/thinking tags
     .replace(/\[MEMORY_SAVED\]/g, '') // Remove marker
     .replace(/!\[Generated Image\]\([^)]*$/, '') // Hide incomplete image markdown during streaming
     .trim();
@@ -124,7 +125,7 @@ function AIMessageComponent({
 
   const isThinkingFinished = useMemo(() => {
     if (!isStreamingActive) return true;
-    return !!(rawContent && rawContent.includes('</reason>'));
+    return !!(rawContent && (rawContent.includes('</reason>') || rawContent.includes('</think>')));
   }, [isStreamingActive, rawContent]);
 
   // Auto-expand reasoning when it starts streaming, and auto-collapse when it finishes

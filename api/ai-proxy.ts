@@ -12,8 +12,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 export const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
-    provider: 'secretstoai', // allowed change to 'groq' or 'cerebras' or 'pollinations'
-    model: 'glm/glm-5-turbo',
+    provider: 'pollinations', // allowed change to 'groq' or 'cerebras' or 'pollinations'
+    model: 'gemma',
     temperature: 0.8,
     maxTokens: 20700,
     flowState: {
@@ -1358,9 +1358,9 @@ function processBuffer(line: string, controller: ReadableStreamDefaultController
 }
 
 function extractReasoningAndContent(response: string): { content: string; thinking?: string } {
-  const reasonMatch = response.match(/<reason>([\s\S]*?)<\/reason>/);
-  const thinking = reasonMatch ? reasonMatch[1].trim() : undefined;
-  const content = response.replace(/<reason>[\s\S]*?<\/reason>/, '').trim();
+  const reasonMatch = response.match(/<(reason|think)>([\s\S]*?)<\/\1>/);
+  const thinking = reasonMatch ? reasonMatch[2].trim() : undefined;
+  const content = response.replace(/<(reason|think)>[\s\S]*?<\/\1>/g, '').trim();
 
   return { content, thinking };
 }
@@ -1386,7 +1386,11 @@ async function callSecretsToAIAPIStreaming(
     model: model,
     messages: cleanedMessages,
     temperature,
-    stream: true
+    stream: true,
+    // --- Bulletproof Thinking/Reasoning Deactivation ---
+    thinking_budget: 0,          // Maps to Gemini / Open-source routers
+    reasoning_effort: "none",    // Maps to OpenAI-style routers
+    thinking: null               // Maps to Anthropic-style routers
   };
 
   if (maxTokens) {
@@ -1648,7 +1652,11 @@ async function callSecretsToAIAPI(
     model: model,
     messages: cleanedMessages,
     temperature,
-    stream: false
+    stream: false,
+    // --- Bulletproof Thinking/Reasoning Deactivation ---
+    thinking_budget: 0,          // Maps to Gemini / Open-source routers
+    reasoning_effort: "none",    // Maps to OpenAI-style routers
+    thinking: null               // Maps to Anthropic-style routers
   };
 
   if (maxTokens) {
