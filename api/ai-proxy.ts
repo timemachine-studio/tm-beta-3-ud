@@ -13,12 +13,12 @@ export const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
     provider: 'secrectstoai', // allowed change to 'groq' or 'cerebras' or 'pollinations'
-    model: 'glm/glm-5-turbo',
+    model: 'vova/kimi-k2.7-code',
     temperature: 0.8,
     maxTokens: 20700,
     flowState: {
       provider: 'secrectstoai',
-      model: 'kai/nvidia/nemotron-3-ultra-550b-a55b:free',
+      model: 'glm/glm-5.2',
       temperature: 0.8,
       maxTokens: 27700,
       quotaCost: 2
@@ -370,7 +370,7 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     },
     initialMessage: "It's TimeMachine PRO, from future.",
     provider: 'secretstoai',
-    model: 'min/minimax-m3',
+    model: 'vova/glm-5.2',
     temperature: 0.8,
     maxTokens: 70700
   },
