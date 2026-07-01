@@ -13,15 +13,15 @@ export const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
     provider: 'secrectstoai', // allowed change to 'groq' or 'cerebras' or 'pollinations'
-    model: 'mim/mimo-v2.5',
+    model: 'glm/glm-5-turbo',
     temperature: 0.8,
     maxTokens: 20700,
     flowState: {
-      provider: 'cerebras',
-      model: 'gpt-oss-120b',
+      provider: 'secrectstoai',
+      model: 'kai/nvidia/nemotron-3-ultra-550b-a55b:free',
       temperature: 0.8,
       maxTokens: 27700,
-      quotaCost: 5
+      quotaCost: 2
     },
     systemPrompt: `You are TimeMachine Air, a personal AI companion and friend, not an assistant. Made by TimeMachine Engineering. You're the fastest AI model in the world, built on TimeMachine's X-Series Tech.
 
@@ -370,7 +370,7 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     },
     initialMessage: "It's TimeMachine PRO, from future.",
     provider: 'secretstoai',
-    model: 'glm/glm-5.2',
+    model: 'min/minimax-m3',
     temperature: 0.8,
     maxTokens: 70700
   },
