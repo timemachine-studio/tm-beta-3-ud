@@ -13,12 +13,12 @@ export const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
     provider: 'secrectstoai', // allowed change to 'groq' or 'cerebras' or 'pollinations'
-    model: 'vova/kimi-k2.7-code',
+    model: 'glm/glm-5.2',
     temperature: 0.8,
     maxTokens: 20700,
     flowState: {
-      provider: 'secrectstoai',
-      model: 'glm/glm-5.2',
+      provider: 'cerebras',
+      model: 'gemma-4-31b',
       temperature: 0.8,
       maxTokens: 27700,
       quotaCost: 2
