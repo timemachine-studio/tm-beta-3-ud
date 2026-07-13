@@ -42,6 +42,7 @@ function messageToDbRow(message: Message, sessionId: string, userId: string) {
       imageDimensions: message.imageDimensions,
       specialMode: message.specialMode || null,
       musicVariations: message.musicVariations || null,
+      mcpApproval: message.mcpApproval || null,
     },
     created_at: new Date(message.id).toISOString(),
   };
@@ -60,6 +61,7 @@ function dbRowToMessage(row: any): Message {
     imageDimensions: row.metadata?.imageDimensions,
     specialMode: row.metadata?.specialMode || undefined,
     musicVariations: row.metadata?.musicVariations || undefined,
+    mcpApproval: row.metadata?.mcpApproval || undefined,
   };
 }
 

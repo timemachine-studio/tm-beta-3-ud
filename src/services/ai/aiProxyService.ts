@@ -1,5 +1,8 @@
 import { Message, ImageDimensions } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
+import { supabase } from '../../lib/supabase';
+import type { McpApprovalRequest } from '../../types/flightControls';
+import type { McpApprovalDecision } from '../../types/flightControls';
 
 export interface YouTubeMusicData {
   videoId: string;
@@ -12,6 +15,15 @@ interface AIResponse {
   content: string;
   thinking?: string;
   youtubeMusic?: YouTubeMusicData;
+  mcpApproval?: McpApprovalRequest;
+}
+
+async function requestHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  return {
+    'Content-Type': 'application/json',
+    ...(data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {}),
+  };
 }
 
 // Custom error class for rate limits
@@ -43,22 +55,22 @@ export async function generateAIResponseStreaming(
   onChunk?: (chunk: string) => void,
   onComplete?: (response: AIResponse) => void,
   onError?: (error: Error) => void,
-  userId?: string,
+  _userId?: string,
   userMemories?: UserMemoryContext,
   specialMode?: string,
   onStatusChange?: (status: string) => void,
   pdfData?: string,
   pdfFileName?: string,
   pdfExtractedText?: string,
-  flowState?: boolean
+  flowState?: boolean,
+  chatSessionId?: string,
+  onMcpApproval?: (approval: McpApprovalRequest) => void,
 ): Promise<void> {
   try {
     // Call the Vercel API route with streaming enabled
     const response = await fetch('/api/ai-proxy', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: await requestHeaders(),
       body: JSON.stringify({
         messages: messages.map(msg => ({
           content: msg.content,
@@ -71,12 +83,12 @@ export async function generateAIResponseStreaming(
         imageDimensions,
         stream: true,
         flowState,
-        userId,
         userMemories,
         specialMode,
         pdfData,
         pdfFileName,
-        pdfExtractedText
+        pdfExtractedText,
+        chatSessionId,
       })
     });
 
@@ -100,6 +112,7 @@ export async function generateAIResponseStreaming(
     const decoder = new TextDecoder();
     let fullContent = '';
     let youtubeMusic: YouTubeMusicData | undefined;
+    let controlFrame: string | null = null;
 
     try {
       while (true) {
@@ -107,7 +120,29 @@ export async function generateAIResponseStreaming(
 
         if (done) break;
 
-        let chunk = decoder.decode(value, { stream: true });
+        const decoded = decoder.decode(value, { stream: true });
+        let chunk = '';
+        for (const character of decoded) {
+          if (controlFrame !== null) {
+            if (character === '\n') {
+              try {
+                const event = JSON.parse(controlFrame);
+                if (event.type === 'mcp_approval' && event.payload && onMcpApproval) {
+                  onMcpApproval(event.payload as McpApprovalRequest);
+                }
+              } catch (eventError) {
+                console.error('Invalid AI control event:', eventError);
+              }
+              controlFrame = null;
+            } else {
+              controlFrame += character;
+            }
+          } else if (character === '\u001e') {
+            controlFrame = '';
+          } else {
+            chunk += character;
+          }
+        }
 
 
 
@@ -132,7 +167,7 @@ export async function generateAIResponseStreaming(
           chunk = chunk.replace(/\[STATUS:.*?\]/g, '');
         }
         if (chunk.includes('[STATUS_END]')) {
-          chunk = chunk.replaceAll('[STATUS_END]', '');
+          chunk = chunk.replace(/\[STATUS_END\]/g, '');
           if (onStatusChange) onStatusChange('thinking');
         }
 
@@ -197,21 +232,20 @@ export async function generateAIResponse(
   heatLevel?: number,
   inputImageUrls?: string[],
   imageDimensions?: ImageDimensions,
-  userId?: string,
+  _userId?: string,
   userMemories?: UserMemoryContext,
   specialMode?: string,
   pdfData?: string,
   pdfFileName?: string,
   pdfExtractedText?: string,
-  flowState?: boolean
+  flowState?: boolean,
+  chatSessionId?: string,
 ): Promise<AIResponse> {
   try {
     // Call the Vercel API route without streaming
     const response = await fetch('/api/ai-proxy', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: await requestHeaders(),
       body: JSON.stringify({
         messages: messages.map(msg => ({
           content: msg.content,
@@ -224,12 +258,12 @@ export async function generateAIResponse(
         imageDimensions,
         stream: false,
         flowState,
-        userId,
         userMemories,
         specialMode,
         pdfData,
         pdfFileName,
-        pdfExtractedText
+        pdfExtractedText,
+        chatSessionId,
       })
     });
 
@@ -266,4 +300,22 @@ export async function generateAIResponse(
       content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
     };
   }
+}
+
+export async function resolveMcpApproval(
+  runId: string,
+  decision: McpApprovalDecision,
+): Promise<{ content: string; status: string }> {
+  const response = await fetch('/api/mcp-approval', {
+    method: 'POST',
+    headers: await requestHeaders(),
+    body: JSON.stringify({ runId, decision }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(result.error || 'MCP approval failed') as Error & { uncertainOutcome?: boolean };
+    error.uncertainOutcome = Boolean(result.uncertainOutcome);
+    throw error;
+  }
+  return result;
 }

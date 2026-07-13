@@ -197,6 +197,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     joinCollaborativeChat,
     updateMessageReactions,
     updateMusicVariations,
+    handleMcpApprovalDecision,
     // Remote music
     pendingRemoteMusic,
     playPendingMusic,
@@ -1042,6 +1043,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                   brandOverride={brandOverride}
                   onMusicVariationsChange={updateMusicVariations}
                   onOpenSesame={() => setIsSesameOpen(true)}
+                  onMcpApprovalDecision={handleMcpApprovalDecision}
                 />
               ) : (
                 <StageMode

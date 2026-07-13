@@ -7,6 +7,8 @@ import { Message } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { BrandOverride } from '../brand/BrandLogo';
 import type { SavedVariation } from './MusicComposeCard';
+import { McpApprovalCard } from './McpApprovalCard';
+import type { McpApprovalDecision } from '../../types/flightControls';
 
 interface ChatMessageProps extends Message {
   isChatMode: boolean;
@@ -22,6 +24,7 @@ interface ChatMessageProps extends Message {
   onReact?: (messageId: number, emoji: string) => void;
   brandOverride?: BrandOverride;
   onMusicVariationsChange?: (messageId: number, variations: SavedVariation[]) => void;
+  onMcpApprovalDecision?: (messageId: number, decision: McpApprovalDecision) => void;
 }
 
 // Quick react emoji options
@@ -57,7 +60,9 @@ export function ChatMessage({
   onReact,
   brandOverride,
   musicVariations,
-  onMusicVariationsChange
+  onMusicVariationsChange,
+  mcpApproval,
+  onMcpApprovalDecision,
 }: ChatMessageProps) {
   const [showActions, setShowActions] = useState(false);
   const [actionsLocked, setActionsLocked] = useState(false); // For mobile click-to-lock
@@ -246,7 +251,12 @@ export function ChatMessage({
         onMouseLeave={handleMouseLeave}
       >
         {renderReplyPreview()}
-        <AIMessage
+        {mcpApproval ? (
+          <McpApprovalCard
+            approval={mcpApproval}
+            onDecision={decision => onMcpApprovalDecision?.(id, decision)}
+          />
+        ) : <AIMessage
           content={content}
           thinking={thinking}
           rawContent={rawContent}
@@ -264,7 +274,7 @@ export function ChatMessage({
           brandOverride={brandOverride}
           musicVariations={musicVariations}
           onMusicVariationsChange={onMusicVariationsChange}
-        />
+        />}
         {renderReactions()}
         {renderActions()}
       </div>

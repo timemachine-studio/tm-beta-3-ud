@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Message, ImageDimensions, MusicVariation } from '../types/chat';
-import { generateAIResponse, generateAIResponseStreaming, YouTubeMusicData, UserMemoryContext } from '../services/ai/aiProxyService';
+import { generateAIResponse, generateAIResponseStreaming, resolveMcpApproval, YouTubeMusicData, UserMemoryContext } from '../services/ai/aiProxyService';
+import type { McpApprovalDecision, McpApprovalRequest } from '../types/flightControls';
 import { INITIAL_MESSAGE, AI_PERSONAS } from '../config/constants';
 import { chatService, ChatSession } from '../services/chat/chatService';
 import { processGeneratedImages } from '../services/image/imageService';
@@ -455,6 +456,46 @@ export function useChat(
     return content.replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
   };
 
+  const handleMcpApprovalDecision = useCallback(async (messageId: number, decision: McpApprovalDecision) => {
+    const target = messages.find(message => message.id === messageId);
+    if (!target?.mcpApproval || target.mcpApproval.status !== 'pending') return;
+
+    setMessages(previous => previous.map(message => message.id === messageId
+      ? { ...message, mcpApproval: { ...message.mcpApproval!, status: decision === 'approve' ? 'approved' : 'denied', error: undefined } }
+      : message));
+    setIsLoading(true);
+
+    try {
+      const response = await resolveMcpApproval(target.mcpApproval.runId, decision);
+      const finalContent = cleanContent(response.content);
+      isDirtyRef.current = true;
+      setMessages(previous => {
+        const updated = previous.map(message => message.id === messageId
+          ? { ...message, content: finalContent, rawContent: undefined, mcpApproval: undefined, hasAnimated: false }
+          : message);
+        if (currentSessionId && !isCollaborative) {
+          setTimeout(() => saveChatSession(currentSessionId, updated, currentPersona, true), 0);
+        }
+        return updated;
+      });
+    } catch (approvalError) {
+      const errorMessage = approvalError instanceof Error ? approvalError.message : 'Approval failed';
+      const uncertain = Boolean((approvalError as Error & { uncertainOutcome?: boolean }).uncertainOutcome);
+      setMessages(previous => previous.map(message => message.id === messageId
+        ? {
+          ...message,
+          mcpApproval: {
+            ...message.mcpApproval!,
+            status: 'failed',
+            error: uncertain ? `${errorMessage} The external outcome may be uncertain; the action was not retried.` : errorMessage,
+          },
+        }
+        : message));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [messages, currentSessionId, currentPersona, isCollaborative, saveChatSession]);
+
   // Dismiss rate limit modal
   const dismissRateLimitModal = useCallback(() => {
     setShowRateLimitModal(false);
@@ -676,6 +717,7 @@ export function useChat(
     }
 
     if (useStreaming) {
+      let approvalReceived = false;
       // Use streaming response - send API messages (without @mention in content and without initial message)
       generateAIResponseStreaming(
         apiMessages,
@@ -691,6 +733,7 @@ export function useChat(
         },
         // onComplete callback
         (response) => {
+          if (approvalReceived) return;
           const emotion = extractEmotion(response.content);
           const cleanedContent = cleanContent(response.content);
 
@@ -737,7 +780,31 @@ export function useChat(
         // Pass cached PDF text for follow-up messages (avoids re-extraction)
         activePdfText || undefined,
         // Flow State: route through Groq for faster speeds
-        currentPersona === 'default' ? flowStateActive : undefined
+        currentPersona === 'default' ? flowStateActive : undefined,
+        !isCollaborative ? currentSessionId : undefined,
+        (approval: McpApprovalRequest) => {
+          approvalReceived = true;
+          isDirtyRef.current = true;
+          isStreamingRef.current = false;
+          setStreamingMessageId(null);
+          setIsLoading(false);
+          setLoadingPhase(null);
+          setMessages(previous => {
+            const updated = previous.map(messageItem => messageItem.id === aiMessageId
+              ? {
+                ...messageItem,
+                content: `Approval required to run ${approval.toolName}.`,
+                rawContent: undefined,
+                mcpApproval: approval,
+                hasAnimated: false,
+              }
+              : messageItem);
+            if (currentSessionId && !isCollaborative) {
+              setTimeout(() => saveChatSession(currentSessionId, updated, currentPersona, true), 0);
+            }
+            return updated;
+          });
+        },
       );
     } else {
       // Use non-streaming response (fallback) - send API messages (without @mention in content and without initial message)
@@ -757,8 +824,20 @@ export function useChat(
           pdfFileName,
           activePdfText || undefined,
           // Flow State: route through Groq for faster speeds
-          currentPersona === 'default' ? flowStateActive : undefined
+          currentPersona === 'default' ? flowStateActive : undefined,
+          !isCollaborative ? currentSessionId : undefined,
         );
+
+        if (aiResponse.mcpApproval) {
+          isDirtyRef.current = true;
+          isStreamingRef.current = false;
+          setStreamingMessageId(null);
+          setIsLoading(false);
+          setMessages(previous => previous.map(messageItem => messageItem.id === aiMessageId
+            ? { ...messageItem, content: `Approval required to run ${aiResponse.mcpApproval!.toolName}.`, mcpApproval: aiResponse.mcpApproval }
+            : messageItem));
+          return;
+        }
 
         const emotion = extractEmotion(aiResponse.content);
         const cleanedContent = cleanContent(aiResponse.content);
@@ -1161,6 +1240,7 @@ export function useChat(
     leaveCollaborativeMode,
     updateMessageReactions,
     updateMusicVariations,
+    handleMcpApprovalDecision,
     // Remote music
     pendingRemoteMusic,
     playPendingMusic,

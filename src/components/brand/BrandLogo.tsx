@@ -288,7 +288,11 @@ export function BrandLogo({
         )}
       </AnimatePresence>
 
-      <AgentsModal isOpen={showAgents} onClose={() => setShowAgents(false)} />
+      <AgentsModal
+        isOpen={showAgents}
+        onClose={() => setShowAgents(false)}
+        onSignIn={onOpenAuth}
+      />
     </div>
   );
 }

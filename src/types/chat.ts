@@ -39,6 +39,7 @@ export interface Message {
   specialMode?: string;
   // Saved music variations with permanent Supabase URLs (for music-compose history)
   musicVariations?: MusicVariation[];
+  mcpApproval?: import('./flightControls').McpApprovalRequest;
 }
 
 export interface ChatState {

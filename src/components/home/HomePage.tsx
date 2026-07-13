@@ -106,6 +106,7 @@ export function HomePage() {
     loadingPhase,
     handleSendMessage,
     markMessageAsAnimated,
+    handleMcpApprovalDecision,
   } = useChat(
     user?.id,
     profile ? { nickname: profile.nickname, about_me: profile.about_me } : undefined,
@@ -308,6 +309,7 @@ export function HomePage() {
                         error={error}
                         streamingMessageId={streamingMessageId}
                         loadingPhase={loadingPhase}
+                        onMcpApprovalDecision={handleMcpApprovalDecision}
                       />
                     </div>
                   )}

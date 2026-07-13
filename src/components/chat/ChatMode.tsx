@@ -10,6 +10,7 @@ import { FlipWords } from '../ui/FlipWords';
 import { BrandOverride } from '../brand/BrandLogo';
 import type { SavedVariation } from './MusicComposeCard';
 import { SesameMark } from '../icons/SesameMark';
+import type { McpApprovalDecision } from '../../types/flightControls';
 
 interface ReplyTo {
   id: number;
@@ -31,7 +32,8 @@ interface ChatModeProps {
   onReact?: (messageId: number, emoji: string) => void;
   brandOverride?: BrandOverride;
   onMusicVariationsChange?: (messageId: number, variations: SavedVariation[]) => void;
-  onOpenSesame: () => void;
+  onOpenSesame?: () => void;
+  onMcpApprovalDecision?: (messageId: number, decision: McpApprovalDecision) => void;
 }
 
 export function ChatMode({
@@ -47,7 +49,8 @@ export function ChatMode({
   onReact,
   brandOverride,
   onMusicVariationsChange,
-  onOpenSesame
+  onOpenSesame,
+  onMcpApprovalDecision,
 }: ChatModeProps) {
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -214,6 +217,7 @@ export function ChatMode({
                     onReact={onReact}
                     brandOverride={brandOverride}
                     onMusicVariationsChange={onMusicVariationsChange}
+                    onMcpApprovalDecision={onMcpApprovalDecision}
                   />
                 </div>
               );

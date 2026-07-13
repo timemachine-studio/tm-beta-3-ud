@@ -260,6 +260,112 @@ export interface Database {
           created_at?: string;
         };
       };
+      flight_control_catalog: {
+        Row: {
+          id: string;
+          kind: 'skill' | 'mcp';
+          slug: string;
+          name: string;
+          description: string;
+          icon_name: string;
+          is_published: boolean;
+          default_enabled: boolean;
+          sort_order: number;
+          skill_content: string | null;
+          mcp_server_url: string | null;
+          mcp_auth_mode: 'none' | 'bearer_env' | null;
+          mcp_auth_env_var: string | null;
+          mcp_allowed_tools: string[];
+          mcp_auto_approve_tools: string[];
+          mcp_connect_timeout_ms: number;
+          mcp_call_timeout_ms: number;
+          mcp_result_char_limit: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          kind: 'skill' | 'mcp';
+          slug: string;
+          name: string;
+          description?: string;
+          icon_name?: string;
+          is_published?: boolean;
+          default_enabled?: boolean;
+          sort_order?: number;
+          skill_content?: string | null;
+          mcp_server_url?: string | null;
+          mcp_auth_mode?: 'none' | 'bearer_env' | null;
+          mcp_auth_env_var?: string | null;
+          mcp_allowed_tools?: string[];
+          mcp_auto_approve_tools?: string[];
+          mcp_connect_timeout_ms?: number;
+          mcp_call_timeout_ms?: number;
+          mcp_result_char_limit?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['flight_control_catalog']['Insert']>;
+      };
+      user_flight_control_settings: {
+        Row: {
+          user_id: string;
+          catalog_id: string;
+          enabled: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          catalog_id: string;
+          enabled: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          enabled?: boolean;
+          updated_at?: string;
+        };
+      };
+      mcp_tool_runs: {
+        Row: {
+          id: string;
+          user_id: string;
+          catalog_id: string;
+          chat_session_id: string | null;
+          tool_name: string;
+          argument_preview: Json;
+          argument_hash: string;
+          status: string;
+          continuation_state: Json | null;
+          error_code: string | null;
+          duration_ms: number | null;
+          expires_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          catalog_id: string;
+          chat_session_id?: string | null;
+          tool_name: string;
+          argument_preview?: Json;
+          argument_hash: string;
+          status?: string;
+          continuation_state?: Json | null;
+          error_code?: string | null;
+          duration_ms?: number | null;
+          expires_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: string;
+          continuation_state?: Json | null;
+          error_code?: string | null;
+          duration_ms?: number | null;
+          updated_at?: string;
+        };
+      };
     };
   };
 }
@@ -272,3 +378,5 @@ export type AiMemory = Database['public']['Tables']['ai_memories']['Row'];
 export type UserImage = Database['public']['Tables']['user_images']['Row'];
 export type RateLimit = Database['public']['Tables']['rate_limits']['Row'];
 export type YouTubeMusic = Database['public']['Tables']['youtube_music']['Row'];
+export type FlightControlCatalog = Database['public']['Tables']['flight_control_catalog']['Row'];
+export type UserFlightControlSetting = Database['public']['Tables']['user_flight_control_settings']['Row'];

@@ -2,6 +2,9 @@
   "functions": {
     "api/ai-proxy.ts": {
       "maxDuration": 300
+    },
+    "api/mcp-approval.ts": {
+      "maxDuration": 300
     }
   },
   "headers": [
