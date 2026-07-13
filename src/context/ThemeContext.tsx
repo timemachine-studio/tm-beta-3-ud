@@ -30,11 +30,11 @@ const ThemeContext = createContext<ThemeContextType>({
   mode: 'dark',
   season: 'autumnDark',
   defaultTheme: null,
-  setMode: () => {},
-  setSeason: () => {},
-  setDefaultTheme: () => {},
-  clearDefaultTheme: () => {},
-  loadUserTheme: async () => {},
+  setMode: () => { },
+  setSeason: () => { },
+  setDefaultTheme: () => { },
+  clearDefaultTheme: () => { },
+  loadUserTheme: async () => { },
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

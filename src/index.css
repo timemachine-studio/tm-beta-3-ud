@@ -283,24 +283,21 @@ body {
 }
 
 /* Action Buttons (Send, Voice, Plus) */
-#reveoule-theme form button.rounded-full.group,
-#reveoule-theme .VoiceRecorder-button {
+#reveoule-theme form button.rounded-full.group {
   background: #370506 !important;
   border: 1px solid #E5DED6 !important;
   box-shadow: 0 2px 10px rgba(55, 5, 6, 0.2) !important;
   color: #E5DED6 !important;
 }
 
-#reveoule-theme form button.rounded-full.group:hover,
-#reveoule-theme .VoiceRecorder-button:hover {
+#reveoule-theme form button.rounded-full.group:hover {
   background: #2b0405 !important;
   border-color: #FFFFFF !important;
   transform: translateY(-1px);
 }
 
 /* Icons inside overrides */
-#reveoule-theme form button.rounded-full.group svg,
-#reveoule-theme .VoiceRecorder-button svg {
+#reveoule-theme form button.rounded-full.group svg {
   color: #E5DED6 !important;
 }
 
@@ -325,7 +322,7 @@ body {
   color: #59090C !important;
 }
 
-/* Quick Action Pills (Notes, Healthcare, Lifestyle) */
+/* Quick Action Pills (Notes, Healthcare, Sesame) */
 #reveoule-theme .reveoule-action-pill {
   background: #FFFFFF !important;
   color: #59090C !important;

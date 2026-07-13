@@ -39,7 +39,6 @@ export function ChatMessage({
   currentPersona,
   previousMessage,
   imageData,
-  audioData,
   audioUrl,
   inputImageUrls,
   pdfFileName,
@@ -284,7 +283,6 @@ export function ChatMessage({
       <UserMessage
         content={content}
         imageData={imageData}
-        audioData={audioData}
         inputImageUrls={inputImageUrls}
         pdfFileName={pdfFileName}
         sender_nickname={isOtherUserMessage ? sender_nickname : undefined}

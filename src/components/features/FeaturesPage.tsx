@@ -150,7 +150,7 @@ export function FeaturesPage() {
           <FeatureCard
             icon={<Mic className="w-6 h-6 text-orange-400" />}
             title="Voice Input"
-            description="Talk instead of type. Record voice messages with real-time waveform visualization and let TimeMachine understand your audio."
+            description="Talk instead of type. Transcribe your speech live into the text bar, then review or edit it before sending."
             accent="#fb923c"
             delay={0.45}
           />

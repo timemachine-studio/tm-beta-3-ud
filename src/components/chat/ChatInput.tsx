@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Plus, X, CornerDownRight, ImagePlus, Code, Music, HeartPulse, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { VoiceRecorder } from './VoiceRecorder';
+import { SpeechTranscriptionButton } from './SpeechTranscriptionButton';
 import { ChatInputProps, ImageDimensions } from '../../types/chat';
 import { LoadingSpinner } from '../loading/LoadingSpinner';
 import { ImagePreview } from './ImagePreview';
@@ -278,7 +278,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           const publicUrls = successfulUploads.map(result => result.url);
 
           const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-file' ? selectedPlusOption : undefined;
-          await onSendMessage(message, base64Images, undefined, publicUrls, firstImageDimensions, undefined, activeMode);
+          await onSendMessage(message, base64Images, publicUrls, firstImageDimensions, undefined, activeMode);
           setSelectedImages([]);
           setImagePreviewUrls([]);
         } catch (error) {
@@ -291,7 +291,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
         setIsUploading(true);
         try {
           const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-file' ? selectedPlusOption : undefined;
-          await onSendMessage(message, undefined, undefined, undefined, undefined, undefined, activeMode, fileExtractedText, selectedFile.name);
+          await onSendMessage(message, undefined, undefined, undefined, undefined, activeMode, fileExtractedText, selectedFile.name);
           setSelectedFile(null);
           setFileExtractedText(null);
           if (docInputRef.current) docInputRef.current.value = '';
@@ -303,7 +303,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
         }
       } else {
         const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-file' ? selectedPlusOption : undefined;
-        await onSendMessage(message, undefined, undefined, undefined, undefined, undefined, activeMode);
+        await onSendMessage(message, undefined, undefined, undefined, undefined, activeMode);
       }
       setMessage('');
       contour.dismiss();
@@ -845,9 +845,10 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
               />
 
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <VoiceRecorder
-                  onSendMessage={onSendMessage}
-                  disabled={isLoading || isUploading || message.trim().length > 0}
+                <SpeechTranscriptionButton
+                  value={message}
+                  onTranscript={setMessage}
+                  disabled={isLoading || isUploading}
                   currentPersona={currentPersona}
                 />
 
@@ -896,6 +897,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                 onTimerReset={contour.resetTimer}
                 onSetTimerDuration={contour.setTimerDuration}
                 onCopyValue={handleCopyValue}
+                onBack={contour.dismiss}
               />
             </div>
           </div>

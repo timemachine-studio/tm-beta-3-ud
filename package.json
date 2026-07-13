@@ -32,12 +32,12 @@
     "react-helmet-async": "^2.0.5",
     "react-markdown": "^9.0.1",
     "react-router-dom": "^7.12.0",
-    "recordrtc": "^5.6.2",
     "rehype-katex": "^7.0.1",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
-    "tailwind-merge": "^2.2.1"
+    "tailwind-merge": "^2.2.1",
+    "yt-search": "^2.13.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
@@ -45,7 +45,6 @@
     "@types/node": "^20.0.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
-    "@types/recordrtc": "^5.6.14",
     "@vercel/node": "^5.8.3",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",

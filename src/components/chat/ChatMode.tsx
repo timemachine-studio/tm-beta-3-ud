@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, HeartPulse, Sparkles } from 'lucide-react';
+import { BookOpen, HeartPulse } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
 import { Message } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
@@ -9,6 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { FlipWords } from '../ui/FlipWords';
 import { BrandOverride } from '../brand/BrandLogo';
 import type { SavedVariation } from './MusicComposeCard';
+import { SesameMark } from '../icons/SesameMark';
 
 interface ReplyTo {
   id: number;
@@ -30,6 +31,7 @@ interface ChatModeProps {
   onReact?: (messageId: number, emoji: string) => void;
   brandOverride?: BrandOverride;
   onMusicVariationsChange?: (messageId: number, variations: SavedVariation[]) => void;
+  onOpenSesame: () => void;
 }
 
 export function ChatMode({
@@ -44,7 +46,8 @@ export function ChatMode({
   onReply,
   onReact,
   brandOverride,
-  onMusicVariationsChange
+  onMusicVariationsChange,
+  onOpenSesame
 }: ChatModeProps) {
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -138,7 +141,7 @@ export function ChatMode({
               transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
               className="h-[calc(100vh-16rem)] flex items-center justify-center"
             >
-              <div className="flex flex-col items-start px-4">
+              <div className="flex w-full max-w-[23rem] flex-col items-start px-2 sm:w-auto sm:max-w-none sm:px-4">
                 <div className="text-lg sm:text-xl font-normal text-neutral-400 text-left">
                   <div className="flex items-center">
                     <span>Start a</span>
@@ -152,11 +155,11 @@ export function ChatMode({
                 </div>
 
                 {/* Quick access pills */}
-                <div className="flex items-center gap-2.5 mt-8">
+                <div className="mt-8 flex w-full items-center justify-center gap-2 sm:w-auto sm:justify-start sm:gap-2.5">
                   {([
-                    { label: 'Notes', icon: BookOpen, route: '/notes' },
-                    { label: 'Healthcare', icon: HeartPulse, route: '/healthcare' },
-                    { label: 'Lifestyle', icon: Sparkles, route: '/lifestyle' },
+                    { label: 'Notes', icon: BookOpen, onClick: () => navigate('/notes') },
+                    { label: 'Healthcare', icon: HeartPulse, onClick: () => navigate('/healthcare') },
+                    { label: 'Sesame', icon: SesameMark, onClick: onOpenSesame },
                   ] as const).map((item, i) => (
                     <motion.button
                       key={item.label}
@@ -165,8 +168,8 @@ export function ChatMode({
                       transition={{ duration: 0.4, delay: 0.3 + i * 0.08, ease: [0.22, 1, 0.36, 1] }}
                       whileHover={{ scale: 1.04, y: -1 }}
                       whileTap={{ scale: 0.97 }}
-                      onClick={() => navigate(item.route)}
-                      className="reveoule-action-pill flex items-center gap-2 px-4 py-2.5 rounded-full text-white/50 hover:text-white/80 transition-colors duration-200"
+                      onClick={item.onClick}
+                      className="reveoule-action-pill flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 py-2.5 text-white/50 transition-colors duration-200 hover:text-white/80 sm:gap-2 sm:px-4"
                       style={{
                         background: 'rgba(255, 255, 255, 0.04)',
                         backdropFilter: 'blur(20px)',
@@ -222,4 +225,3 @@ export function ChatMode({
     </div>
   );
 }
-

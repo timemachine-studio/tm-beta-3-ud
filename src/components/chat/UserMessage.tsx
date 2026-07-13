@@ -4,9 +4,8 @@ import { FileText, FileCode, FileEdit, File } from 'lucide-react';
 import { MessageProps } from '../../types/chat';
 import { slideInFromRight, slideInFromLeft } from '../../utils/animations';
 import { useTheme } from '../../context/ThemeContext';
-import { AudioPlayerBubble } from './AudioPlayerBubble';
 
-function UserMessageComponent({ content, imageData, audioData, inputImageUrls, pdfFileName, sender_nickname, sender_avatar, isGroupMode }: MessageProps) {
+function UserMessageComponent({ content, imageData, inputImageUrls, pdfFileName, sender_nickname, sender_avatar, isGroupMode }: MessageProps) {
   const { theme } = useTheme();
 
   // Check if this is another user's message in group mode
@@ -38,15 +37,7 @@ function UserMessageComponent({ content, imageData, audioData, inputImageUrls, p
           </div>
         )}
 
-        {/* Display audio message if present */}
-        {audioData ? (
-          <AudioPlayerBubble
-            audioSrc={audioData}
-            isUserMessage={!isOtherUser}
-            className="w-full"
-          />
-        ) : (
-          <div className={`px-4 py-2 rounded-2xl
+        <div className={`px-4 py-2 rounded-2xl
             ${isOtherUser
               ? 'bg-blue-500/10 border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
               : 'bg-purple-500/10 border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
@@ -163,8 +154,7 @@ function UserMessageComponent({ content, imageData, audioData, inputImageUrls, p
 
             {/* Display text content if present (hide placeholder for PDF/File-only messages) */}
             {content && !content.startsWith('[PDF:') && !content.startsWith('[File:') && <div style={{ whiteSpace: 'pre-wrap' }}>{content}</div>}
-          </div>
-        )}
+        </div>
       </div>
     </motion.div>
   );

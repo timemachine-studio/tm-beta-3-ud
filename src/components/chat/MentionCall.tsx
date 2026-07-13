@@ -67,58 +67,12 @@ export function MentionCall({ isVisible, onSelect, currentPersona, isGroupMode, 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 10 }}
-          className="absolute bottom-full left-0 mb-2 z-50"
+          className="absolute bottom-full left-0 mb-2 z-50 flex max-h-[300px] flex-col gap-1.5 overflow-y-auto"
         >
-          {/* Glass Modal Container */}
-          <div
-            className="p-2 rounded-2xl max-h-[300px] overflow-y-auto"
-            style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
-            }}
-          >
-            <div className="flex flex-col gap-1.5">
-              {/* Group chat mentions (TimeMachine + participants) */}
-              {isGroupMode && groupMentions.length > 0 && (
-                <>
-                  {groupMentions.map(({ key, command, name, isAI }) => (
-                    <motion.button
-                      key={key}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        onSelect(command);
-                      }}
-                      className="px-4 py-2.5 rounded-full text-left transition-all duration-300 flex items-center gap-2 min-w-[200px]"
-                      style={{
-                        background: isAI
-                          ? personaColors[currentPersona]
-                          : 'rgba(255, 255, 255, 0.05)',
-                        backdropFilter: 'blur(12px)',
-                        WebkitBackdropFilter: 'blur(12px)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-                      }}
-                    >
-                      {!isAI && (
-                        <User className="w-4 h-4 text-white/50" />
-                      )}
-                      <span className={`text-sm font-mono ${isAI ? personaTextColors[currentPersona] : 'text-white/60'}`}>
-                        {command}
-                      </span>
-                    </motion.button>
-                  ))}
-                  {/* Divider if there are also AI models to show */}
-                  <div className="border-t border-white/10 my-1" />
-                </>
-              )}
-
-              {/* External AI models - Glass Pills */}
-              {availablePersonas.map(({ key, command, name }) => (
+          {/* Group chat mentions (TimeMachine + participants) */}
+          {isGroupMode && groupMentions.length > 0 && (
+            <>
+              {groupMentions.map(({ key, command, isAI }) => (
                 <motion.button
                   key={key}
                   whileHover={{ scale: 1.02 }}
@@ -129,21 +83,51 @@ export function MentionCall({ isVisible, onSelect, currentPersona, isGroupMode, 
                   }}
                   className="px-4 py-2.5 rounded-full text-left transition-all duration-300 flex items-center gap-2 min-w-[200px]"
                   style={{
-                    background: personaColors[key as keyof typeof personaColors],
+                    background: isAI
+                      ? personaColors[currentPersona]
+                      : 'rgba(255, 255, 255, 0.05)',
                     backdropFilter: 'blur(12px)',
                     WebkitBackdropFilter: 'blur(12px)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
                   }}
                 >
-                  <span className={`text-sm font-mono ${personaTextColors[key as keyof typeof personaTextColors]}`}>
+                  {!isAI && (
+                    <User className="w-4 h-4 text-white/50" />
+                  )}
+                  <span className={`text-sm font-mono ${isAI ? personaTextColors[currentPersona] : 'text-white/60'}`}>
                     {command}
                   </span>
-                  <span className="text-white text-sm">{name}</span>
                 </motion.button>
               ))}
-            </div>
-          </div>
+            </>
+          )}
+
+          {/* External AI models - Glass Pills */}
+          {availablePersonas.map(({ key, command, name }) => (
+            <motion.button
+              key={key}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={(e) => {
+                e.preventDefault();
+                onSelect(command);
+              }}
+              className="px-4 py-2.5 rounded-full text-left transition-all duration-300 flex items-center gap-2 min-w-[200px]"
+              style={{
+                background: personaColors[key as keyof typeof personaColors],
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+              }}
+            >
+              <span className={`text-sm font-mono ${personaTextColors[key as keyof typeof personaTextColors]}`}>
+                {command}
+              </span>
+              <span className="text-white text-sm">{name}</span>
+            </motion.button>
+          ))}
         </motion.div>
       )}
     </AnimatePresence>

@@ -2185,6 +2185,8 @@ export function NotesPage() {
       // Handle new blocks
       const newPending: PendingNewBlock[] = [];
       if (response.newBlocks && response.newBlocks.length > 0) {
+        const blocksToInsert: { newBlock: Block; pending: PendingNewBlock }[] = [];
+
         for (const nb of response.newBlocks) {
           const tempId = uid();
           const newBlock: Block = {
@@ -2193,29 +2195,43 @@ export function NotesPage() {
             content: nb.content,
           };
 
-          newPending.push({
+          const pending: PendingNewBlock = {
             tempId,
             afterBlockId: nb.afterBlockId,
             type: nb.type as BlockType,
             content: nb.content,
-          });
+          };
 
-          // Insert the block into the note
-          updateNote(activeNoteId, (n) => {
-            const blocks = [...n.blocks];
-            if (nb.afterBlockId === 'START') {
-              blocks.unshift(newBlock);
+          blocksToInsert.push({ newBlock, pending });
+          newPending.push(pending);
+        }
+
+        // Insert all blocks in a single state update to preserve their sequential order
+        updateNote(activeNoteId, (n) => {
+          const blocks = [...n.blocks];
+          // Track the latest block inserted for a given target ID to chain sequential insertions correctly
+          const insertionTargets: Record<string, string> = {};
+
+          for (const item of blocksToInsert) {
+            const originalTarget = item.pending.afterBlockId;
+            const targetId = insertionTargets[originalTarget] || originalTarget;
+
+            if (targetId === 'START') {
+              blocks.unshift(item.newBlock);
+              insertionTargets[originalTarget] = item.newBlock.id;
             } else {
-              const afterIdx = blocks.findIndex((b) => b.id === nb.afterBlockId);
+              const afterIdx = blocks.findIndex((b) => b.id === targetId);
               if (afterIdx >= 0) {
-                blocks.splice(afterIdx + 1, 0, newBlock);
+                blocks.splice(afterIdx + 1, 0, item.newBlock);
+                insertionTargets[originalTarget] = item.newBlock.id;
               } else {
-                blocks.push(newBlock);
+                blocks.push(item.newBlock);
+                insertionTargets[originalTarget] = item.newBlock.id;
               }
             }
-            return { ...n, blocks };
-          });
-        }
+          }
+          return { ...n, blocks };
+        });
       }
 
       setPendingEdits(newPendingEdits);

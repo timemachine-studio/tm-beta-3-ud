@@ -217,7 +217,6 @@ export function GroupChatPage() {
       undefined, // imageData
       '', // systemPrompt
       persona,
-      undefined, // audioData
       undefined, // heatLevel
       undefined, // inputImageUrls
       undefined, // imageDimensions
@@ -242,7 +241,7 @@ export function GroupChatPage() {
           undefined,
           true, // isAI
           undefined,
-          response.audioUrl,
+          undefined,
           response.thinking
         );
 

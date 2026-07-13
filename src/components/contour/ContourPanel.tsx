@@ -6,9 +6,9 @@
  * Supports: command palette, auto-detected results, and focused tool mode.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search } from 'lucide-react';
+import { ArrowLeft, Search } from 'lucide-react';
 import { ContourState, ModuleData } from './moduleRegistry';
 import { MODULE_META } from './moduleRegistry';
 import { ContourCommand, ContourCategory, CATEGORY_INFO, groupByCategory } from './modules/commands';
@@ -40,6 +40,7 @@ interface ContourPanelProps {
   onTimerReset?: () => void;
   onSetTimerDuration?: (seconds: number) => void;
   onCopyValue?: (value: string) => void;
+  onBack?: () => void;
 }
 
 interface AccentTheme {
@@ -152,11 +153,28 @@ function ModuleContent({
 
 export function ContourPanel({
   state, isVisible, onCommandSelect, selectedIndex, persona = 'default',
-  onTimerStart, onTimerToggle, onTimerReset, onSetTimerDuration, onCopyValue,
+  onTimerStart, onTimerToggle, onTimerReset, onSetTimerDuration, onCopyValue, onBack,
 }: ContourPanelProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLButtonElement>(null);
+  const [showTouchControls, setShowTouchControls] = useState(false);
   const accent = personaAccent[persona] || personaAccent.default;
+
+  useEffect(() => {
+    const coarsePointer = window.matchMedia('(pointer: coarse)');
+    const updateTouchControls = () => {
+      setShowTouchControls(coarsePointer.matches || navigator.maxTouchPoints > 0 || window.innerWidth < 768);
+    };
+
+    updateTouchControls();
+    coarsePointer.addEventListener?.('change', updateTouchControls);
+    window.addEventListener('resize', updateTouchControls);
+
+    return () => {
+      coarsePointer.removeEventListener?.('change', updateTouchControls);
+      window.removeEventListener('resize', updateTouchControls);
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedItemRef.current && scrollContainerRef.current) {
@@ -314,9 +332,22 @@ export function ContourPanel({
             )}
             {isFocused && (
               <div className="px-4 py-2 flex items-center" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                <span className="text-[10px] text-white/20 flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/30">esc</kbd> back
-                </span>
+                {showTouchControls ? (
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    className="min-h-11 px-3 -my-1 -ml-1 rounded-xl flex items-center gap-2 text-sm font-medium transition-colors touch-manipulation active:bg-white/10"
+                    style={{ color: accent.solid, background: accent.bg, border: `1px solid ${accent.border}` }}
+                    aria-label="Back from Contour tool"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-white/20 flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/30">esc</kbd> back
+                  </span>
+                )}
               </div>
             )}
           </div>

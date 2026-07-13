@@ -508,7 +508,7 @@ function AIMessageComponent({
         </div>
       )}
 
-      {/* Special mode thinking state — replaces the normal "Thinking..." spinner */}
+      {/* Special mode thinking state — replaces the normal "Initiating" spinner */}
       {isStreamingActive && !cleanContent && specialMode && SPECIAL_MODE_SHIMMER_TEXT[specialMode] && (
         <div className="w-full max-w-2xl mx-auto my-4">
           <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
@@ -634,7 +634,7 @@ function AIMessageComponent({
                         transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                         className="w-4 h-4 border-2 border-current border-t-transparent rounded-full"
                       />
-                      {loadingPhase === 'analyzing_photo' ? 'Analyzing photo...' : 'Thinking...'}
+                      {loadingPhase === 'analyzing_photo' ? 'Analyzing photo...' : 'Initiating'}
                     </div>
                   )
                 ) : null}
@@ -722,7 +722,7 @@ function AIMessageComponent({
                       transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                       className="w-6 h-6 border-2 border-current border-t-transparent rounded-full"
                     />
-                    {loadingPhase === 'analyzing_photo' ? 'Analyzing photo...' : 'Thinking...'}
+                    {loadingPhase === 'analyzing_photo' ? 'Analyzing photo...' : 'Initiating'}
                   </div>
                 )
               ) : null}

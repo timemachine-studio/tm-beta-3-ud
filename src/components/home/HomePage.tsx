@@ -122,7 +122,6 @@ export function HomePage() {
   const handleSendMessageWithRateLimit = useCallback(async (
     message: string,
     imageUrl?: string | string[],
-    audioData?: string,
     imageUrls?: string[],
     imageDimensions?: ImageDimensions,
     replyToData?: ReplyToData,
@@ -130,6 +129,15 @@ export function HomePage() {
     pdfData?: string,
     pdfFileName?: string,
   ) => {
+    // Intercept trigger word "play " case-insensitively
+    if (message.trim().toLowerCase().startsWith('play ')) {
+      const query = message.trim().slice(5).trim();
+      if (query) {
+        navigate('/', { state: { playQuery: query } });
+      }
+      return;
+    }
+
     const mentionMatch = message.match(/^@(chatgpt|gemini|claude|grok|girlie|pro)\s/i);
     const targetModel = mentionMatch ? mentionMatch[1].toLowerCase() : currentPersona;
 
@@ -141,8 +149,8 @@ export function HomePage() {
 
     if (isAnonymous) incrementCount(targetModel);
 
-    await handleSendMessage(message, imageUrl, audioData, imageUrls, imageDimensions, replyToData, specialMode, pdfData, pdfFileName);
-  }, [currentPersona, isAnonymous, isRateLimited, incrementCount, handleSendMessage]);
+    await handleSendMessage(message, imageUrl, imageUrls, imageDimensions, replyToData, specialMode, pdfData, pdfFileName);
+  }, [currentPersona, isAnonymous, isRateLimited, incrementCount, handleSendMessage, navigate]);
 
   // Open in Chat UI — navigates to / and passes the current session so MainChatPage
   // loads THIS chat instead of starting fresh.

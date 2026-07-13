@@ -43,6 +43,7 @@ function messageToDbRow(message: Message, sessionId: string, userId: string) {
       specialMode: message.specialMode || null,
       musicVariations: message.musicVariations || null,
     },
+    created_at: new Date(message.id).toISOString(),
   };
 }
 
@@ -151,84 +152,108 @@ export async function getSupabaseSessions(userId: string): Promise<ChatSession[]
   }
 }
 
+// Keep track of active saves to prevent concurrent saves for the same session ID
+const saveQueues = new Map<string, Promise<any>>();
+
 export async function saveSupabaseSession(
   session: ChatSession,
   userId: string
 ): Promise<string | null> {
-  try {
-    // Use upsert to handle both insert and update in one operation
-    const { data: savedSession, error: sessionError } = await supabase
-      .from('chat_sessions')
-      .upsert({
-        id: session.id,
-        user_id: userId,
-        name: session.name,
-        persona: session.persona,
-        heat_level: session.heat_level || 2,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'id'
-      })
-      .select()
-      .single();
+  const sessionId = session.id;
+  
+  // Get the existing promise queue for this session or a resolved promise if none exists
+  const existingQueue = saveQueues.get(sessionId) || Promise.resolve();
+  
+  // Define the save operation
+  const performSave = async (): Promise<string | null> => {
+    try {
+      // Use upsert to handle both insert and update in one operation
+      const { data: savedSession, error: sessionError } = await supabase
+        .from('chat_sessions')
+        .upsert({
+          id: session.id,
+          user_id: userId,
+          name: session.name,
+          persona: session.persona,
+          heat_level: session.heat_level || 2,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'id'
+        })
+        .select()
+        .single();
 
-    if (sessionError) {
-      console.error('Error upserting session:', sessionError);
-      throw sessionError;
-    }
-
-    const sessionId = savedSession?.id || session.id;
-
-    // Filter out messages with empty content (streaming placeholders)
-    const validMessages = session.messages.filter(msg => msg.content && msg.content.trim() !== '');
-
-    if (validMessages.length === 0) {
-      return sessionId;
-    }
-
-    // Get existing messages to compare
-    const { data: existingMessages, error: fetchError } = await supabase
-      .from('chat_messages')
-      .select('id, content, role, created_at')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: true });
-
-    if (fetchError) {
-      console.error('Error fetching existing messages:', fetchError);
-    }
-
-    const existingCount = existingMessages?.length || 0;
-
-    // Strategy: Delete all existing messages and re-insert all valid messages
-    // This ensures updates to message content (like streaming completion) are saved
-    // and avoids complex diff logic that could miss updates
-    if (existingCount > 0) {
-      const { error: deleteError } = await supabase
-        .from('chat_messages')
-        .delete()
-        .eq('session_id', sessionId);
-
-      if (deleteError) {
-        console.error('Error deleting old messages:', deleteError);
+      if (sessionError) {
+        console.error('Error upserting session:', sessionError);
+        throw sessionError;
       }
+
+      const activeSessionId = savedSession?.id || session.id;
+
+      // Filter out messages with empty content (streaming placeholders)
+      const validMessages = session.messages.filter(msg => msg.content && msg.content.trim() !== '');
+
+      if (validMessages.length === 0) {
+        return activeSessionId;
+      }
+
+      // Get existing messages to compare
+      const { data: existingMessages, error: fetchError } = await supabase
+        .from('chat_messages')
+        .select('id, content, role, created_at')
+        .eq('session_id', activeSessionId)
+        .order('created_at', { ascending: true });
+
+      if (fetchError) {
+        console.error('Error fetching existing messages:', fetchError);
+      }
+
+      const existingCount = existingMessages?.length || 0;
+
+      // Strategy: Delete all existing messages and re-insert all valid messages
+      // This ensures updates to message content (like streaming completion) are saved
+      // and avoids complex diff logic that could miss updates
+      if (existingCount > 0) {
+        const { error: deleteError } = await supabase
+          .from('chat_messages')
+          .delete()
+          .eq('session_id', activeSessionId);
+
+        if (deleteError) {
+          console.error('Error deleting old messages:', deleteError);
+        }
+      }
+
+      // Insert all valid messages
+      const messagesToInsert = validMessages.map(msg => messageToDbRow(msg, activeSessionId, userId));
+
+      const { error: msgError } = await supabase
+        .from('chat_messages')
+        .insert(messagesToInsert);
+
+      if (msgError) {
+        console.error('Error saving messages:', msgError);
+      }
+
+      return activeSessionId;
+    } catch (error) {
+      console.error('Error saving Supabase session:', error);
+      return null;
     }
-
-    // Insert all valid messages
-    const messagesToInsert = validMessages.map(msg => messageToDbRow(msg, sessionId, userId));
-
-    const { error: msgError } = await supabase
-      .from('chat_messages')
-      .insert(messagesToInsert);
-
-    if (msgError) {
-      console.error('Error saving messages:', msgError);
+  };
+  
+  // Chain the new save operation to the queue
+  const nextQueue = existingQueue.then(performSave);
+  saveQueues.set(sessionId, nextQueue);
+  
+  // Clean up the queue entry once complete to prevent memory accumulation
+  nextQueue.finally(() => {
+    if (saveQueues.get(sessionId) === nextQueue) {
+      saveQueues.delete(sessionId);
     }
-
-    return sessionId;
-  } catch (error) {
-    console.error('Error saving Supabase session:', error);
-    return null;
-  }
+  });
+  
+  return nextQueue;
 }
 
 export async function deleteSupabaseSession(sessionId: string): Promise<boolean> {

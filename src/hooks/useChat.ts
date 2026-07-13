@@ -125,6 +125,9 @@ export function useChat(
   // Track if streaming is in progress - don't save during streaming (AI message is incomplete)
   const isStreamingRef = useRef<boolean>(false);
 
+  // Track if there are unsaved changes in this session to prevent auto-saves on initial loads
+  const isDirtyRef = useRef(false);
+
   // Update chatService with userId when it changes
   useEffect(() => {
     chatService.setUserId(userId || null);
@@ -168,13 +171,11 @@ export function useChat(
 
         if (firstUserMessage) {
           if (firstUserMessage.content && firstUserMessage.content.trim() &&
-            firstUserMessage.content !== '[Image message]' && firstUserMessage.content !== '[Audio message]' && 
+            firstUserMessage.content !== '[Image message]' &&
             !firstUserMessage.content.startsWith('[PDF:') && !firstUserMessage.content.startsWith('[File:')) {
             sessionName = firstUserMessage.content.slice(0, 50);
           } else if (firstUserMessage.imageData || (firstUserMessage.inputImageUrls && firstUserMessage.inputImageUrls.length > 0)) {
             sessionName = 'Image message';
-          } else if (firstUserMessage.audioData) {
-            sessionName = 'Audio message';
           } else if (firstUserMessage.pdfFileName) {
             const isPdf = firstUserMessage.pdfFileName.toLowerCase().endsWith('.pdf');
             sessionName = isPdf ? `PDF: ${firstUserMessage.pdfFileName}` : `File: ${firstUserMessage.pdfFileName}`;
@@ -392,6 +393,7 @@ export function useChat(
       }
     }
 
+    isDirtyRef.current = true; // Mark as dirty when completing message
     // Update the message with final content
     setMessages(prev => {
       const updatedMessages = prev.map(msg =>
@@ -491,8 +493,10 @@ export function useChat(
     // - No session ID
     // - Currently streaming (AI message is incomplete)
     // - In collaborative mode (messages are stored in group_chat_messages table)
-    if (messages.length > 1 && currentSessionId && !isStreamingRef.current && !isCollaborative) {
+    // - Not dirty (to prevent auto-save on initial load from history)
+    if (isDirtyRef.current && messages.length > 1 && currentSessionId && !isStreamingRef.current && !isCollaborative) {
       saveChatSession(currentSessionId, messages, currentPersona);
+      isDirtyRef.current = false; // Reset dirty flag after scheduling save
     }
   }, [messages, currentSessionId, currentPersona, saveChatSession, isCollaborative]);
 
@@ -544,7 +548,6 @@ export function useChat(
   const handleSendMessage = useCallback(async (
     content: string,
     imageData?: string | string[],
-    audioData?: string,
     inputImageUrls?: string[],
     imageDimensions?: ImageDimensions,
     replyTo?: { id: number; content: string; sender_nickname?: string; isAI: boolean },
@@ -563,11 +566,9 @@ export function useChat(
       messageContent = mentionMatch[2];
     }
 
-    // Handle audio/image/file data - if we have audio/images/files but no text content, create a message indicating the input type
+    // Add display text for image/file-only messages.
     let finalContent = messageContent;
-    if (audioData && !messageContent.trim()) {
-      finalContent = '[Audio message]'; // Placeholder text for UI
-    } else if ((imageData || (inputImageUrls && inputImageUrls.length > 0)) && !messageContent.trim()) {
+    if ((imageData || (inputImageUrls && inputImageUrls.length > 0)) && !messageContent.trim()) {
       finalContent = '[Image message]'; // Placeholder text for UI
     } else if (pdfData && !messageContent.trim()) {
       const isPdf = pdfFileName?.toLowerCase().endsWith('.pdf');
@@ -575,15 +576,14 @@ export function useChat(
     }
 
     // Create user message with content for display
-    // Use finalContent if it's a placeholder for image/audio/file-only messages, otherwise keep original content
-    const displayContent = (finalContent === '[Image message]' || finalContent === '[Audio message]' || finalContent.startsWith('[PDF:') || finalContent.startsWith('[File:')) ? finalContent : content;
+    // Use finalContent for attachment-only placeholders, otherwise keep the original content.
+    const displayContent = (finalContent === '[Image message]' || finalContent.startsWith('[PDF:') || finalContent.startsWith('[File:')) ? finalContent : content;
     const userMessage: Message = {
       id: Date.now(),
       content: displayContent, // Use placeholder for image/audio/pdf-only, otherwise original content
       isAI: false,
       hasAnimated: false,
       imageData: imageData,
-      audioData: audioData,
       inputImageUrls: inputImageUrls,
       imageDimensions: imageDimensions,
       pdfData: pdfData ? 'attached' : undefined, // Don't store full base64 in message state, just flag it
@@ -602,11 +602,11 @@ export function useChat(
       isAI: false,
       hasAnimated: false,
       imageData: imageData,
-      audioData: audioData,
       inputImageUrls: inputImageUrls,
       imageDimensions: imageDimensions
     };
 
+    isDirtyRef.current = true; // Mark as dirty on user message send
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     setError(null);
@@ -682,7 +682,6 @@ export function useChat(
         imageData,
         '', // System prompt is now handled server-side
         messagePersona,
-        audioData,
         messagePersona === 'pro' ? currentProHeatLevel : undefined,
         inputImageUrls,
         imageDimensions,
@@ -706,7 +705,7 @@ export function useChat(
 
 
           setLoadingPhase(null);
-          completeStreamingMessage(aiMessageId, cleanedContent, response.thinking, response.audioUrl);
+          completeStreamingMessage(aiMessageId, cleanedContent, response.thinking);
         },
         // onError callback
         (error) => {
@@ -748,7 +747,6 @@ export function useChat(
           imageData,
           '', // System prompt is now handled server-side
           messagePersona,
-          audioData,
           messagePersona === 'pro' ? currentProHeatLevel : undefined,
           inputImageUrls,
           imageDimensions,
@@ -771,7 +769,7 @@ export function useChat(
 
 
         setLoadingPhase(null);
-        completeStreamingMessage(aiMessageId, cleanedContent, aiResponse.thinking, aiResponse.audioUrl);
+        completeStreamingMessage(aiMessageId, cleanedContent, aiResponse.thinking);
       } catch (error) {
         console.error('Failed to generate response:', error);
 
@@ -835,6 +833,7 @@ export function useChat(
     setPersonaTheme(session.persona);
     setError(null);
     setActivePdfText(null); // Clear PDF context when loading a different chat
+    isDirtyRef.current = false; // Reset dirty state on load
 
     // Set heat level if it's a pro session
     if (session.heat_level) {
@@ -1089,6 +1088,7 @@ export function useChat(
 
   // Update reactions on a specific message
   const updateMessageReactions = useCallback((messageId: number, reactions: Record<string, string[]>) => {
+    isDirtyRef.current = true;
     setMessages(prev => prev.map(msg =>
       msg.id === messageId ? { ...msg, reactions } : msg
     ));
@@ -1097,6 +1097,7 @@ export function useChat(
   // Update music variations (Supabase URLs) on a specific message
   // Called when MusicComposeCard finishes uploading to Supabase
   const updateMusicVariations = useCallback((messageId: number, variations: MusicVariation[]) => {
+    isDirtyRef.current = true;
     setMessages(prev => {
       const updated = prev.map(msg =>
         msg.id === messageId ? { ...msg, musicVariations: variations } : msg

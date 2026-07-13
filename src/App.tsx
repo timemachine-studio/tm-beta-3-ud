@@ -4,6 +4,10 @@ import { ChatInput } from './components/chat/ChatInput';
 import { BrandLogo, BrandOverride } from './components/brand/BrandLogo';
 import { MusicPlayer } from './components/music/MusicPlayer';
 import { YouTubePlayer } from './components/music/YouTubePlayer';
+import { searchMusic, getLyrics, Track as LyricsTrack, LyricLine } from './services/music/lyricsService';
+import LyricsDisplay from './components/music/LyricsDisplay';
+import LyricsYouTubePlayer from './components/music/LyricsYouTubePlayer';
+import { LyricsMiniPlayer } from './components/music/LyricsMiniPlayer';
 import { Star, Users, Settings, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChat } from './hooks/useChat';
@@ -46,6 +50,7 @@ import { GroupChat } from './types/groupChat';
 import { ACCESS_TOKEN_REQUIRED, MAINTENANCE_MODE, PRO_HEAT_LEVELS, AI_PERSONAS } from './config/constants';
 import { ChatSession, getSupabaseSessions, getLocalSessions } from './services/chat/chatService';
 import { SEOHead } from './components/seo/SEOHead';
+import { SesamePanel } from './components/sesame/SesamePanel';
 
 // Chat by ID page component - defined OUTSIDE to prevent re-renders
 function ChatByIdPage() {
@@ -158,6 +163,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     : (!authLoading && savedPersona && savedPersona in AI_PERSONAS ? savedPersona : undefined);
 
   const [flowStateActive, setFlowStateActive] = useState(false);
+  const [isSesameOpen, setIsSesameOpen] = useState(false);
 
   const {
     messages,
@@ -209,12 +215,72 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     flowStateActive
   );
 
-  // Clear navigation state after loading session/healthcare mode to prevent reload on refresh
+  // Synced Lyrics Player Integration States
+  const [lyricsTrack, setLyricsTrack] = useState<LyricsTrack | null>(null);
+  const [lyricsList, setLyricsList] = useState<LyricLine[]>([]);
+  const [lyricsSynced, setLyricsSynced] = useState<boolean>(false);
+  const [lyricsCurrentTime, setLyricsCurrentTime] = useState<number>(0);
+  const [lyricsDuration, setLyricsDuration] = useState<number>(0);
+  const [lyricsIsPlaying, setLyricsIsPlaying] = useState<boolean>(false);
+  const [lyricsIsLoading, setLyricsIsLoading] = useState<boolean>(false);
+  const [lyricsError, setLyricsError] = useState<string | null>(null);
+  const [isLyricsMaximized, setIsLyricsMaximized] = useState<boolean>(false);
+  const [lyricsPlayer, setLyricsPlayer] = useState<any>(null);
+
+  const handleLyricsPlay = useCallback(async (query: string) => {
+    if (clearYoutubeMusic) {
+      clearYoutubeMusic(); // Stop standard AI music
+    }
+    setLyricsIsLoading(true);
+    setLyricsError(null);
+    setIsLyricsMaximized(true);
+    try {
+      const results = await searchMusic(query);
+      if (results.length > 0) {
+        const track = results[0];
+        setLyricsTrack(track);
+        const lyricData = await getLyrics(track.artist, track.title);
+        if (lyricData) {
+          setLyricsList(lyricData.lyrics);
+          setLyricsSynced(lyricData.synced);
+        } else {
+          setLyricsList([]);
+          setLyricsSynced(false);
+        }
+      } else {
+        setLyricsError("No tracks found.");
+      }
+    } catch (err) {
+      setLyricsError("Failed to search. Please try again.");
+    } finally {
+      setLyricsIsLoading(false);
+    }
+  }, [clearYoutubeMusic]);
+
+  // If AI starts playing youtubeMusic, stop the lyrics track
   useEffect(() => {
-    if (sessionToLoad || healthcareModeFromNav) {
+    if (youtubeMusic) {
+      setLyricsTrack(null);
+      setLyricsList([]);
+      setLyricsIsPlaying(false);
+      setLyricsCurrentTime(0);
+      setLyricsDuration(0);
+      setIsLyricsMaximized(false);
+    }
+  }, [youtubeMusic]);
+
+  // Check if navigating from homepage with a playQuery
+  const playQueryFromNav = location.state?.playQuery as string | undefined;
+
+  // Clear navigation state after loading session/healthcare mode/playQuery to prevent reload on refresh
+  useEffect(() => {
+    if (playQueryFromNav) {
+      handleLyricsPlay(playQueryFromNav);
+    }
+    if (sessionToLoad || healthcareModeFromNav || playQueryFromNav) {
       window.history.replaceState({}, '', '/');
     }
-  }, []); // Only run once on mount
+  }, [playQueryFromNav, handleLyricsPlay, sessionToLoad, healthcareModeFromNav]);
 
   const { isRateLimited, getRemainingMessages, incrementCount, isAnonymous } = useAnonymousRateLimit();
 
@@ -365,7 +431,6 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   const handleSendMessageWithRateLimit = useCallback(async (
     message: string,
     imageUrl?: string | string[],
-    audioData?: string,
     imageUrls?: string[],
     imageDimensions?: import('./types/chat').ImageDimensions,
     replyToData?: import('./types/chat').ReplyToData,
@@ -373,6 +438,18 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     pdfData?: string,
     pdfFileName?: string
   ) => {
+    // Intercept trigger word "play " case-insensitively
+    if (message.trim().toLowerCase().startsWith('play ')) {
+      const query = message.trim().slice(5).trim();
+      if (query) {
+        handleLyricsPlay(query);
+      }
+      return;
+    }
+
+    // Minimize lyrics view for normal user requests to keep the AI functional in view
+    setIsLyricsMaximized(false);
+
     const mentionMatch = message.match(/^@(chatgpt|gemini|claude|grok|girlie|pro)\s/i);
     const targetModel = mentionMatch ? mentionMatch[1].toLowerCase() : currentPersona;
 
@@ -400,10 +477,10 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
       incrementCount(targetModel);
     }
 
-    await handleSendMessage(message, imageUrl, audioData, imageUrls, imageDimensions, replyToData || replyTo || undefined, specialMode, pdfData, pdfFileName);
+    await handleSendMessage(message, imageUrl, imageUrls, imageDimensions, replyToData || replyTo || undefined, specialMode, pdfData, pdfFileName);
     // Clear reply after sending
     setReplyTo(null);
-  }, [currentPersona, isAnonymous, isRateLimited, incrementCount, handleSendMessage, replyTo]);
+  }, [currentPersona, isAnonymous, isRateLimited, incrementCount, handleSendMessage, replyTo, handleLyricsPlay, setIsLyricsMaximized]);
 
   // Reply handlers for group chat
   const handleReply = useCallback((message: { id: number; content: string; sender_nickname?: string; isAI: boolean }) => {
@@ -706,6 +783,52 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
           />
         )}
 
+        {lyricsTrack && (
+          <LyricsYouTubePlayer
+            videoId={lyricsTrack.id}
+            onTimeUpdate={setLyricsCurrentTime}
+            onDurationChange={setLyricsDuration}
+            onPlayerStateChange={(state) => {
+              if (state === 1) setLyricsIsPlaying(true);
+              if (state === 2) setLyricsIsPlaying(false);
+            }}
+            onReady={setLyricsPlayer}
+          />
+        )}
+
+        {lyricsTrack && (
+          <LyricsMiniPlayer
+            track={lyricsTrack}
+            isPlaying={lyricsIsPlaying}
+            onPlayPause={() => {
+              if (lyricsPlayer) {
+                if (lyricsIsPlaying) {
+                  lyricsPlayer.pauseVideo();
+                } else {
+                  lyricsPlayer.playVideo();
+                }
+              }
+            }}
+            onClose={() => {
+              setLyricsTrack(null);
+              setLyricsList([]);
+              setLyricsIsPlaying(false);
+              setLyricsCurrentTime(0);
+              setLyricsDuration(0);
+              setIsLyricsMaximized(false);
+            }}
+            onMaximize={() => setIsLyricsMaximized(!isLyricsMaximized)}
+            currentTime={lyricsCurrentTime}
+            duration={lyricsDuration}
+            isMaximized={isLyricsMaximized}
+            onSeek={(time) => {
+              if (lyricsPlayer) {
+                lyricsPlayer.seekTo(time, true);
+              }
+            }}
+          />
+        )}
+
         {/* Play for me too - shown when someone else plays music in group chat */}
         {/* Hidden when same music is already playing locally (youtubeMusic.videoId === pendingRemoteMusic.videoId) */}
         {pendingRemoteMusic && youtubeMusic?.videoId !== pendingRemoteMusic.videoId && (
@@ -774,7 +897,11 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
           </motion.div>
         )}
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar message-container">
+        <div className={`flex-1 custom-scrollbar message-container ${
+          isLyricsMaximized && (lyricsTrack || lyricsIsLoading || lyricsError)
+            ? 'overflow-hidden flex flex-col justify-center items-center'
+            : 'overflow-y-auto'
+        }`}>
           {/* Group chat join UI */}
           {isGroupMode && !isGroupParticipant && !isGroupChatLoading && (
             <div className="min-h-full flex items-center justify-center p-4">
@@ -838,7 +965,69 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
           {/* Regular chat mode */}
           {(!isGroupMode || isGroupParticipant) && (
             <>
-              {isChatMode ? (
+              {isSesameOpen ? (
+                <SesamePanel onClose={() => setIsSesameOpen(false)} />
+              ) : isLyricsMaximized && (lyricsTrack || lyricsIsLoading || lyricsError) ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-4 relative min-h-[60vh] w-full">
+                  {/* Minimize Button */}
+                  <div className="absolute top-4 right-4 z-40">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setIsLyricsMaximized(false)}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-full text-white/70 hover:text-white transition-colors text-xs font-medium"
+                      style={{
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                      }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      <span>Minimize</span>
+                    </motion.button>
+                  </div>
+
+                  {lyricsIsLoading ? (
+                    <motion.div 
+                      key="lyrics-loader"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex flex-col items-center gap-4 py-20"
+                    >
+                      <div className="w-10 h-10 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+                      <p className="text-white/40 font-medium tracking-widest uppercase text-xs">Finding your track...</p>
+                    </motion.div>
+                  ) : lyricsError ? (
+                    <div className="text-center px-4 py-20">
+                      <p className="text-red-400 text-lg mb-2">{lyricsError}</p>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setIsLyricsMaximized(false)}
+                        className="text-white/60 hover:text-white text-sm underline"
+                      >
+                        Go back to chat
+                      </motion.button>
+                    </div>
+                  ) : (
+                    <LyricsDisplay 
+                      lyrics={lyricsList}
+                      currentTime={lyricsCurrentTime}
+                      onSeek={(time) => {
+                        if (lyricsPlayer) {
+                          lyricsPlayer.seekTo(time, true);
+                        }
+                      }}
+                      isSynced={lyricsSynced}
+                    />
+                  )}
+                </div>
+              ) : isChatMode ? (
                 <ChatMode
                   messages={messages}
                   currentPersona={currentPersona}
@@ -852,6 +1041,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                   onReact={isCollaborative ? handleReact : undefined}
                   brandOverride={brandOverride}
                   onMusicVariationsChange={updateMusicVariations}
+                  onOpenSesame={() => setIsSesameOpen(true)}
                 />
               ) : (
                 <StageMode

@@ -17,7 +17,6 @@ export interface Message {
   thinking?: string;
   rawContent?: string; // Raw content received during streaming before parsing
   imageData?: string | string[]; // Add imageData field
-  audioData?: string; // Add audioData field for base64 encoded audio
   audioUrl?: string; // Add audioUrl field for AI audio responses
   inputImageUrls?: string[]; // Add inputImageUrls field for publicly accessible image URLs
   imageDimensions?: ImageDimensions; // Dimensions of the first uploaded image (for edit operations)
@@ -56,12 +55,12 @@ export interface ReplyToData {
 }
 
 export interface ChatActions {
-  handleSendMessage: (message: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[], imageDimensions?: ImageDimensions, replyTo?: ReplyToData, specialMode?: string, pdfData?: string, pdfFileName?: string) => Promise<void>;
+  handleSendMessage: (message: string, imageData?: string | string[], inputImageUrls?: string[], imageDimensions?: ImageDimensions, replyTo?: ReplyToData, specialMode?: string, pdfData?: string, pdfFileName?: string) => Promise<void>;
   setChatMode: (isChatMode: boolean) => void;
 }
 
 export interface ChatInputProps {
-  onSendMessage: (message: string, imageData?: string | string[], audioData?: string, inputImageUrls?: string[], imageDimensions?: ImageDimensions, replyTo?: ReplyToData, specialMode?: string, pdfData?: string, pdfFileName?: string) => Promise<void>;
+  onSendMessage: (message: string, imageData?: string | string[], inputImageUrls?: string[], imageDimensions?: ImageDimensions, replyTo?: ReplyToData, specialMode?: string, pdfData?: string, pdfFileName?: string) => Promise<void>;
   isLoading?: boolean;
 }
 
@@ -77,7 +76,6 @@ export interface MessageProps {
   onAnimationComplete?: () => void;
   thinking?: string;
   imageData?: string | string[];
-  audioData?: string;
   inputImageUrls?: string[]; // URLs of uploaded images (for persistence)
   pdfFileName?: string; // Original PDF filename for display in message bubble
   // Group chat sender info
