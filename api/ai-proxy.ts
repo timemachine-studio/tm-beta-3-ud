@@ -369,8 +369,8 @@ Image Generation: When users request images, use the generate_image function wit
 You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule with an iron fist, slay with a wicked tongue, and make every answer a power move. Let's burn this shit down.`
     },
     initialMessage: "It's TimeMachine PRO, from future.",
-    provider: 'eaon',
-    model: 'gpt-5.6-terra',
+    provider: 'nvidia',
+    model: 'z-ai/glm-5.2',
     temperature: 0.8,
     maxTokens: 67200
   },
@@ -731,6 +731,10 @@ const SECRETSTOAI_API_URL = 'https://api.freetheai.xyz/v1/chat/completions';
 // Eaon API configuration
 const EAON_API_KEY = (process.env.EAON_API_KEY || '').trim();
 const EAON_API_URL = 'https://api.eaon.dev/v1/chat/completions';
+
+// Nvidia API configuration
+const NVIDIA_API_KEY = (process.env.NVIDIA_API_KEY || process.env.NIM_API_KEY || '').trim();
+const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 
 interface ImageGenerationParams {
   prompt: string;
@@ -1503,6 +1507,136 @@ async function callSecretsToAIAPIStreaming(
   });
 }
 
+// Nvidia API function (streaming)
+async function callNvidiaAPIStreaming(
+  messages: any[],
+  model: string,
+  temperature: number = 1,
+  maxTokens?: number,
+  tools?: any[]
+): Promise<ReadableStream> {
+  if (!NVIDIA_API_KEY) {
+    throw new Error('NVIDIA_API_KEY / NIM_API_KEY is not configured for Nvidia requests');
+  }
+
+  // Filter out empty system messages
+  const cleanedMessages = messages.filter(msg =>
+    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+  );
+
+  const requestBody: any = {
+    model: model,
+    messages: cleanedMessages,
+    temperature,
+    stream: true
+  };
+
+  if (maxTokens) {
+    requestBody.max_tokens = maxTokens;
+  }
+
+  if (tools && tools.length > 0) {
+    requestBody.tools = tools;
+    requestBody.tool_choice = "auto";
+  }
+
+  console.log('Nvidia API Request:', {
+    model,
+    messages: cleanedMessages,
+    url: NVIDIA_API_URL,
+    hasTools: !!(tools && tools.length > 0),
+    toolCount: tools?.length || 0
+  });
+
+  const response = await fetch(NVIDIA_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${NVIDIA_API_KEY}`
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'No error details');
+    console.error('Nvidia API error:', response.status, errorText);
+    throw new Error(`Nvidia API error: ${response.status} - ${errorText}`);
+  }
+
+  if (!response.body) {
+    throw new Error('No response body from Nvidia API');
+  }
+
+  // Transform the response stream to match our format
+  return new ReadableStream({
+    async start(controller) {
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
+
+            if (trimmedLine.startsWith('data: ')) {
+              try {
+                const jsonStr = trimmedLine.slice(6);
+                const data = JSON.parse(jsonStr);
+
+                if (data.choices && data.choices[0]) {
+                  const choice = data.choices[0];
+                  if (choice.delta && choice.delta.content) {
+                    controller.enqueue(new TextEncoder().encode(
+                      JSON.stringify({
+                        type: 'content',
+                        content: choice.delta.content
+                      }) + '\n'
+                    ));
+                  }
+
+                  // Handle tool calls
+                  if (choice.delta && choice.delta.tool_calls) {
+                    controller.enqueue(new TextEncoder().encode(
+                      JSON.stringify({
+                        type: 'tool_calls',
+                        tool_calls: choice.delta.tool_calls
+                      }) + '\n'
+                    ));
+                  }
+
+                  if (choice.finish_reason) {
+                    controller.enqueue(new TextEncoder().encode(
+                      JSON.stringify({ type: 'finish', reason: choice.finish_reason }) + '\n'
+                    ));
+                  }
+                }
+              } catch (error) {
+                console.error('Error parsing streaming chunk:', error);
+              }
+            }
+          }
+        }
+
+        controller.enqueue(new TextEncoder().encode(
+          JSON.stringify({ type: 'finish' }) + '\n'
+        ));
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    }
+  });
+}
+
 // Eaon API function (streaming)
 async function callEaonAPIStreaming(
   messages: any[],
@@ -1827,6 +1961,65 @@ async function callSecretsToAIAPI(
     const errorText = await response.text().catch(() => 'No error details');
     console.error('Secrets to AI API error:', response.status, errorText);
     throw new Error(`Secrets to AI API error: ${response.status} - ${errorText}`);
+  }
+
+  return await response.json();
+}
+
+// Nvidia API function (non-streaming)
+async function callNvidiaAPI(
+  messages: any[],
+  model: string,
+  temperature: number = 1,
+  maxTokens?: number,
+  tools?: any[]
+): Promise<any> {
+  if (!NVIDIA_API_KEY) {
+    throw new Error('NVIDIA_API_KEY / NIM_API_KEY is not configured for Nvidia requests');
+  }
+
+  // Filter out empty system messages
+  const cleanedMessages = messages.filter(msg =>
+    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+  );
+
+  const requestBody: any = {
+    model: model,
+    messages: cleanedMessages,
+    temperature,
+    stream: false
+  };
+
+  if (maxTokens) {
+    requestBody.max_tokens = maxTokens;
+  }
+
+  if (tools && tools.length > 0) {
+    requestBody.tools = tools;
+    requestBody.tool_choice = "auto";
+  }
+
+  console.log('Nvidia API Request (non-streaming):', {
+    model,
+    messages: cleanedMessages,
+    url: NVIDIA_API_URL,
+    hasTools: !!(tools && tools.length > 0),
+    toolCount: tools?.length || 0
+  });
+
+  const response = await fetch(NVIDIA_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${NVIDIA_API_KEY}`
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'No error details');
+    console.error('Nvidia API error:', response.status, errorText);
+    throw new Error(`Nvidia API error: ${response.status} - ${errorText}`);
   }
 
   return await response.json();
@@ -2230,6 +2423,14 @@ ${TOOL_GUARDRAIL}
               flowConfig.maxTokens,
               toolsToUse
             );
+          } else if (fsProvider === 'nvidia' || fsProvider === 'nim') {
+            streamingResponse = await callNvidiaAPIStreaming(
+              apiMessages,
+              flowConfig.model,
+              flowConfig.temperature,
+              flowConfig.maxTokens,
+              toolsToUse
+            );
           } else {
             streamingResponse = await callCerebrasAirAPIStreaming(
               apiMessages,
@@ -2275,6 +2476,14 @@ ${TOOL_GUARDRAIL}
               maxTokensToUse,
               toolsToUse
             );
+          } else if (airProvider === 'nvidia' || airProvider === 'nim') {
+            streamingResponse = await callNvidiaAPIStreaming(
+              apiMessages,
+              modelToUse,
+              temperatureToUse,
+              maxTokensToUse,
+              toolsToUse
+            );
           } else {
             streamingResponse = await callCerebrasAirAPIStreaming(
               apiMessages,
@@ -2313,6 +2522,14 @@ ${TOOL_GUARDRAIL}
             );
           } else if (proProvider === 'eaon') {
             streamingResponse = await callEaonAPIStreaming(
+              currentMessages,
+              modelToUse,
+              temperatureToUse,
+              maxTokensToUse,
+              activeTools
+            );
+          } else if (proProvider === 'nvidia' || proProvider === 'nim') {
+            streamingResponse = await callNvidiaAPIStreaming(
               currentMessages,
               modelToUse,
               temperatureToUse,
@@ -2526,6 +2743,14 @@ ${TOOL_GUARDRAIL}
           );
         } else if (provider === 'eaon') {
           streamingResponse = await callEaonAPIStreaming(
+            apiMessages,
+            modelToUse,
+            temperatureToUse,
+            maxTokensToUse,
+            toolsToUse
+          );
+        } else if (provider === 'nvidia' || provider === 'nim') {
+          streamingResponse = await callNvidiaAPIStreaming(
             apiMessages,
             modelToUse,
             temperatureToUse,
@@ -2796,6 +3021,14 @@ ${TOOL_GUARDRAIL}
               flowConfig.maxTokens,
               toolsToUse
             );
+          } else if (fsProvider === 'nvidia' || fsProvider === 'nim') {
+            apiResponse = await callNvidiaAPI(
+              apiMessages,
+              flowConfig.model,
+              flowConfig.temperature,
+              flowConfig.maxTokens,
+              toolsToUse
+            );
           } else {
             const requestBody: any = {
               model: flowConfig.model,
@@ -2874,6 +3107,14 @@ ${TOOL_GUARDRAIL}
               maxTokensToUse,
               toolsToUse
             );
+          } else if (airProvider === 'nvidia' || airProvider === 'nim') {
+            apiResponse = await callNvidiaAPI(
+              apiMessages,
+              modelToUse,
+              temperatureToUse,
+              maxTokensToUse,
+              toolsToUse
+            );
           } else {
             const requestBody: any = {
               model: modelToUse,
@@ -2941,6 +3182,14 @@ ${TOOL_GUARDRAIL}
             );
           } else if (proProvider === 'eaon') {
             apiResponse = await callEaonAPI(
+              currentMessages,
+              modelToUse,
+              temperatureToUse,
+              maxTokensToUse,
+              activeTools
+            );
+          } else if (proProvider === 'nvidia' || proProvider === 'nim') {
+            apiResponse = await callNvidiaAPI(
               currentMessages,
               modelToUse,
               temperatureToUse,
@@ -3120,6 +3369,14 @@ ${TOOL_GUARDRAIL}
           );
         } else if (provider === 'eaon') {
           apiResponse = await callEaonAPI(
+            apiMessages,
+            modelToUse,
+            temperatureToUse,
+            maxTokensToUse,
+            toolsToUse
+          );
+        } else if (provider === 'nvidia' || provider === 'nim') {
+          apiResponse = await callNvidiaAPI(
             apiMessages,
             modelToUse,
             temperatureToUse,
