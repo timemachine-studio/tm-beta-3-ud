@@ -2277,7 +2277,9 @@ ${TOOL_GUARDRAIL}
 
     const processedMessages = [...messages];
 
-    let apiMessages;
+    // Messages can carry tool-call fields (tool_calls / tool_call_id) once the
+    // PRO agentic loop appends them, so keep the element shape open.
+    let apiMessages: any[];
     // Track if we need to run the image OCR pipeline before the main AI call
     const hasImageInput = !!imageData;
     const imageUrlsForOCR = hasImageInput ? (Array.isArray(imageData) ? imageData : [imageData]) : [];
