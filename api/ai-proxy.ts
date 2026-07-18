@@ -370,7 +370,7 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     },
     initialMessage: "It's TimeMachine PRO, from future.",
     provider: 'eaon',
-    model: 'grok-4.5',
+    model: 'gpt-5.6-terra',
     temperature: 0.8,
     maxTokens: 67200
   },
