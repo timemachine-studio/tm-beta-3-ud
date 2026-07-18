@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Message, ImageDimensions, MusicVariation } from '../types/chat';
-import { generateAIResponse, generateAIResponseStreaming, resolveMcpApproval, YouTubeMusicData, UserMemoryContext } from '../services/ai/aiProxyService';
+import { generateAIResponse, generateAIResponseStreaming, resolveMcpApproval, getActiveProRun, streamProRun, YouTubeMusicData, UserMemoryContext } from '../services/ai/aiProxyService';
 import type { McpApprovalDecision, McpApprovalRequest } from '../types/flightControls';
 import { INITIAL_MESSAGE, AI_PERSONAS } from '../config/constants';
 import { chatService, ChatSession } from '../services/chat/chatService';
@@ -128,6 +128,9 @@ export function useChat(
 
   // Track if there are unsaved changes in this session to prevent auto-saves on initial loads
   const isDirtyRef = useRef(false);
+
+  // Track PRO sessions we already tried to resume, to avoid duplicate reattach loops
+  const proResumeAttemptedRef = useRef<Set<string>>(new Set());
 
   // Update chatService with userId when it changes
   useEffect(() => {
@@ -405,7 +408,11 @@ export function useChat(
 
       // Force immediate save after streaming completes to prevent data loss
       // This is critical - debounced saves can be cancelled if user navigates away
-      if (currentSessionId && !isCollaborative) {
+      // Guard: only save when the completed message actually exists in the
+      // current state. If the user switched chats mid-stream, the stale
+      // completion must not save the new chat's messages under the old
+      // session id.
+      if (currentSessionId && !isCollaborative && updatedMessages.some(msg => msg.id === messageId)) {
         // Use setTimeout(0) to ensure this runs after state update is applied
         setTimeout(() => {
           saveChatSession(currentSessionId, updatedMessages, currentPersona, true);
@@ -455,6 +462,65 @@ export function useChat(
     }
     return content.replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
   };
+
+  // Resume an in-flight PRO background generation when its chat is opened.
+  // The Trigger.dev stream retains every chunk, so we replay from index 0 and
+  // the message rebuilds itself exactly as if the page had never been closed.
+  const tryResumeProGeneration = useCallback(async (sessionId: string, persona: keyof typeof AI_PERSONAS) => {
+    if (persona !== 'pro' || !sessionId || proResumeAttemptedRef.current.has(sessionId)) return;
+    proResumeAttemptedRef.current.add(sessionId);
+
+    try {
+      const active = await getActiveProRun(sessionId);
+      if (!active) return;
+
+      // Never hijack an ongoing stream in this tab
+      if (isStreamingRef.current) return;
+
+      const aiMessageId = Date.now() + 1;
+      setMessages(prev => [...prev, {
+        id: aiMessageId,
+        content: '',
+        rawContent: '',
+        isAI: true,
+        hasAnimated: false,
+      }]);
+      setStreamingMessageId(aiMessageId);
+      setIsLoading(true);
+      setLoadingPhase('thinking');
+      isStreamingRef.current = true;
+
+      await streamProRun(active.runId, {
+        onChunk: (chunk: string) => {
+          updateStreamingMessage(aiMessageId, chunk);
+        },
+        onStatusChange: (status: string) => {
+          setLoadingPhase(status as any);
+        },
+        onComplete: (response) => {
+          const emotion = extractEmotion(response.content);
+          const cleanedContent = cleanContent(response.content);
+
+          if (emotion) {
+            setCurrentEmotion(emotion);
+          }
+
+          setLoadingPhase(null);
+          completeStreamingMessage(aiMessageId, cleanedContent, response.thinking);
+        },
+        onError: (error) => {
+          console.error('Failed to resume PRO generation:', error);
+          setMessages(prev => prev.filter(msg => msg.id !== aiMessageId));
+          setStreamingMessageId(null);
+          setIsLoading(false);
+          setLoadingPhase(null);
+          isStreamingRef.current = false;
+        },
+      });
+    } catch (resumeError) {
+      console.error('Failed to check for active PRO generation:', resumeError);
+    }
+  }, [updateStreamingMessage, completeStreamingMessage]);
 
   const handleMcpApprovalDecision = useCallback(async (messageId: number, decision: McpApprovalDecision) => {
     const target = messages.find(message => message.id === messageId);
@@ -552,6 +618,14 @@ export function useChat(
   useEffect(() => {
     if (initialSession && initialPersona) {
       setPersonaTheme(initialPersona);
+    }
+  }, []); // Only run once on mount
+
+  // If the app was (re)loaded straight into a PRO chat with a generation
+  // still running in the background, reattach to its stream.
+  useEffect(() => {
+    if (initialSession?.id && initialPersona === 'pro') {
+      tryResumeProGeneration(initialSession.id, 'pro');
     }
   }, []); // Only run once on mount
 
@@ -918,7 +992,11 @@ export function useChat(
     if (session.heat_level) {
       setCurrentProHeatLevel(session.heat_level);
     }
-  }, [currentSessionId, messages, currentPersona, saveChatSession, setPersonaTheme]);
+
+    // If a PRO generation is still running in the background for this chat,
+    // reattach to its stream and keep the message typing.
+    tryResumeProGeneration(session.id, session.persona);
+  }, [currentSessionId, messages, currentPersona, saveChatSession, setPersonaTheme, tryResumeProGeneration]);
 
   // Enable collaborative mode for current session
   const enableCollaborativeMode = useCallback(async (chatName: string): Promise<string | null> => {

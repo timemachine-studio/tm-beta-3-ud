@@ -5,6 +5,12 @@
     },
     "api/mcp-approval.ts": {
       "maxDuration": 300
+    },
+    "api/pro-generation.ts": {
+      "maxDuration": 300
+    },
+    "api/pro-stream.ts": {
+      "maxDuration": 300
     }
   },
   "headers": [

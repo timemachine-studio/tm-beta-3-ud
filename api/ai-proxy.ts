@@ -464,7 +464,7 @@ function extractMedicalTerms(message: string): string[] {
  * Query Supabase for drug/generic data relevant to the user's message.
  * Returns the top 3 most relevant results formatted for LLM context.
  */
-async function fetchHealthcareRAGContext(userMessage: string): Promise<string> {
+export async function fetchHealthcareRAGContext(userMessage: string): Promise<string> {
   const terms = extractMedicalTerms(userMessage);
   if (terms.length === 0) return '';
 
@@ -587,7 +587,7 @@ async function fetchHealthcareRAGContext(userMessage: string): Promise<string> {
 
 
 // Tool Usage Policy - Strict guardrails to prevent over-triggering
-const TOOL_GUARDRAIL = `
+export const TOOL_GUARDRAIL = `
 ## Tool Usage Policy
 1. ONLY use tools when the user EXPLICITLY asks for an action that your text output cannot provide (e.g., "generate an image of...", "search for the latest news on...", "play music by...").
 2. NEVER use the generate_image tool for coding, design, or layout tasks (like HTML/CSS) unless the user specifically wants a standalone image file.
@@ -596,7 +596,7 @@ const TOOL_GUARDRAIL = `
 `;
 
 // Image generation tool configuration
-const imageGenerationTool = {
+export const imageGenerationTool = {
   type: "function" as const,
   function: {
     name: "generate_image",
@@ -627,7 +627,7 @@ const imageGenerationTool = {
 };
 
 // Web search tool configuration
-const webSearchTool = {
+export const webSearchTool = {
   type: "function" as const,
   function: {
     name: "web_search",
@@ -648,7 +648,7 @@ const webSearchTool = {
 };
 
 // Specialized skills library tools
-const listSkillsTool = {
+export const listSkillsTool = {
   type: "function" as const,
   function: {
     name: "list_skills",
@@ -662,7 +662,7 @@ const listSkillsTool = {
   }
 };
 
-const readSkillTool = {
+export const readSkillTool = {
   type: "function" as const,
   function: {
     name: "read_skill",
@@ -685,7 +685,7 @@ const readSkillTool = {
 
 // Helper function to process memory tags from AI response
 // Returns { content: string (without memory tags), memoryContent: string | null, hasSavedMemory: boolean }
-async function processMemoryTags(
+export async function processMemoryTags(
   content: string,
   userId: string | null,
   persona: string
@@ -777,7 +777,7 @@ function generateImageUrl(params: ImageGenerationParams): string {
   return url;
 }
 
-function createImageMarkdown(params: ImageGenerationParams): string {
+export function createImageMarkdown(params: ImageGenerationParams): string {
   const imageUrl = generateImageUrl(params);
   return `![Generated Image](${imageUrl})`;
 }
@@ -786,7 +786,7 @@ interface WebSearchParams {
   query: string;
 }
 
-async function fetchWebSearchResults(params: WebSearchParams): Promise<string> {
+export async function fetchWebSearchResults(params: WebSearchParams): Promise<string> {
   const { query } = params;
   const encodedQuery = encodeURIComponent(query);
 
@@ -820,7 +820,7 @@ interface AIMemory {
   created_at: string;
 }
 
-async function fetchUserMemories(userId: string, persona: string = 'default'): Promise<AIMemory[]> {
+export async function fetchUserMemories(userId: string, persona: string = 'default'): Promise<AIMemory[]> {
   try {
     const { data, error } = await supabase
       .from('ai_memories')
@@ -843,7 +843,7 @@ async function fetchUserMemories(userId: string, persona: string = 'default'): P
   }
 }
 
-async function addUserMemory(
+export async function addUserMemory(
   userId: string,
   content: string,
   memoryType: string = 'general',
@@ -875,7 +875,7 @@ async function addUserMemory(
   }
 }
 
-function formatMemoriesForContext(memories: AIMemory[], userProfile?: { nickname?: string; about_me?: string }): string {
+export function formatMemoriesForContext(memories: AIMemory[], userProfile?: { nickname?: string; about_me?: string }): string {
   if (memories.length === 0 && !userProfile?.nickname && !userProfile?.about_me) {
     return '';
   }
@@ -973,7 +973,7 @@ async function getUserRateLimit(userId: string | null, persona: string): Promise
 }
 
 // Supabase-based rate limiting functions
-async function checkRateLimit(userId: string | null, ip: string, persona: string): Promise<boolean> {
+export async function checkRateLimit(userId: string | null, ip: string, persona: string): Promise<boolean> {
   try {
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -1017,7 +1017,7 @@ async function checkRateLimit(userId: string | null, ip: string, persona: string
   }
 }
 
-async function incrementRateLimit(userId: string | null, ip: string, persona: string): Promise<void> {
+export async function incrementRateLimit(userId: string | null, ip: string, persona: string): Promise<void> {
   try {
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -1077,7 +1077,7 @@ async function incrementRateLimit(userId: string | null, ip: string, persona: st
 }
 
 // Extract text content from images using Qwen Vision via Pollinations (OCR pipeline)
-async function extractImageContent(imageUrls: string[]): Promise<string> {
+export async function extractImageContent(imageUrls: string[]): Promise<string> {
   const imageContents = imageUrls.map((url: string) => ({
     type: 'image_url',
     image_url: { url }
@@ -1134,7 +1134,7 @@ Output ONLY the extracted content, nothing else.`
 }
 
 // Streaming function for Air persona - CEREBRAS API
-async function callCerebrasAirAPIStreaming(
+export async function callCerebrasAirAPIStreaming(
   messages: any[],
   tools?: any[],
   model: string = 'qwen-3-235b-a22b-instruct-2507',
@@ -1225,7 +1225,7 @@ async function callCerebrasAirAPIStreaming(
 }
 
 // Streaming function for Girlie and Pro personas - GROQ API
-async function callGroqStandardAPIStreaming(
+export async function callGroqStandardAPIStreaming(
   messages: any[],
   model: string,
   temperature: number,
@@ -1374,7 +1374,7 @@ function extractReasoningAndContent(response: string): { content: string; thinki
 }
 
 // Secrets to AI (FreeTheAI) API function (streaming)
-async function callSecretsToAIAPIStreaming(
+export async function callSecretsToAIAPIStreaming(
   messages: any[],
   model: string,
   temperature: number = 1,
@@ -1508,7 +1508,7 @@ async function callSecretsToAIAPIStreaming(
 }
 
 // Nvidia API function (streaming)
-async function callNvidiaAPIStreaming(
+export async function callNvidiaAPIStreaming(
   messages: any[],
   model: string,
   temperature: number = 1,
@@ -1638,7 +1638,7 @@ async function callNvidiaAPIStreaming(
 }
 
 // Eaon API function (streaming)
-async function callEaonAPIStreaming(
+export async function callEaonAPIStreaming(
   messages: any[],
   model: string,
   temperature: number = 1,
@@ -1772,7 +1772,7 @@ async function callEaonAPIStreaming(
 }
 
 // Pollinations API function for external AI models (streaming)
-async function callPollinationsAPIStreaming(
+export async function callPollinationsAPIStreaming(
   messages: any[],
   model: string,
   temperature: number = 1,
