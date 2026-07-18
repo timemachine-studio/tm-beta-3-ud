@@ -12,7 +12,7 @@ import {
   processMemoryTags,
 } from "../api/ai-proxy.js";
 import { SKILLS_DATA } from "../api/skills.js";
-import { completeProJob, failProJob } from "../api/lib/proJobs.js";
+import { completeProJob, failProJob } from "../api/_lib/proJobs.js";
 import { proOutputStream } from "./streams.js";
 
 // Payload is fully prepared by /api/pro-generation (prompt building, RAG,

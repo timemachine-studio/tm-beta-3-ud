@@ -13,15 +13,15 @@ import {
   fetchUserMemories,
   formatMemoriesForContext,
 } from './ai-proxy.js';
-import { SPECIAL_MODE_CONFIGS } from './specialModePrompts.js';
-import { getAuthenticatedRequestUser } from './lib/auth.js';
+import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
+import { getAuthenticatedRequestUser } from './_lib/auth.js';
 import {
   attachProJobRunId,
   createProJob,
   failProJob,
   getActiveProJob,
   getProJobByRunId,
-} from './lib/proJobs.js';
+} from './_lib/proJobs.js';
 import type { ProGenerationPayload } from '../trigger/proGeneration.js';
 
 // ─── TimeMachine PRO: background generation entry point ─────────────────────

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { SPECIAL_MODE_CONFIGS } from './specialModePrompts.js';
+import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
 import { SKILLS_DATA } from './skills.js';
 
 // Initialize Supabase client for server-side operations

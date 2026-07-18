@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { runs } from '@trigger.dev/sdk';
 import { proOutputStream } from '../trigger/streams.js';
-import { getAuthenticatedRequestUser } from './lib/auth.js';
-import { getProJobByRunId } from './lib/proJobs.js';
+import { getAuthenticatedRequestUser } from './_lib/auth.js';
+import { getProJobByRunId } from './_lib/proJobs.js';
 
 // ─── TimeMachine PRO: stream proxy ──────────────────────────────────────────
 // Reads the durable Trigger.dev output stream server-side (no wall-clock
