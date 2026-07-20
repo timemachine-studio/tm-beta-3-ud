@@ -12,7 +12,10 @@ import {
   fetchHealthcareRAGContext,
   fetchUserMemories,
   formatMemoriesForContext,
+  getCurrentDateContext,
+  buildNativeVisionMessageContent,
 } from './ai-proxy.js';
+import type { VisionTechnique } from './ai-proxy.js';
 import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
 import { getAuthenticatedRequestUser } from './_lib/auth.js';
 import {
@@ -109,7 +112,7 @@ The memory tags will be processed and removed from the visible response, so writ
 
 ${TOOL_GUARDRAIL}
 
-.`;
+${getCurrentDateContext()}`;
 
   const modelToUse = specialModeConfig?.model || personaConfig.model;
   let systemPromptToUse = enhancedSystemPrompt;
@@ -124,6 +127,10 @@ ${TOOL_GUARDRAIL}
   const maxTokensToUse = specialModeConfig?.maxTokens ?? personaConfig.maxTokens;
   const reasoningEffortToUse: string | undefined = specialModeConfig?.reasoningEffort ?? (personaConfig as any).reasoningEffort;
   const providerToUse: string = (personaConfig as any).provider || 'pollinations';
+
+  // Vision technique for image inputs: special mode override > persona config > OCR pipeline
+  const visionTechnique: VisionTechnique =
+    (specialModeConfig as any)?.vision ?? ((personaConfig as any).vision ?? 'pipeline');
 
   // Healthcare RAG (tm-healthcare special mode)
   if (specialMode === 'tm-healthcare') {
@@ -168,36 +175,49 @@ ${TOOL_GUARDRAIL}
     apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
   }
 
-  // Image OCR pipeline (same enrichment as /api/ai-proxy)
+  // Image handling (same per-model vision technique as /api/ai-proxy):
+  // 'native' attaches the image(s) directly, 'pipeline' runs OCR first.
   const hasImageInput = !!imageData;
   const imageUrlsForOCR = hasImageInput ? (Array.isArray(imageData) ? imageData : [imageData]) : [];
 
   if (hasImageInput && imageUrlsForOCR.length > 0) {
-    try {
-      const extractedText = await extractImageContent(imageUrlsForOCR);
-
+    if (visionTechnique === 'native') {
       const lastMsgIndex = apiMessages.length - 1;
       const lastMsg = apiMessages[lastMsgIndex];
       const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
-
-      const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
-
-      const enrichedContent = userPrompt
-        ? `[Content extracted from the attached image(s):\n${extractedText}\n]${imageEditContext}\n\nUser's message: ${userPrompt}`
-        : `[Content extracted from the attached image(s):\n${extractedText}\n]\n\nThe user shared this image. Respond based on the extracted content above.`;
-
-      apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
-    } catch (ocrError) {
-      console.error('Image OCR pipeline error (pro-generation):', ocrError);
-      const lastMsgIndex = apiMessages.length - 1;
-      const lastMsg = apiMessages[lastMsgIndex];
-      const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
+      // Prefer the public URLs (much lighter payload); fall back to data URLs
+      const nativeImageUrls = (inputImageUrls && inputImageUrls.length > 0) ? inputImageUrls : imageUrlsForOCR;
       apiMessages[lastMsgIndex] = {
         ...lastMsg,
-        content: userPrompt
-          ? `[The user attached an image but text extraction failed. Please respond to their message as best you can. If the user wanted to edit the image, use the generate_image tool with process="edit" and describe what the user wants.]\n\nUser's message: ${userPrompt}`
-          : `[The user attached an image but text extraction failed. Let them know you couldn't process the image and ask them to try again.]`,
+        content: buildNativeVisionMessageContent(nativeImageUrls, userPrompt),
       };
+    } else {
+      try {
+        const extractedText = await extractImageContent(imageUrlsForOCR);
+
+        const lastMsgIndex = apiMessages.length - 1;
+        const lastMsg = apiMessages[lastMsgIndex];
+        const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
+
+        const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
+
+        const enrichedContent = userPrompt
+          ? `[Content extracted from the attached image(s):\n${extractedText}\n]${imageEditContext}\n\nUser's message: ${userPrompt}`
+          : `[Content extracted from the attached image(s):\n${extractedText}\n]\n\nThe user shared this image. Respond based on the extracted content above.`;
+
+        apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
+      } catch (ocrError) {
+        console.error('Image OCR pipeline error (pro-generation):', ocrError);
+        const lastMsgIndex = apiMessages.length - 1;
+        const lastMsg = apiMessages[lastMsgIndex];
+        const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
+        apiMessages[lastMsgIndex] = {
+          ...lastMsg,
+          content: userPrompt
+            ? `[The user attached an image but text extraction failed. Please respond to their message as best you can. If the user wanted to edit the image, use the generate_image tool with process="edit" and describe what the user wants.]\n\nUser's message: ${userPrompt}`
+            : `[The user attached an image but text extraction failed. Let them know you couldn't process the image and ask them to try again.]`,
+        };
+      }
     }
   }
 
