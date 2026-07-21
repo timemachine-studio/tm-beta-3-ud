@@ -9,13 +9,11 @@ import {
   readSkillTool,
   checkRateLimit,
   extractImageContent,
+  buildNativeVisionContent,
   fetchHealthcareRAGContext,
   fetchUserMemories,
   formatMemoriesForContext,
-  getCurrentDateContext,
-  buildNativeVisionMessageContent,
 } from './ai-proxy.js';
-import type { VisionTechnique } from './ai-proxy.js';
 import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
 import { getAuthenticatedRequestUser } from './_lib/auth.js';
 import {
@@ -108,11 +106,14 @@ Example: If user says "My favorite song is Attention by Charlie Puth", you would
 
 The memory tags will be processed and removed from the visible response, so write your actual response normally before the tags.` : '';
 
+  // Append the current day and date so every model has time context
+  const currentDateLine = `Current date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+
   const enhancedSystemPrompt = `${systemPrompt}${memoryContext}${memoryInstructions}
 
 ${TOOL_GUARDRAIL}
 
-${getCurrentDateContext()}`;
+${currentDateLine}`;
 
   const modelToUse = specialModeConfig?.model || personaConfig.model;
   let systemPromptToUse = enhancedSystemPrompt;
@@ -127,10 +128,6 @@ ${getCurrentDateContext()}`;
   const maxTokensToUse = specialModeConfig?.maxTokens ?? personaConfig.maxTokens;
   const reasoningEffortToUse: string | undefined = specialModeConfig?.reasoningEffort ?? (personaConfig as any).reasoningEffort;
   const providerToUse: string = (personaConfig as any).provider || 'pollinations';
-
-  // Vision technique for image inputs: special mode override > persona config > OCR pipeline
-  const visionTechnique: VisionTechnique =
-    (specialModeConfig as any)?.vision ?? ((personaConfig as any).vision ?? 'pipeline');
 
   // Healthcare RAG (tm-healthcare special mode)
   if (specialMode === 'tm-healthcare') {
@@ -175,29 +172,31 @@ ${getCurrentDateContext()}`;
     apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
   }
 
-  // Image handling (same per-model vision technique as /api/ai-proxy):
-  // 'native' attaches the image(s) directly, 'pipeline' runs OCR first.
+  // Image handling (mirrors /api/ai-proxy): branch on the persona's vision technique.
+  const visionMode = (personaConfig as any).vision === 'native' ? 'native' : 'pipeline';
   const hasImageInput = !!imageData;
   const imageUrlsForOCR = hasImageInput ? (Array.isArray(imageData) ? imageData : [imageData]) : [];
 
   if (hasImageInput && imageUrlsForOCR.length > 0) {
-    if (visionTechnique === 'native') {
-      const lastMsgIndex = apiMessages.length - 1;
-      const lastMsg = apiMessages[lastMsgIndex];
-      const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
-      // Prefer the public URLs (much lighter payload); fall back to data URLs
-      const nativeImageUrls = (inputImageUrls && inputImageUrls.length > 0) ? inputImageUrls : imageUrlsForOCR;
+    const lastMsgIndex = apiMessages.length - 1;
+    const lastMsg = apiMessages[lastMsgIndex];
+    const isImageOnlyMessage = lastMsg.content === '[Image message]';
+    const userPrompt = isImageOnlyMessage ? '' : lastMsg.content;
+
+    if (visionMode === 'native') {
+      // Native vision: send raw images alongside text as multimodal content
+      const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
+      const textPart = userPrompt
+        ? `${imageEditContext}\n\nUser's message: ${userPrompt}`
+        : 'The user shared this image. Respond based on what you see.';
+
       apiMessages[lastMsgIndex] = {
         ...lastMsg,
-        content: buildNativeVisionMessageContent(nativeImageUrls, userPrompt),
+        content: buildNativeVisionContent(imageUrlsForOCR, textPart, isImageOnlyMessage)
       };
     } else {
       try {
         const extractedText = await extractImageContent(imageUrlsForOCR);
-
-        const lastMsgIndex = apiMessages.length - 1;
-        const lastMsg = apiMessages[lastMsgIndex];
-        const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
 
         const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
 
@@ -208,9 +207,6 @@ ${getCurrentDateContext()}`;
         apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
       } catch (ocrError) {
         console.error('Image OCR pipeline error (pro-generation):', ocrError);
-        const lastMsgIndex = apiMessages.length - 1;
-        const lastMsg = apiMessages[lastMsgIndex];
-        const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
         apiMessages[lastMsgIndex] = {
           ...lastMsg,
           content: userPrompt
