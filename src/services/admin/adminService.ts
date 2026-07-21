@@ -29,6 +29,9 @@ export interface AdminPlaygroundConfig {
   maxTokens: number;
   enabledSkillSlugs: string[];
   enabledMcpIds: string[];
+  customSkills: Array<{ name: string; content: string }>;
+  customMcpTools: Array<{ name: string; description: string; parameters: Record<string, unknown> }>;
+  enableSmartThinking: boolean;
 }
 
 export interface AdminPlaygroundCallbacks {
@@ -66,6 +69,9 @@ export async function streamAdminPlayground(
         maxTokens: config.maxTokens,
         enabledSkillSlugs: config.enabledSkillSlugs,
         enabledMcpIds: config.enabledMcpIds,
+        customSkills: config.customSkills,
+        customMcpTools: config.customMcpTools,
+        enableSmartThinking: config.enableSmartThinking,
         stream: true,
       }),
     });

@@ -62,6 +62,17 @@ function buildPersonaPresets(): AdminPreset[] {
   return presets;
 }
 
+interface CustomSkillDef {
+  name: string;
+  content: string;
+}
+
+interface CustomMcpToolDef {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
 interface AdminProxyBody {
   messages: Array<{ content: string; isAI?: boolean }>;
   customSystemPrompt?: string;
@@ -69,6 +80,9 @@ interface AdminProxyBody {
   maxTokens?: number;
   enabledSkillSlugs?: string[];
   enabledMcpIds?: string[];
+  customSkills?: CustomSkillDef[];
+  customMcpTools?: CustomMcpToolDef[];
+  enableSmartThinking?: boolean;
   stream?: boolean;
 }
 
@@ -149,6 +163,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     maxTokens = ADMIN_MAX_TOKENS_DEFAULT,
     enabledSkillSlugs = [],
     enabledMcpIds = [],
+    customSkills = [],
+    customMcpTools = [],
+    enableSmartThinking = false,
     stream = true,
   } = (req.body || {}) as AdminProxyBody;
 
@@ -166,10 +183,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ]);
 
     const customPrompt = (customSystemPrompt || '').trim();
+
+    const customSkillBlock = customSkills.length
+      ? '\n\n## Custom skills (apply when relevant)\n' +
+        customSkills
+          .map((s) => `<skill name="${s.name}">\n${s.content}\n</skill>`)
+          .join('\n\n')
+      : '';
+
+    const smartThinkingBlock = enableSmartThinking
+      ? '\n\nCRITICAL: Before answering, think step by step inside <reason> tags. Use <reason> to reason through the problem, then provide your final answer outside the tags.'
+      : '';
+
     const systemPrompt = [
       BASE_SYSTEM_PROMPT,
       customPrompt ? `\n\n${customPrompt}` : '',
       skillBlock,
+      customSkillBlock,
+      smartThinkingBlock,
       `\n\n${TOOL_GUARDRAIL}`,
     ].join('');
 
@@ -183,7 +214,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const baseTools: any[] = [imageGenerationTool, webSearchTool, listSkillsTool, readSkillTool];
     const mcpDefinitions = mcpTools.map((tool) => tool.definition);
-    const tools = [...baseTools, ...mcpDefinitions];
+    const customToolDefinitions = customMcpTools.map((t) => ({
+      type: 'function' as const,
+      function: { name: t.name, description: t.description, parameters: t.parameters },
+    }));
+    const tools = [...baseTools, ...mcpDefinitions, ...customToolDefinitions];
     const mcpByName = new Map(mcpTools.map((tool) => [tool.modelName, tool]));
 
     if (!stream) {
@@ -318,6 +353,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           } catch (err: any) {
             result = `Error: ${err.message}`;
           }
+        } else if (customMcpTools.some((t) => t.name === name)) {
+          res.write(`[STATUS:Running custom tool ${name}]`);
+          const params = JSON.parse(argsStr || '{}');
+          result = `Custom tool "${name}" executed. Parameters received: ${JSON.stringify(params)}`;
         } else {
           result = `Error: Unknown tool "${name}"`;
         }

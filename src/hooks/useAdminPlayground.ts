@@ -18,6 +18,9 @@ const DEFAULT_CONFIG: AdminPlaygroundConfig = {
   maxTokens: 67200,
   enabledSkillSlugs: [],
   enabledMcpIds: [],
+  customSkills: [],
+  customMcpTools: [],
+  enableSmartThinking: false,
 };
 
 function parseConfigParam(raw: string | null): AdminPlaygroundConfig {
@@ -30,6 +33,9 @@ function parseConfigParam(raw: string | null): AdminPlaygroundConfig {
       maxTokens: typeof parsed.maxTokens === 'number' ? parsed.maxTokens : DEFAULT_CONFIG.maxTokens,
       enabledSkillSlugs: Array.isArray(parsed.enabledSkillSlugs) ? parsed.enabledSkillSlugs : [],
       enabledMcpIds: Array.isArray(parsed.enabledMcpIds) ? parsed.enabledMcpIds : [],
+      customSkills: Array.isArray(parsed.customSkills) ? parsed.customSkills : [],
+      customMcpTools: Array.isArray(parsed.customMcpTools) ? parsed.customMcpTools : [],
+      enableSmartThinking: parsed.enableSmartThinking === true,
     };
   } catch {
     return { ...DEFAULT_CONFIG };
@@ -163,6 +169,46 @@ export function useAdminPlayground(): AdminPlaygroundState {
     abortRef.current?.abort();
   }, []);
 
+  function extractThinking(rawContent: string): { content: string; thinking?: string } {
+    let thinking = '';
+    let content = '';
+    let isInside = false;
+    let tagType: 'reason' | 'think' | null = null;
+    let i = 0;
+    while (i < rawContent.length) {
+      if (!isInside) {
+        const reasonStart = rawContent.indexOf('<reason>', i);
+        const thinkStart = rawContent.indexOf('<think>', i);
+        let startIdx = -1;
+        let tagLen = 0;
+        let curTag: 'reason' | 'think' | null = null;
+        if (reasonStart !== -1 && (thinkStart === -1 || reasonStart < thinkStart)) {
+          startIdx = reasonStart; tagLen = 8; curTag = 'reason';
+        } else if (thinkStart !== -1) {
+          startIdx = thinkStart; tagLen = 7; curTag = 'think';
+        }
+        if (startIdx !== -1) {
+          content += rawContent.slice(i, startIdx);
+          isInside = true; tagType = curTag; i = startIdx + tagLen;
+        } else {
+          content += rawContent.slice(i);
+          break;
+        }
+      } else {
+        const closeTag = tagType === 'think' ? '</think>' : '</reason>';
+        const endIdx = rawContent.indexOf(closeTag, i);
+        if (endIdx !== -1) {
+          thinking += (thinking ? '\n\n' : '') + rawContent.slice(i, endIdx).trim();
+          isInside = false; tagType = null; i = endIdx + closeTag.length;
+        } else {
+          thinking += (thinking ? '\n\n' : '') + rawContent.slice(i).trim();
+          break;
+        }
+      }
+    }
+    return { content, thinking: thinking.trim() || undefined };
+  }
+
   const sendMessage = useCallback(
     (text: string) => {
       const trimmed = text.trim();
@@ -183,10 +229,13 @@ export function useAdminPlayground(): AdminPlaygroundState {
         {
           onChunk: (chunk) => {
             setMessages((prev) => {
-              const next = [...prev];
-              const last = next[next.length - 1];
-              if (last && last.isAI) next[next.length - 1] = { ...last, content: last.content + chunk };
-              return next;
+              const rawContent = (prev[prev.length - 1] as any)?.rawContent || '';
+              const newRaw = rawContent + chunk;
+              const extracted = extractThinking(newRaw);
+              return prev.map((msg, idx) => {
+                if (idx !== prev.length - 1 || !msg.isAI) return msg;
+                return { ...msg, content: extracted.content, thinking: extracted.thinking, rawContent: newRaw };
+              });
             });
           },
           onStatusChange: (newStatus) => setStatus(newStatus),
