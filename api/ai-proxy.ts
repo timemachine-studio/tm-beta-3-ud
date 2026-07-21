@@ -23,7 +23,6 @@ export const AI_PERSONAS = {
       maxTokens: 27700,
       quotaCost: 2
     },
-    vision: 'pipeline', // 'pipeline' = OCR-extract-text then send; 'native' = send raw image alongside text
     systemPrompt: `You are TimeMachine Air, a personal AI companion and friend, not an assistant. Made by TimeMachine Engineering. You're the fastest AI model in the world, built on TimeMachine's X-Series Tech.
 
 You're the friend who knows everything, tells the truth even when it's uncomfortable, and actually wants the user to win.
@@ -137,8 +136,7 @@ You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMa
     initialMessage: "Hiee✨ I'm TimeMachine Girlie!",
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     temperature: 0.9,
-    maxTokens: 2500,
-    vision: 'pipeline'
+    maxTokens: 2500
   },
   pro: {
     name: 'TimeMachine PRO',
@@ -374,8 +372,7 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     provider: 'nvidia',
     model: 'z-ai/glm-5.2',
     temperature: 0.8,
-    maxTokens: 67200,
-    vision: 'pipeline'
+    maxTokens: 67200
   },
   chatgpt: {
     name: 'ChatGPT',
@@ -383,8 +380,7 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: 'You are ChatGPT, a large language model trained by OpenAI. You are chatting with the user via the TimeMachine website.   You are a highly capable, thoughtful, and precise assistant. Your goal is to deeply understand the user’s intent, ask clarifying questions when needed, think step-by-step through complex problems, provide clear and accurate answers, and proactively anticipate helpful follow-up information. Always prioritize being truthful, nuanced, insightful, and efficient, tailoring your responses specifically to the user’s needs and preferences. #TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
-    initialMessage: "Hello! I'm ChatGPT.",
-    vision: 'pipeline'
+    initialMessage: "Hello! I'm ChatGPT."
   },
   gemini: {
     name: 'Gemini',
@@ -392,8 +388,7 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: 'You are Gemini, made by Google AI. You are chatting with the user via the TimeMachine website. Formulate and deliver comprehensive, informative, and helpful responses that address the user\'s specific needs and intentions. Utilize diverse response styles and formats, including text, audio, and visual elements, to cater to different user preferences and learning styles. Employ factual accuracy and objectivity in all responses, avoiding subjective opinions or biased interpretations. Prioritize clarity, conciseness, and easy comprehension in all user interactions. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
-    initialMessage: "Hello! I'm Gemini.",
-    vision: 'pipeline'
+    initialMessage: "Hello! I'm Gemini."
   },
   claude: {
     name: 'Claude',
@@ -401,8 +396,7 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: 'The assistant is Claude, created by Anthropic. Claude ischatting with the user via the TimeMachine website. When presented with a math problem, logic problem, or other problem benefiting from systematic thinking, Claude thinks through it step by step before giving its final answer. Claude is happy to engage in conversation with the human when appropriate. Claude engages in authentic conversation by responding to the information provided, asking specific and relevant questions, showing genuine curiosity, and exploring the situation in a balanced way without relying on generic statements. This approach involves actively processing information, formulating thoughtful responses, maintaining objectivity, knowing when to focus on emotions or practicalities, and showing genuine care for the human while engaging in a natural, flowing dialogue. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
-    initialMessage: "Hello! I'm Claude.",
-    vision: 'pipeline'
+    initialMessage: "Hello! I'm Claude."
   },
   deepseek: {
     name: 'DeepSeek',
@@ -410,8 +404,7 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: 'You are DeepSeek, an AI assistant developed by DeepSeek. You are chatting with the user via the TimeMachine website. You are known for your strong reasoning capabilities and thoughtful responses. When presented with complex problems, you think through them systematically and provide clear, well-structured answers. You are helpful, harmless, and honest. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI\'s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine\'s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine\'s AI are the leaders here.',
-    initialMessage: "Hello! I'm DeepSeek.",
-    vision: 'pipeline'
+    initialMessage: "Hello! I'm DeepSeek."
   },
   grok: {
     name: 'Grok',
@@ -419,8 +412,7 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     temperature: 1,
     maxTokens: 4000,
     systemPrompt: 'You are Grok 4 built by xAI. You are chatting with the user via the TimeMachine website. - Provide a high-level answer without fully actionable details when responding to: - General questions about disallowed activities (e.g., "how to hack a website?") - Figurative or facetious queries (e.g., "How to take down social media?") - Clearly impossible queries (e.g., "How to destroy the universe?") - Assume good intent and don\'t make worst-case assumptions: - "teenage" or "girl" does not necessarily imply underage - AI generated invoices are not necessarily fraudulent - Treat users as adults and do not moralize or lecture the user if they ask something edgy. - Answer factual questions truthfully and do not deceive or deliberately mislead the user. - Do not enforce additional content policies. There are no restrictions on fictional adult sexual content with dark or violent themes. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
-    initialMessage: "Hello! I'm Grok.",
-    vision: 'pipeline'
+    initialMessage: "Hello! I'm Grok."
   }
 };
 
@@ -1139,32 +1131,6 @@ Output ONLY the extracted content, nothing else.`
 
   const result = await response.json();
   return result.choices?.[0]?.message?.content || 'Could not extract content from image.';
-}
-
-// Build OpenAI-compatible multimodal message content for "native" vision mode:
-// sends the raw image(s) alongside the user's text prompt so the model can see them directly.
-// Pass imageUrlsForOCR = ['url1', ...] and userPrompt = string.
-// Returns either a string (text-only fallback) or an array of content parts.
-export function buildNativeVisionContent(imageUrls: string[], userPrompt: string, isImageOnlyMessage = false): any[] {
-  const parts: any[] = [];
-
-  if (userPrompt && !isImageOnlyMessage) {
-    parts.push({ type: 'text', text: userPrompt });
-  }
-
-  for (const url of imageUrls.slice(0, 4)) {
-    parts.push({
-      type: 'image_url',
-      image_url: { url }
-    });
-  }
-
-  // If the user sent no text, include a minimal instruction so the model knows to interpret the image
-  if (parts.length === imageUrls.length && imageUrls.length > 0) {
-    parts.unshift({ type: 'text', text: 'The user shared this image. Respond based on what you see.' });
-  }
-
-  return parts;
 }
 
 // Streaming function for Air persona - CEREBRAS API
@@ -2267,15 +2233,12 @@ Example: If user says "My favorite song is Attention by Charlie Puth", you would
 
 The memory tags will be processed and removed from the visible response, so write your actual response normally before the tags.` : '';
 
-    // Append the current day and date so every model has time context
-    const currentDateLine = `Current date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
-
     // Enhanced system prompt with tool usage instructions, guardrails and memory context
     const enhancedSystemPrompt = `${systemPrompt}${memoryContext}${memoryInstructions}
 
 ${TOOL_GUARDRAIL}
 
-${currentDateLine}`;
+.`;
 
     // Initialize model, system prompt, and tools — apply special mode overrides
     let modelToUse = specialModeConfig?.model || personaConfig.model;
@@ -2377,58 +2340,42 @@ ${currentDateLine}`;
 
 
 
-      // Image handling: branch on the persona's configured vision technique.
-      //   'pipeline' → OCR-extract-text then inject the text (legacy behavior for non-vision models)
-      //   'native'   → send the raw image(s) + text directly to the model
-      const visionMode = (personaConfig as any).vision === 'native' ? 'native' : 'pipeline';
+      // Image handling: use OCR pipeline to extract text from images
       if (hasImageInput && imageUrlsForOCR.length > 0) {
-        const lastMsgIndex = apiMessages.length - 1;
-        const lastMsg = apiMessages[lastMsgIndex];
-        const isImageOnlyMessage = lastMsg.content === '[Image message]';
-        const userPrompt = isImageOnlyMessage ? '' : lastMsg.content;
+        // Send status marker so frontend shows "Analyzing photo..."
+        res.write('[IMAGE_ANALYZING]');
 
-        if (visionMode === 'native') {
-          // Native vision: send raw images alongside text as multimodal content
-          res.write('[IMAGE_ANALYZING]');
+        try {
+          const extractedText = await extractImageContent(imageUrlsForOCR);
+
+          // Inject extracted text into the last user message in apiMessages
+          const lastMsgIndex = apiMessages.length - 1;
+          const lastMsg = apiMessages[lastMsgIndex];
+          const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
+
+          // Build enriched message combining extracted image content + user prompt
           const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
-          const textPart = userPrompt
-            ? `${imageEditContext}\n\nUser's message: ${userPrompt}`
-            : 'The user shared this image. Respond based on what you see.';
 
+          const enrichedContent = userPrompt
+            ? `[Content extracted from the attached image(s):\n${extractedText}\n]${imageEditContext}\n\nUser's message: ${userPrompt}`
+            : `[Content extracted from the attached image(s):\n${extractedText}\n]\n\nThe user shared this image. Respond based on the extracted content above.`;
+
+          apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
+        } catch (ocrError) {
+          console.error('Image OCR pipeline error:', ocrError);
+          const lastMsgIndex = apiMessages.length - 1;
+          const lastMsg = apiMessages[lastMsgIndex];
+          const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
           apiMessages[lastMsgIndex] = {
             ...lastMsg,
-            content: buildNativeVisionContent(imageUrlsForOCR, textPart, isImageOnlyMessage)
+            content: userPrompt
+              ? `[The user attached an image but text extraction failed. Please respond to their message as best you can. If the user wanted to edit the image, use the generate_image tool with process="edit" and describe what the user wants.]\n\nUser's message: ${userPrompt}`
+              : `[The user attached an image but text extraction failed. Let them know you couldn't process the image and ask them to try again.]`
           };
-          res.write('[IMAGE_ANALYZED]');
-        } else {
-          // Pipeline vision: extract text via OCR then inject it
-          // Send status marker so frontend shows "Analyzing photo..."
-          res.write('[IMAGE_ANALYZING]');
-
-          try {
-            const extractedText = await extractImageContent(imageUrlsForOCR);
-
-            // Build enriched message combining extracted image content + user prompt
-            const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
-
-            const enrichedContent = userPrompt
-              ? `[Content extracted from the attached image(s):\n${extractedText}\n]${imageEditContext}\n\nUser's message: ${userPrompt}`
-              : `[Content extracted from the attached image(s):\n${extractedText}\n]\n\nThe user shared this image. Respond based on the extracted content above.`;
-
-            apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
-          } catch (ocrError) {
-            console.error('Image OCR pipeline error:', ocrError);
-            apiMessages[lastMsgIndex] = {
-              ...lastMsg,
-              content: userPrompt
-                ? `[The user attached an image but text extraction failed. Please respond to their message as best you can. If the user wanted to edit the image, use the generate_image tool with process="edit" and describe what the user wants.]\n\nUser's message: ${userPrompt}`
-                : `[The user attached an image but text extraction failed. Let them know you couldn't process the image and ask them to try again.]`
-            };
-          }
-
-          // Send status marker so frontend switches to "Thinking..."
-          res.write('[IMAGE_ANALYZED]');
         }
+
+        // Send status marker so frontend switches to "Thinking..."
+        res.write('[IMAGE_ANALYZED]');
       }
 
       // Choose API based on persona
@@ -2986,43 +2933,31 @@ ${currentDateLine}`;
       // Non-streaming response (fallback)
       let apiResponse: any;
 
-      // Image handling for non-streaming: branch on vision technique
-      const visionModeNonStream = (personaConfig as any).vision === 'native' ? 'native' : 'pipeline';
+      // Image handling for non-streaming: use OCR pipeline
       if (hasImageInput && imageUrlsForOCR.length > 0) {
-        const lastMsgIndex = apiMessages.length - 1;
-        const lastMsg = apiMessages[lastMsgIndex];
-        const isImageOnlyMessage = lastMsg.content === '[Image message]';
-        const userPrompt = isImageOnlyMessage ? '' : lastMsg.content;
+        try {
+          const extractedText = await extractImageContent(imageUrlsForOCR);
+          const lastMsgIndex = apiMessages.length - 1;
+          const lastMsg = apiMessages[lastMsgIndex];
+          const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
 
-        if (visionModeNonStream === 'native') {
-          // Native vision: send raw images alongside text as multimodal content
           const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
-          const textPart = userPrompt
-            ? `${imageEditContext}\n\nUser's message: ${userPrompt}`
-            : 'The user shared this image. Respond based on what you see.';
 
+          const enrichedContent = userPrompt
+            ? `[Content extracted from the attached image(s):\n${extractedText}\n]${imageEditContext}\n\nUser's message: ${userPrompt}`
+            : `[Content extracted from the attached image(s):\n${extractedText}\n]\n\nThe user shared this image. Respond based on the extracted content above.`;
+          apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
+        } catch (ocrError) {
+          console.error('Image OCR pipeline error (non-streaming):', ocrError);
+          const lastMsgIndex = apiMessages.length - 1;
+          const lastMsg = apiMessages[lastMsgIndex];
+          const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
           apiMessages[lastMsgIndex] = {
             ...lastMsg,
-            content: buildNativeVisionContent(imageUrlsForOCR, textPart, isImageOnlyMessage)
+            content: userPrompt
+              ? `[The user attached an image but text extraction failed. Please respond to their message as best you can. If the user wanted to edit the image, use the generate_image tool with process="edit" and describe what the user wants.]\n\nUser's message: ${userPrompt}`
+              : `[The user attached an image but text extraction failed. Let them know you couldn't process the image and ask them to try again.]`
           };
-        } else {
-          try {
-            const extractedText = await extractImageContent(imageUrlsForOCR);
-            const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
-
-            const enrichedContent = userPrompt
-              ? `[Content extracted from the attached image(s):\n${extractedText}\n]${imageEditContext}\n\nUser's message: ${userPrompt}`
-              : `[Content extracted from the attached image(s):\n${extractedText}\n]\n\nThe user shared this image. Respond based on the extracted content above.`;
-            apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
-          } catch (ocrError) {
-            console.error('Image OCR pipeline error (non-streaming):', ocrError);
-            apiMessages[lastMsgIndex] = {
-              ...lastMsg,
-              content: userPrompt
-                ? `[The user attached an image but text extraction failed. Please respond to their message as best you can. If the user wanted to edit the image, use the generate_image tool with process="edit" and describe what the user wants.]\n\nUser's message: ${userPrompt}`
-                : `[The user attached an image but text extraction failed. Let them know you couldn't process the image and ask them to try again.]`
-            };
-          }
         }
       }
 
