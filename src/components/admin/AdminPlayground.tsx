@@ -186,7 +186,7 @@ export default function AdminPlayground() {
               ))}
             </select>
             <p className="mt-2 text-xs text-white/40">
-              Preset prompt is loaded into the editable system prompt below. Model and provider stay hidden.
+              Preset prompt is loaded into the editable system prompt below.
             </p>
           </GlassPanel>
 
@@ -233,7 +233,7 @@ export default function AdminPlayground() {
               </button>
             </div>
             <p className="mt-1.5 text-[11px] text-white/40">
-              When on, adds a CRITICAL prompt asking the model to reason step by step inside &lt;reason&gt; tags before answering.
+              When on, adds XArchit latent weights and critical prompt
             </p>
           </GlassPanel>
 
