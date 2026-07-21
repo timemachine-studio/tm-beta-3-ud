@@ -51,6 +51,7 @@ import { ACCESS_TOKEN_REQUIRED, MAINTENANCE_MODE, PRO_HEAT_LEVELS, AI_PERSONAS }
 import { ChatSession, getSupabaseSessions, getLocalSessions } from './services/chat/chatService';
 import { SEOHead } from './components/seo/SEOHead';
 import { SesamePanel } from './components/sesame/SesamePanel';
+import AdminPlayground from './components/admin/AdminPlayground';
 
 // Chat by ID page component - defined OUTSIDE to prevent re-renders
 function ChatByIdPage() {
@@ -1165,6 +1166,7 @@ function AppContent() {
         <Route path="shopping-list" element={<><SEOHead title="Shopping List" path="/lifestyle/shopping-list" /><ShoppingListPage /></>} />
         <Route path="calendar" element={<><SEOHead title="Calendar" path="/lifestyle/calendar" /><PremiumCalendarPage /></>} />
       </Route>
+      <Route path="/admin" element={<><SEOHead title="Admin Playground" path="/admin" noIndex /><AdminPlayground /></>} />
       <Route path="/chat/:id" element={<><SEOHead title="Chat" noIndex /><ChatByIdPage /></>} />
       <Route path="/groupchat/:id" element={<><SEOHead title="Group Chat" noIndex /><GroupChatWrapper /></>} />
       <Route path="/groupchat/:id/settings" element={<><SEOHead title="Group Settings" noIndex /><GroupSettingsPage /></>} />

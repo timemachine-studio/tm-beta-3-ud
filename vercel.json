@@ -11,6 +11,9 @@
     },
     "api/pro-stream.ts": {
       "maxDuration": 300
+    },
+    "api/admin-proxy.ts": {
+      "maxDuration": 300
     }
   },
   "headers": [

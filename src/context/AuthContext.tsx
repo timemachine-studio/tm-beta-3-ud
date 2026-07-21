@@ -3,6 +3,7 @@ import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../types/database';
 import { syncProfileToMemory } from '../services/memory/memoryService';
+import { getAdminStatus, type AdminPreset } from '../services/admin/adminService';
 
 interface AuthContextType {
   user: User | null;
@@ -17,6 +18,10 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
   isOnboarded: boolean;
   needsOnboarding: boolean;
+  // Admin playground access (env allow-list gated, resolved server-side)
+  isAdmin: boolean;
+  adminPresets: AdminPreset[];
+  adminChecked: boolean;
   // OTP and password functions
   signUpWithOtp: (email: string) => Promise<{ error: AuthError | null }>;
   verifyOtp: (email: string, token: string) => Promise<{ error: AuthError | null }>;
@@ -63,6 +68,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminPresets, setAdminPresets] = useState<AdminPreset[]>([]);
+  const [adminChecked, setAdminChecked] = useState(false);
 
   // Check if user needs onboarding (has profile but no nickname)
   const needsOnboarding = !!user && !!profile && !profile.nickname;
@@ -245,6 +253,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, [fetchProfile]);
 
+  // Resolve admin allow-list status for the signed-in user. The allow-list
+  // itself lives in the ADMIN_EMAILS server env, so we ask /api/admin.
+  const checkAdmin = useCallback(async (currentUser: User | null) => {
+    if (!currentUser) {
+      setIsAdmin(false);
+      setAdminPresets([]);
+      setAdminChecked(true);
+      return;
+    }
+    try {
+      const status = await getAdminStatus();
+      setIsAdmin(!!status.isAdmin);
+      setAdminPresets(status.presets || []);
+    } catch {
+      setIsAdmin(false);
+    } finally {
+      setAdminChecked(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkAdmin(user);
+  }, [user, checkAdmin]);
+
   // Sign up with email
   const signUp = async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({
@@ -408,6 +440,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     refreshProfile,
     isOnboarded,
     needsOnboarding,
+    // Admin playground
+    isAdmin,
+    adminPresets,
+    adminChecked,
     // OTP and password functions
     signUpWithOtp,
     verifyOtp,
