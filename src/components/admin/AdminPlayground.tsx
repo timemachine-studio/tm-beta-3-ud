@@ -34,6 +34,13 @@ export default function AdminPlayground() {
   const [showPreview, setShowPreview] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(true);
   const [mcpOpen, setMcpOpen] = useState(true);
+  const [showCustomSkillForm, setShowCustomSkillForm] = useState(false);
+  const [customSkillName, setCustomSkillName] = useState('');
+  const [customSkillContent, setCustomSkillContent] = useState('');
+  const [showCustomMcpForm, setShowCustomMcpForm] = useState(false);
+  const [customMcpName, setCustomMcpName] = useState('');
+  const [customMcpDesc, setCustomMcpDesc] = useState('');
+  const [customMcpSchema, setCustomMcpSchema] = useState('{\n  "type": "object",\n  "properties": {}\n}');
 
   if (pg.loading) {
     return (
@@ -91,10 +98,6 @@ export default function AdminPlayground() {
   };
 
   // Custom skill adder state
-  const [showCustomSkillForm, setShowCustomSkillForm] = useState(false);
-  const [customSkillName, setCustomSkillName] = useState('');
-  const [customSkillContent, setCustomSkillContent] = useState('');
-
   const addCustomSkill = () => {
     const name = customSkillName.trim();
     const content = customSkillContent.trim();
@@ -110,11 +113,6 @@ export default function AdminPlayground() {
   };
 
   // Custom MCP tool adder state
-  const [showCustomMcpForm, setShowCustomMcpForm] = useState(false);
-  const [customMcpName, setCustomMcpName] = useState('');
-  const [customMcpDesc, setCustomMcpDesc] = useState('');
-  const [customMcpSchema, setCustomMcpSchema] = useState('{\n  "type": "object",\n  "properties": {}\n}');
-
   const addCustomMcpTool = () => {
     const name = customMcpName.trim();
     const description = customMcpDesc.trim();
