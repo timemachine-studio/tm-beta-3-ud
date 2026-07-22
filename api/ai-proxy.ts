@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
+import { SPECIAL_MODE_CONFIGS } from './specialModePrompts.js';
 import { SKILLS_DATA } from './skills.js';
 
 // Initialize Supabase client for server-side operations
@@ -464,7 +464,7 @@ function extractMedicalTerms(message: string): string[] {
  * Query Supabase for drug/generic data relevant to the user's message.
  * Returns the top 3 most relevant results formatted for LLM context.
  */
-export async function fetchHealthcareRAGContext(userMessage: string): Promise<string> {
+async function fetchHealthcareRAGContext(userMessage: string): Promise<string> {
   const terms = extractMedicalTerms(userMessage);
   if (terms.length === 0) return '';
 
@@ -587,7 +587,7 @@ export async function fetchHealthcareRAGContext(userMessage: string): Promise<st
 
 
 // Tool Usage Policy - Strict guardrails to prevent over-triggering
-export const TOOL_GUARDRAIL = `
+const TOOL_GUARDRAIL = `
 ## Tool Usage Policy
 1. ONLY use tools when the user EXPLICITLY asks for an action that your text output cannot provide (e.g., "generate an image of...", "search for the latest news on...", "play music by...").
 2. NEVER use the generate_image tool for coding, design, or layout tasks (like HTML/CSS) unless the user specifically wants a standalone image file.
@@ -596,7 +596,7 @@ export const TOOL_GUARDRAIL = `
 `;
 
 // Image generation tool configuration
-export const imageGenerationTool = {
+const imageGenerationTool = {
   type: "function" as const,
   function: {
     name: "generate_image",
@@ -627,7 +627,7 @@ export const imageGenerationTool = {
 };
 
 // Web search tool configuration
-export const webSearchTool = {
+const webSearchTool = {
   type: "function" as const,
   function: {
     name: "web_search",
@@ -648,7 +648,7 @@ export const webSearchTool = {
 };
 
 // Specialized skills library tools
-export const listSkillsTool = {
+const listSkillsTool = {
   type: "function" as const,
   function: {
     name: "list_skills",
@@ -662,7 +662,7 @@ export const listSkillsTool = {
   }
 };
 
-export const readSkillTool = {
+const readSkillTool = {
   type: "function" as const,
   function: {
     name: "read_skill",
@@ -685,7 +685,7 @@ export const readSkillTool = {
 
 // Helper function to process memory tags from AI response
 // Returns { content: string (without memory tags), memoryContent: string | null, hasSavedMemory: boolean }
-export async function processMemoryTags(
+async function processMemoryTags(
   content: string,
   userId: string | null,
   persona: string
@@ -777,7 +777,7 @@ function generateImageUrl(params: ImageGenerationParams): string {
   return url;
 }
 
-export function createImageMarkdown(params: ImageGenerationParams): string {
+function createImageMarkdown(params: ImageGenerationParams): string {
   const imageUrl = generateImageUrl(params);
   return `![Generated Image](${imageUrl})`;
 }
@@ -786,7 +786,7 @@ interface WebSearchParams {
   query: string;
 }
 
-export async function fetchWebSearchResults(params: WebSearchParams): Promise<string> {
+async function fetchWebSearchResults(params: WebSearchParams): Promise<string> {
   const { query } = params;
   const encodedQuery = encodeURIComponent(query);
 
@@ -820,7 +820,7 @@ interface AIMemory {
   created_at: string;
 }
 
-export async function fetchUserMemories(userId: string, persona: string = 'default'): Promise<AIMemory[]> {
+async function fetchUserMemories(userId: string, persona: string = 'default'): Promise<AIMemory[]> {
   try {
     const { data, error } = await supabase
       .from('ai_memories')
@@ -843,7 +843,7 @@ export async function fetchUserMemories(userId: string, persona: string = 'defau
   }
 }
 
-export async function addUserMemory(
+async function addUserMemory(
   userId: string,
   content: string,
   memoryType: string = 'general',
@@ -875,7 +875,7 @@ export async function addUserMemory(
   }
 }
 
-export function formatMemoriesForContext(memories: AIMemory[], userProfile?: { nickname?: string; about_me?: string }): string {
+function formatMemoriesForContext(memories: AIMemory[], userProfile?: { nickname?: string; about_me?: string }): string {
   if (memories.length === 0 && !userProfile?.nickname && !userProfile?.about_me) {
     return '';
   }
@@ -973,7 +973,7 @@ async function getUserRateLimit(userId: string | null, persona: string): Promise
 }
 
 // Supabase-based rate limiting functions
-export async function checkRateLimit(userId: string | null, ip: string, persona: string): Promise<boolean> {
+async function checkRateLimit(userId: string | null, ip: string, persona: string): Promise<boolean> {
   try {
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -1017,7 +1017,7 @@ export async function checkRateLimit(userId: string | null, ip: string, persona:
   }
 }
 
-export async function incrementRateLimit(userId: string | null, ip: string, persona: string): Promise<void> {
+async function incrementRateLimit(userId: string | null, ip: string, persona: string): Promise<void> {
   try {
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -1077,7 +1077,7 @@ export async function incrementRateLimit(userId: string | null, ip: string, pers
 }
 
 // Extract text content from images using Qwen Vision via Pollinations (OCR pipeline)
-export async function extractImageContent(imageUrls: string[]): Promise<string> {
+async function extractImageContent(imageUrls: string[]): Promise<string> {
   const imageContents = imageUrls.map((url: string) => ({
     type: 'image_url',
     image_url: { url }
@@ -1134,7 +1134,7 @@ Output ONLY the extracted content, nothing else.`
 }
 
 // Streaming function for Air persona - CEREBRAS API
-export async function callCerebrasAirAPIStreaming(
+async function callCerebrasAirAPIStreaming(
   messages: any[],
   tools?: any[],
   model: string = 'qwen-3-235b-a22b-instruct-2507',
@@ -1225,7 +1225,7 @@ export async function callCerebrasAirAPIStreaming(
 }
 
 // Streaming function for Girlie and Pro personas - GROQ API
-export async function callGroqStandardAPIStreaming(
+async function callGroqStandardAPIStreaming(
   messages: any[],
   model: string,
   temperature: number,
@@ -1374,7 +1374,7 @@ function extractReasoningAndContent(response: string): { content: string; thinki
 }
 
 // Secrets to AI (FreeTheAI) API function (streaming)
-export async function callSecretsToAIAPIStreaming(
+async function callSecretsToAIAPIStreaming(
   messages: any[],
   model: string,
   temperature: number = 1,
@@ -1508,7 +1508,7 @@ export async function callSecretsToAIAPIStreaming(
 }
 
 // Nvidia API function (streaming)
-export async function callNvidiaAPIStreaming(
+async function callNvidiaAPIStreaming(
   messages: any[],
   model: string,
   temperature: number = 1,
@@ -1638,7 +1638,7 @@ export async function callNvidiaAPIStreaming(
 }
 
 // Eaon API function (streaming)
-export async function callEaonAPIStreaming(
+async function callEaonAPIStreaming(
   messages: any[],
   model: string,
   temperature: number = 1,
@@ -1772,7 +1772,7 @@ export async function callEaonAPIStreaming(
 }
 
 // Pollinations API function for external AI models (streaming)
-export async function callPollinationsAPIStreaming(
+async function callPollinationsAPIStreaming(
   messages: any[],
   model: string,
   temperature: number = 1,
@@ -2277,9 +2277,7 @@ ${TOOL_GUARDRAIL}
 
     const processedMessages = [...messages];
 
-    // Messages can carry tool-call fields (tool_calls / tool_call_id) once the
-    // PRO agentic loop appends them, so keep the element shape open.
-    let apiMessages: any[];
+    let apiMessages;
     // Track if we need to run the image OCR pipeline before the main AI call
     const hasImageInput = !!imageData;
     const imageUrlsForOCR = hasImageInput ? (Array.isArray(imageData) ? imageData : [imageData]) : [];

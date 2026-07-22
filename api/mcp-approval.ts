@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHash } from 'node:crypto';
-import { getAuthenticatedRequestUser } from './_lib/auth.js';
-import { cleanupFlightControlRuns, enabledMcpServers, flightControlsAdmin, loadEnabledFlightControls } from './_lib/flightControls.js';
-import { discoverMcpTools, executeMcpTool } from './_lib/mcpClient.js';
+import { getAuthenticatedRequestUser } from './lib/auth.js';
+import { cleanupFlightControlRuns, enabledMcpServers, flightControlsAdmin, loadEnabledFlightControls } from './lib/flightControls.js';
+import { discoverMcpTools, executeMcpTool } from './lib/mcpClient.js';
 
 interface ContinuationState {
   args: Record<string, unknown>;

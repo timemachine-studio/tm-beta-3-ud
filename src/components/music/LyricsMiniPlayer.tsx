@@ -26,6 +26,8 @@ export function LyricsMiniPlayer({
   isMaximized,
   onSeek,
 }: LyricsMiniPlayerProps) {
+  if (!track) return null;
+
   // Hover and collapse/expand state for mini player
   const [isHovered, setIsHovered] = useState(false);
   const [isClickedExpanded, setIsClickedExpanded] = useState(false);
@@ -33,8 +35,6 @@ export function LyricsMiniPlayer({
   // Smooth scrubbing state
   const [localTime, setLocalTime] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  if (!track) return null;
 
   const isOpen = isHovered || isClickedExpanded;
   const displayTime = localTime !== null ? localTime : currentTime;

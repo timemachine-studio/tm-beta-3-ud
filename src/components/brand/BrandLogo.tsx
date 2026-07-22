@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Settings, Wand2, History, Plus, User, LogIn, Lock } from 'lucide-react';
+import { ChevronDown, Settings, Wand2, History, Plus, User, LogIn } from 'lucide-react';
 import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -60,8 +59,7 @@ export function BrandLogo({
   const [isOpen, setIsOpen] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
   const { theme } = useTheme();
-  const { user, profile, isAdmin } = useAuth();
-  const navigate = useNavigate();
+  const { user, profile } = useAuth();
 
   const toggleDropdown = () => setIsOpen(!isOpen);
 
@@ -274,23 +272,6 @@ export function BrandLogo({
               <Wand2 className="w-4 h-4" />
               <div className="font-bold text-sm">Flight Controls</div>
             </motion.button>
-            {isAdmin && (
-              <motion.button
-                whileHover={{
-                  scale: 1.03,
-                  background: 'linear-gradient(90deg, rgba(239,68,68,0.25) 0%, transparent 100%)'
-                }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => {
-                  setIsOpen(false);
-                  navigate('/admin');
-                }}
-                className={`w-full px-4 py-3 text-left transition-all duration-300 ${theme.text} flex items-center gap-2 border-b border-white/5`}
-              >
-                <Lock className="w-4 h-4 text-red-300" />
-                <div className="font-bold text-sm">Admin Playground</div>
-              </motion.button>
-            )}
             <motion.button
               whileHover={{
                 scale: 1.03,
