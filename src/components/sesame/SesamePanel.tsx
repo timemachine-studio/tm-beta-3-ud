@@ -46,7 +46,7 @@ export function SesamePanel({ onClose }: SesamePanelProps) {
             </div>
           )}
           <iframe
-            src="https://app.sesame.com"
+            src="/api/sesame-proxy"
             title="Sesame voice conversations"
             className="h-full w-full border-0 bg-[#f5efe6]"
             allow="microphone; autoplay; encrypted-media; clipboard-write"
