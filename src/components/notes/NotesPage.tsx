@@ -72,7 +72,7 @@ interface Block {
   height?: number;
 }
 
-type NoteTheme = 'purple' | 'blue' | 'green' | 'pink' | 'orange' | 'red' | 'cyan' | 'yellow';
+type NoteTheme = 'purple' | 'blue' | 'green' | 'pink' | 'orange' | 'red' | 'cyan' | 'yellow' | 'brown';
 
 interface Note {
   id: string;
@@ -236,6 +236,15 @@ const NOTE_THEMES: NoteThemeConfig[] = [
     editorGradient: 'linear-gradient(180deg, rgba(234,179,8,0.06) 0%, rgba(234,179,8,0.02) 40%, transparent 100%)',
     editorGlow: '0 0 80px rgba(234,179,8,0.08)',
     textAccent: 'text-yellow-400',
+  },
+  // Brown
+  {
+    key: 'brown', label: 'Brown', dot: 'bg-brown-600', rgb: '132, 91, 47',
+    checkBg: 'bg-brown-600', checkBorder: 'border-brown-400',
+    quoteBorder: 'border-brown-400/50', calloutBg: 'bg-brown-600/10', calloutBorder: 'border-brown-600/20',
+    editorGradient: 'linear-gradient(180deg, rgba(132,91,47,0.06) 0%, rgba(132,91,47,0.02) 40%, transparent 100%)',
+    editorGlow: '0 0 80px rgba(132,91,47,0.08)',
+    textAccent: 'text-amber-400',
   },
 ];
 
