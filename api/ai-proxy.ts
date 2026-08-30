@@ -12,13 +12,13 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 export const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
-    provider: 'nvidia', // allowed change to 'groq' or 'cerebras' or 'pollinations' or 'eaon' or 'nvidia'
-    model: 'deepseek-ai/deepseek-v4-flash',
+    provider: 'eaon', // allowed change to 'groq' or 'cerebras' or 'pollinations' or 'eaon' or 'nvidia'
+    model: 'glm-5.2-extended',
     temperature: 0.8,
     maxTokens: 27700,
     flowState: {
-      provider: 'cerebras',
-      model: 'gpt-oss-120b',
+      provider: 'eaon',
+      model: 'minimax-m3',
       temperature: 0.8,
       maxTokens: 27700,
       quotaCost: 2
