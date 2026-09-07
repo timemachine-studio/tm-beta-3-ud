@@ -35,7 +35,7 @@
   },
   "live_service_deletion": "not executed or verified",
   "blockers": [
-    "configured public Supabase key rejected by both Auth and REST gateways: HTTP 401 / Invalid API key; replace with current publishable or legacy anon key",
+    "local public key was duplicated back-to-back; deduplicated key returns HTTP 200 from Auth settings and zero-row PRO table query",
     "actual project retention, schema/RLS, backups/CDN, log drains and provider settings unverified",
     "live cleanup/deletion and disposable-account verification not performed; no cleanup schedule deployed"
   ],

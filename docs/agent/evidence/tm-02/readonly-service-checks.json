@@ -10,15 +10,19 @@
     "retention_verified": false
   },
   "supabase": {
-    "pro_table_zero_row_query_http_status": 401,
-    "local_rate_limit_diagnostic": "Invalid API key",
+    "initial_pro_table_zero_row_query_http_status": 401,
+    "initial_local_rate_limit_diagnostic": "Invalid API key",
     "public_key_role": "anon",
     "public_key_expired": false,
     "public_key_project_matches_url": true,
-    "auth_settings_http_status": 401,
-    "rest_root_http_status": 401,
-    "gateway_message": "Invalid API key",
-    "cause_of_key_rejection": "gateway does not recognize the configured legacy anon JWT as active; key rotation or supersession is likely but not proven"
+    "configured_value_length_before_fix": 416,
+    "deduplicated_key_length": 208,
+    "duplicated_halves_identical": true,
+    "auth_settings_http_status_after_deduplication": 200,
+    "pro_table_zero_row_query_http_status_after_deduplication": 200,
+    "cause_of_initial_rejection": "the same valid legacy anon JWT appeared twice back-to-back in the local environment value",
+    "local_env_corrected": true,
+    "credential_value_recorded": false
   },
   "local_pro_post": {
     "http_status": 503,
