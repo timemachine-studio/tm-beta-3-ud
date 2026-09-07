@@ -7,7 +7,7 @@ import type { ProviderTool } from './providerTypes.js';
 // landed in some copies and not others, which is why they never fully stuck.
 // Everything tool-related now lives here; call sites supply an emitter.
 
-import { SKILLS_DATA } from '../skills.js';
+import { SKILLS_DATA } from '../../shared/skills.js';
 
 const POLLINATIONS_API_KEY = (process.env.POLLINATIONS_API_KEY || '').trim();
 

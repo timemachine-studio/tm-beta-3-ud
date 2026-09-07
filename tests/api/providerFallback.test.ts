@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { AI_PERSONAS, buildProviderChain, personaFallbacks, runProviderNames } from './ai-proxy';
+import { AI_PERSONAS, buildProviderChain, personaFallbacks, runProviderNames } from '../../api/ai-proxy';
 import {
   ProviderHttpError,
   runWithProviderFallback,
   type ProviderHop,
-} from './_lib/providerResilience';
+} from '../../api/_lib/providerResilience';
 
 // Every test uses its own provider names. The circuit breaker keeps per-name
 // state at module scope, so shared names would leak failures between tests.
