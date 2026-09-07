@@ -1,0 +1,21 @@
+{
+  "date": "2026-09-07",
+  "method": "GET with select of required columns and limit=0",
+  "credential_role": "anon",
+  "admin_credential_configured": false,
+  "user_rows_retrieved": 0,
+  "mutations_performed": 0,
+  "checks": [
+    { "table": "pro_generation_jobs", "status": 200, "columns": "id,created_at,updated_at,user_id,chat_session_id,run_id,status,final_content,error" },
+    { "table": "mcp_tool_runs", "status": 401, "postgres_code": "42501", "message": "permission denied for table mcp_tool_runs" },
+    { "table": "chat_sessions", "status": 200, "columns": "id,user_id" },
+    { "table": "chat_messages", "status": 200, "columns": "id,user_id,session_id" },
+    { "table": "profiles", "status": 200, "columns": "id" },
+    { "table": "user_images", "status": 200, "columns": "id,user_id" },
+    { "table": "user_music", "status": 200, "columns": "id,user_id" },
+    { "table": "user_flight_control_settings", "status": 401, "postgres_code": "42501", "message": "permission denied for table user_flight_control_settings" },
+    { "table": "rate_limits", "status": 401, "postgres_code": "42501", "message": "permission denied for table rate_limits" }
+  ],
+  "interpretation": "The corrected public key works. The required PRO columns resolve. Restricted processing and settings tables deny anonymous access, consistent with the checked-in migrations. These checks do not prove two-user isolation, constraints, indexes, cleanup or erasure.",
+  "next_required_access": "Identified disposable test environment with an administrative cleanup mechanism and project retention settings"
+}

@@ -425,6 +425,21 @@ Steps:
 
 Done when: every content store has an owner, purpose, retention value, deletion mechanism, and verification evidence. Any unsupported retention promise blocks the affected execution mode rather than becoming a footnote.
 
+#### TM-02.5 — Finish live retention verification
+
+- [ ] Complete. Depends on: TM-02. This is a verification follow-up only; do not enable durable PRO processing or begin TM-03 until it passes.
+- Files: `docs/agent/data-lifecycle.md`, `docs/agent/evidence/tm-02/`, deployment/provider settings as authorized.
+
+Remaining acceptance work:
+
+1. Use a named disposable Supabase environment (or an explicitly isolated branch) to verify the deployed schema, constraints, indexes, RLS owner isolation and storage bucket policies with two synthetic users.
+2. Run the cleanup endpoint against synthetic expired, abandoned, failed and completed PRO/MCP rows. Verify content scrubbing, metadata expiry, failure handling and repeatability, then document the observed result and rollback evidence.
+3. Establish the actual Trigger lifecycle for payloads, streams, outputs, offloaded objects, logs and checkpoints. Test cancellation separately from deletion and record a processor-compatible maximum duration. Keep the PRO dispatch gate closed if any copy cannot meet the declared policy.
+4. Verify Supabase backup/PITR and log behavior, Vercel runtime/access-log and drain settings, media/CDN copies, and the retention controls for every enabled upstream provider. Record unknowns as blockers rather than promises.
+5. Add and observe an authorized, monitored cleanup schedule only after the synthetic checks pass. Reverify the signed-in account-deletion flow with a disposable account and confirm that shared, support, legacy and in-flight records have an explicit treatment.
+
+Done when: the live evidence covers each content store's owner, purpose, retention value and deletion mechanism; the cleanup schedule is observable; disposable-account deletion is verified; and no execution path relies on an unsupported retention promise.
+
 #### TM-03 — Establish paid entitlements and opt-in settings
 
 - [ ] Complete. Depends on: TM-01, TM-02.
@@ -979,7 +994,10 @@ Do not commit, push, purchase infrastructure, or deploy without authorization.
 | TM-00 | Complete: local/source baseline, 2026-09-06 | [Baseline and evidence](docs/agent/baseline.md): no dependencies; locked install; typecheck 0 errors; lint 136 existing errors + 5 warnings; 24 unit tests and build pass with public fixture env (unconfigured test/build fail). Storage map, static schema fixture, 10 desktop/mobile references plus failure/history captures, Notes/history reload observations, corrected architecture and Gate LS D1 exception; `codex.md` / `status.md` added. No product files changed. Step 3 fallback used: no authorized staging credentials, so live schema/RLS, auth, provider, Trigger and MCP verification remain prerequisites, not passing tests. No next-task implementation. | TM-01 |
 | TM-01 | Complete: shared contracts, 2026-09-06 | [Contracts and verification](docs/agent/contracts.md): TM-00 dependency checked; shared strict schemas, version rejection, canonical SHA-256 arguments, opaque execution context, local/cloud repository and executor interfaces, client/server compatibility exports and explicit TS inclusion. 61 tests pass (37 new deterministic contract cases); typecheck/build pass; lint unchanged at 136 errors + 5 warnings. Browser chat/Notes navigation and baseline note reload verified. No live runtime migration or service-integration claim. | TM-02; TM-04/TM-08 also dependency-eligible, not started |
 | TM-02 | Incomplete: local controls implemented, live verification blocked (2026-09-07) | [Lifecycle inventory, migration protocol and evidence](docs/agent/data-lifecycle.md). TM-00/TM-01 dependencies verified. Durable PRO dispatch/worker gates, recovery expiry, protected disabled-by-default processing cleanup, account-deletion failure handling, media no-store/content-log removal and truthful privacy/signup copy. 90 tests pass (23 retention + 6 history-validation additions since TM-01), typecheck/build pass; separately authorized lint cleanup reaches 0 errors and 0 warnings. Live Trigger read-only authentication works without a project reference. The duplicated local Supabase key was corrected and public Auth/table probes return 200; actual settings, deployed RLS/cleanup, processor/backups/log deletion and staging account UI remain unverified. No cloud purge or direct deployment performed. | Resume TM-02; no next task started |
+| TM-02.5 | Planned: live retention verification follow-up | The remaining TM-02 acceptance checks are isolated here: disposable Supabase schema/RLS tests, synthetic cleanup execution, Trigger object lifecycle/deletion, Supabase/Vercel/provider retention, monitored scheduling and disposable-account erasure. Durable PRO remains gated until this row is complete. | TM-03 |
 | Owner-requested lint cleanup | Complete: 2026-09-07 | Removed 136 errors and 5 warnings without weakening rules. Typed provider messages/tools/requests, database joins/JSON boundaries, YouTube/browser APIs and caught errors; split React context and icon/menu exports into refresh-safe modules. Six synthetic history validation tests cover retry/attachment preservation, legacy IDs and malformed input. 90 total tests, typecheck, lint and build pass. Browser signup/privacy and guest import/reopen checks pass; [verification and remaining rough edges](docs/agent/data-lifecycle.md#verification-and-exact-blockers). | Resume TM-02 external verification; no next roadmap task started |
+
+TM-02 resumption evidence (2026-09-07): [live column/access checks](docs/agent/evidence/tm-02/live-schema-access.json) confirm the corrected public key resolves the selected PRO/history/profile/media columns. Restricted tables return PostgreSQL `42501` to the anonymous role, as expected. Read-only dashboard checks found Supabase Production on the Free plan with no backups/PITR or `pg_cron`, public media buckets, and existing RLS policies/indexes; Trigger Production is on Free with one-day log retention and no configured cleanup schedule; Vercel Production is Ready on commit `5bc6c6c` with no cron job or drain. No rows were retrieved or changed. Synthetic cleanup, processor deletion and disposable-account erasure remain for TM-02.5. TM-02 stays unchecked and TM-03 has not started.
 
 ### Architecture choices to keep explicit during implementation
 

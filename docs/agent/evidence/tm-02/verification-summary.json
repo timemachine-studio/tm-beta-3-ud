@@ -35,7 +35,7 @@
   },
   "live_service_deletion": "not executed or verified",
   "blockers": [
-    "local public key was duplicated back-to-back; deduplicated key returns HTTP 200 from Auth settings and zero-row PRO table query",
+    "administrative cleanup access and an identified disposable test environment are unavailable; anonymous requests to processing/settings tables are denied as expected",
     "actual project retention, schema/RLS, backups/CDN, log drains and provider settings unverified",
     "live cleanup/deletion and disposable-account verification not performed; no cleanup schedule deployed"
   ],

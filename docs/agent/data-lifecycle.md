@@ -102,6 +102,8 @@ Resumption browser checks covered signup/privacy at the default viewport and 375
 
 Before TM-02 can be checked off:
 
+The latest [zero-row live schema checks](evidence/tm-02/live-schema-access.json) resolve all selected PRO fields, including content, error, run mapping and timestamps. Selected history/profile/media columns also resolve. Anonymous requests to `mcp_tool_runs`, `user_flight_control_settings` and `rate_limits` receive PostgreSQL `42501`, consistent with the checked-in access restrictions. These results establish working public connectivity and a limited column check; they do not establish constraints, indexes, owner isolation or cleanup. The cleanup hook currently requires a server-only administrative client and processes all eligible rows, so it must not be run on existing production data to obtain test evidence. An identified disposable test environment remains required.
+
 - Establish actual development/staging settings/schema access (or sanitized configuration exports) and verify the Vercel value is not duplicated. Obtain a privileged cleanup mechanism for synthetic integration checks. Do not require `TRIGGER_PROJECT_REF` for runtime calls or infer deployed settings from local variable presence. Keep credentials out of documents.
 - Verify existing columns, RLS, indexes, TTL predicates and two-user access using a real staging database. Test synthetic expired, abandoned, failed and completed rows; ensure cleanup failures prevent enabling processing.
 - Establish and test deletion for Trigger payloads, streams, returned output, offloaded objects, logs and checkpoints. Verify cancellation separately. Choose a documented processor-compatible maximum duration or change the payload/stream design; keep durable PRO blocked until then.
