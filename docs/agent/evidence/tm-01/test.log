@@ -1,0 +1,12 @@
+
+> vite-react-typescript-starter@0.0.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/tanziminfinity/timemachine-v0.2-github-sep
+
+
+ Test Files  4 passed (4)
+      Tests  61 passed (61)
+   Start at  16:57:42
+   Duration  526ms (transform 225ms, setup 0ms, import 330ms, tests 90ms, environment 0ms)

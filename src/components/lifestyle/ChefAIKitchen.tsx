@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChefHat, Clock, Flame, ArrowLeft, Plus, X, Search, Utensils } from 'lucide-react';
@@ -17,6 +18,14 @@ const steps = [
 
 const CRAVINGS = ['Healthy', 'Comfort Food', 'Spicy', 'Sweet', 'High Protein', 'Vegan', 'Quick Bite'];
 
+const generatedRecipeSchema = z.object({
+  title: z.string(), description: z.string(), time: z.string(),
+  difficulty: z.string(), calories: z.string(),
+  ingredients: z.array(z.object({ name: z.string(), amount: z.string().optional(), checked: z.boolean().optional() })),
+  instructions: z.array(z.string()),
+});
+type GeneratedRecipe = z.infer<typeof generatedRecipeSchema> & { image: string };
+
 export function ChefAIKitchen({ onClose }: ChefAIKitchenProps) {
     const [ingredients, setIngredients] = useState<string[]>([]);
     const [ingredientInput, setIngredientInput] = useState('');
@@ -24,7 +33,7 @@ export function ChefAIKitchen({ onClose }: ChefAIKitchenProps) {
     const [prompt, setPrompt] = useState('');
 
     const [isGenerating, setIsGenerating] = useState(false);
-    const [result, setResult] = useState<any | null>(null);
+    const [result, setResult] = useState<GeneratedRecipe | null>(null);
     const [loadingStep, setLoadingStep] = useState(0);
 
     const handleAddIngredient = () => {
@@ -97,7 +106,7 @@ The JSON must perfectly match this structure:
                 finalContent = finalContent.substring(jsonStart, jsonEnd + 1);
             }
 
-            const parsedResult = JSON.parse(finalContent);
+            const parsedResult = { ...generatedRecipeSchema.parse(JSON.parse(finalContent)), image: '' };
 
             // Generate a dynamic image URL using the internal image API (uses zimage model)
             const imagePrompt = `professional food photography of ${parsedResult.title}, appetizing, 4k, cinematic lighting, highly detailed`;
@@ -397,7 +406,7 @@ The JSON must perfectly match this structure:
                                         Ingredients
                                     </h3>
                                     <ul className="space-y-3">
-                                        {(result.ingredients || []).map((ing: any, i: number) => (
+                                        {(result.ingredients || []).map((ing, i) => (
                                             <li key={i} className="flex gap-3 text-white/80">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-orange-400 mt-2 shrink-0"></span>
                                                 <span className="flex-1">{ing.amount ? `${ing.amount} ` : ''}{ing.name}</span>

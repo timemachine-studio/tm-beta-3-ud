@@ -1,3 +1,6 @@
+import type { ModelConfig, SpecialModeConfig } from './_lib/providerTypes.js';
+import type { ProviderMessage, ProviderTool } from './_lib/providerTypes.js';
+import { durableProcessingAvailable, RETENTION_UNAVAILABLE } from './_lib/retention/policy.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { tasks } from '@trigger.dev/sdk';
 import {
@@ -40,6 +43,7 @@ import { proGenerationBodySchema, parseOrReject, rejectIfTooLarge } from './_lib
 const personaConfig = AI_PERSONAS.pro;
 
 async function handlePost(req: VercelRequest, res: VercelResponse) {
+  if (!durableProcessingAvailable()) return res.status(503).json({ error: RETENTION_UNAVAILABLE });
   // Bound every input before starting a paid background run (1.8).
   if (rejectIfTooLarge(req, res)) return;
   const body = parseOrReject(res, proGenerationBodySchema, req.body ?? {});
@@ -90,8 +94,8 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
   }
 
   // ─── Prompt building — mirrors the pro branch of /api/ai-proxy ──────────
-  const specialModeConfig = specialMode && (SPECIAL_MODE_CONFIGS as Record<string, any>)[specialMode]
-    ? (SPECIAL_MODE_CONFIGS as Record<string, any>)[specialMode]['pro']
+  const specialModeConfig = specialMode && (SPECIAL_MODE_CONFIGS as Record<string, Record<'default' | 'girlie' | 'pro', SpecialModeConfig>>)[specialMode]
+    ? (SPECIAL_MODE_CONFIGS as Record<string, Record<'default' | 'girlie' | 'pro', SpecialModeConfig>>)[specialMode]['pro']
     : null;
 
   let systemPrompt: string;
@@ -135,7 +139,7 @@ ${thinkingDirective}`;
   // Decided in code, not asked of the model: see api/_lib/tools.ts.
   const imageAllowed = resolveImageAllowed(messages, !!imageData);
   const searchAllowed = resolveWebSearchAllowed(messages);
-  const toolsToUse: any[] = selectTools({
+  const toolsToUse: ProviderTool[] = selectTools({
     specialModeConfig,
     includeSkills: true,
     imageAllowed,
@@ -144,13 +148,13 @@ ${thinkingDirective}`;
 
   const temperatureToUse = specialModeConfig?.temperature ?? personaConfig.temperature;
   const maxTokensToUse = specialModeConfig?.maxTokens ?? personaConfig.maxTokens;
-  const reasoningEffortToUse: string | undefined = specialModeConfig?.reasoningEffort ?? (personaConfig as any).reasoningEffort;
+  const reasoningEffortToUse: string | undefined = specialModeConfig?.reasoningEffort ?? (personaConfig as ModelConfig).reasoningEffort;
   const providerToUse: string = proProvider;
 
   // Healthcare RAG (tm-healthcare special mode)
   if (specialMode === 'tm-healthcare') {
     const recentMessages = messages.slice(-6);
-    const combinedText = recentMessages.map((m: any) => m.content).join(' ');
+    const combinedText = recentMessages.map((m) => m.content).join(' ');
     if (combinedText.trim()) {
       const ragContext = await fetchHealthcareRAGContext(combinedText);
       if (ragContext) {
@@ -160,7 +164,7 @@ ${thinkingDirective}`;
   }
 
   // Build apiMessages (pro always uses a system prompt)
-  const apiMessages: any[] = [
+  const apiMessages: ProviderMessage[] = [
     { role: 'system', content: systemPromptToUse },
     ...toApiMessages(messages),
   ];
@@ -303,6 +307,7 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(req, res, 'GET, POST, OPTIONS');
+  res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();

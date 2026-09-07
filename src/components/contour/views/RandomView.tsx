@@ -1,8 +1,9 @@
+import { ICON_MAP } from './viewIcons';
 import React, { useEffect, useState } from 'react';
 import { Shuffle, RefreshCw, Copy, Check } from 'lucide-react';
 import { ModuleData, MODULE_META } from '../moduleRegistry';
 import { RandomResult, regenerate as regenerateRandom, QUICK_ACTIONS } from '../modules/randomGenerator';
-import { AccentTheme, IconBadge, ICON_MAP } from './shared';
+import { AccentTheme, IconBadge } from './shared';
 
 // ─── Random Generator View ─────────────────────────────────────
 

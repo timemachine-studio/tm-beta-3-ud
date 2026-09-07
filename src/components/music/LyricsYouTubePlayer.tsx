@@ -5,7 +5,7 @@ interface LyricsYouTubePlayerProps {
   onTimeUpdate: (time: number) => void;
   onDurationChange: (duration: number) => void;
   onPlayerStateChange: (state: number) => void;
-  onReady: (player: any) => void;
+  onReady: (player: YT.Player) => void;
 }
 
 declare global {
@@ -21,7 +21,7 @@ const LyricsYouTubePlayer: React.FC<LyricsYouTubePlayerProps> = React.memo(({
   onPlayerStateChange,
   onReady,
 }) => {
-  const playerRef = useRef<any>(null);
+  const playerRef = useRef<YT.Player | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<number | null>(null);
 
@@ -64,7 +64,7 @@ const LyricsYouTubePlayer: React.FC<LyricsYouTubePlayerProps> = React.memo(({
           playsinline: 1,
         },
         events: {
-          onReady: (event: any) => {
+          onReady: (event) => {
             if (!isMounted) return;
             callbacks.current.onReady(event.target);
             callbacks.current.onDurationChange(event.target.getDuration());
@@ -76,7 +76,7 @@ const LyricsYouTubePlayer: React.FC<LyricsYouTubePlayerProps> = React.memo(({
               console.error("Autoplay attempt failed:", e);
             }
           },
-          onStateChange: (event: any) => {
+          onStateChange: (event) => {
             if (!isMounted) return;
             callbacks.current.onPlayerStateChange(event.data);
             if (event.data === window.YT.PlayerState.PLAYING) {

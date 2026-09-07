@@ -1,0 +1,219 @@
+
+> vite-react-typescript-starter@0.0.0 lint
+> eslint .
+
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/api/_lib/agentLoop.ts
+  25:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  26:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  30:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  30:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  57:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/api/_lib/tools.ts
+  121:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  309:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  317:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  406:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  406:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  476:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  510:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  523:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  537:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/api/ai-proxy.ts
+   476:18   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   505:27   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   540:50   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   560:37   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1157:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1158:11   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1169:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1249:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1253:11   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1262:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1399:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1403:11   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1414:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1534:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1538:11   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1549:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1665:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1669:11   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1680:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1800:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1804:11   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1815:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1933:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1937:11   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1938:12   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1948:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1997:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2001:11   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2002:12   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2012:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2057:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2061:11   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2062:12   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2072:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2121:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2125:11   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2126:12   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2136:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2253:13   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2254:10   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2380:86   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2381:49   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2393:40   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2436:23   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2446:110  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2453:51   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2471:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2661:24   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2694:46   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2699:32   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2756:32   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2781:49   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2784:32   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2844:32   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2900:49   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2927:32   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  2950:32   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  3089:30   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/api/notes-ai.ts
+  115:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  208:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/api/pro-generation.ts
+   89:84   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   90:47   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:21   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  143:108  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  144:51   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  149:49   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  159:22   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/api/pro-stream.ts
+  101:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/App.tsx
+  235:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/auth/AccountPage.tsx
+   51:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   52:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  504:51  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  563:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/brand/BrandLogo.tsx
+  209:102  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/chat/AudioPlayerBubble.tsx
+  143:76  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/chat/ChatHistoryModal.tsx
+  222:68  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/chat/ChatHistoryPage.tsx
+  213:68  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/chat/PlusMenu.tsx
+  7:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/contour/views/NavigationView.tsx
+   5:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/contour/views/QuickEventView.tsx
+  11:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/contour/views/QuickNoteView.tsx
+  11:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/contour/views/SnippetsView.tsx
+  11:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/contour/views/WebViewerView.tsx
+  9:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/contour/views/shared.tsx
+  28:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  73:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/lifestyle/ChefAIKitchen.tsx
+   27:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  400:79  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/lifestyle/CookBookPage.tsx
+  19:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/music/LyricsYouTubePlayer.tsx
+   8:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  24:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  67:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  79:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/notes/NotesPage.tsx
+  2234:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/components/ui/TextShimmer.tsx
+  24:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/context/AuthContext.tsx
+  37:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/context/ThemeContext.tsx
+  206:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/services/ai/aiProxyService.ts
+  56:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/services/ai/notesAiService.ts
+  69:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/services/chat/chatService.ts
+   26:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  197:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/services/groupChat/groupChatService.ts
+  514:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  554:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  591:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  618:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/services/healthcare/healthcareService.ts
+   81:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  124:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  137:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  146:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  159:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  167:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  209:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  217:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  270:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/services/music/lyricsService.ts
+  16:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/services/pdf/pdfService.ts
+   6:1   error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   8:1   error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  41:35  error  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/src/types/youtube.d.ts
+   3:13  error  Unsafe declaration merging between classes and interfaces  @typescript-eslint/no-unsafe-declaration-merging
+  83:9   error  Unsafe declaration merging between classes and interfaces  @typescript-eslint/no-unsafe-declaration-merging
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/trigger/proGeneration.ts
+  18:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  19:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/tanziminfinity/timemachine-v0.2-github-sep/vite.config.ts
+  59:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  84:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  89:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 141 problems (136 errors, 5 warnings)

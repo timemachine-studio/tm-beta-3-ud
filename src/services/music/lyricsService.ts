@@ -13,7 +13,7 @@ export interface LyricLine {
   text: string;
 }
 
-async function fetchWithTimeout(url: string, options: any = {}, timeout = 5000) {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 5000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   try {

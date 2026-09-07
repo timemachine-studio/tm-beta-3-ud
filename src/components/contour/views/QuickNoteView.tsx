@@ -1,3 +1,4 @@
+import type { AccentTheme } from './shared';
 import React, { useState } from 'react';
 import { FileText, Check, ArrowRight } from 'lucide-react';
 import { ModuleData } from '../moduleRegistry';
@@ -8,7 +9,7 @@ export function QuickNoteView({
     accent,
 }: {
     module: ModuleData;
-    accent: any;
+    accent: AccentTheme;
 }) {
     const note = module.quickNote;
     const [saved, setSaved] = useState(false);

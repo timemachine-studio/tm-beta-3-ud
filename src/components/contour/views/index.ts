@@ -24,4 +24,4 @@ export { GraphView } from './GraphView';
 
 // Re-export shared primitives that ContourPanel needs
 export type { AccentTheme } from './shared';
-export { getIcon, ICON_MAP } from './shared';
+export { getIcon, ICON_MAP } from './viewIcons';

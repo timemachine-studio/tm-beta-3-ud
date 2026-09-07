@@ -566,20 +566,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       </p>
                     )}
 
-                    {/*
-                      ⚠ LAUNCH BLOCKER — production-check.md LS.3.
-                      This claim is NOT true yet. ChatService.saveSession routes
-                      signed-in users to saveSupabaseSession, so a new account's
-                      chats go to Supabase, not to their device. The owner asked
-                      for this wording on 2026-08-26 on the basis that Gate LS
-                      will make it true before production. Until local-only
-                      storage actually ships, this is a false privacy
-                      representation shown at account creation — either land
-                      Gate LS or change this line before going live.
-                    */}
                     {step === 'credentials' && mode === 'signup' && (
                       <p className="text-center text-white/30 text-xs mt-2 leading-relaxed">
-                        Your chats are stored safely in your device only.
+                        Signed-in chat history is currently stored in the cloud. Messages and attachments are sent to AI providers to generate replies.
                       </p>
                     )}
                   </div>

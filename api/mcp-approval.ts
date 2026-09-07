@@ -69,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const user = await getAuthenticatedRequestUser(req);
   if (!user) return res.status(401).json({ error: 'Sign in is required' });
-  void cleanupFlightControlRuns();
+  await cleanupFlightControlRuns();
 
   const approval = parseOrReject(res, mcpApprovalBodySchema, req.body || {});
   if (!approval) return;
@@ -84,7 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (runError || !run) return res.status(404).json({ error: 'Approval request not found' });
   if (run.status !== 'pending') return res.status(409).json({ error: 'This approval was already resolved' });
   if (new Date(run.expires_at).getTime() <= Date.now()) {
-    await flightControlsAdmin.from('mcp_tool_runs').update({ status: 'expired', continuation_state: null }).eq('id', run.id).eq('status', 'pending');
+    await flightControlsAdmin.from('mcp_tool_runs').update({ status: 'expired', continuation_state: null, argument_preview: {}, error_code: null }).eq('id', run.id).eq('status', 'pending');
     return res.status(410).json({ error: 'Approval expired' });
   }
 
@@ -127,14 +127,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await flightControlsAdmin.from('mcp_tool_runs').update({
       status: decision === 'approve' ? 'succeeded' : 'denied',
       continuation_state: null,
+      argument_preview: {},
       duration_ms: Date.now() - startedAt,
     }).eq('id', run.id);
     return res.status(200).json({ content, status: decision === 'approve' ? 'succeeded' : 'denied' });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'MCP approval failed';
+    void error;
+    const message = 'MCP approval failed';
     await flightControlsAdmin.from('mcp_tool_runs').update({
       status: 'failed',
       continuation_state: null,
+      argument_preview: {},
       error_code: message.slice(0, 160),
       duration_ms: Date.now() - startedAt,
     }).eq('id', run.id);

@@ -1,6 +1,19 @@
+import { z } from 'zod';
+import type { Database } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { GroupChat, GroupChatMessage, GroupChatParticipant, GroupChatInvite } from '../../types/groupChat';
 import { AI_PERSONAS } from '../../config/constants';
+
+const musicSchema = z.object({ videoId: z.string(), title: z.string(), artist: z.string().optional() }).nullable();
+const reactionSchema = z.record(z.array(z.string()));
+function parseMusic(value: unknown) {
+  const result = musicSchema.safeParse(value);
+  return result.success ? result.data : null;
+}
+function parseReactions(value: unknown): Record<string, string[]> {
+  const result = reactionSchema.safeParse(value);
+  return result.success ? result.data : {};
+}
 
 // Get all group chats for a user (where they are a participant)
 export async function getUserGroupChats(userId: string): Promise<{
@@ -511,10 +524,10 @@ export function subscribeToGroupChatMusic(
       },
       (payload) => {
         console.log('[GroupChat] Music change received:', payload);
-        const newData = payload.new as any;
+        const newData = payload.new as Database['public']['Tables']['group_chats']['Row'];
         if (newData.current_music !== undefined) {
           console.log('[GroupChat] Broadcasting music change:', newData.current_music);
-          onMusicChange(newData.current_music);
+          onMusicChange(parseMusic(newData.current_music));
         }
       }
     )
@@ -551,20 +564,20 @@ export function subscribeToGroupChat(
         filter: `group_chat_id=eq.${chatId}`,
       },
       (payload) => {
-        const m = payload.new as any;
+        const m = payload.new as Database['public']['Tables']['group_chat_messages']['Row'];
         onMessage({
           id: String(m.id),
           createdAt: m.created_at,
           content: m.content,
           isAI: m.role === 'assistant',
           hasAnimated: false,
-          sender_id: m.sender_id,
-          sender_nickname: m.sender_nickname,
-          sender_avatar: m.sender_avatar,
-          inputImageUrls: m.images,
-          audioUrl: m.audio_url,
-          thinking: m.reasoning,
-          reactions: m.reactions || {},
+          sender_id: m.sender_id ?? undefined,
+          sender_nickname: m.sender_nickname ?? undefined,
+          sender_avatar: m.sender_avatar ?? undefined,
+          inputImageUrls: m.images ?? undefined,
+          audioUrl: m.audio_url ?? undefined,
+          thinking: m.reasoning ?? undefined,
+          reactions: parseReactions(m.reactions),
         });
       }
     )
@@ -588,12 +601,12 @@ export function subscribeToGroupChat(
         filter: `group_chat_id=eq.${chatId}`,
       },
       (payload) => {
-        const m = payload.new as any;
+        const m = payload.new as Database['public']['Tables']['group_chat_messages']['Row'];
         if (onReactionUpdate && m.reactions !== undefined) {
           // Same identity the messages were loaded under: the row id.
           const messageId = String(m.id);
           console.log('[GroupChat] Reaction update received:', messageId, m.reactions);
-          onReactionUpdate(messageId, m.reactions || {});
+          onReactionUpdate(messageId, parseReactions(m.reactions));
         }
       }
     )
@@ -615,12 +628,12 @@ export function subscribeToGroupChat(
         filter: `group_chat_id=eq.${chatId}`,
       },
       (payload) => {
-        const p = payload.new as any;
+        const p = payload.new as Database['public']['Tables']['group_chat_participants']['Row'];
         onParticipantJoin({
           id: p.id,
           user_id: p.user_id,
           nickname: p.nickname,
-          avatar_url: p.avatar_url,
+          avatar_url: p.avatar_url ?? undefined,
           joined_at: p.joined_at,
           is_owner: p.is_owner,
         });

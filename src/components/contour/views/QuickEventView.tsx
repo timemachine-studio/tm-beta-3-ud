@@ -1,3 +1,4 @@
+import type { AccentTheme } from './shared';
 import React, { useState } from 'react';
 import { Calendar, Check, ArrowRight, Clock } from 'lucide-react';
 import { ModuleData } from '../moduleRegistry';
@@ -8,7 +9,7 @@ export function QuickEventView({
     accent,
 }: {
     module: ModuleData;
-    accent: any;
+    accent: AccentTheme;
 }) {
     const event = module.quickEvent;
     const [saved, setSaved] = useState(false);

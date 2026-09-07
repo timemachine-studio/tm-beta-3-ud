@@ -1,3 +1,4 @@
+import type { ProviderMessage, ProviderTool, ProviderToolCall } from './providerTypes.js';
 // The agentic tool loop, shared by every persona and both runtimes.
 //
 // Previously only PRO ran a loop; Air called the model once and spliced tool
@@ -22,12 +23,12 @@ export interface AgentLoopEmitter {
 }
 
 export interface AgentLoopOptions {
-  messages: any[];
-  tools: any[];
+  messages: ProviderMessage[];
+  tools: ProviderTool[];
   toolContext: ToolExecutionContext;
   emit: AgentLoopEmitter;
   /** Runs one model turn. Provider dispatch stays with the caller. */
-  callModel: (messages: any[], activeTools: any[]) => Promise<ReadableStream>;
+  callModel: (messages: ProviderMessage[], activeTools: ProviderTool[]) => Promise<ReadableStream>;
   maxIterations?: number;
   log?: (message: string) => void;
 }
@@ -54,7 +55,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
   } = opts;
 
   const currentMessages = [...messages];
-  const toolCallsMap = new Map<number, any>();
+  const toolCallsMap = new Map<number, ProviderToolCall>();
   let iteration = 0;
   let fullContent = '';
   let endedWithPendingToolCalls = false;
@@ -120,6 +121,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
                 });
               } else {
                 const existing = toolCallsMap.get(index);
+                if (!existing) continue;
                 if (delta.function?.name) existing.function.name = delta.function.name;
                 if (delta.function?.arguments) existing.function.arguments += delta.function.arguments;
               }

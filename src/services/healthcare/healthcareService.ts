@@ -1,3 +1,4 @@
+import type { HealthcareBrand } from '../../../shared/healthcare';
 import { supabase } from '../../lib/supabase';
 
 export interface DrugSearchResult {
@@ -78,7 +79,7 @@ export async function searchDrugs(query: string, category?: SearchCategory): Pro
 }
 
 // ─── Helper: shape a raw brands row into DrugSearchResult ─────────────────────
-function shapeBrand(b: any, relevance = 1): DrugSearchResult {
+function shapeBrand(b: HealthcareBrand, relevance = 1): DrugSearchResult {
   return {
     brand_id: b.id,
     brand_name: b.name,
@@ -121,7 +122,7 @@ async function categorySearch(query: string, category: SearchCategory): Promise<
       .ilike('name', ilike)
       .limit(20);
     return rankByMatchQuality(
-      (data ?? []).map((b: any) => shapeBrand(b, 1)),
+      (data ?? []).map((b) => shapeBrand(b, 1)),
       query,
       (r) => r.brand_name,
     );
@@ -134,7 +135,7 @@ async function categorySearch(query: string, category: SearchCategory): Promise<
       .ilike('name', ilike)
       .limit(30);
 
-    const ids = (generics ?? []).map((g: any) => g.id);
+    const ids = (generics ?? []).map((g) => g.id);
     if (ids.length === 0) return [];
 
     const { data } = await supabase
@@ -143,7 +144,7 @@ async function categorySearch(query: string, category: SearchCategory): Promise<
       .in('generic_id', ids)
       .limit(20);
     return rankByMatchQuality(
-      (data ?? []).map((b: any) => shapeBrand(b, 0.8)),
+      (data ?? []).map((b) => shapeBrand(b, 0.8)),
       query,
       (r) => r.generic_name,
     );
@@ -156,7 +157,7 @@ async function categorySearch(query: string, category: SearchCategory): Promise<
     .ilike('indication', ilike)
     .limit(30);
 
-  const ids = (generics ?? []).map((g: any) => g.id);
+  const ids = (generics ?? []).map((g) => g.id);
   if (ids.length === 0) return [];
 
   const { data } = await supabase
@@ -164,7 +165,7 @@ async function categorySearch(query: string, category: SearchCategory): Promise<
     .select(BRAND_SELECT)
     .in('generic_id', ids)
     .limit(20);
-  return (data ?? []).map((b: any) => shapeBrand(b, 0.5));
+  return (data ?? []).map((b) => shapeBrand(b, 0.5));
 }
 
 /**
@@ -206,7 +207,7 @@ async function fallbackSearch(query: string): Promise<DrugSearchResult[]> {
     ]),
   ];
 
-  let byGeneric: any[] = [];
+  let byGeneric: DrugSearchResult[] = [];
   if (allGenericIds.length > 0) {
     const { data } = await supabase
       .from('brands')
@@ -214,8 +215,8 @@ async function fallbackSearch(query: string): Promise<DrugSearchResult[]> {
       .in('generic_id', allGenericIds)
       .limit(30);
 
-    byGeneric = (data ?? []).map((b: any) =>
-      shapeBrand(b, nameMatchIds.has(b.generics?.id) ? 0.8 : 0.5)
+    byGeneric = (data ?? []).map((b) =>
+      shapeBrand(b, b.generics != null && nameMatchIds.has(b.generics.id) ? 0.8 : 0.5)
     );
   }
 
@@ -267,7 +268,7 @@ export async function getAlternativeBrands(
     return [];
   }
 
-  const results = (data ?? []).map((b: any) => shapeBrand(b, 1));
+  const results = (data ?? []).map((b) => shapeBrand(b, 1));
   return filter
     ? rankByMatchQuality(results, filter, (r) => r.brand_name)
     : results;

@@ -1,0 +1,44 @@
+{
+  "task": "TM-01",
+  "date": "2026-09-06",
+  "dependency": "TM-00 verified with documented local/source fallback",
+  "typecheck": {
+    "exit": 0
+  },
+  "tests": {
+    "exit": 0,
+    "passed": 61,
+    "new_contract_cases": 37,
+    "services_mocked": false,
+    "real_service_integration": false
+  },
+  "lint": {
+    "exit": 1,
+    "errors": 136,
+    "warnings": 5,
+    "baseline_identical": true
+  },
+  "targeted_lint": {
+    "exit": 0
+  },
+  "build": {
+    "exit": 0,
+    "existing_warnings": [
+      "CSS import order",
+      "large chunks"
+    ]
+  },
+  "browser": {
+    "target": "http://127.0.0.1:5173",
+    "viewport": "696x851 default",
+    "observations": [
+      "Air shell and composer visually inspected",
+      "Notes button opens /notes",
+      "TM-00 synthetic note title/body survive reload"
+    ],
+    "backend_interception": false,
+    "login_or_generation": false
+  },
+  "scope": "Contracts and compatibility exports only; legacy runtime unchanged",
+  "next_task": "TM-02, not started"
+}

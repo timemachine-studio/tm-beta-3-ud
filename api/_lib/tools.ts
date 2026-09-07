@@ -1,3 +1,4 @@
+import type { ProviderTool } from './providerTypes.js';
 // Single source of truth for tool definitions, tool selection and tool execution.
 //
 // Before this module existed, tool selection was duplicated across
@@ -118,7 +119,7 @@ export const readSkillTool = {
   }
 };
 
-export const TOOL_MAP: Record<string, any> = {
+export const TOOL_MAP: Record<string, ProviderTool> = {
   imageGeneration: imageGenerationTool,
   webSearch: webSearchTool,
   listSkills: listSkillsTool,
@@ -306,7 +307,7 @@ export interface SelectToolsOptions {
  * like `web-coding` opt out of tools entirely — but the image gate applies on
  * top of it either way.
  */
-export function selectTools(opts: SelectToolsOptions): any[] {
+export function selectTools(opts: SelectToolsOptions): ProviderTool[] {
   const {
     specialModeConfig,
     includeSkills = false,
@@ -314,7 +315,7 @@ export function selectTools(opts: SelectToolsOptions): any[] {
     hasAttachedImage = false,
   } = opts;
 
-  let tools: any[] = specialModeConfig && Array.isArray(specialModeConfig.tools)
+  let tools: ProviderTool[] = specialModeConfig && Array.isArray(specialModeConfig.tools)
     ? specialModeConfig.tools.map((t: string) => TOOL_MAP[t]).filter(Boolean)
     : [webSearchTool, imageGenerationTool];
 
@@ -403,7 +404,7 @@ export function createToolPolicy(opts: { imageAllowed: boolean; searchAllowed?: 
 }
 
 /** Drop tools revoked earlier in this run from the list sent to the model. */
-export function applyPolicy(tools: any[], policy?: ToolPolicy | null): any[] {
+export function applyPolicy(tools: ProviderTool[], policy?: ToolPolicy | null): ProviderTool[] {
   if (!policy || policy.revoked.size === 0) return tools;
   return tools.filter((t) => !policy.revoked.has(t?.function?.name));
 }
@@ -473,8 +474,8 @@ export async function executeTool(
       await emit.emitMarker(`[STATUS:Searching the web for "${params.query}"]`);
       const searchResults = await fetchWebSearchResults(params);
       return searchResults.slice(0, SEARCH_RESULT_LIMIT);
-    } catch (err: any) {
-      return `Error: ${err.message}`;
+    } catch (err: unknown) {
+      return `Error: ${(err instanceof Error ? (err instanceof Error ? (err instanceof Error ? (err instanceof Error ? err.message : String(err)) : String(err)) : String(err)) : String(err))}`;
     }
   }
 
@@ -507,8 +508,8 @@ export async function executeTool(
 
       await emit.emitText(imageMarkdown);
       return `Image generated successfully. Markdown link: ${imageMarkdown}`;
-    } catch (err: any) {
-      return `Error: ${err.message}`;
+    } catch (err: unknown) {
+      return `Error: ${(err instanceof Error ? (err instanceof Error ? (err instanceof Error ? (err instanceof Error ? err.message : String(err)) : String(err)) : String(err)) : String(err))}`;
     }
   }
 
@@ -520,8 +521,8 @@ export async function executeTool(
         description: SKILLS_DATA[key].description
       }));
       return JSON.stringify(list, null, 2);
-    } catch (err: any) {
-      return `Error: ${err.message}`;
+    } catch (err: unknown) {
+      return `Error: ${(err instanceof Error ? (err instanceof Error ? (err instanceof Error ? (err instanceof Error ? err.message : String(err)) : String(err)) : String(err)) : String(err))}`;
     }
   }
 
@@ -534,8 +535,8 @@ export async function executeTool(
         return skill.content;
       }
       return `Error: Skill "${params.name}" not found. Available skills: ${Object.keys(SKILLS_DATA).join(', ')}`;
-    } catch (err: any) {
-      return `Error: ${err.message}`;
+    } catch (err: unknown) {
+      return `Error: ${(err instanceof Error ? (err instanceof Error ? (err instanceof Error ? (err instanceof Error ? err.message : String(err)) : String(err)) : String(err)) : String(err))}`;
     }
   }
 

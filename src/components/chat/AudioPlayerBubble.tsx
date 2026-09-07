@@ -140,7 +140,7 @@ export function AudioPlayerBubble({
       // Initialize Web Audio API for waveform visualization
       try {
         if (!audioContextRef.current) {
-          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+          audioContextRef.current = new (window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
         }
         
         if (!sourceNodeRef.current && audioContextRef.current) {
