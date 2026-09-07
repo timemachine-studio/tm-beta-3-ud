@@ -66,13 +66,13 @@ export async function sendNotesAIRequest(
       message: data.message || 'Done.',
       error: data.error,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Notes AI service error:', error);
     return {
       edits: [],
       newBlocks: [],
       message: '',
-      error: error.message || 'Failed to connect to AI. Please try again.',
+      error: (error instanceof Error ? error.message : String(error)) || 'Failed to connect to AI. Please try again.',
     };
   }
 }

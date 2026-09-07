@@ -1,3 +1,4 @@
+import { durableProcessingAvailable, proContentExpired, RETENTION } from './retention/policy.js';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 // Shared store for TimeMachine PRO background generation jobs.
@@ -10,11 +11,12 @@ if (!supabaseUrlFromEnv) {
   throw new Error('VITE_SUPABASE_URL is not set.');
 }
 const supabaseUrl: string = supabaseUrlFromEnv;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 let cachedClient: SupabaseClient | null = null;
 
 function getClient(): SupabaseClient {
+  if (!supabaseServiceKey) throw new Error('pro_job_storage_unavailable');
   if (!cachedClient) {
     cachedClient = createClient(supabaseUrl, supabaseServiceKey);
   }
@@ -37,6 +39,7 @@ export interface ProGenerationJob {
 }
 
 export async function createProJob(userId: string | null, chatSessionId: string | null): Promise<ProGenerationJob> {
+  if (!durableProcessingAvailable()) throw new Error('RETENTION_UNVERIFIED');
   const { data, error } = await getClient()
     .from('pro_generation_jobs')
     .insert({
@@ -49,7 +52,7 @@ export async function createProJob(userId: string | null, chatSessionId: string 
     .single();
 
   if (error) {
-    throw new Error(`Failed to create PRO generation job: ${error.message}`);
+    throw new Error('pro_job_create_failed');
   }
 
   return data as ProGenerationJob;
@@ -62,29 +65,28 @@ export async function attachProJobRunId(jobId: string, runId: string): Promise<v
     .eq('id', jobId);
 
   if (error) {
-    console.error('[PRO jobs] Failed to attach run id:', error);
+    throw new Error('pro_job_attach_failed');
   }
 }
 
 export async function completeProJob(jobId: string, finalContent: string): Promise<void> {
-  const { error } = await getClient()
+  const { data, error } = await getClient()
     .from('pro_generation_jobs')
-    .update({ status: 'completed', final_content: finalContent })
-    .eq('id', jobId);
+    .update({ status: 'completed', final_content: finalContent, error: null })
+    .eq('id', jobId).eq('status', 'running')
+    .gt('created_at', new Date(Date.now() - RETENTION.abandonedRunMs).toISOString()).select('id').maybeSingle();
 
-  if (error) {
-    console.error('[PRO jobs] Failed to mark job completed:', error);
-  }
+  if (error || !data) throw new Error('pro_job_completion_failed_or_expired');
 }
 
 export async function failProJob(jobId: string, message: string): Promise<void> {
   const { error } = await getClient()
     .from('pro_generation_jobs')
-    .update({ status: 'failed', error: message.slice(0, 2000) })
-    .eq('id', jobId);
+    .update({ status: 'failed', error: message === 'RETENTION_UNVERIFIED' ? message : 'PRO_GENERATION_FAILED', final_content: null })
+    .eq('id', jobId).eq('status', 'running');
 
   if (error) {
-    console.error('[PRO jobs] Failed to mark job failed:', error);
+    throw new Error('pro_job_failure_write_failed');
   }
 }
 
@@ -96,11 +98,12 @@ export async function getProJobByRunId(runId: string): Promise<ProGenerationJob 
     .maybeSingle();
 
   if (error) {
-    console.error('[PRO jobs] Lookup by run id failed:', error);
+    console.error('[PRO jobs] Lookup by run id failed:');
     return null;
   }
 
-  return (data as ProGenerationJob) ?? null;
+  const job = data as ProGenerationJob | null;
+  return job && !proContentExpired(job) ? job : null;
 }
 
 export async function getActiveProJob(chatSessionId: string, userId: string | null): Promise<ProGenerationJob | null> {
@@ -119,9 +122,10 @@ export async function getActiveProJob(chatSessionId: string, userId: string | nu
   const { data, error } = await query.maybeSingle();
 
   if (error) {
-    console.error('[PRO jobs] Active job lookup failed:', error);
+    console.error('[PRO jobs] Active job lookup failed:');
     return null;
   }
 
-  return (data as ProGenerationJob) ?? null;
+  const job = data as ProGenerationJob | null;
+  return job && !proContentExpired(job) ? job : null;
 }

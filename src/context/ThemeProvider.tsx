@@ -1,42 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { ThemeContext, type ThemeMode, type SeasonTheme, type DefaultThemeType } from './themeContextValue';
+import React, { useState, useEffect, useCallback } from 'react';
 import { darkTheme } from '../themes/dark';
 import { lightTheme } from '../themes/light';
 import { seasonThemes } from '../themes/seasons';
 import { supabase } from '../lib/supabase';
-import type { Theme } from '../types/theme';
 import type { Json } from '../types/database';
-
-type ThemeMode = 'dark' | 'light' | 'monochrome';
-type SeasonTheme = keyof typeof seasonThemes;
-
-interface DefaultThemeType {
-  mode: ThemeMode;
-  season: SeasonTheme;
-}
-
-interface ThemeContextType {
-  theme: Theme;
-  mode: ThemeMode;
-  season: SeasonTheme;
-  defaultTheme: DefaultThemeType | null;
-  setMode: (mode: ThemeMode) => void;
-  setSeason: (season: SeasonTheme) => void;
-  setDefaultTheme: (theme: DefaultThemeType) => void;
-  clearDefaultTheme: () => void;
-  loadUserTheme: (userId: string) => Promise<void>;
-}
-
-const ThemeContext = createContext<ThemeContextType>({
-  theme: darkTheme,
-  mode: 'dark',
-  season: 'autumnDark',
-  defaultTheme: null,
-  setMode: () => { },
-  setSeason: () => { },
-  setDefaultTheme: () => { },
-  clearDefaultTheme: () => { },
-  loadUserTheme: async () => { },
-});
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>('dark');
@@ -201,12 +169,4 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       {children}
     </ThemeContext.Provider>
   );
-}
-
-export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
 }

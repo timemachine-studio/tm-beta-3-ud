@@ -229,7 +229,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   const [lyricsIsLoading, setLyricsIsLoading] = useState<boolean>(false);
   const [lyricsError, setLyricsError] = useState<string | null>(null);
   const [isLyricsMaximized, setIsLyricsMaximized] = useState<boolean>(false);
-  const [lyricsPlayer, setLyricsPlayer] = useState<any>(null);
+  const [lyricsPlayer, setLyricsPlayer] = useState<YT.Player | null>(null);
 
   const handleLyricsPlay = useCallback(async (query: string) => {
     if (clearYoutubeMusic) {

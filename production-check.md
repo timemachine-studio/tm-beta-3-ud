@@ -1,5 +1,7 @@
 # TimeMachine Chat — Production Readiness Plan
 
+> 2026-09-07 verification update: the owner-requested lint cleanup passes with **0 errors and 0 warnings**, without rule suppressions. Typecheck, 90 tests and build pass; existing CSS import-order and bundle-size build warnings remain. TM-02 live retention/deletion checks remain open; see `status.md` and `docs/agent/data-lifecycle.md`. Historical counts below describe earlier checkpoints.
+
 **Audit date:** 2026-08-26 · **Commit:** `1bb2d6c` · **Target:** soft launch
 **Scope:** full codebase read (45k LOC, 210 TS/TSX files) + live app driven in a browser + direct API probing.
 
@@ -943,6 +945,8 @@ This is an architecture change, not a bug fix, so it gets its own gate. Sequence
 ---
 
 ### LS.1 — One honest privacy claim  ✱ read this before writing any marketing
+
+> TM-02 local update (2026-09-06): signup/privacy/account copy now describes actual cloud history and external processing; unsupported device-only and immediate-erasure claims were removed. Durable PRO creation is blocked pending verified processor retention. Cleanup hooks and local tests are implemented, but service settings, staging deletion, backups and the production rollout remain unverified. See `docs/agent/data-lifecycle.md`. Gate LS remains open; D1 still supersedes blanket no-sync/table-drop instructions below.
 
 **Severity:** Critical (positioning + legal) · **Effort:** S
 

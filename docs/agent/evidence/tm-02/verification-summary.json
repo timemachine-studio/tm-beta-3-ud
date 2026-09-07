@@ -1,0 +1,44 @@
+{
+  "task": "TM-02",
+  "updated": "2026-09-07",
+  "status": "incomplete_external_verification",
+  "tests": {
+    "passed": 90,
+    "new": 29,
+    "files": 10,
+    "database_storage_provider_services": "mocked",
+    "new_breakdown": {
+      "retention": 23,
+      "local_history_boundary": 6
+    }
+  },
+  "typecheck": "pass",
+  "build": "pass",
+  "lint": {
+    "errors": 0,
+    "warnings": 0,
+    "previous_errors": 136,
+    "previous_warnings": 5,
+    "rules_disabled_or_relaxed": false
+  },
+  "browser": {
+    "privacy_and_signup": "visually checked at 1280x720 and 375x812",
+    "account_deletion_dialog": "not browser verified",
+    "resumption": "Signup and privacy visually checked at default size and 375x812; local synthetic history import, reopen and persistence in history after reload verified",
+    "fixture_cleanup": "Delete confirmation did not complete in browser automation; synthetic local session tm-lint-browser-20260907 may remain",
+    "active_chat_reload": "Returns home; saved chat can be reopened from history"
+  },
+  "local_http": {
+    "pro_generation": 503,
+    "code": "RETENTION_UNVERIFIED",
+    "dispatch": "blocked before preparation"
+  },
+  "live_service_deletion": "not executed or verified",
+  "blockers": [
+    "configured public Supabase key rejected by both Auth and REST gateways: HTTP 401 / Invalid API key; replace with current publishable or legacy anon key",
+    "actual project retention, schema/RLS, backups/CDN, log drains and provider settings unverified",
+    "live cleanup/deletion and disposable-account verification not performed; no cleanup schedule deployed"
+  ],
+  "next": "Resume TM-02; no later task started",
+  "runtime_auth_correction": "TRIGGER_SECRET_KEY works without TRIGGER_PROJECT_REF. Global administrative cleanup needs privileged access, but this does not establish that every Vercel request needs a local service-role key."
+}

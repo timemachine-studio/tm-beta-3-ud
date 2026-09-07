@@ -3,16 +3,6 @@
  */
 
 import React from 'react';
-import {
-  Calculator, ArrowLeftRight, DollarSign, Globe, Palette,
-  Timer, Calendar, Shuffle, Type, Braces, Lock, Link, Hash,
-  FileSearch, FileText, Settings, History, Image, Brain,
-  HelpCircle, Code, Music, HeartPulse, Fingerprint, Clock,
-  Search, Wrench, Monitor, Zap, Command,
-  Dices, Coins, RefreshCw,
-  BookOpen, Mic, AlignLeft, List, MessageSquare, TrendingUp,
-} from 'lucide-react';
-
 // ─── Types ─────────────────────────────────────────────────────
 
 export interface AccentTheme {
@@ -24,20 +14,6 @@ export interface AccentTheme {
 }
 
 // ─── Constants ─────────────────────────────────────────────────
-
-export const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  Calculator, ArrowLeftRight, DollarSign, Globe, Palette,
-  Timer, Calendar, Shuffle, Type, Braces, Lock, Link, Hash,
-  FileSearch, FileText, Settings, History, Image, Brain,
-  HelpCircle, Code, Music, HeartPulse, Fingerprint, Clock,
-  Search, Wrench, Monitor, Zap, Command,
-  Dices, Coins, RefreshCw,
-  BookOpen, Mic, AlignLeft, List, MessageSquare, TrendingUp,
-  // Aliases for icons not in lucide-react 0.344.0
-  Languages: Globe,
-  LetterText: Type,
-  RemoveFormatting: Hash,
-};
 
 export const SELECT_ARROW = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`;
 
@@ -68,8 +44,4 @@ export function FooterHint({ text }: { text: string }) {
       <span className="text-[10px] text-white/20">{text}</span>
     </div>
   );
-}
-
-export function getIcon(iconName: string): React.ComponentType<{ className?: string }> {
-  return ICON_MAP[iconName] || Command;
 }

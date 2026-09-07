@@ -206,7 +206,7 @@ export function BrandLogo({
             <div className="h-px bg-white/10" />
 
             {Object.entries(AI_PERSONAS)
-              .filter(([key, persona]) => ['default', 'girlie', 'pro'].includes(key) && !(persona as any).hiddenFromDropdown) // Only show visible TimeMachine personas
+              .filter(([key, persona]) => ['default', 'girlie', 'pro'].includes(key) && !('hiddenFromDropdown' in persona && persona.hiddenFromDropdown)) // Only show visible TimeMachine personas
               .map(([key, persona]) => (
                 <motion.button
                   key={key}

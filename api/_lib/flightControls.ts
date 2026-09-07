@@ -77,7 +77,7 @@ export async function cleanupFlightControlRuns(): Promise<void> {
   const [{ error: expiryError }, { error: retentionError }] = await Promise.all([
     flightControlsAdmin
       .from('mcp_tool_runs')
-      .update({ status: 'expired', continuation_state: null })
+      .update({ status: 'expired', continuation_state: null, argument_preview: {}, error_code: null })
       .eq('status', 'pending')
       .lt('expires_at', now),
     flightControlsAdmin

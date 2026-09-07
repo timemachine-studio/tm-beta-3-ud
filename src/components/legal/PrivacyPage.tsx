@@ -9,15 +9,15 @@ const CONTACT_EMAIL = 'privacy@timemachinechat.com';
 // document must be revised (see production-check.md 0.8 and LS.1).
 export function PrivacyPage() {
   return (
-    <LegalLayout eyebrow="Legal" title="Privacy Policy" lastUpdated="26 August 2026">
+    <LegalLayout eyebrow="Legal" title="Privacy Policy" lastUpdated="6 September 2026">
       <LegalSection heading="The short version">
         <p>
           We collect the account details you give us, the conversations you have with TimeMachine,
           and a small amount of technical data needed to keep the service running. We do not sell
-          your data and we do not train models on your conversations.
+          your data. The AI providers that process requests have their own data policies.
         </p>
         <p className="text-white/70">
-          To generate a reply, your messages might be sent to third-party AI providers. That is how
+          To generate a reply, your messages are sent to third-party AI providers. That is how
           the product works, so treat anything you type as leaving your device.
         </p>
       </LegalSection>
@@ -29,7 +29,7 @@ export function PrivacyPage() {
             <><span className="text-white/70">Conversation content</span> — the messages you send, the AI's replies, and the chat sessions they belong to.</>,
             <><span className="text-white/70">AI memories</span> — facts the assistant saves about you during a conversation so it can refer back to them later (for example a stated preference or something about your work). You can view and delete these at any time from the Memories page.</>,
             <><span className="text-white/70">Uploads</span> — images and PDFs you attach to a conversation, and images generated for you.</>,
-            <><span className="text-white/70">Notes and lists</span> — anything you create in Notes, Albums, group chats, or the Lifestyle tools.</>,
+            <><span className="text-white/70">App content</span> — Notes are stored in this browser. Content sent to Notes AI is processed by AI providers. Group conversations are stored in the cloud so participants can access them; other apps may store account content separately.</>,
             <><span className="text-white/70">Technical data</span> — your IP address, used to enforce rate limits and prevent abuse, and a signed cookie used for the same purpose when you are not signed in.</>,
           ]}
         />
@@ -38,8 +38,7 @@ export function PrivacyPage() {
       <LegalSection heading="Who receives your prompts">
         <p>
           TimeMachine does not run its own language models. When you send a message, its content —
-          together with any attached image or PDF text and any AI memories relevant to the
-          conversation — might be sent to one of the following processors, which generates the
+          together with attached image or document text and relevant AI memories — is sent to one of the following processors, which generates the
           reply:
         </p>
         <LegalList
@@ -59,11 +58,15 @@ export function PrivacyPage() {
         <p>
           If you enable an MCP server or a connected tool under Flight Controls, the parts of your
           conversation needed to run that tool are also sent to the operator of that server. The
-          app asks for your approval before a tool call runs.
+          approval flow requests consent for pending tool calls. Connected services have
+          their own retention policies.
         </p>
         <p>
           We also use <span className="text-white/70">Supabase</span> for authentication, database
           storage, and file storage, and <span className="text-white/70">Vercel</span> for hosting.
+          Background PRO processing uses Trigger.dev, which receives prepared messages and
+          stores task data and output streams. New background runs are unavailable while
+          their retention and deletion settings are being verified.
         </p>
       </LegalSection>
 
@@ -84,9 +87,9 @@ export function PrivacyPage() {
         <LegalList
           items={[
             <>Account data and profile details are kept for as long as your account exists.</>,
-            <>Conversations, notes, albums, and AI memories are kept until you delete them, or until you delete your account.</>,
-            <>Rate-limiting records are keyed to a rolling 24-hour window and are discarded after it passes.</>,
-            <>When you delete your account we remove your profile, AI memories, chat sessions and messages, saved images, and uploaded files. Backups may retain copies for a short period before they age out.</>,
+            <>Signed-in personal chat history and AI memories are currently stored in Supabase until removed. Guest chat history and Notes stay in this browser until deleted or browser storage is cleared. Account deletion does not clear copies on your devices.</>,
+            <>Rate limits use a rolling 24-hour window. This resets the allowance; it does not mean the database record is deleted every day.</>,
+            <>Account deletion attempts to remove supported account records and saved media. If removal cannot be completed, the app reports the failure and keeps your sign-in account available for retry or support. Shared-group records and processor-held data can require additional handling. Backup, hosting-log and provider retention depend on the service settings; we do not promise immediate deletion of every copy.</>,
           ]}
         />
       </LegalSection>
@@ -96,7 +99,7 @@ export function PrivacyPage() {
           items={[
             <><span className="text-white/70">See and delete your memories</span> — the Memories page lists everything the assistant has saved about you.</>,
             <><span className="text-white/70">Delete a conversation</span> — from chat history, at any time.</>,
-            <><span className="text-white/70">Delete your account</span> — from Account settings. This is immediate and cannot be undone.</>,
+            <><span className="text-white/70">Delete your account</span> — from Account settings. Successful deletion cannot be undone. Some requests need support to finish removing processing data.</>,
             <><span className="text-white/70">Access, correction, and portability</span> — if you are in a jurisdiction that grants these rights (including the UK/EU under GDPR and California under CCPA/CPRA), write to us and we will action your request.</>,
           ]}
         />

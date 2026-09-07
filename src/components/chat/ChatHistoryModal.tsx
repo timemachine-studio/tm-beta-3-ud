@@ -1,3 +1,4 @@
+import { parseChatImport } from '../../services/chat/storedChatValidation';
 import React, { useState, useEffect, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Tabs from '@radix-ui/react-tabs';
@@ -213,17 +214,7 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
     reader.onload = async (e) => {
       try {
         const content = e.target?.result as string;
-        const importData = JSON.parse(content);
-
-        if (!importData.sessions || !Array.isArray(importData.sessions)) {
-          throw new Error('Invalid file format');
-        }
-
-        const validSessions = importData.sessions.filter((session: any) => {
-          return session.id && session.name && session.messages &&
-                 session.persona && session.createdAt && session.lastModified &&
-                 Array.isArray(session.messages);
-        });
+        const validSessions = parseChatImport(JSON.parse(content));
 
         if (validSessions.length === 0) {
           throw new Error('No valid chat sessions found in file');

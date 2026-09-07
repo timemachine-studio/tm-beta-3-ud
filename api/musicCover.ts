@@ -53,8 +53,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       url.searchParams.set('seed', String(seed));
     }
 
-    const debugUrl = url.toString().replace(/key=[^&]+/, 'key=***');
-    console.log('Pollinations request URL (music cover):', debugUrl);
 
     // Fetch the image from Pollinations server-side
     const imageResponse = await fetch(url.toString(), {
@@ -65,10 +63,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     if (!imageResponse.ok) {
-      const errorText = await imageResponse.text().catch(() => '');
-      // The upstream status and body stay in the server log. Returning them
-      // leaked provider internals to the browser (production-check.md 1.7).
-        console.error('Pollinations error:', errorText.slice(0, 500));
+
+      // Upstream bodies can echo prompts; retain only a fixed diagnostic.
+        console.error('media_provider_failed');
         return res.status(502).json(
           apiErrorBody('PROVIDER_DOWN', 'Failed to generate cover image')
         );
@@ -78,13 +75,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const contentType = imageResponse.headers.get('content-type') || 'image/png';
 
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Length', imageBuffer.byteLength);
 
     return res.status(200).send(Buffer.from(imageBuffer));
 
   } catch (error) {
-    console.error('Music cover proxy error:', error);
+    void error;
+    console.error('Music cover proxy error:');
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

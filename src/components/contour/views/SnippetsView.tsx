@@ -1,3 +1,4 @@
+import type { AccentTheme } from './shared';
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, Copy, Check, ChevronLeft } from 'lucide-react';
 import { Snippet, loadSnippets, saveSnippets } from '../modules/snippetManager';
@@ -8,7 +9,7 @@ export function SnippetsView({
     onCopyValue,
 }: {
     module: ModuleData;
-    accent: any;
+    accent: AccentTheme;
     onCopyValue?: (value: string) => void;
 }) {
     const [snippets, setSnippets] = useState<Snippet[]>([]);

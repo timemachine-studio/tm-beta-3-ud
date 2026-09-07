@@ -53,7 +53,7 @@ interface StreamChunkParserCallbacks {
   onStatusChange?: (status: string) => void;
   onYoutubeMusic?: (music: YouTubeMusicData) => void;
   onMcpApproval?: (approval: McpApprovalRequest) => void;
-  onControlEvent?: (event: any) => void;
+  onControlEvent?: (event: { type?: string; message?: unknown; code?: unknown }) => void;
 }
 
 function createStreamChunkParser(callbacks: StreamChunkParserCallbacks) {

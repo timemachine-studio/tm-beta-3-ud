@@ -1,6 +1,7 @@
 // YouTube IFrame API Type Declarations
 declare namespace YT {
-  interface Player {
+  class Player {
+    constructor(elementId: string | HTMLElement, options: PlayerOptions);
     loadVideoById(videoId: string, startSeconds?: number): void;
     cueVideoById(videoId: string, startSeconds?: number): void;
     playVideo(): void;
@@ -80,7 +81,5 @@ declare namespace YT {
     CUED: 5;
   };
 
-  class Player {
-    constructor(elementId: string | HTMLElement, options: PlayerOptions);
-  }
+
 }

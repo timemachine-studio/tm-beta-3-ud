@@ -162,10 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       height: parsedHeight
     });
 
-    // Log the URL for debugging (mask the API key)
-    const debugUrl = pollinationsUrl.toString().replace(/key=[^&]+/, 'key=***');
-    console.log('Pollinations request URL:', debugUrl);
-    console.log('Parsed image URLs:', parsedImageUrls);
+
 
     // Fetch the image from Pollinations server-side
     const imageResponse = await fetch(pollinationsUrl, {
@@ -176,10 +173,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     if (!imageResponse.ok) {
-      const errorText = await imageResponse.text().catch(() => '');
-      console.error('Pollinations API error:', imageResponse.status, errorText);
-      console.error('Request URL was:', debugUrl);
-      // Status, upstream body and our own request URL stay server-side (1.7).
+
+      console.error('image_provider_failed', imageResponse.status);
+
+      // Neither URLs nor upstream bodies belong in durable logs (TM-02).
       return res.status(502).json(apiErrorBody('PROVIDER_DOWN', 'Failed to generate image'));
     }
 
@@ -189,14 +186,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Set response headers for image
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Length', imageBuffer.byteLength);
 
     // Return the raw image bytes
     return res.status(200).send(Buffer.from(imageBuffer));
 
   } catch (error) {
-    console.error('Image proxy error:', error);
+    void error;
+    console.error('Image proxy error:');
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

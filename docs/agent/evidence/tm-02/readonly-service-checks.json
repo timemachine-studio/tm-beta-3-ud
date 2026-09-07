@@ -1,0 +1,28 @@
+{
+  "date": "2026-09-07",
+  "mode": "read-only; no real account deletion or task dispatch",
+  "trigger_runs": {
+    "http_status": 200,
+    "returned_run_count": 1,
+    "authentication": "configured TRIGGER_SECRET_KEY",
+    "project_ref_required_for_this_call": false,
+    "payloads_and_outputs_recorded": false,
+    "retention_verified": false
+  },
+  "supabase": {
+    "pro_table_zero_row_query_http_status": 401,
+    "local_rate_limit_diagnostic": "Invalid API key",
+    "public_key_role": "anon",
+    "public_key_expired": false,
+    "public_key_project_matches_url": true,
+    "auth_settings_http_status": 401,
+    "rest_root_http_status": 401,
+    "gateway_message": "Invalid API key",
+    "cause_of_key_rejection": "gateway does not recognize the configured legacy anon JWT as active; key rotation or supersession is likely but not proven"
+  },
+  "local_pro_post": {
+    "http_status": 503,
+    "code": "RETENTION_UNVERIFIED",
+    "external_dispatch": false
+  }
+}

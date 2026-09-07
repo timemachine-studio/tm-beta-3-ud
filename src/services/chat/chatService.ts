@@ -1,8 +1,9 @@
+import { parseStoredMetadata } from './storedChatValidation';
 import { supabase } from '../../lib/supabase';
 import { Message } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { newId } from '../../utils/id';
-import type { Json } from '../../types/database';
+import type { Json, ChatSession as SessionRow, ChatMessage as MessageRow } from '../../types/database';
 
 export interface ChatSession {
   id: string;
@@ -23,7 +24,7 @@ function isPersistable(message: Message): boolean {
 }
 
 // Convert database row to ChatSession
-function dbRowToSession(row: any, messages: Message[]): ChatSession {
+function dbRowToSession(row: SessionRow, messages: Message[]): ChatSession {
   return {
     id: row.id,
     user_id: row.user_id,
@@ -66,23 +67,24 @@ function messageToDbRow(message: Message, sessionId: string, userId: string) {
 }
 
 // Convert database row to Message
-function dbRowToMessage(row: any): Message {
+function dbRowToMessage(row: MessageRow): Message {
+  const saved = parseStoredMetadata(row.metadata);
   return {
     id: row.id != null ? String(row.id) : newId(),
     createdAt: row.created_at,
     content: row.content,
     isAI: row.role === 'assistant',
-    hasAnimated: row.metadata?.hasAnimated ?? true,
-    inputImageUrls: row.images,
-    audioUrl: row.audio_url,
-    thinking: row.reasoning,
-    imageDimensions: row.metadata?.imageDimensions,
-    specialMode: row.metadata?.specialMode || undefined,
-    musicVariations: row.metadata?.musicVariations || undefined,
-    mcpApproval: row.metadata?.mcpApproval || undefined,
-    status: row.metadata?.status || undefined,
-    errorCode: row.metadata?.errorCode || undefined,
-    partialContent: row.metadata?.partialContent || undefined,
+    hasAnimated: saved.hasAnimated ?? true,
+    inputImageUrls: row.images ?? undefined,
+    audioUrl: row.audio_url ?? undefined,
+    thinking: row.reasoning ?? undefined,
+    imageDimensions: saved.imageDimensions ?? undefined,
+    specialMode: saved.specialMode || undefined,
+    musicVariations: saved.musicVariations || undefined,
+    mcpApproval: saved.mcpApproval || undefined,
+    status: saved.status || undefined,
+    errorCode: saved.errorCode || undefined,
+    partialContent: saved.partialContent || undefined,
   };
 }
 
@@ -194,7 +196,7 @@ export async function getSupabaseSessions(userId: string): Promise<ChatSession[]
 }
 
 // Keep track of active saves to prevent concurrent saves for the same session ID
-const saveQueues = new Map<string, Promise<any>>();
+const saveQueues = new Map<string, Promise<string | null>>();
 
 export async function saveSupabaseSession(
   session: ChatSession,

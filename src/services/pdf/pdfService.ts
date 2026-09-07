@@ -3,9 +3,7 @@
  * Extracts all text from a PDF file so it can be sent directly to the AI model.
  */
 
-// @ts-ignore - pdfjs-dist types may not be perfectly aligned
 import * as pdfjsLib from 'pdfjs-dist';
-// @ts-ignore - Vite ?url import gives us a bundled URL to the worker file
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 // Configure PDF.js worker — use local bundled worker (Vite resolves the ?url import)
@@ -38,7 +36,7 @@ export async function extractPdfText(file: File): Promise<{ text: string; pageCo
 
     for (const item of textContent.items) {
       if ('str' in item) {
-        const currentY = (item as any).transform?.[5];
+        const currentY = item.transform?.[5];
 
         // If Y position changed significantly, it's a new line
         if (lastY !== null && currentY !== undefined && Math.abs(currentY - lastY) > 2) {

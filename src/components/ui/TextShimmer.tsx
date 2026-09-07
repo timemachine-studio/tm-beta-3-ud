@@ -21,7 +21,7 @@ export function TextShimmer({
   baseColor = '#a855f7', // Default purple
   shimmerColor = '#ffffff', // Default white
 }: TextShimmerProps) {
-  const MotionComponent = motion(Component as any);
+  const MotionComponent = motion(Component);
 
   const dynamicSpread = useMemo(() => {
     return children.length * spread;

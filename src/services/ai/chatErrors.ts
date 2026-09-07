@@ -40,6 +40,7 @@ const HTTP_STATUS_TO_CODE: Record<number, ChatErrorCode> = {
 };
 
 const API_CODE_TO_CHAT_CODE: Record<string, ChatErrorCode> = {
+  RETENTION_UNVERIFIED: 'RETENTION_UNVERIFIED',
   RATE_LIMITED: 'RATE_LIMITED',
   AUTH_REQUIRED: 'AUTH_EXPIRED',
   AUTH_EXPIRED: 'AUTH_EXPIRED',
@@ -89,6 +90,7 @@ export async function chatErrorFromResponse(response: Response): Promise<ChatErr
  * stack trace and never an upstream error body.
  */
 export const CHAT_ERROR_COPY: Record<ChatErrorCode, string> = {
+  RETENTION_UNVERIFIED: 'Background PRO is unavailable while data retention is being verified. You can use Air.',
   RATE_LIMITED: "You've used up your messages for now.",
   AUTH_EXPIRED: 'Your session expired. Sign in again to continue.',
   PROVIDER_DOWN: 'The model is having a rough moment.',
