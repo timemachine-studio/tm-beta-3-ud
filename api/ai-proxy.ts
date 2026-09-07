@@ -17,8 +17,8 @@ export const AI_PERSONAS = {
     temperature: 0.8,
     maxTokens: 27700,
     flowState: {
-      provider: 'eaon',
-      model: 'minimax-m3',
+      provider: 'pollinations',
+      model: 'nemotron-3.5-lightning',
       temperature: 0.8,
       maxTokens: 27700,
       quotaCost: 2
