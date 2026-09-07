@@ -48,8 +48,8 @@ const faqs: FAQItem[] = [
   {
     category: 'Personas',
     icon: <Globe className="w-5 h-5" />,
-    question: 'Can I talk to other AI models?',
-    answer: 'Yes! You can mention @chatgpt, @gemini, @claude, or @grok in your message to route it to those AI models. Just type @ followed by the model name at the start of your message.'
+    question: 'How do I switch persona mid-conversation?',
+    answer: 'Start your message with @girlie or @pro to route that single message to another TimeMachine persona, without changing the persona for the rest of the chat.'
   },
   {
     category: 'Features',

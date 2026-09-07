@@ -1,3 +1,5 @@
+import { supabase } from '../../lib/supabase';
+
 export interface Track {
   id: string;
   title: string;
@@ -26,8 +28,14 @@ async function fetchWithTimeout(url: string, options: any = {}, timeout = 5000) 
 
 export async function searchMusic(query: string): Promise<Track[]> {
   try {
+    // /api/search requires a verified Supabase token (production-check.md 0.1).
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken) return [];
+
     const response = await fetchWithTimeout(
-      `/api/search?q=${encodeURIComponent(query)}`
+      `/api/search?q=${encodeURIComponent(query)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     
     if (!response.ok) {

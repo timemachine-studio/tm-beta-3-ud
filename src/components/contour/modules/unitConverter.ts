@@ -116,7 +116,7 @@ const allUnitNames = [
   ...TEMP_UNITS.flatMap(u => u.names),
 ].sort((a, b) => b.length - a.length);
 
-const unitPattern = allUnitNames.map(n => n.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&')).join('|');
+const unitPattern = allUnitNames.map(n => n.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')).join('|');
 
 // Pattern: NUMBER UNIT (to|in|as|=) UNIT
 const FULL_PATTERN = new RegExp(

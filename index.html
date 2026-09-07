@@ -7,7 +7,7 @@
     <!-- Primary SEO Meta Tags -->
     <title>TimeMachine</title>
     <meta name="description" content="TimeMachine Chat is the super app that brings your tech essentials into an intelligent, safe and secured chat interface." />
-    <meta name="keywords" content="TimeMachine, TimeMachine Chat, TimeMachine AI, TimeMachine Girlie, TimeMachine PRO, TimeMachine Air, AI chat, AI personas, ChatGPT, Gemini, Claude, Grok, group chat, AI assistant" />
+    <meta name="keywords" content="TimeMachine, TimeMachine Chat, TimeMachine AI, TimeMachine Girlie, TimeMachine PRO, TimeMachine Air, AI chat, AI personas, group chat, AI assistant" />
     <meta name="author" content="TimeMachine" />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://timemachinechat.com/" />
@@ -73,7 +73,7 @@
       },
       "featureList": [
         "Multiple AI personas",
-        "ChatGPT, Gemini, Claude, Grok integration",
+        "Persona switching with @mentions",
         "Group chat with friends",
         "Image generation",
         "Music recommendations",
@@ -88,6 +88,12 @@
     </script>
 
     <!-- Fonts -->
+    <!-- Supabase auth resolves during JS parse; overlap the TLS handshake with
+         it so first paint isn't waiting on a cold connection (1.14). Vite
+         substitutes the env var at build time. -->
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin>
+    <link rel="dns-prefetch" href="%VITE_SUPABASE_URL%">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">

@@ -7,8 +7,8 @@ import { useTheme } from '../../context/ThemeContext';
 interface StageModeProps {
   messages: Message[];
   currentPersona: keyof typeof AI_PERSONAS;
-  onMessageAnimated: (messageId: number) => void;
-  streamingMessageId?: number | null;
+  onMessageAnimated: (messageId: string) => void;
+  streamingMessageId?: string | null;
   loadingPhase?: 'analyzing_photo' | 'thinking' | null;
 }
 
@@ -21,7 +21,6 @@ export function StageMode({
 }: StageModeProps) {
   const { theme } = useTheme();
   const lastMessage = messages[messages.length - 1];
-  const isShortMessage = lastMessage?.content.length < 350 && !lastMessage?.content.includes('\n');
 
   return (
     <div className={`min-h-full pt-16 pb-48flush ${theme.text}`}>

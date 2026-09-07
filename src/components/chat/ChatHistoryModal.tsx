@@ -5,11 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil, Trash2, ChevronLeft, ChevronRight, Download, Upload, Cloud, CloudOff, RefreshCw, Users } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { Message } from '../../types/chat';
-import { AI_PERSONAS } from '../../config/constants';
 import {
   ChatSession,
-  chatService,
   getLocalSessions,
   getSupabaseSessions,
   deleteSupabaseSession,
@@ -116,7 +113,7 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
       } else {
         setFeedbackMessage({ type: 'success', text: 'No local chats to migrate.' });
       }
-    } catch (error) {
+    } catch {
       setFeedbackMessage({ type: 'error', text: 'Failed to migrate chats.' });
     } finally {
       setIsSyncing(false);

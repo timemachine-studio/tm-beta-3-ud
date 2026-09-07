@@ -1,25 +1,25 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Info } from 'lucide-react';
+import type { Persona } from '../../types/chat';
 
 interface AboutUsToastProps {
   isVisible: boolean;
   onClose: () => void;
-  onClick: () => void;
-  currentPersona?: 'default' | 'girlie' | 'x';
+  currentPersona?: Persona;
 }
 
-export function AboutUsToast({ isVisible, onClose, onClick, currentPersona = 'default' }: AboutUsToastProps) {
-  const personaColors = {
+export function AboutUsToast({ isVisible, onClose, currentPersona = 'default' }: AboutUsToastProps) {
+  const personaColors: Record<Persona, string> = {
     default: 'from-purple-600/20 to-blue-600/20',
     girlie: 'from-pink-500 to-rose-400',
-    x: 'from-cyan-600/20 to-blue-600/20'
+    pro: 'from-cyan-600/20 to-blue-600/20'
   };
 
-  const personaGlowColors = {
+  const personaGlowColors: Record<Persona, string> = {
     default: 'shadow-[0_0_15px_rgba(168,85,247,0.3)]',
     girlie: 'shadow-[0_0_20px_rgba(255,0,128,0.5)]',
-    x: 'shadow-[0_0_15px_rgba(34,211,238,0.3)]'
+    pro: 'shadow-[0_0_15px_rgba(34,211,238,0.3)]'
   };
 
   const handleClick = () => {

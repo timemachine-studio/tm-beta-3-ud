@@ -77,7 +77,7 @@ function formatTick(val: number): string {
 
 const GW = 480, GH = 220;
 
-function GraphCanvas({ eq1, eq2, accent }: { eq1: string; eq2: string; accent: AccentTheme }) {
+function GraphCanvas({ eq1, eq2 }: { eq1: string; eq2: string; accent: AccentTheme }) {
   const [view, setView] = useState({ cx: 0, cy: 0, scale: 45 });
   const panRef = useRef<{ mx: number; my: number; cx: number; cy: number } | null>(null);
 
@@ -90,7 +90,7 @@ function GraphCanvas({ eq1, eq2, accent }: { eq1: string; eq2: string; accent: A
     const js = parseMathExpr(eq);
     if (!js) return null;
     try {
-      // eslint-disable-next-line no-new-func
+       
       const fn = new Function('x', `"use strict"; try { const _v=(${js}); return (typeof _v==='number'&&isFinite(_v))?_v:null; } catch(e){ return null; }`);
       return fn as (x: number) => number | null;
     } catch { return null; }
@@ -142,7 +142,7 @@ function GraphCanvas({ eq1, eq2, accent }: { eq1: string; eq2: string; accent: A
     const fn1 = buildEval(eq1);
     const fn2 = eq2.trim() ? buildEval(eq2) : null;
     return { path1: fn1 ? genPath(fn1) : '', path2: fn2 ? genPath(fn2) : '' };
-  }, [eq1, eq2, view, buildEval, genPath]);
+  }, [eq1, eq2, buildEval, genPath]);
 
   const axisX = Math.max(0, Math.min(GW, toSvgX(0)));
   const axisY = Math.max(0, Math.min(GH, toSvgY(0)));
@@ -275,7 +275,7 @@ export function GraphView({ module, accent }: { module: ModuleData; accent: Acce
     // Basic validation: try parsing
     try {
       const js = parseMathExpr(val);
-      // eslint-disable-next-line no-new-func
+       
       new Function('x', `"use strict"; return (${js || '0'})`);
       setEq2Err(false);
     } catch { setEq2Err(true); }

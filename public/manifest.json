@@ -1,7 +1,7 @@
 {
   "name": "TimeMachine Chat",
   "short_name": "TimeMachine",
-  "description": "AI-powered chat app with multiple personas — ChatGPT, Gemini, Claude, Grok, and more.",
+  "description": "AI-powered chat app with multiple TimeMachine personas — Air, Girlie and PRO.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

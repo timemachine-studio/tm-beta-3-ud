@@ -28,13 +28,16 @@ function ColorInteractive({ color, accent: _accent, onCopyValue }: { color?: Col
   }, [hex]);
 
   // Sync from textbox detection
+  const detectedRgb = color?.rgb;
+  const detectedHex = color?.hex;
   useEffect(() => {
-    if (hasInteracted || !color) return;
+    if (hasInteracted || !detectedRgb) return;
     hexSourceRef.current = 'rgb';
-    setR(color.rgb.r);
-    setG(color.rgb.g);
-    setB(color.rgb.b);
-  }, [color?.hex, hasInteracted]);
+    setR(detectedRgb.r);
+    setG(detectedRgb.g);
+    setB(detectedRgb.b);
+    // detectedHex keys the sync: a new hex is a new detection.
+  }, [detectedHex, detectedRgb, hasInteracted]);
 
   const handleRgb = (which: 'r' | 'g' | 'b', val: string) => {
     setHasInteracted(true);

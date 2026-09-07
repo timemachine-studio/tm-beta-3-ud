@@ -4,7 +4,11 @@ export const ANIMATION_CONFIG = {
   WORD_DELAY: 0.04,
   SPRING_DAMPING: 12,
   SPRING_STIFFNESS: 100,
-  FADE_DURATION: 0.6
+  FADE_DURATION: 0.6,
+  // Used by useTypewriter. Milliseconds between characters, and the GSAP
+  // per-character reveal in seconds.
+  TYPING_SPEED: 30,
+  CHAR_ANIMATION_DURATION: 0.3
 } as const;
 
 // Loading animation words with enhanced colors

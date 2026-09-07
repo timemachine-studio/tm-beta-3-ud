@@ -1,6 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://etpehiyzlkhknzceizar.supabase.co';
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+if (!supabaseUrl) {
+  // Fail fast rather than falling back to a hardcoded project URL: a stale
+  // fallback silently points production at the wrong database.
+  throw new Error('VITE_SUPABASE_URL is not set.');
+}
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const serverSupabaseKey = serviceKey || process.env.VITE_SUPABASE_ANON_KEY || 'missing-supabase-key';
 

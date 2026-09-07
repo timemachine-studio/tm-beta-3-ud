@@ -1,12 +1,11 @@
 // App Configuration
 export const MAINTENANCE_MODE = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
 export const ACCESS_TOKEN_REQUIRED = import.meta.env.VITE_ACCESS_TOKEN_REQUIRED === 'true';
-export const BETA_ACCESS_TOKEN = import.meta.env.VITE_BETA_ACCESS_TOKEN || 'WE_WILL_LET_YOU_COOK';
+// The beta gate is a client-side string comparison and is therefore cosmetic —
+// the token ships in the bundle by construction. No default: an unset env var
+// must close the gate, not open it with a well-known literal.
+export const BETA_ACCESS_TOKEN = import.meta.env.VITE_BETA_ACCESS_TOKEN || '';
 
-// API Keys
-export const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
-export const CEREBRAS_API_KEY = import.meta.env.VITE_CEREBRAS_API_KEY;
-export const NVIDIA_API_KEY = import.meta.env.VITE_NVIDIA_API_KEY || import.meta.env.VITE_NIM_API_KEY;
 
 // Rate Limits (for display purposes only - actual limits enforced server-side)
 export const PERSONA_LIMITS = {
@@ -32,31 +31,6 @@ export const AI_PERSONAS = {
     name: 'TimeMachine PRO',
     initialMessage: "From future. Let's cure cancer.",
     color: 'cyan'
-  },
-  chatgpt: {
-    name: 'ChatGPT',
-    initialMessage: "Hello!",
-    color: 'green'
-  },
-  gemini: {
-    name: 'Gemini',
-    initialMessage: "Hello!",
-    color: 'blue'
-  },
-  claude: {
-    name: 'Claude',
-    initialMessage: "Hello!",
-    color: 'orange'
-  },
-  deepseek: {
-    name: 'DeepSeek',
-    initialMessage: "Hello!",
-    color: 'indigo'
-  },
-  grok: {
-    name: 'Grok',
-    initialMessage: "Hello!",
-    color: 'gray'
   }
 };
 
@@ -78,7 +52,9 @@ export const LOADING_WORDS = [
 ] as const;
 
 export const INITIAL_MESSAGE = {
-  id: 1,
+  // Fixed id: the welcome bubble is UI furniture, not a real turn, so code
+  // that filters it out of API context can recognise it (1.12).
+  id: 'initial',
   content: AI_PERSONAS.default.initialMessage,
   isAI: true,
 };

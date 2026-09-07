@@ -67,12 +67,6 @@ export function MusicToast({
   currentPersona = 'default',
   isCenterStage = false
 }: MusicToastProps) {
-  const personaColors = {
-    default: 'from-purple-600/10 to-blue-600/10',
-    girlie: 'from-pink-500/10 to-rose-400/10',
-    x: 'from-cyan-600/10 to-blue-600/10'
-  };
-
   const iconGlowStyle = currentPersona === 'girlie' ? {
     filter: 'drop-shadow(0 0 8px rgba(255, 105, 180, 0.7))'
   } : undefined;

@@ -1,3 +1,13 @@
+import type { AI_PERSONAS } from '../config/constants';
+
+/**
+ * The one persona union. Components used to declare their own — several still
+ * said `'default' | 'girlie' | 'x'`, a persona that no longer exists — so the
+ * same value was legal in one component and a type error in the next
+ * (production-check.md 1.1).
+ */
+export type Persona = keyof typeof AI_PERSONAS;
+
 export interface ImageDimensions {
   width: number;
   height: number;
@@ -9,10 +19,49 @@ export interface MusicVariation {
   imageUrl: string;
 }
 
+// Why a turn failed. Mirrors the codes the API returns in
+// `{ error: { code, message } }` so the client never has to string-match.
+export type ChatErrorCode =
+  | 'RATE_LIMITED'
+  | 'AUTH_EXPIRED'
+  | 'PROVIDER_DOWN'
+  | 'PAYLOAD_TOO_LARGE'
+  | 'TIMEOUT'
+  | 'TRUNCATED'
+  | 'EMPTY'
+  | 'ABORTED'
+  | 'NETWORK'
+  | 'UNKNOWN';
+
+// Everything a retry needs to re-run a turn exactly as it was first sent.
+// Captured on the user message at send time so retry never has to
+// reconstruct it from current UI state (production-check.md 1.10).
+export interface RetryContext {
+  persona: string;
+  heatLevel?: number;
+  specialMode?: string;
+  flowState?: boolean;
+  imageData?: string | string[];
+  inputImageUrls?: string[];
+  imageDimensions?: ImageDimensions;
+  pdfData?: string;
+  pdfFileName?: string;
+}
+
 export interface Message {
-  id: number;
+  id: string;
+  // ISO timestamp. Ids used to double as the message's clock (they were
+  // `Date.now()`); now that they are UUIDs, ordering needs its own field.
+  createdAt?: string;
   content: string;
   isAI: boolean;
+  // Lifecycle of an assistant turn. `error` renders the inline retry row
+  // instead of a bubble (production-check.md 1.10).
+  status?: 'streaming' | 'complete' | 'error';
+  errorCode?: ChatErrorCode;
+  // Whatever did stream before the failure, kept so the user can see it.
+  partialContent?: string;
+  retryContext?: RetryContext;
   hasAnimated?: boolean;
   thinking?: string;
   rawContent?: string; // Raw content received during streaming before parsing
@@ -28,7 +77,7 @@ export interface Message {
   sender_avatar?: string;
   // Reply functionality
   replyTo?: {
-    id: number;
+    id: string;
     content: string;
     sender_nickname?: string;
     isAI: boolean;
@@ -49,7 +98,7 @@ export interface ChatState {
 }
 
 export interface ReplyToData {
-  id: number;
+  id: string;
   content: string;
   sender_nickname?: string;
   isAI: boolean;

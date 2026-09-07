@@ -8,7 +8,14 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  /**
+   * True only until the session is known. Auth is progressive enhancement:
+   * nothing but genuinely user-specific UI should gate on this, and nothing
+   * at all should gate on the profile (production-check.md 1.14).
+   */
   loading: boolean;
+  /** The slow half — gates avatar/nickname UI, never the app shell. */
+  profileLoading: boolean;
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
@@ -39,7 +46,40 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-const AUTH_INIT_TIMEOUT_MS = 8000;
+// Eight seconds of blank screen was never the right answer. If the profile is
+// slow the app renders without it (1.14).
+const AUTH_INIT_TIMEOUT_MS = 3000;
+
+/**
+ * Supabase already persists the session in localStorage. Reading it
+ * synchronously on mount means we know optimistically whether someone is
+ * signed in with no network round trip at all, so the signed-in shell renders
+ * on the first frame and reconciles when getSession() confirms.
+ *
+ * Display only. Nothing is authorised on the strength of this — every request
+ * still goes through supabase.auth.getSession(), which validates and refreshes.
+ */
+function readCachedUser(): User | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (!key || !key.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.user?.id) continue;
+      // An expired token is not a signed-in user. Without this check a stale
+      // entry paints the signed-in shell for someone who has no session.
+      const expiresAt = Number(parsed.expires_at);
+      if (Number.isFinite(expiresAt) && expiresAt * 1000 <= Date.now()) continue;
+      return parsed.user as User;
+    }
+  } catch {
+    // A corrupt or unreadable cache just means we wait for getSession().
+  }
+  return null;
+}
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -59,10 +99,14 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const cachedUser = useRef<User | null>(readCachedUser()).current;
+  const [user, setUser] = useState<User | null>(cachedUser);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Resolved the moment we have a cached session to render from; getSession()
+  // reconciles in the background.
+  const [loading, setLoading] = useState(!cachedUser);
+  const [profileLoading, setProfileLoading] = useState(Boolean(cachedUser));
 
   // Check if user needs onboarding (has profile but no nickname)
   const needsOnboarding = !!user && !!profile && !profile.nickname;
@@ -153,22 +197,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           currentUserIdRef.current = initialSession.user.id;
           setSession(initialSession);
           setUser(initialSession.user);
-          const userProfile = await withTimeout(
-            fetchProfile(initialSession.user.id),
-            AUTH_INIT_TIMEOUT_MS,
-            'Supabase profile fetch'
-          );
-          if (mounted) {
-            setProfile(userProfile);
+        } else if (cachedUser) {
+          // The optimistic guess was wrong (signed out elsewhere, expired
+          // refresh token). Reconcile rather than leaving a phantom user.
+          setUser(null);
+        }
+
+        // The session is settled: release the app *before* fetching the
+        // profile, which is a second round trip nothing structural needs.
+        if (mounted) setLoading(false);
+
+        if (initialSession?.user) {
+          try {
+            const userProfile = await withTimeout(
+              fetchProfile(initialSession.user.id),
+              AUTH_INIT_TIMEOUT_MS,
+              'Supabase profile fetch'
+            );
+            if (mounted) setProfile(userProfile);
+          } catch (profileError) {
+            // A slow or failed profile fetch degrades the nickname and avatar,
+            // never the app.
+            console.error('Profile fetch failed:', profileError);
           }
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
+        // getSession() timed out or threw, so the optimistic user was never
+        // confirmed. Fail closed to the signed-out shell rather than leaving a
+        // phantom signed-in state whose every write will 401.
+        if (mounted && cachedUser) {
+          setUser(null);
+          setSession(null);
+        }
       } finally {
         if (mounted) {
           initializedRef.current = true;
           initializingRef.current = false;
           setLoading(false);
+          setProfileLoading(false);
         }
       }
     };
@@ -199,6 +266,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setSession(null);
           setUser(null);
           setProfile(null);
+          setProfileLoading(false);
           return;
         }
 
@@ -212,11 +280,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           }
 
-          // New user signing in
+          // New user signing in. The session is already known here, so only
+          // profile-dependent UI waits — the app itself never does (1.14).
           currentUserIdRef.current = newSession.user.id;
-          setLoading(true);
           setSession(newSession);
           setUser(newSession.user);
+          setProfileLoading(true);
 
           try {
             const userProfile = await withTimeout(
@@ -231,7 +300,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.error('Error fetching profile on sign in:', error);
           } finally {
             if (mounted) {
-              setLoading(false);
+              setProfileLoading(false);
             }
           }
         }
@@ -243,7 +312,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       initializingRef.current = false;
       subscription.unsubscribe();
     };
-  }, [fetchProfile]);
+  }, [fetchProfile, cachedUser]);
 
   // Sign up with email
   const signUp = async (email: string, password: string) => {
@@ -400,6 +469,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     session,
     profile,
     loading,
+    profileLoading,
     signUp,
     signIn,
     signOut,

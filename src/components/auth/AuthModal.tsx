@@ -152,7 +152,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           }
         }
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -538,6 +538,48 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             </button>
                           </>
                         )}
+                      </p>
+                    )}
+
+                    {/* Legal notice — required on the signup form (production-check.md 0.8) */}
+                    {step === 'credentials' && mode === 'signup' && (
+                      <p className="text-center text-white/30 text-xs mt-4 leading-relaxed">
+                        By creating an account you agree to our{' '}
+                        <a
+                          href="/terms"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-white/50 hover:text-white/80 underline underline-offset-2 transition-colors"
+                        >
+                          Terms of Service
+                        </a>{' '}
+                        and{' '}
+                        <a
+                          href="/privacy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-white/50 hover:text-white/80 underline underline-offset-2 transition-colors"
+                        >
+                          Privacy Policy
+                        </a>
+                        .
+                      </p>
+                    )}
+
+                    {/*
+                      ⚠ LAUNCH BLOCKER — production-check.md LS.3.
+                      This claim is NOT true yet. ChatService.saveSession routes
+                      signed-in users to saveSupabaseSession, so a new account's
+                      chats go to Supabase, not to their device. The owner asked
+                      for this wording on 2026-08-26 on the basis that Gate LS
+                      will make it true before production. Until local-only
+                      storage actually ships, this is a false privacy
+                      representation shown at account creation — either land
+                      Gate LS or change this line before going live.
+                    */}
+                    {step === 'credentials' && mode === 'signup' && (
+                      <p className="text-center text-white/30 text-xs mt-2 leading-relaxed">
+                        Your chats are stored safely in your device only.
                       </p>
                     )}
                   </div>

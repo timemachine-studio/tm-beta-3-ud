@@ -14,6 +14,14 @@ export default defineConfig(({ mode }) => {
     );
   }
 
+  // Vite's loadEnv() does NOT populate process.env. The dev-only serverless
+  // middleware below executes api/*.ts handlers in-process, and those handlers
+  // read secrets from process.env (as they do on Vercel). Without this bridge
+  // every /api/* route crashes locally with "supabaseKey is required".
+  for (const [key, value] of Object.entries(env)) {
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+
   return {
     plugins: [
       react(),
@@ -98,7 +106,9 @@ export default defineConfig(({ mode }) => {
                 console.error(`Error executing API handler for ${urlObj.pathname}:`, err);
                 res.statusCode = 500;
                 res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ error: 'Internal Server Error', details: String(err) }));
+                // Never return the exception text: it is a stack trace and
+                // whatever the handler was holding (production-check.md 1.7).
+                res.end(JSON.stringify({ error: { code: 'UNKNOWN', message: 'Internal Server Error' } }));
                 return;
               }
             }

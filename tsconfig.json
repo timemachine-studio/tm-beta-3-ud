@@ -41,7 +41,9 @@
   },
   "include": [
     "src",
-    "src/pages/api"
+    "src/pages/api",
+    "api",
+    "trigger"
   ],
   "exclude": [
     "node_modules",

@@ -1,12 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getAuthenticatedRequestUser } from './_lib/auth.js';
+import { applyCors, hasAcceptableOrigin, isSameOriginSubresource } from './_lib/cors.js';
+import { apiErrorBody } from './_lib/errors.js';
+import { musicCoverQuerySchema, parseOrReject } from './_lib/validation.js';
 
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || '';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Handle CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  applyCors(req, res, 'GET, OPTIONS');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -16,24 +17,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  try {
-    const { prompt, width = '1024', height = '1024', seed } = req.query;
+  if (!hasAcceptableOrigin(req)) {
+    return res.status(403).json({ error: 'Origin not allowed' });
+  }
 
-    if (!prompt || typeof prompt !== 'string') {
-      return res.status(400).json({ error: 'Missing or invalid prompt parameter' });
-    }
+  // These URLs are loaded as <img src> / <audio src>, so they cannot carry an
+  // Authorization header. The gate is the browser's own fetch metadata plus the
+  // origin allowlist — see isSameOriginSubresource. A bearer token is still
+  // accepted for non-browser callers we control.
+  const bearer = await getAuthenticatedRequestUser(req);
+  if (!bearer && !isSameOriginSubresource(req)) {
+    return res.status(401).json({ error: 'Not authorized' });
+  }
+
+  try {
+    const parsed = parseOrReject(res, musicCoverQuerySchema, {
+      prompt: req.query.prompt,
+      width: req.query.width,
+      height: req.query.height,
+      seed: req.query.seed,
+    });
+    if (!parsed) return;
+    const { prompt, width, height, seed } = parsed;
 
     const url = new URL(`https://gen.pollinations.ai/api/generate/image/${encodeURIComponent(prompt)}`);
 
     // Add common parameters for cover
     url.searchParams.set('model', 'gptimage');
     url.searchParams.set('nologo', 'true');
-    url.searchParams.set('width', typeof width === 'string' ? width : '1024');
-    url.searchParams.set('height', typeof height === 'string' ? height : '1024');
+    url.searchParams.set('width', String(width));
+    url.searchParams.set('height', String(height));
     url.searchParams.set('key', POLLINATIONS_API_KEY);
 
-    if (seed && typeof seed === 'string') {
-      url.searchParams.set('seed', seed);
+    if (seed !== undefined) {
+      url.searchParams.set('seed', String(seed));
     }
 
     const debugUrl = url.toString().replace(/key=[^&]+/, 'key=***');
@@ -49,11 +66,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!imageResponse.ok) {
       const errorText = await imageResponse.text().catch(() => '');
-      return res.status(502).json({
-        error: 'Failed to generate cover image',
-        pollinationsStatus: imageResponse.status,
-        pollinationsError: errorText,
-      });
+      // The upstream status and body stay in the server log. Returning them
+      // leaked provider internals to the browser (production-check.md 1.7).
+        console.error('Pollinations error:', errorText.slice(0, 500));
+        return res.status(502).json(
+          apiErrorBody('PROVIDER_DOWN', 'Failed to generate cover image')
+        );
     }
 
     const imageBuffer = await imageResponse.arrayBuffer();

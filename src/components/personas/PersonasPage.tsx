@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Zap, Heart, Brain, MessageSquare, Sparkles } from 'lucide-react';
+import { ArrowLeft, Zap, Heart, Brain } from 'lucide-react';
 
 const fadeUp = {
   initial: { opacity: 0, y: 30 },
@@ -153,55 +153,6 @@ export function PersonasPage() {
           </div>
         </motion.section>
 
-        {/* @Mention Models */}
-        <motion.section {...fadeUp} transition={{ delay: 0.3 }}>
-          <div className="text-center mb-10">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Plus, talk to any model</h2>
-            <p className="text-white/40 text-base max-w-xl mx-auto">
-              Use @mentions to chat with world-class AI models directly inside TimeMachine. No switching apps. No extra accounts.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {[
-              { name: 'ChatGPT', mention: '@chatgpt', color: '#10a37f' },
-              { name: 'Gemini', mention: '@gemini', color: '#4285f4' },
-              { name: 'Claude', mention: '@claude', color: '#f97316' },
-              { name: 'Grok', mention: '@grok', color: '#9ca3af' },
-              { name: 'DeepSeek', mention: '@deepseek', color: '#6366f1' },
-            ].map((model) => (
-              <motion.div
-                key={model.name}
-                whileHover={{ scale: 1.03, y: -2 }}
-                className="rounded-2xl p-5 text-center"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                }}
-              >
-                <div
-                  className="w-8 h-8 rounded-lg mx-auto mb-3 flex items-center justify-center"
-                  style={{ background: `${model.color}20` }}
-                >
-                  <MessageSquare className="w-4 h-4" style={{ color: model.color }} />
-                </div>
-                <h3 className="text-white font-semibold text-sm mb-1">{model.name}</h3>
-                <p className="text-white/30 text-xs font-mono">{model.mention}</p>
-              </motion.div>
-            ))}
-            <motion.div
-              whileHover={{ scale: 1.03, y: -2 }}
-              className="rounded-2xl p-5 text-center flex flex-col items-center justify-center"
-              style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px dashed rgba(255,255,255,0.1)',
-              }}
-            >
-              <Sparkles className="w-5 h-5 text-white/20 mb-2" />
-              <p className="text-white/30 text-xs">More coming soon</p>
-            </motion.div>
-          </div>
-        </motion.section>
 
         {/* CTA */}
         <motion.div {...fadeUp} transition={{ delay: 0.35 }} className="text-center mt-16">

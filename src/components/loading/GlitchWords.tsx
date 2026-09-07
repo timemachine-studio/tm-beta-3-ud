@@ -55,10 +55,7 @@ export function GlitchWords() {
         <motion.div
           key={word.text}
           initial={{ opacity: 0, y: 20 }}
-          animate={[
-            { opacity: 1, y: 0 },
-            { x: [-2, 2, -2, 2, 0], transition: { duration: 0.2 } }
-          ]}
+          animate={{ opacity: 1, y: 0, x: [-2, 2, -2, 2, 0] }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.15 }}
           className={`text-6xl font-bold ${word.color} relative`}

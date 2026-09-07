@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { ArrowRight, FileText, HeartPulse, Coffee, ChefHat, Shirt, ShoppingCart, Calendar, Home } from 'lucide-react';
 import { ModuleData } from '../moduleRegistry';
 

@@ -41,7 +41,6 @@ const AnimatedShinyText = React.forwardRef<HTMLDivElement, AnimatedTextProps>(
         >
           <TextShimmer
             className={`font-medium ${textClassName || ''}`}
-            style={{ fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif' }}
             duration={gradientAnimationDuration / 3}
             baseColor={baseColor}
             shimmerColor={shimmerColor}

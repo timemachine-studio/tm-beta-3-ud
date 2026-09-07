@@ -210,7 +210,7 @@ After: "Strategic negotiations and global partnerships"
 
 **Emojis in professional content.** AI decorates headings or bullet points with emojis. Remove them.
 
-**Curly quotation marks.** ChatGPT uses curly quotes ("...") instead of straight quotes ("..."). Use straight quotes.
+**Curly quotation marks.** AI writing tools tend to emit curly quotes ("...") instead of straight quotes ("..."). Use straight quotes.
 
 ---
 

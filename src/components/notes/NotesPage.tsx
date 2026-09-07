@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { sendNotesAIRequest } from '../../services/ai/notesAiService';
+import { renderInline } from './renderInline';
 
 // ─── types ──────────────────────────────────────────────────────────
 
@@ -72,7 +73,7 @@ interface Block {
   height?: number;
 }
 
-type NoteTheme = 'purple' | 'blue' | 'green' | 'pink' | 'orange' | 'red' | 'cyan' | 'yellow' | 'brown';
+type NoteTheme = 'purple' | 'blue' | 'green' | 'pink' | 'orange' | 'red' | 'cyan' | 'yellow';
 
 interface Note {
   id: string;
@@ -237,15 +238,6 @@ const NOTE_THEMES: NoteThemeConfig[] = [
     editorGlow: '0 0 80px rgba(234,179,8,0.08)',
     textAccent: 'text-yellow-400',
   },
-  // Brown
-  {
-    key: 'brown', label: 'Brown', dot: 'bg-brown-600', rgb: '132, 91, 47',
-    checkBg: 'bg-brown-600', checkBorder: 'border-brown-400',
-    quoteBorder: 'border-brown-400/50', calloutBg: 'bg-brown-600/10', calloutBorder: 'border-brown-600/20',
-    editorGradient: 'linear-gradient(180deg, rgba(132,91,47,0.06) 0%, rgba(132,91,47,0.02) 40%, transparent 100%)',
-    editorGlow: '0 0 80px rgba(132,91,47,0.08)',
-    textAccent: 'text-amber-400',
-  },
 ];
 
 function getNoteTheme(key?: NoteTheme) {
@@ -312,6 +304,9 @@ function DoodleBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCon
       };
       img.src = block.content;
     }
+    // Mount-only restore: initialContent is captured once, so later edits to
+    // block.content do not redraw over the user's strokes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Close menus on outside click
@@ -614,7 +609,7 @@ function ImageBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCont
       };
       img.src = block.content;
     }
-  }, [block.content]);
+  }, [block.content, block.width]);
 
   const handleFile = (file: File) => {
     if (!file.type.startsWith('image/')) return;
@@ -760,19 +755,6 @@ function ImageBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCont
   );
 }
 
-// ─── inline markdown renderer ────────────────────────────────────────
-
-function renderInline(text: string): string {
-  return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\*\*(.+?)\*\*/gs, '<strong>$1</strong>')
-    .replace(/\*([^*\n]+?)\*/gs, '<em>$1</em>')
-    .replace(/__(.+?)__/gs, '<u>$1</u>')
-    .replace(/\[color:([^\]]+)\](.*?)\[\/color\]/gs, '<span style="color:$1">$2</span>')
-    .replace(/\[bg:([^\]]+)\](.*?)\[\/bg\]/gs, '<span style="background-color:$1;border-radius:3px;padding:0 2px">$2</span>')
-    .replace(/\n/g, '<br>');
-}
-
 // ─── graph block ─────────────────────────────────────────────────────
 
 // Convert natural math notation to JS-evaluable expression
@@ -873,7 +855,7 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
     const js = parseMathExpr(eq);
     if (!js) return null;
     try {
-      // eslint-disable-next-line no-new-func
+       
       const fn = new Function('x', `"use strict"; try { const _v=(${js}); return (typeof _v==='number'&&isFinite(_v))?_v:null; } catch(e){return null;}`);
       return fn as (x: number) => number | null;
     } catch { return null; }
@@ -945,7 +927,7 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
       path1: fn1 ? genPath(fn1) : '',
       path2: fn2 ? genPath(fn2) : '',
     };
-  }, [eq1, eq2, view, buildEval, genPath]);
+  }, [eq1, eq2, buildEval, genPath]);
 
   // Pan
   const onSvgMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -2013,13 +1995,16 @@ export function NotesPage() {
   // Persist notes
   useEffect(() => { saveNotes(notes); }, [notes]);
 
-  // Auto-select first or create one
+  // Auto-select first or create one. Mount-only on purpose: with the real
+  // dependencies this would re-run on every notes change and keep creating
+  // notes.
   useEffect(() => {
     if (notes.length === 0) {
       handleNewNote();
     } else if (!activeNoteId) {
       setActiveNoteId(notes[0].id);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleNewNote = useCallback(() => {
@@ -2311,7 +2296,9 @@ export function NotesPage() {
 
   const hasPendingAI = pendingEdits.length > 0 || pendingNewBlocks.length > 0;
 
-  // Load initial note from localStorage if coming from home page
+  // Load initial note from localStorage if coming from home page. Mount-only:
+  // the handoff is consumed once, and re-running it would resurrect a note the
+  // user has since edited or deleted.
   useEffect(() => {
     const draft = localStorage.getItem('tm-notes-draft');
     if (draft) {
@@ -2336,6 +2323,7 @@ export function NotesPage() {
         setActiveNoteId(note.id);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

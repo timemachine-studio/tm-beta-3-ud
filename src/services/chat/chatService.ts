@@ -1,6 +1,8 @@
 import { supabase } from '../../lib/supabase';
 import { Message } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
+import { newId } from '../../utils/id';
+import type { Json } from '../../types/database';
 
 export interface ChatSession {
   id: string;
@@ -11,6 +13,13 @@ export interface ChatSession {
   heat_level?: number;
   createdAt: string;
   lastModified: string;
+}
+
+// A message worth persisting: it has content, or it is a failed turn whose
+// retry row should still be there when the chat is reopened (1.10/1.13).
+// Everything else is a streaming placeholder.
+function isPersistable(message: Message): boolean {
+  return Boolean((message.content && message.content.trim() !== '') || message.status === 'error');
 }
 
 // Convert database row to ChatSession
@@ -34,7 +43,8 @@ function messageToDbRow(message: Message, sessionId: string, userId: string) {
     user_id: userId,
     role: message.isAI ? 'assistant' : 'user',
     content: message.content,
-    images: message.inputImageUrls || (message.imageData ? [message.imageData] : null),
+    images: message.inputImageUrls
+      || (message.imageData ? (Array.isArray(message.imageData) ? message.imageData : [message.imageData]) : null),
     audio_url: message.audioUrl || null,
     reasoning: message.thinking || null,
     metadata: {
@@ -43,15 +53,23 @@ function messageToDbRow(message: Message, sessionId: string, userId: string) {
       specialMode: message.specialMode || null,
       musicVariations: message.musicVariations || null,
       mcpApproval: message.mcpApproval || null,
-    },
-    created_at: new Date(message.id).toISOString(),
+      // A failed turn has to come back as a failed turn, or reopening the chat
+      // shows a blank bubble where the Retry row was (1.10).
+      status: message.status || null,
+      errorCode: message.errorCode || null,
+      partialContent: message.partialContent || null,
+    } as unknown as Json,
+    // Ordering is by created_at, and ids are no longer timestamps (1.12),
+    // so the message has to carry its own clock.
+    created_at: message.createdAt || new Date().toISOString(),
   };
 }
 
 // Convert database row to Message
 function dbRowToMessage(row: any): Message {
   return {
-    id: new Date(row.created_at).getTime(),
+    id: row.id != null ? String(row.id) : newId(),
+    createdAt: row.created_at,
     content: row.content,
     isAI: row.role === 'assistant',
     hasAnimated: row.metadata?.hasAnimated ?? true,
@@ -62,6 +80,9 @@ function dbRowToMessage(row: any): Message {
     specialMode: row.metadata?.specialMode || undefined,
     musicVariations: row.metadata?.musicVariations || undefined,
     mcpApproval: row.metadata?.mcpApproval || undefined,
+    status: row.metadata?.status || undefined,
+    errorCode: row.metadata?.errorCode || undefined,
+    partialContent: row.metadata?.partialContent || undefined,
   };
 }
 
@@ -69,9 +90,28 @@ function dbRowToMessage(row: any): Message {
 // LOCAL STORAGE FUNCTIONS (for anonymous users)
 // ============================================
 
+// Migration shim for sessions written before 1.12, whose message ids are
+// numeric timestamps. Numbers become strings and the old id survives as the
+// message's createdAt, so restored history keeps its ordering.
+function normalizeStoredSession(session: ChatSession): ChatSession {
+  const messages = (session.messages || []).map((message) => {
+    const rawId = message.id as unknown;
+    if (typeof rawId === 'number') {
+      return {
+        ...message,
+        id: String(rawId),
+        createdAt: message.createdAt || new Date(rawId).toISOString(),
+      };
+    }
+    return typeof rawId === 'string' && rawId ? message : { ...message, id: newId() };
+  });
+  return { ...session, messages };
+}
+
 export function getLocalSessions(): ChatSession[] {
   try {
-    return JSON.parse(localStorage.getItem('chatSessions') || '[]');
+    const parsed = JSON.parse(localStorage.getItem('chatSessions') || '[]');
+    return Array.isArray(parsed) ? parsed.map(normalizeStoredSession) : [];
   } catch {
     return [];
   }
@@ -82,10 +122,9 @@ export function saveLocalSession(session: ChatSession): void {
     const sessions = getLocalSessions();
     const existingIndex = sessions.findIndex(s => s.id === session.id);
 
-    // Filter out messages with empty content (streaming placeholders)
     const sessionToSave: ChatSession = {
       ...session,
-      messages: session.messages.filter(msg => msg.content && msg.content.trim() !== '')
+      messages: session.messages.filter(isPersistable)
     };
 
     // Don't save sessions with no valid messages
@@ -192,8 +231,7 @@ export async function saveSupabaseSession(
 
       const activeSessionId = savedSession?.id || session.id;
 
-      // Filter out messages with empty content (streaming placeholders)
-      const validMessages = session.messages.filter(msg => msg.content && msg.content.trim() !== '');
+      const validMessages = session.messages.filter(isPersistable);
 
       if (validMessages.length === 0) {
         return activeSessionId;

@@ -58,12 +58,14 @@ function loadYouTubeAPI(): Promise<void> {
 
 export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }: YouTubePlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  // Read inside the init effect without making it a dependency: adding it
+  // there would rebuild the player on every play/pause.
+  const isPlayingRef = useRef(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
-  const playerContainerRef = useRef<HTMLDivElement>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastVideoIdRef = useRef<string | null>(null);
 
@@ -95,7 +97,7 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
     if (!musicData) return;
 
     // Skip if same video is already playing
-    if (lastVideoIdRef.current === musicData.videoId && playerInstance && isPlaying) {
+    if (lastVideoIdRef.current === musicData.videoId && playerInstance && isPlayingRef.current) {
       return;
     }
 
@@ -106,7 +108,7 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
       if (playerInstance) {
         try {
           playerInstance.destroy();
-        } catch (e) {
+        } catch {
           // Ignore errors during cleanup
         }
         playerInstance = null;
@@ -140,7 +142,7 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
             setDuration(event.target.getDuration());
 
             // Try to play with sound first
-            const playPromise = event.target.playVideo();
+            event.target.playVideo();
 
             // Check if play was successful after a short delay
             setTimeout(() => {
@@ -194,7 +196,9 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
         clearInterval(progressIntervalRef.current);
       }
     };
-  }, [musicData?.videoId, musicData]);
+  }, [musicData]);
+
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
 
   // Update progress bar
   useEffect(() => {
@@ -203,7 +207,7 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
         try {
           const time = playerInstance?.getCurrentTime() || 0;
           setCurrentTime(time);
-        } catch (e) {
+        } catch {
           // Player might not be ready
         }
       }, 1000);
@@ -277,7 +281,7 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
       try {
         playerInstance.stopVideo();
         playerInstance.destroy();
-      } catch (e) {
+      } catch {
         // Ignore errors during cleanup
       }
       playerInstance = null;

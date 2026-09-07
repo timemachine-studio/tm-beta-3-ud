@@ -1,31 +1,33 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Tv, MessageSquare } from 'lucide-react';
-import { AI_PERSONAS } from '../../config/constants';
+import type { Persona } from '../../types/chat';
 
 interface ShiftModeProps {
   isChatMode: boolean;
   onToggle: () => void;
-  currentPersona?: keyof typeof AI_PERSONAS;
+  currentPersona?: Persona;
 }
 
-const personaGlowColors = {
+// Keyed by Persona, so a persona that is added or removed breaks here loudly.
+// The third key used to be 'x', which has not existed since 0.9.
+const personaGlowColors: Record<Persona, string> = {
   default: 'rgba(168,85,247,0.3)',
   girlie: 'rgba(255,0,128,0.5)',
-  x: 'rgba(34,211,238,0.3)'
-} as const;
+  pro: 'rgba(34,211,238,0.3)'
+};
 
-const personaBorderColors = {
+const personaBorderColors: Record<Persona, string> = {
   default: 'from-purple-600/20 to-blue-600/20',
   girlie: 'from-pink-500 to-rose-400',
-  x: 'from-cyan-600/20 to-blue-600/20'
-} as const;
+  pro: 'from-cyan-600/20 to-blue-600/20'
+};
 
-const personaHoverGlow = {
+const personaHoverGlow: Record<Persona, string> = {
   default: 'hover:shadow-[0_0_25px_rgba(168,85,247,0.3)]',
   girlie: 'hover:shadow-[0_0_25px_rgba(255,0,128,0.7)]',
-  x: 'hover:shadow-[0_0_25px_rgba(34,211,238,0.3)]'
-} as const;
+  pro: 'hover:shadow-[0_0_25px_rgba(34,211,238,0.3)]'
+};
 
 export function ShiftMode({ isChatMode, onToggle, currentPersona = 'default' }: ShiftModeProps) {
   return (

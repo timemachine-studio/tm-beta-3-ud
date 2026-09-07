@@ -84,7 +84,7 @@ export async function createGroupChat(
     const shareId = generateShareId();
 
     // Create group chat record
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('group_chats')
       .insert({
         id: shareId,
@@ -218,22 +218,25 @@ export async function getGroupChat(chatId: string): Promise<GroupChat | null> {
         id: p.id,
         user_id: p.user_id,
         nickname: p.nickname,
-        avatar_url: p.avatar_url,
+        avatar_url: p.avatar_url ?? undefined,
         joined_at: p.joined_at,
         is_owner: p.is_owner,
       })),
       messages: (messages || []).map(m => ({
-        id: new Date(m.created_at).getTime(),
+        // The row id, not a timestamp: reactions are written back by id, and
+        // two messages can share a created_at to the millisecond.
+        id: String(m.id),
+        createdAt: m.created_at,
         content: m.content,
         isAI: m.role === 'assistant',
-        hasAnimated: true,
-        sender_id: m.sender_id,
-        sender_nickname: m.sender_nickname,
-        sender_avatar: m.sender_avatar,
-        inputImageUrls: m.images,
-        audioUrl: m.audio_url,
-        thinking: m.reasoning,
-        reactions: m.reactions || {},
+        hasAnimated: true as boolean,
+        sender_id: m.sender_id ?? undefined,
+        sender_nickname: m.sender_nickname ?? undefined,
+        sender_avatar: m.sender_avatar ?? undefined,
+        inputImageUrls: m.images ?? undefined,
+        audioUrl: m.audio_url ?? undefined,
+        thinking: m.reasoning ?? undefined,
+        reactions: (m.reactions as Record<string, string[]> | null) || {},
       })),
     };
   } catch (error) {
@@ -388,7 +391,7 @@ export async function updateGroupName(chatId: string, userId: string, newName: s
 
 // Toggle reaction on a message
 export async function toggleMessageReaction(
-  messageId: number,
+  messageId: string,
   emoji: string,
   userId: string
 ): Promise<Record<string, string[]> | null> {
@@ -406,7 +409,7 @@ export async function toggleMessageReaction(
     }
 
     // Parse current reactions (default to empty object)
-    const reactions: Record<string, string[]> = message?.reactions || {};
+    const reactions = (message?.reactions as Record<string, string[]> | null) || {};
 
     // Toggle the reaction
     if (reactions[emoji]) {
@@ -482,7 +485,7 @@ export async function getGroupChatMusic(
       .single();
 
     if (error || !data) return null;
-    return data.current_music;
+    return data.current_music as { videoId: string; title: string; artist?: string } | null;
   } catch (error) {
     console.error('Failed to get group music:', error);
     return null;
@@ -531,7 +534,7 @@ export function subscribeToGroupChat(
   chatId: string,
   onMessage: (message: GroupChatMessage) => void,
   onParticipantJoin: (participant: GroupChatParticipant) => void,
-  onReactionUpdate?: (messageId: number, reactions: Record<string, string[]>) => void
+  onReactionUpdate?: (messageId: string, reactions: Record<string, string[]>) => void
 ) {
   // Generate unique channel names to prevent channel sharing issues
   const subscriptionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -550,7 +553,8 @@ export function subscribeToGroupChat(
       (payload) => {
         const m = payload.new as any;
         onMessage({
-          id: new Date(m.created_at).getTime(),
+          id: String(m.id),
+          createdAt: m.created_at,
           content: m.content,
           isAI: m.role === 'assistant',
           hasAnimated: false,
@@ -586,8 +590,8 @@ export function subscribeToGroupChat(
       (payload) => {
         const m = payload.new as any;
         if (onReactionUpdate && m.reactions !== undefined) {
-          // Use the same ID format as when messages are created
-          const messageId = new Date(m.created_at).getTime();
+          // Same identity the messages were loaded under: the row id.
+          const messageId = String(m.id);
           console.log('[GroupChat] Reaction update received:', messageId, m.reactions);
           onReactionUpdate(messageId, m.reactions || {});
         }

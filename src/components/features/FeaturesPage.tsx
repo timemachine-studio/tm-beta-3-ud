@@ -163,7 +163,7 @@ export function FeaturesPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
               {[
                 { icon: <Palette className="w-4 h-4 text-purple-400" />, text: 'Seasonal themes, dark mode, light mode, monochrome' },
-                { icon: <Globe className="w-4 h-4 text-blue-400" />, text: 'Access ChatGPT, Gemini, Claude, Grok with @mentions' },
+                { icon: <Globe className="w-4 h-4 text-blue-400" />, text: 'Switch persona mid-conversation with @mentions' },
                 { icon: <Wrench className="w-4 h-4 text-emerald-400" />, text: 'Web coding mode for developers' },
                 { icon: <Sparkles className="w-4 h-4 text-amber-400" />, text: 'Music composition and creative writing' },
                 { icon: <Image className="w-4 h-4 text-pink-400" />, text: 'Personal album for all generated and uploaded images' },

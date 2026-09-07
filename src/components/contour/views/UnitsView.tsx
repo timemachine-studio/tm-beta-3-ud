@@ -50,20 +50,24 @@ function UnitsInteractive({ units, accent, onCopyValue }: { units?: UnitResult; 
     setResult(convertDirect(num, fromUnitLabel, toUnitLabel));
   }, [inputValue, fromUnitLabel, toUnitLabel]);
 
+  const detectedFromLabel = units?.fromLabel;
+  const detectedToLabel = units?.toLabel;
+  const detectedValue = units?.fromValue;
+  const detectedPartial = units?.isPartial;
   useEffect(() => {
-    if (hasInteracted || !units || units.isPartial) return;
+    if (hasInteracted || !detectedFromLabel || detectedPartial) return;
     for (const cat of UNIT_CATEGORIES) {
-      const from = cat.units.find(u => u.label === units.fromLabel);
-      const to = cat.units.find(u => u.label === units.toLabel);
+      const from = cat.units.find(u => u.label === detectedFromLabel);
+      const to = cat.units.find(u => u.label === detectedToLabel);
       if (from && to) {
         setCategoryId(cat.id);
         setFromUnitLabel(from.label);
         setToUnitLabel(to.label);
-        setInputValue(String(units.fromValue));
+        setInputValue(String(detectedValue));
         break;
       }
     }
-  }, [units?.fromLabel, units?.toLabel, units?.fromValue, units?.isPartial, hasInteracted]);
+  }, [detectedFromLabel, detectedToLabel, detectedValue, detectedPartial, hasInteracted]);
 
   const handleCategoryChange = (catId: string) => {
     setHasInteracted(true);

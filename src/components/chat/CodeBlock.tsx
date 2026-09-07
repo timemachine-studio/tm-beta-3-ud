@@ -131,10 +131,16 @@ export function CodeBlock({ language, code, themeText, isComplete = true }: Code
         <div className="flex-1 min-h-0 relative">
           {isHtml && activeTab === 'preview' ? (
             <div className="w-full h-full bg-white relative">
+              {/*
+                No allow-same-origin: combined with allow-scripts it voids the
+                sandbox entirely, leaving the framed document on our origin —
+                where it can read the Supabase session out of localStorage.
+                See production-check.md 0.6.
+              */}
               <iframe
                 srcDoc={code}
                 title="HTML Preview Inline"
-                sandbox="allow-scripts allow-modals allow-forms allow-same-origin"
+                sandbox="allow-scripts allow-modals allow-forms"
                 className="w-full h-full border-0"
               />
             </div>

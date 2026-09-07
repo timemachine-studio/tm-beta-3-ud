@@ -4,6 +4,7 @@ import { lightTheme } from '../themes/light';
 import { seasonThemes } from '../themes/seasons';
 import { supabase } from '../lib/supabase';
 import type { Theme } from '../types/theme';
+import type { Json } from '../types/database';
 
 type ThemeMode = 'dark' | 'light' | 'monochrome';
 type SeasonTheme = keyof typeof seasonThemes;
@@ -61,7 +62,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (!error && data?.default_theme) {
-        const userTheme = data.default_theme as DefaultThemeType;
+        const userTheme = data.default_theme as unknown as DefaultThemeType;
         if (userTheme.mode && userTheme.season) {
           setDefaultTheme(userTheme);
           setMode(userTheme.mode);
@@ -155,7 +156,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       try {
         await supabase
           .from('profiles')
-          .update({ default_theme: newDefaultTheme })
+          .update({ default_theme: newDefaultTheme as unknown as Json })
           .eq('id', currentUserId);
       } catch (err) {
         console.error('Error saving default theme to Supabase:', err);

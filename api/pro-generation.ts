@@ -2,19 +2,24 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { tasks } from '@trigger.dev/sdk';
 import {
   AI_PERSONAS,
-  TOOL_GUARDRAIL,
-  imageGenerationTool,
-  webSearchTool,
-  listSkillsTool,
-  readSkillTool,
+  buildProviderChain,
   checkRateLimit,
   extractImageContent,
   fetchHealthcareRAGContext,
   fetchUserMemories,
   formatMemoriesForContext,
+  personaFallbacks,
+  runProviderNames,
 } from './ai-proxy.js';
+import { TOOL_GUARDRAIL, THINKING_DIRECTIVE, selectTools, resolveImageAllowed, resolveWebSearchAllowed, toApiMessages } from './_lib/tools.js';
 import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
-import { getAuthenticatedRequestUser } from './_lib/auth.js';
+import {
+  getAuthenticatedRequestUser,
+  getRequestAccessToken,
+  createUserScopedClient,
+  assertOwnUserId,
+} from './_lib/auth.js';
+import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
 import {
   attachProJobRunId,
   createProJob,
@@ -23,6 +28,7 @@ import {
   getProJobByRunId,
 } from './_lib/proJobs.js';
 import type { ProGenerationPayload } from '../trigger/proGeneration.js';
+import { proGenerationBodySchema, parseOrReject, rejectIfTooLarge } from './_lib/validation.js';
 
 // ─── TimeMachine PRO: background generation entry point ─────────────────────
 // POST /api/pro-generation  → validates quota, builds the full prompt/messages
@@ -34,9 +40,14 @@ import type { ProGenerationPayload } from '../trigger/proGeneration.js';
 const personaConfig = AI_PERSONAS.pro;
 
 async function handlePost(req: VercelRequest, res: VercelResponse) {
+  // Bound every input before starting a paid background run (1.8).
+  if (rejectIfTooLarge(req, res)) return;
+  const body = parseOrReject(res, proGenerationBodySchema, req.body ?? {});
+  if (!body) return;
+
   const {
     messages,
-    heatLevel = 2,
+    heatLevel,
     imageData,
     inputImageUrls,
     imageDimensions,
@@ -46,11 +57,7 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
     pdfFileName,
     pdfExtractedText,
     chatSessionId,
-  } = req.body ?? {};
-
-  if (!messages || !Array.isArray(messages)) {
-    return res.status(400).json({ error: 'Invalid messages format' });
-  }
+  } = body;
 
   // Identify the user from the Supabase access token (falls back to anonymous)
   const authUser = await getAuthenticatedRequestUser(req);
@@ -60,8 +67,22 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
   const clientIP = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket.remoteAddress || 'unknown';
   const ip = Array.isArray(clientIP) ? clientIP[0] : clientIP;
 
-  const withinLimit = await checkRateLimit(userId, ip, 'pro');
-  if (!withinLimit) {
+  // PRO has no anonymous allowance — an account is required.
+  if (!userId) {
+    return res.status(401).json({ error: 'Sign in to use TimeMachine PRO', type: 'authRequired' });
+  }
+
+  const proProvider = (personaConfig as { provider?: string }).provider || 'pollinations';
+  const limitOutcome = await checkRateLimit(userId, ip, 'pro', {
+    providers: runProviderNames(proProvider, personaConfig),
+  });
+  if (!limitOutcome.allowed) {
+    if (limitOutcome.reason === 'backend_error' || limitOutcome.reason === 'spend_ceiling') {
+      return res.status(503).json({
+        error: 'Service temporarily unavailable',
+        type: limitOutcome.reason === 'backend_error' ? 'rateLimitBackend' : 'spendCeiling',
+      });
+    }
     return res.status(429).json({
       error: 'Rate limit exceeded',
       type: 'rateLimit',
@@ -69,13 +90,6 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
   }
 
   // ─── Prompt building — mirrors the pro branch of /api/ai-proxy ──────────
-  const toolMap: Record<string, any> = {
-    imageGeneration: imageGenerationTool,
-    webSearch: webSearchTool,
-    listSkills: listSkillsTool,
-    readSkill: readSkillTool,
-  };
-
   const specialModeConfig = specialMode && (SPECIAL_MODE_CONFIGS as Record<string, any>)[specialMode]
     ? (SPECIAL_MODE_CONFIGS as Record<string, any>)[specialMode]['pro']
     : null;
@@ -90,7 +104,10 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
 
   let memoryContext = '';
   if (userId) {
-    const memories = await fetchUserMemories(userId, 'pro');
+    assertOwnUserId(userId, authUser?.id ?? null);
+    const accessToken = getRequestAccessToken(req);
+    const userClient = (accessToken && createUserScopedClient(accessToken)) || undefined;
+    const memories = await fetchUserMemories(userId, 'pro', userClient);
     const userProfile = userMemories as { nickname?: string; about_me?: string } | undefined;
     memoryContext = formatMemoriesForContext(memories, userProfile);
   }
@@ -105,25 +122,30 @@ Example: If user says "My favorite song is Attention by Charlie Puth", you would
 
 The memory tags will be processed and removed from the visible response, so write your actual response normally before the tags.` : '';
 
+  const thinkingDirective = specialMode === 'music-compose' ? '' : THINKING_DIRECTIVE;
+
   const enhancedSystemPrompt = `${systemPrompt}${memoryContext}${memoryInstructions}
 
 ${TOOL_GUARDRAIL}
-
-.`;
+${thinkingDirective}`;
 
   const modelToUse = specialModeConfig?.model || personaConfig.model;
   let systemPromptToUse = enhancedSystemPrompt;
-  const toolsToUse: any[] = specialModeConfig && 'tools' in specialModeConfig
-    ? specialModeConfig.tools.map((t: string) => toolMap[t]).filter(Boolean)
-    : [imageGenerationTool, webSearchTool];
-
   // PRO always gets the skills library tools
-  toolsToUse.push(listSkillsTool, readSkillTool);
+  // Decided in code, not asked of the model: see api/_lib/tools.ts.
+  const imageAllowed = resolveImageAllowed(messages, !!imageData);
+  const searchAllowed = resolveWebSearchAllowed(messages);
+  const toolsToUse: any[] = selectTools({
+    specialModeConfig,
+    includeSkills: true,
+    imageAllowed,
+    searchAllowed,
+  });
 
   const temperatureToUse = specialModeConfig?.temperature ?? personaConfig.temperature;
   const maxTokensToUse = specialModeConfig?.maxTokens ?? personaConfig.maxTokens;
   const reasoningEffortToUse: string | undefined = specialModeConfig?.reasoningEffort ?? (personaConfig as any).reasoningEffort;
-  const providerToUse: string = (personaConfig as any).provider || 'pollinations';
+  const providerToUse: string = proProvider;
 
   // Healthcare RAG (tm-healthcare special mode)
   if (specialMode === 'tm-healthcare') {
@@ -138,12 +160,9 @@ ${TOOL_GUARDRAIL}
   }
 
   // Build apiMessages (pro always uses a system prompt)
-  let apiMessages: any[] = [
+  const apiMessages: any[] = [
     { role: 'system', content: systemPromptToUse },
-    ...messages.map((msg: any) => ({
-      role: msg.isAI ? 'assistant' : 'user',
-      content: msg.content,
-    })),
+    ...toApiMessages(messages),
   ];
 
   // PDF/document text injection
@@ -212,12 +231,19 @@ ${TOOL_GUARDRAIL}
     temperature: temperatureToUse,
     maxTokens: maxTokensToUse,
     provider: providerToUse,
+    // The whole chain travels with the job: the task runs on Trigger.dev and
+    // cannot resolve AI_PERSONAS' fallbacks for itself. Hops whose provider is
+    // out of budget for the day are dropped here, same as in /api/ai-proxy.
+    providerChain: buildProviderChain(providerToUse, modelToUse, personaFallbacks(personaConfig))
+      .filter(hop => limitOutcome.providers.includes(hop.provider)),
     reasoningEffort: reasoningEffortToUse,
     userId,
     ip,
     inputImageUrls,
     imageDimensions,
     hadImageInput: hasImageInput && imageUrlsForOCR.length > 0,
+    imageAllowed,
+    searchAllowed,
   };
 
   try {
@@ -276,12 +302,14 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  applyCors(req, res, 'GET, POST, OPTIONS');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  if (!hasAcceptableOrigin(req)) {
+    return res.status(403).json({ error: 'Origin not allowed' });
   }
 
   try {

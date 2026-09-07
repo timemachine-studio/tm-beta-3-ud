@@ -63,7 +63,7 @@ export { createSnippetResult } from './modules/snippetManager';
 export { detectNavigation } from './modules/appNavigation';
 export { detectQuickNote } from './modules/quickNote';
 export { detectQuickEvent } from './modules/quickEvent';
-export { detectWebViewer } from './modules/webViewer';
+export { detectWebViewer, toSafeExternalUrl } from './modules/webViewer';
 
 // ─── Core types ───────────────────────────────────────────────
 

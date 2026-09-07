@@ -1,4 +1,4 @@
-import { supabase, uploadImage as supabaseUpload, getStoragePublicUrl } from '../../lib/supabase';
+import { supabase, uploadImage as supabaseUpload } from '../../lib/supabase';
 
 // Fallback ImgBB config for anonymous users
 const IMAGEBB_API_KEY = 'de84a9bd2c699e89ebb4f2a9bbcda261';

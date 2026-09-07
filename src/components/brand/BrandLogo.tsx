@@ -48,7 +48,6 @@ const personaGlowColors = {
 export function BrandLogo({
   onPersonaChange,
   currentPersona,
-  onLoadChat,
   onStartNewChat,
   onOpenAuth,
   onOpenAccount,

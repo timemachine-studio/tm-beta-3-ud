@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getAuthenticatedRequestUser } from './_lib/auth.js';
+import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
 import yts from 'yt-search';
+import { searchQuerySchema, parseOrReject } from './_lib/validation.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Handle CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  applyCors(req, res, 'GET, OPTIONS');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -15,10 +15,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const query = req.query.q;
-  if (!query || typeof query !== 'string') {
-    return res.status(400).json({ error: "Query parameter 'q' is required" });
-  }
+  if (!hasAcceptableOrigin(req)) return res.status(403).json({ error: 'Origin not allowed' });
+
+  const user = await getAuthenticatedRequestUser(req);
+  if (!user) return res.status(401).json({ error: 'Sign in is required' });
+
+  const parsed = parseOrReject(res, searchQuerySchema, { q: req.query.q });
+  if (!parsed) return;
+  const query = parsed.q;
 
   try {
     // Search specifically for music/songs

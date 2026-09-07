@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Plus, X, CornerDownRight, ImagePlus, Code, Music, HeartPulse, FileText } from 'lucide-react';
+import { Send, Square, Plus, X, CornerDownRight, ImagePlus, Code, Music, HeartPulse, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SpeechTranscriptionButton } from './SpeechTranscriptionButton';
 import { ChatInputProps, ImageDimensions } from '../../types/chat';
@@ -24,7 +24,7 @@ import { saveQuickEvent } from '../contour/modules/quickEvent';
 type Persona = keyof typeof AI_PERSONAS;
 
 export interface ReplyTo {
-  id: number;
+  id: string;
   content: string;
   sender_nickname?: string;
   isAI: boolean;
@@ -96,10 +96,15 @@ interface ExtendedChatInputProps extends ChatInputProps {
   onClearReply?: () => void;
   initialMode?: PlusMenuOption | null;
   onModeChange?: (mode: PlusMenuOption | null) => void;
+  /** Cancel the generation in flight. Turns the send button into Stop (1.5). */
+  onStop?: () => void;
 }
 
-export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default' as Persona, isGroupMode, participants, replyTo, onClearReply, initialMode, onModeChange }: ExtendedChatInputProps) {
+export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default' as Persona, isGroupMode, participants, replyTo, onClearReply, initialMode, onModeChange, onStop }: ExtendedChatInputProps) {
   const [message, setMessage] = useState('');
+  // While a generation is running the send button becomes Stop — until now
+  // there was no way to cancel one (1.5).
+  const canStop = Boolean(isLoading && onStop);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -122,7 +127,9 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
   // Auto-set plus option when initialMode is provided (e.g., from healthcare page navigation)
   useEffect(() => {
-    if (initialMode && initialMode !== selectedPlusOption) {
+    // No comparison against current state: setState already no-ops on an
+    // identical value, and reading it here made the dependency list dishonest.
+    if (initialMode) {
       setSelectedPlusOption(initialMode);
     }
   }, [initialMode]);
@@ -235,7 +242,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [contour]);
 
-  const handlePlusMenuSelect = (option: PlusMenuOption) => {
+  const handlePlusMenuSelect = useCallback((option: PlusMenuOption) => {
     setSelectedPlusOption(option);
     setShowPlusMenu(false);
 
@@ -244,7 +251,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     } else if (option === 'upload-file') {
       docInputRef.current?.click();
     }
-  };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -482,7 +489,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
       setShowMentionCall(true);
     } else if (showMentionCall) {
       // Check if user has completed typing a mention (case-insensitive)
-      const completedMention = newValue.match(/@(chatgpt|gemini|claude|grok)\s/i);
+      const completedMention = newValue.match(/@(girlie|pro)\s/i);
       if (completedMention || !newValue.includes('@')) {
         setShowMentionCall(false);
       }
@@ -853,10 +860,15 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                 />
 
                 <motion.button
-                  type="submit"
+                  type={canStop ? 'button' : 'submit'}
+                  onClick={canStop ? onStop : undefined}
+                  aria-label={canStop ? 'Stop generating' : 'Send message'}
+                  title={canStop ? 'Stop generating' : undefined}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  disabled={isLoading || isUploading || isFileReading || (!message.trim() && selectedImages.length === 0 && !selectedFile)}
+                  disabled={canStop
+                    ? false
+                    : (isLoading || isUploading || isFileReading || (!message.trim() && selectedImages.length === 0 && !selectedFile))}
                   className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
                   style={{
                     background: `linear-gradient(135deg, ${(personaStyles.tintColors as Record<string, string>)[currentPersona] || personaStyles.tintColors.default}, rgba(255, 255, 255, 0.05))`,
@@ -866,7 +878,9 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                     boxShadow: `${(personaStyles.glowShadow as Record<string, string>)[currentPersona] || personaStyles.glowShadow.default}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`
                   }}
                 >
-                  {isLoading || isUploading ? (
+                  {canStop ? (
+                    <Square className="w-5 h-5 relative z-10 fill-current" />
+                  ) : isLoading || isUploading ? (
                     <LoadingSpinner size="sm" />
                   ) : (
                     <Send className="w-5 h-5 relative z-10" />

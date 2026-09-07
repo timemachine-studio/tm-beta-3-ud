@@ -3,7 +3,6 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Users, Copy, Check, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { createGroupChat } from '../../services/groupChat/groupChatService';
 import { AI_PERSONAS } from '../../config/constants';
 
 interface GroupChatModalProps {
@@ -18,7 +17,6 @@ interface GroupChatModalProps {
 export function GroupChatModal({
   isOpen,
   onClose,
-  sessionId,
   chatName,
   persona,
   onGroupChatCreated

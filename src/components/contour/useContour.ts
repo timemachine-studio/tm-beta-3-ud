@@ -44,6 +44,7 @@ import {
   detectQuickNote,
   detectQuickEvent,
   detectWebViewer,
+  toSafeExternalUrl,
 } from './moduleRegistry';
 
 export type { ModuleId, ModuleData, ContourState, ContourMode };
@@ -265,9 +266,9 @@ export function useContour() {
         if (!trimmed) return { id: 'web-viewer', focused: true };
         // Very basic parsing for focused mode (default to google search if not url)
         const isUrl = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,})(?:\/.*)?$/i);
-        const finalUrl = isUrl
-          ? (trimmed.startsWith('http') ? trimmed : `https://${trimmed}`)
-          : `https://www.google.com/search?q=${encodeURIComponent(trimmed)}&igu=1`;
+        // toSafeExternalUrl settles the scheme; a rejected URL falls back to a search.
+        const finalUrl = (isUrl && toSafeExternalUrl(trimmed))
+          || `https://www.google.com/search?q=${encodeURIComponent(trimmed)}&igu=1`;
         return { id: 'web-viewer', focused: true, webViewer: { url: finalUrl, query: isUrl ? undefined : trimmed } };
       }
       case 'help': {

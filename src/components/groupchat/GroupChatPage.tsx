@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Users,
   Send,
-  Image as ImageIcon,
-  Mic,
   Loader2,
   UserPlus,
   Copy,
@@ -29,11 +27,12 @@ import {
 } from '../../services/groupChat/groupChatService';
 import { generateAIResponseStreaming } from '../../services/ai/aiProxyService';
 import { Message } from '../../types/chat';
-import { GroupChat, GroupChatMessage, GroupChatParticipant, GroupChatInvite } from '../../types/groupChat';
+import { GroupChat, GroupChatMessage, GroupChatInvite } from '../../types/groupChat';
 import { AI_PERSONAS } from '../../config/constants';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { newId } from '../../utils/id';
 export function GroupChatPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -140,7 +139,7 @@ export function GroupChatPage() {
       id,
       user.id,
       profile.nickname || 'User',
-      profile.avatar_url
+      profile.avatar_url || undefined
     );
 
     if (success) {
@@ -204,13 +203,14 @@ export function GroupChatPage() {
     // Add the trigger message with sender attribution
     const senderName = profile?.nickname || 'User';
     apiMessages.push({
-      id: Date.now(),
+      id: newId(),
       content: `[${senderName}]: ${triggerMessage}`,
       isAI: false,
       hasAnimated: true
     });
 
-    let aiResponse = '';
+    // Group chat renders the AI turn only once, from onComplete — nothing
+    // consumes the streamed chunks here.
 
     await generateAIResponseStreaming(
       apiMessages,
@@ -221,9 +221,7 @@ export function GroupChatPage() {
       undefined, // inputImageUrls
       undefined, // imageDimensions
       // onChunk
-      (chunk: string) => {
-        aiResponse += chunk;
-      },
+      undefined,
       // onComplete
       async (response) => {
         // Clean up the response content
@@ -269,7 +267,7 @@ export function GroupChatPage() {
       content,
       user.id,
       profile.nickname || 'User',
-      profile.avatar_url
+      profile.avatar_url || undefined
     );
 
     setIsSending(false);
@@ -595,7 +593,7 @@ export function GroupChatPage() {
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-          {groupChat?.messages.map((msg, index) => (
+          {groupChat?.messages.map((msg) => (
             <GroupMessage
               key={msg.id}
               message={msg}

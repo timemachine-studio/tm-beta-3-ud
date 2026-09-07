@@ -16,31 +16,21 @@ interface MentionCallProps {
 const personaColors = {
   default: 'rgba(139,0,255,0.3)',
   girlie: 'rgba(199,21,133,0.3)',
-  pro: 'rgba(34,211,238,0.3)',
-  chatgpt: 'rgba(34,197,94,0.3)',
-  gemini: 'rgba(37,99,235,0.3)',
-  claude: 'rgba(234,88,12,0.3)',
-  deepseek: 'rgba(99,102,241,0.3)',
-  grok: 'rgba(107,114,128,0.3)'
+  pro: 'rgba(34,211,238,0.3)'
 } as const;
 
 const personaTextColors = {
   default: 'text-purple-300',
   girlie: 'text-pink-300',
-  pro: 'text-cyan-300',
-  chatgpt: 'text-green-300',
-  gemini: 'text-blue-300',
-  claude: 'text-orange-300',
-  deepseek: 'text-indigo-300',
-  grok: 'text-gray-300'
+  pro: 'text-cyan-300'
 } as const;
 
 export function MentionCall({ isVisible, onSelect, currentPersona, isGroupMode, participants, currentUserId }: MentionCallProps) {
-  // Only show external AI models in mention dropdown (when not in group mode)
-  // Order: ChatGPT, Gemini, Claude, DeepSeek, Grok
-  const externalAIs = ['chatgpt', 'gemini', 'claude', 'deepseek', 'grok'];
-  const availablePersonas = externalAIs
-    .filter(key => key in AI_PERSONAS)
+  // The mentionable TimeMachine personas, minus whichever one is already
+  // active. The third-party-branded personas were removed (production-check.md 0.9).
+  const mentionablePersonas = ['girlie', 'pro'] as const;
+  const availablePersonas = mentionablePersonas
+    .filter(key => key in AI_PERSONAS && key !== currentPersona)
     .map(key => ({
       key,
       command: `@${key}`,
@@ -103,7 +93,7 @@ export function MentionCall({ isVisible, onSelect, currentPersona, isGroupMode, 
             </>
           )}
 
-          {/* External AI models - Glass Pills */}
+          {/* Mentionable TimeMachine personas - Glass Pills */}
           {availablePersonas.map(({ key, command, name }) => (
             <motion.button
               key={key}

@@ -40,7 +40,7 @@ export const fadeInScale = {
     export const wordAnimationVariants = {
       container: {
         hidden: { opacity: 0 },
-        visible: (i = 1) => ({
+        visible: () => ({
           opacity: 1,
           transition: {
             staggerChildren: 0.08,

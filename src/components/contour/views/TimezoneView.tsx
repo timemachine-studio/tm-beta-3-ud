@@ -61,13 +61,16 @@ function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult;
   }, [hours, minutes, isPm, fromIana, toIana]);
 
   // Sync from textbox
+  const detectedFromLabel = tz?.fromLabel;
+  const detectedToLabel = tz?.toLabel;
+  const detectedPartial = tz?.isPartial;
   useEffect(() => {
-    if (hasInteracted || !tz || tz.isPartial) return;
-    const fromEntry = TZ_LIST.find(t => t.label === tz.fromLabel);
-    const toEntry = TZ_LIST.find(t => t.label === tz.toLabel);
+    if (hasInteracted || !detectedFromLabel || detectedPartial) return;
+    const fromEntry = TZ_LIST.find(t => t.label === detectedFromLabel);
+    const toEntry = TZ_LIST.find(t => t.label === detectedToLabel);
     if (fromEntry) setFromIana(fromEntry.iana);
     if (toEntry) setToIana(toEntry.iana);
-  }, [tz?.fromLabel, tz?.toLabel, hasInteracted]);
+  }, [detectedFromLabel, detectedToLabel, detectedPartial, hasInteracted]);
 
   const handleNow = () => {
     setHasInteracted(true);

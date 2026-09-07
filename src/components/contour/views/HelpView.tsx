@@ -60,7 +60,7 @@ const TOOL_CATEGORIES = [
 
 // ─── Help View ──────────────────────────────────────────────
 
-function HelpView({ module, accent }: { module: ModuleData; accent: AccentTheme }) {
+function HelpView({ accent }: { module: ModuleData; accent: AccentTheme }) {
   return (
     <div className="p-4 space-y-5">
       {/* Header */}

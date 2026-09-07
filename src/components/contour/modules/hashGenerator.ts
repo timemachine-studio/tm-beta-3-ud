@@ -67,7 +67,7 @@ function md5(str: string): string {
   const funcs = [f, g, h, ii];
 
   for (let i = 0; i < wordCount; i += 16) {
-    let aa = a, bb = b, cc = c, dd = d;
+    const aa = a, bb = b, cc = c, dd = d;
 
     for (let j = 0; j < 64; j++) {
       const round = j >>> 4;

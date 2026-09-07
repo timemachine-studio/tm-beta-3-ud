@@ -4,7 +4,7 @@ import { LOADING_WORDS } from '../../utils/constants';
 import { shuffleArray } from '../../utils/array';
 
 export function RandomWords() {
-  const [words, setWords] = useState(LOADING_WORDS);
+  const [words, setWords] = useState<(typeof LOADING_WORDS)[number][]>([...LOADING_WORDS]);
 
   useEffect(() => {
     const interval = setInterval(() => {

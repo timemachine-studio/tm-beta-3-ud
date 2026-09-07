@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { runs } from '@trigger.dev/sdk';
 import { proOutputStream } from '../trigger/streams.js';
 import { getAuthenticatedRequestUser } from './_lib/auth.js';
+import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
 import { getProJobByRunId } from './_lib/proJobs.js';
 
 // ─── TimeMachine PRO: stream proxy ──────────────────────────────────────────
@@ -27,9 +28,7 @@ const TERMINAL_STATUSES = new Set([
 ]);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  applyCors(req, res, 'GET, OPTIONS');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -37,6 +36,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (!hasAcceptableOrigin(req)) {
+    return res.status(403).json({ error: 'Origin not allowed' });
   }
 
   const runId = typeof req.query.runId === 'string' ? req.query.runId : '';

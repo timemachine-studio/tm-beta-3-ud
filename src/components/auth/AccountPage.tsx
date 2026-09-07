@@ -20,6 +20,8 @@ import {
   Eye,
   EyeOff,
   Key,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase, uploadImage } from '../../lib/supabase';
@@ -48,7 +50,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
   const [aboutMe, setAboutMe] = useState(profile?.about_me || '');
   const [gender, setGender] = useState((profile as any)?.gender || '');
   const [birthDate, setBirthDate] = useState((profile as any)?.birth_date || '');
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -63,6 +65,10 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [stats, setStats] = useState<{
     chatCount: number;
     messageCount: number;
@@ -144,7 +150,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
       } else {
         setError('Failed to upload avatar');
       }
-    } catch (err) {
+    } catch {
       setError('Error uploading avatar');
     } finally {
       setUploadingAvatar(false);
@@ -160,6 +166,45 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
       console.error('Sign out error:', error);
       // Still navigate even if there's an error
       window.location.href = '/';
+    }
+  };
+
+  // Permanent account deletion. The server purges every table and storage
+  // object we hold for this user, then removes the auth record
+  // (production-check.md 0.8).
+  const handleDeleteAccount = async () => {
+    setDeleteError('');
+    setDeleteLoading(true);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        setDeleteError('Your session expired. Sign in again and retry.');
+        return;
+      }
+
+      const response = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setDeleteError(result.error || 'Could not delete your account. Please contact support.');
+        return;
+      }
+
+      await signOut().catch(() => undefined);
+      window.location.href = '/';
+    } catch {
+      setDeleteError('Could not reach the server. Please try again.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -630,6 +675,99 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
             <LogOut size={18} />
             Sign Out
           </motion.button>
+
+          {/* Danger zone — permanent account deletion (production-check.md 0.8) */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="mt-8 rounded-2xl overflow-hidden"
+            style={{
+              background: 'rgba(239, 68, 68, 0.04)',
+              border: '1px solid rgba(239, 68, 68, 0.15)',
+            }}
+          >
+            {!showDeleteAccount ? (
+              <button
+                onClick={() => setShowDeleteAccount(true)}
+                className="w-full py-4 px-4 text-red-400/70 hover:text-red-400 font-medium flex items-center justify-center gap-2 transition-colors"
+              >
+                <Trash2 size={18} />
+                Delete my account
+              </button>
+            ) : (
+              <div className="p-5 space-y-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle size={20} className="text-red-400 shrink-0 mt-0.5" />
+                  <div className="space-y-2">
+                    <p className="text-white font-medium">This cannot be undone.</p>
+                    <p className="text-white/50 text-sm leading-relaxed">
+                      Deleting your account permanently removes your profile, every conversation and
+                      message, your AI memories, saved and generated images, and your uploaded files.
+                      There is no backup we can restore for you.
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-white/40 text-xs mb-2">
+                    Type <span className="text-white/70 font-mono">DELETE</span> to confirm
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmation}
+                    onChange={(e) => setDeleteConfirmation(e.target.value)}
+                    placeholder="DELETE"
+                    autoComplete="off"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-red-500/30 text-white placeholder-white/20 focus:outline-none focus:border-red-500/60 transition-all"
+                  />
+                </div>
+
+                {deleteError && (
+                  <p className="text-red-400 text-sm">{deleteError}</p>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={deleteConfirmation !== 'DELETE' || deleteLoading}
+                    className="flex-1 py-3 rounded-xl font-medium text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: 'rgba(239, 68, 68, 0.25)', border: '1px solid rgba(239, 68, 68, 0.4)' }}
+                  >
+                    {deleteLoading ? 'Deleting…' : 'Delete permanently'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDeleteAccount(false);
+                      setDeleteConfirmation('');
+                      setDeleteError('');
+                    }}
+                    disabled={deleteLoading}
+                    className="px-5 py-3 rounded-xl text-white/60 hover:text-white transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </motion.div>
+
+          {/* Legal links */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.28 }}
+            className="text-center text-white/25 text-xs mt-6 flex items-center justify-center gap-3"
+          >
+            <button onClick={() => navigate('/privacy')} className="hover:text-white/50 transition-colors">
+              Privacy Policy
+            </button>
+            <span className="text-white/10">·</span>
+            <button onClick={() => navigate('/terms')} className="hover:text-white/50 transition-colors">
+              Terms of Service
+            </button>
+          </motion.p>
 
           {/* Account Info */}
           <motion.p

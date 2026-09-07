@@ -114,7 +114,7 @@ export function HomePage() {
     authLoading,
   );
 
-  const { isRateLimited, incrementCount, isAnonymous } = useAnonymousRateLimit();
+  const { isRateLimited, isAnonymous } = useAnonymousRateLimit(currentPersona, isLoading);
 
   // Has the user started chatting? (more than just the initial AI welcome message)
   const hasUserMessages = messages.some((m) => !m.isAI);
@@ -139,7 +139,7 @@ export function HomePage() {
       return;
     }
 
-    const mentionMatch = message.match(/^@(chatgpt|gemini|claude|grok|girlie|pro)\s/i);
+    const mentionMatch = message.match(/^@(girlie|pro)\s/i);
     const targetModel = mentionMatch ? mentionMatch[1].toLowerCase() : currentPersona;
 
     if (isAnonymous && isRateLimited(targetModel)) {
@@ -148,10 +148,10 @@ export function HomePage() {
       return;
     }
 
-    if (isAnonymous) incrementCount(targetModel);
-
+    // The count is re-read from the server when the turn finishes; see
+    // useAnonymousRateLimit (production-check.md 0.4).
     await handleSendMessage(message, imageUrl, imageUrls, imageDimensions, replyToData, specialMode, pdfData, pdfFileName);
-  }, [currentPersona, isAnonymous, isRateLimited, incrementCount, handleSendMessage, navigate]);
+  }, [currentPersona, isAnonymous, isRateLimited, handleSendMessage, navigate]);
 
   // Open in Chat UI — navigates to / and passes the current session so MainChatPage
   // loads THIS chat instead of starting fresh.

@@ -61,10 +61,12 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
   }, [operation, dateInput1, dateInput2, numDays]);
 
   // Sync from textbox detection
+  const detectedType = date?.type;
+  const detectedPartial = date?.isPartial;
   useEffect(() => {
-    if (hasInteracted || !date || date.isPartial) return;
-    setOperation(date.type);
-  }, [date?.type, date?.isPartial, hasInteracted]);
+    if (hasInteracted || !detectedType || detectedPartial) return;
+    setOperation(detectedType);
+  }, [detectedType, detectedPartial, hasInteracted]);
 
   const handleQuickPick = (value: string) => {
     setHasInteracted(true);

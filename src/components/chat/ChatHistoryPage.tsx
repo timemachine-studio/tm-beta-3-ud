@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import * as Tabs from '@radix-ui/react-tabs';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Pencil, Trash2, ChevronLeft, ChevronRight, Download, Upload, Cloud, CloudOff, RefreshCw, Users } from 'lucide-react';
-import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { AI_PERSONAS } from '../../config/constants';
 import {
   ChatSession,
   getLocalSessions,
@@ -42,7 +40,6 @@ interface ChatHistoryPageProps {
 }
 
 export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
-  const { theme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -107,7 +104,7 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
       } else {
         setFeedbackMessage({ type: 'success', text: 'No local chats to migrate.' });
       }
-    } catch (error) {
+    } catch {
       setFeedbackMessage({ type: 'error', text: 'Failed to migrate chats.' });
     } finally {
       setIsSyncing(false);

@@ -21,7 +21,7 @@ export interface GraphResult {
 
 function hasMathOps(s: string): boolean {
   // Explicit operators
-  if (/[+\-*\/^()|]/.test(s)) return true;
+  if (/[+\-*/^()|]/.test(s)) return true;
   // Known function names — word-bounded to avoid false hits (e.g. "explain" containing "exp")
   if (/\b(?:sin|cos|tan|sqrt|abs|ln|log|exp|pi)\b|π/.test(s)) return true;
   // Implicit multiplication: digit directly followed by x (e.g. 2x, 3x)

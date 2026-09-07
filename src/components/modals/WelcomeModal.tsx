@@ -40,7 +40,9 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
     // Simulate validation delay for better UX
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    if (accessToken.trim() === BETA_ACCESS_TOKEN) {
+    // BETA_ACCESS_TOKEN is empty when VITE_BETA_ACCESS_TOKEN is unset. Without
+    // this guard an empty submission would compare equal and open the gate.
+    if (BETA_ACCESS_TOKEN && accessToken.trim() === BETA_ACCESS_TOKEN) {
       // Store access token in localStorage for future sessions
       localStorage.setItem('timeMachine_accessGranted', 'true');
       onAccessGranted();
@@ -158,7 +160,7 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
                         >
                           TimeMachine
                         </h1>
-                        <style jsx>{`
+                        <style>{`
                           @keyframes shimmer {
                             0% {
                               filter: brightness(1);
@@ -260,7 +262,7 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
                           }}
                         />
                         
-                        <style jsx>{`
+                        <style>{`
                           @keyframes shine {
                             0% {
                               transform: translateX(-100%);

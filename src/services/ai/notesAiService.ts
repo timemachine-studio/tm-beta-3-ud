@@ -2,6 +2,8 @@
 // Client-side service that sends note context + user instruction
 // to the /api/notes-ai endpoint and returns structured edits.
 
+import { supabase } from '../../lib/supabase';
+
 export interface BlockContext {
   index: number;
   id: string;
@@ -35,9 +37,19 @@ export async function sendNotesAIRequest(
   instruction: string
 ): Promise<NotesAIResponse> {
   try {
+    // /api/notes-ai requires a verified Supabase token (production-check.md 0.1).
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken) {
+      return { edits: [], newBlocks: [], message: '', error: 'Sign in to use the Notes AI co-pilot.' };
+    }
+
     const response = await fetch('/api/notes-ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
       body: JSON.stringify({ title, blocks, instruction }),
     });
 

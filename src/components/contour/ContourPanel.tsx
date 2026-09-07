@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Search } from 'lucide-react';
 import { ContourState, ModuleData } from './moduleRegistry';
 import { MODULE_META } from './moduleRegistry';
-import { ContourCommand, ContourCategory, CATEGORY_INFO, groupByCategory } from './modules/commands';
+import { ContourCommand, CATEGORY_INFO, groupByCategory } from './modules/commands';
 import {
   CalculatorView, UnitsView, CurrencyView, TimezoneView,
   ColorView, DateView, TimerView, RandomView, WordCountView,

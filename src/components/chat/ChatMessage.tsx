@@ -9,22 +9,25 @@ import { BrandOverride } from '../brand/BrandLogo';
 import type { SavedVariation } from './MusicComposeCard';
 import { McpApprovalCard } from './McpApprovalCard';
 import type { McpApprovalDecision } from '../../types/flightControls';
+import { FailedTurn } from './FailedTurn';
 
 interface ChatMessageProps extends Message {
   isChatMode: boolean;
-  onAnimationComplete: (messageId: number) => void;
+  onAnimationComplete: (messageId: string) => void;
   currentPersona: keyof typeof AI_PERSONAS;
   previousMessage?: string | null;
   isStreaming?: boolean;
-  streamingMessageId?: number | null;
+  streamingMessageId?: string | null;
   loadingPhase?: 'analyzing_photo' | 'thinking' | null;
   isGroupMode?: boolean;
   currentUserId?: string;
-  onReply?: (message: { id: number; content: string; sender_nickname?: string; isAI: boolean }) => void;
-  onReact?: (messageId: number, emoji: string) => void;
+  onReply?: (message: { id: string; content: string; sender_nickname?: string; isAI: boolean }) => void;
+  onReact?: (messageId: string, emoji: string) => void;
   brandOverride?: BrandOverride;
-  onMusicVariationsChange?: (messageId: number, variations: SavedVariation[]) => void;
-  onMcpApprovalDecision?: (messageId: number, decision: McpApprovalDecision) => void;
+  onMusicVariationsChange?: (messageId: string, variations: SavedVariation[]) => void;
+  onMcpApprovalDecision?: (messageId: string, decision: McpApprovalDecision) => void;
+  onRetry?: (messageId: string) => void;
+  isRetrying?: boolean;
 }
 
 // Quick react emoji options
@@ -63,6 +66,11 @@ export function ChatMessage({
   onMusicVariationsChange,
   mcpApproval,
   onMcpApprovalDecision,
+  status,
+  errorCode,
+  partialContent,
+  onRetry,
+  isRetrying,
 }: ChatMessageProps) {
   const [showActions, setShowActions] = useState(false);
   const [actionsLocked, setActionsLocked] = useState(false); // For mobile click-to-lock
@@ -251,7 +259,15 @@ export function ChatMessage({
         onMouseLeave={handleMouseLeave}
       >
         {renderReplyPreview()}
-        {mcpApproval ? (
+        {status === 'error' ? (
+          <FailedTurn
+            messageId={id}
+            errorCode={errorCode}
+            partialContent={partialContent}
+            onRetry={onRetry}
+            retrying={isRetrying}
+          />
+        ) : mcpApproval ? (
           <McpApprovalCard
             approval={mcpApproval}
             onDecision={decision => onMcpApprovalDecision?.(id, decision)}

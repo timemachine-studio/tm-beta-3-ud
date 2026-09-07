@@ -26,8 +26,9 @@ export function LyricsMiniPlayer({
   isMaximized,
   onSeek,
 }: LyricsMiniPlayerProps) {
-  if (!track) return null;
-
+  // Every hook runs before the early return below: React identifies hooks by
+  // call order, so bailing out first made that order depend on whether a track
+  // was set.
   // Hover and collapse/expand state for mini player
   const [isHovered, setIsHovered] = useState(false);
   const [isClickedExpanded, setIsClickedExpanded] = useState(false);
@@ -35,6 +36,8 @@ export function LyricsMiniPlayer({
   // Smooth scrubbing state
   const [localTime, setLocalTime] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  if (!track) return null;
 
   const isOpen = isHovered || isClickedExpanded;
   const displayTime = localTime !== null ? localTime : currentTime;
@@ -206,14 +209,14 @@ export function LyricsMiniPlayer({
                     setLocalTime(Number(e.target.value));
                   }}
                   onMouseUp={() => {
-                    if (inputRef.current) {
-                      onSeek && onSeek(Number(inputRef.current.value));
+                    if (inputRef.current && onSeek) {
+                      onSeek(Number(inputRef.current.value));
                     }
                     setLocalTime(null);
                   }}
                   onTouchEnd={() => {
-                    if (inputRef.current) {
-                      onSeek && onSeek(Number(inputRef.current.value));
+                    if (inputRef.current && onSeek) {
+                      onSeek(Number(inputRef.current.value));
                     }
                     setLocalTime(null);
                   }}

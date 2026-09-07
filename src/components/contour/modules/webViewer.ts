@@ -8,6 +8,35 @@ export interface WebViewerResult {
     query?: string;
 }
 
+/**
+ * Turn user input into an absolute http(s) URL, or null.
+ *
+ * `startsWith('http')` is not a scheme check — it also matches `httpfoo.com`,
+ * which was then used as an iframe `src` verbatim and resolved *relative to our
+ * own origin*. Framing our own origin with `allow-scripts` is exactly the
+ * escape production-check.md 0.6 is about, so the scheme is settled here rather
+ * than by a prefix test.
+ */
+export function toSafeExternalUrl(input: string): string | null {
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+
+    const candidate = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+    let parsed: URL;
+    try {
+        parsed = new URL(candidate);
+    } catch {
+        return null;
+    }
+
+    // Anything else — javascript:, data:, blob:, file: — never reaches an iframe.
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+    if (!parsed.hostname) return null;
+
+    return parsed.href;
+}
+
 export function detectWebViewer(input: string): WebViewerResult | null {
     const trimmed = input.trim();
 
@@ -38,9 +67,8 @@ export function detectWebViewer(input: string): WebViewerResult | null {
     const urlMatch = trimmed.match(urlPattern);
 
     if (urlMatch) {
-        // If it doesn't have a protocol, prepend https://
-        const finalUrl = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
-        return { url: finalUrl };
+        const finalUrl = toSafeExternalUrl(trimmed);
+        return finalUrl ? { url: finalUrl } : null;
     }
 
     return null;

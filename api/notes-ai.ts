@@ -1,4 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getAuthenticatedRequestUser } from './_lib/auth.js';
+import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
+import { notesAiBodySchema, parseOrReject, rejectIfTooLarge } from './_lib/validation.js';
 
 // ─── Notes AI Co-pilot API ──────────────────────────────────────────
 // Dedicated endpoint for the notes page AI assistant.
@@ -165,19 +168,20 @@ function buildNoteContext(title: string, blocks: BlockContext[]): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  applyCors(req, res, 'POST, OPTIONS');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (!hasAcceptableOrigin(req)) return res.status(403).json({ error: 'Origin not allowed' });
+
+  const user = await getAuthenticatedRequestUser(req);
+  if (!user) return res.status(401).json({ error: 'Sign in is required' });
 
   try {
-    const { title, blocks, instruction } = req.body;
-
-    if (!blocks || !Array.isArray(blocks) || !instruction) {
-      return res.status(400).json({ error: 'Missing required fields: blocks, instruction' });
-    }
+    if (rejectIfTooLarge(req, res)) return;
+    const body = parseOrReject(res, notesAiBodySchema, req.body);
+    if (!body) return;
+    const { title, blocks, instruction } = body;
 
     const noteContext = buildNoteContext(title || '', blocks);
 

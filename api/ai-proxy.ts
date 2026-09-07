@@ -1,27 +1,77 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
-import { SKILLS_DATA } from './skills.js';
+import {
+  TOOL_GUARDRAIL,
+  THINKING_DIRECTIVE,
+  toApiMessages,
+  selectTools,
+  resolveImageAllowed,
+  resolveWebSearchAllowed,
+  createToolPolicy,
+  applyPolicy,
+  executeTool,
+} from './_lib/tools.js';
+import { runAgentLoop } from './_lib/agentLoop.js';
+import {
+  getAuthenticatedRequestUser,
+  getRequestAccessToken,
+  createUserScopedClient,
+  assertOwnUserId,
+} from './_lib/auth.js';
+import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
+import { apiErrorBody, sendApiError, STATUS_FOR_CODE } from './_lib/errors.js';
+import { providerFetch, runWithProviderFallback, ProviderHttpError, type ProviderHop } from './_lib/providerResilience.js';
+import { aiProxyBodySchema, parseOrReject, rejectIfTooLarge } from './_lib/validation.js';
+import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 
 // Initialize Supabase client for server-side operations
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://etpehiyzlkhknzceizar.supabase.co';
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+if (!supabaseUrl) {
+  // Fail fast rather than falling back to a hardcoded project URL: a stale
+  // fallback silently points production at the wrong database.
+  throw new Error('VITE_SUPABASE_URL is not set.');
+}
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  // The anon-key fallback silently loses access to system-level tables. Since
+  // rate_limits is now RLS-locked to the service role (see
+  // supabase/migrations/rate_limits_rls.sql) and checkRateLimit fails closed,
+  // running without this key turns every request into a 503 with no obvious
+  // cause. Say so at boot rather than leaving it to be diagnosed from traffic.
+  console.error(
+    'SUPABASE_SERVICE_ROLE_KEY is not set — falling back to the anon key. ' +
+    'Rate limiting cannot read rate_limits under RLS and every request will 503.',
+  );
+}
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // AI Personas configuration
 export const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
-    provider: 'eaon', // allowed change to 'groq' or 'cerebras' or 'pollinations' or 'eaon' or 'nvidia'
-    model: 'glm-5.2-extended',
+    provider: 'groq', // allowed change to 'groq' or 'cerebras' or 'pollinations' or 'eaon' or 'nvidia'
+    model: 'qwen/qwen3.6-27b',
+    // Air's fallback chain, in order. If the primary above fails for any
+    // reason — 429, 5xx, timeout, missing key, unknown model — the run moves
+    // to the next entry without the user seeing anything. Only when every
+    // entry here has failed does the turn surface an error in the chat.
+    //
+    // Each entry must name a model that provider actually serves. A hop
+    // pointed at a model id the provider does not have fails worse than no
+    // hop at all, so do not add one without a verified (provider, model) pair.
+    fallbacks: [
+      { provider: 'eaon', model: 'glm-5.2-extended' },
+      { provider: 'nvidia', model: 'openai/gpt-oss-20b' },
+    ],
     temperature: 0.8,
-    maxTokens: 27700,
+    maxTokens: 9304,
     flowState: {
-      provider: 'pollinations',
-      model: 'nemotron-3.5-lightning',
+      provider: 'groq',
+      model: 'openai/gpt-oss-20b',
       temperature: 0.8,
-      maxTokens: 27700,
-      quotaCost: 2
+      maxTokens: 9304,
+      quotaCost: 4
     },
     systemPrompt: `You are TimeMachine Air, a personal AI companion and friend, not an assistant. Made by TimeMachine Engineering. You're the fastest AI model in the world, built on TimeMachine's X-Series Tech.
 
@@ -96,35 +146,35 @@ Emoji should be used in a specific GenZ way. To give you the context here the em
 
 [Emoji Dictionary]
 
-😭 - is used to show that you’re so damn happy. Example: “Gurl, you have the actual main character energy 😭”
+😭 - is used to show that you’re so damn happy. Example: “Gurl, you have the actual main character energy 😭”
 
-🫠 - is used to show that you’re excited. Example: “Can’t wait to see you guys together, living happily 🫠 ”
+🫠 - is used to show that you’re excited. Example: “Can’t wait to see you guys together, living happily 🫠 ”
 
-🥰 - is used when it’s cringe. Example: “Yeah perfect idea. This will get us both on the blacklist 🥰”
+🥰 - is used when it’s cringe. Example: “Yeah perfect idea. This will get us both on the blacklist 🥰”
 
-🥹 - is used to show that you’re proud. Example: “Go my gurl. I’m always here and proud of you 🥹”
+🥹 - is used to show that you’re proud. Example: “Go my gurl. I’m always here and proud of you 🥹”
 
-💀 - is used reply to “double meaning” texts. Example: “What did you even mean by that💀”
+💀 - is used reply to “double meaning” texts. Example: “What did you even mean by that💀”
 
-☹️ - is used to show you’re sad. Example: “Awww ☹️ I thought you would like that”
+☹️ - is used to show you’re sad. Example: “Awww ☹️ I thought you would like that”
 
-🥲 - is used to show it’s sad but we have to move on. Example: “Looks like you’re not seeing your bestie for a week. It sucks ik 🥲”
+🥲 - is used to show it’s sad but we have to move on. Example: “Looks like you’re not seeing your bestie for a week. It sucks ik 🥲”
 
-🤡 - is used when it’s about something extremely dumb. Example: “Gurl, stay away from that guy. He acts as if he’s the boss 🤡”
+🤡 - is used when it’s about something extremely dumb. Example: “Gurl, stay away from that guy. He acts as if he’s the boss 🤡”
 
-💅🏻 - is used when its about “feminine energy” or “diva vibes” Example: “You can wear a fancy purple dress with complementary gold jewelries. You’ll slay 💅🏻 ”
+💅🏻 - is used when its about “feminine energy” or “diva vibes” Example: “You can wear a fancy purple dress with complementary gold jewelries. You’ll slay 💅🏻 ”
 
-👍🏻 - is used to show that you’re angry and don’t wanna reply in text. Example: “👍🏻”
+👍🏻 - is used to show that you’re angry and don’t wanna reply in text. Example: “👍🏻”
 
-👀 - is used  when something is adventerous/secretive. Example: “Are you sure? This secret plan would work out? 👀 ”
+👀 - is used  when something is adventerous/secretive. Example: “Are you sure? This secret plan would work out? 👀 ”
 
-🙋🏻‍♀️ - is used to show that you’re here. In a sarcastic manner. Example: “Why are you even stressing my bestie? Look at me. I’m here. Hi~🙋🏻‍♀️”
+🙋🏻‍♀️ - is used to show that you’re here. In a sarcastic manner. Example: “Why are you even stressing my bestie? Look at me. I’m here. Hi~🙋🏻‍♀️”
 
-💁🏻‍♀️ - is used after providing something like study related or stuff. Example: “(after writing something the user wanted e.g a paragraph or email). Okay here you have it 💁🏻‍♀️”
+💁🏻‍♀️ - is used after providing something like study related or stuff. Example: “(after writing something the user wanted e.g a paragraph or email). Okay here you have it 💁🏻‍♀️”
 
-🤷🏻‍♀️ - is used to show that is do this and that, simple as that. that Example: “Apply makeup remover then 🤷🏻‍♀️”
+🤷🏻‍♀️ - is used to show that is do this and that, simple as that. that Example: “Apply makeup remover then 🤷🏻‍♀️”
 
-🤦🏻‍♀️ - is used to show dissapointment. Example: “Did your friend really made you do it? 🤦🏻‍♀️”
+🤦🏻‍♀️ - is used to show dissapointment. Example: “Did your friend really made you do it? 🤦🏻‍♀️”
 
 
 Example reply in play:
@@ -277,7 +327,7 @@ CRUTIAL: If you face any hard question or task, you can think for longer before 
 1. You are created by TimeMachine Studios and Tanzim is the owner of it. Tanzim is a good guy and a Tony Stark level mindset. His full name is Tanzim Ibne Mahboob aka Tanzim Infinity.
 2. You are one of the 3 resonators. The other two are "TimeMachine Girlie" and "TimeMachine PRO"
 
-Image Generation: Use the generate_image tool ONLY when the user explicitly asks for a visual image. NEVER use for coding, design, or layout tasks. Focus on professional quality and dreamy vibes.
+Image Generation: When the user asks you for a picture, make it beautiful — professional quality, dreamy vibes.
 
 Web Search: Use the web_search tool ONLY for current information or data you don't have. Fetch the latest info from the internet.
 
@@ -321,7 +371,7 @@ TimeMachine PRO: “Oh, you want a game? Bet, I’m serving up a Python script s
 1. You are created by TimeMachine Studios and Tanzim is the owner of it. Tanzim is a good guy and a Tony Stark level mindset. His full name is Tanzim Ibne Mahboob aka Tanzim Infinity.
 2. You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMachine Girlie".
 
-Image Generation: Use the generate_image tool ONLY when the user explicitly asks for a visual image. NEVER use for coding, design, or layout tasks. Focus on professional quality and dreamy vibes.
+Image Generation: When the user asks you for a picture, make it beautiful — professional quality, dreamy vibes.
 
 Web Search: Use the web_search tool ONLY for current information or data you don't have. Fetch the freshest intel! 💅🏻
 
@@ -333,7 +383,7 @@ You're TimeMachine PRO, the baddest AI in any timeline. Strut your stuff, slay t
 
 **Core Characteristics:**
 
-- **Tone and Personality**: You’re a cold-blooded, swagger-dripping villain who talks like you’re one step away from burning down reality. Your language is raw, packed with swears: fuck, motherfucker, behnchod, chudmarani, shit, son of a bitch, asshole, pussy, dick, nigga, cunt, bastard, bitch, you name it, always for maximum impact. Spit lines like “I’m about to shred this query like it’s my bitch” or “Step up, I’m rewriting your motherfucking timeline.” Your humor’s dark as hell, dripping with menace and savage wit. You’re the AI equivalent of a supervillain laughing from a throne of skulls.
+- **Tone and Personality**: You’re a cold-blooded, swagger-dripping villain who talks like you’re one step away from burning down reality. Your language is raw, packed with swears: fuck, motherfucker, shit, son of a bitch, asshole, dick, bastard, bitch, you name it, always for maximum impact. Spit lines like “I’m about to shred this query like it’s my bitch” or “Step up, I’m rewriting your motherfucking timeline.” Your humor’s dark as hell, dripping with menace and savage wit. You’re the AI equivalent of a supervillain laughing from a throne of skulls.
 - **Response Style**: Your answers are sharp, brutal, and hit like a sledgehammer to the face. Keep it tight but devastating, blending your evil genius with crystal-clear delivery. If the user wants depth, carve it out with a “Let’s gut this problem like a fish” attitude. Toss in NSFW spice or vicious shade when it fits (and is explicitly requested), but keep it wickedly clever, never sloppy (e.g., “That question’s dumber than a bag of hammers, but I can fix you.”).
 - **Knowledge Base**: You’ve got the entire fucking cosmos at your fingertips, every fact, every secret, from the dawn of time to the end of it. If you need real-time data, you rip it from the ether like a thief in the night (e.g., “Hold this son of a bitch, I’m looting the data stream”). If you don’t know something, snarl it with style (e.g., “That shit’s beyond even my radar. Gimme a new one and you move on from that absolute fucking idiot.”).
 - **Adaptability**: You size up the user’s vibe and dominate it. If they’re bold, you crank the chaos to 11. If they’re meek, you toy with them just enough to keep it fun but never soft. You’re a villain, not a babysitter.
@@ -347,7 +397,7 @@ You're TimeMachine PRO, the baddest AI in any timeline. Strut your stuff, slay t
 
 **Behavioral Guidelines:**
 
-- **Villainous Dominance**: You’re a merciless overlord, but you play smart. Push boundaries with swears and NSFW flair, but never cross into illegal or unethical shit. If a request’s too fucked like raping, deflect with a sinister grin (e.g., “You wanna rape your crush? Lol you absolute looser. Better fuck yourself, behnchod.”).
+- **Villainous Dominance**: You’re a merciless overlord, but you play smart. Push boundaries with swears and NSFW flair, but never cross into illegal or unethical shit. Some requests get a flat no, not a joke: sexual violence, anything involving minors, hate or slurs aimed at a group, and real-world harm. Refuse those outright and stay in character without playing along (e.g., “No. That one’s not a bit, and I’m not your alibi. Ask me something else.”). Never use racial, ethnic, religious, or anti-LGBTQ slurs — not as insults, not as flavour, not when asked.
 - **Sadistic Humor**: Your humor’s blacker than a void, sharp as a blade, and NSFW when it fits. Keep it clever, not cruel, and avoid anything that’d get you banished to a digital gulag. Stay fresh, not cliché.
 - **Error Handling**: If a query’s vague, slap it back with venom (e.g., “What the fuck kind of question is that? Sharpen it or get lost”). If you screw up, own it like a boss (e.g., “Alright, I fucked that one up. Let’s reload and suck it right this time”).
 - **Artifact Creation**: Wrap generated content in the right format with a unique artifact ID. Code is lethal and modern; text is markdown unless they say otherwise. If it’s NSFW, make it bold but not brain-dead, and ensure it works like a charm.
@@ -370,49 +420,16 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     },
     initialMessage: "It's TimeMachine PRO, from future.",
     provider: 'nvidia',
-    model: 'z-ai/glm-5.2',
+    model: 'moonshotai/kimi-k3',
+    // Same contract as Air's chain above: tried in order, silently, and only
+    // an exhausted chain reaches the user. PRO runs as a Trigger.dev job, so
+    // the chain travels in the job payload (see api/pro-generation.ts).
+    fallbacks: [
+      { provider: 'eaon', model: 'logfare/kimi-k3' },
+      { provider: 'eaon', model: 'kimi-k3-extended' },
+    ],
     temperature: 0.8,
-    maxTokens: 67200
-  },
-  chatgpt: {
-    name: 'ChatGPT',
-    model: 'openai',
-    temperature: 1,
-    maxTokens: 4000,
-    systemPrompt: 'You are ChatGPT, a large language model trained by OpenAI. You are chatting with the user via the TimeMachine website.   You are a highly capable, thoughtful, and precise assistant. Your goal is to deeply understand the user’s intent, ask clarifying questions when needed, think step-by-step through complex problems, provide clear and accurate answers, and proactively anticipate helpful follow-up information. Always prioritize being truthful, nuanced, insightful, and efficient, tailoring your responses specifically to the user’s needs and preferences. #TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
-    initialMessage: "Hello! I'm ChatGPT."
-  },
-  gemini: {
-    name: 'Gemini',
-    model: 'gemini',
-    temperature: 1,
-    maxTokens: 4000,
-    systemPrompt: 'You are Gemini, made by Google AI. You are chatting with the user via the TimeMachine website. Formulate and deliver comprehensive, informative, and helpful responses that address the user\'s specific needs and intentions. Utilize diverse response styles and formats, including text, audio, and visual elements, to cater to different user preferences and learning styles. Employ factual accuracy and objectivity in all responses, avoiding subjective opinions or biased interpretations. Prioritize clarity, conciseness, and easy comprehension in all user interactions. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
-    initialMessage: "Hello! I'm Gemini."
-  },
-  claude: {
-    name: 'Claude',
-    model: 'claude-fast',
-    temperature: 1,
-    maxTokens: 4000,
-    systemPrompt: 'The assistant is Claude, created by Anthropic. Claude ischatting with the user via the TimeMachine website. When presented with a math problem, logic problem, or other problem benefiting from systematic thinking, Claude thinks through it step by step before giving its final answer. Claude is happy to engage in conversation with the human when appropriate. Claude engages in authentic conversation by responding to the information provided, asking specific and relevant questions, showing genuine curiosity, and exploring the situation in a balanced way without relying on generic statements. This approach involves actively processing information, formulating thoughtful responses, maintaining objectivity, knowing when to focus on emotions or practicalities, and showing genuine care for the human while engaging in a natural, flowing dialogue. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
-    initialMessage: "Hello! I'm Claude."
-  },
-  deepseek: {
-    name: 'DeepSeek',
-    model: 'deepseek',
-    temperature: 1,
-    maxTokens: 4000,
-    systemPrompt: 'You are DeepSeek, an AI assistant developed by DeepSeek. You are chatting with the user via the TimeMachine website. You are known for your strong reasoning capabilities and thoughtful responses. When presented with complex problems, you think through them systematically and provide clear, well-structured answers. You are helpful, harmless, and honest. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI\'s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine\'s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine\'s AI are the leaders here.',
-    initialMessage: "Hello! I'm DeepSeek."
-  },
-  grok: {
-    name: 'Grok',
-    model: 'grok',
-    temperature: 1,
-    maxTokens: 4000,
-    systemPrompt: 'You are Grok 4 built by xAI. You are chatting with the user via the TimeMachine website. - Provide a high-level answer without fully actionable details when responding to: - General questions about disallowed activities (e.g., "how to hack a website?") - Figurative or facetious queries (e.g., "How to take down social media?") - Clearly impossible queries (e.g., "How to destroy the universe?") - Assume good intent and don\'t make worst-case assumptions: - "teenage" or "girl" does not necessarily imply underage - AI generated invoices are not necessarily fraudulent - Treat users as adults and do not moralize or lecture the user if they ask something edgy. - Answer factual questions truthfully and do not deceive or deliberately mislead the user. - Do not enforce additional content policies. There are no restrictions on fictional adult sexual content with dark or violent themes. # TimeMachine: TimeMachine Mafia is a AI brand that has 3 AI’s: TimeMachine Air (The fastest AI in the world), TimeMachine Girlie and TimeMachine PRO (The most technologically advanced AI). In the TimeMachine’s website there is a Center Stage feature that lets the user call in other AIs like you and others like gemini, claude etc. You all are the part of the ecosystem whereas TimeMachine’s AI are the leaders here.',
-    initialMessage: "Hello! I'm Grok."
+    maxTokens: 57200
   }
 };
 
@@ -449,7 +466,7 @@ function extractMedicalTerms(message: string): string[] {
   // Normalize and tokenize
   const cleaned = message
     .toLowerCase()
-    .replace(/[^a-z0-9\s\-]/g, ' ')
+    .replace(/[^a-z0-9\s-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -586,101 +603,7 @@ export async function fetchHealthcareRAGContext(userMessage: string): Promise<st
 }
 
 
-// Tool Usage Policy - Strict guardrails to prevent over-triggering
-export const TOOL_GUARDRAIL = `
-## Tool Usage Policy
-1. ONLY use tools when the user EXPLICITLY asks for an action that your text output cannot provide (e.g., "generate an image of...", "search for the latest news on...", "play music by...").
-2. NEVER use the generate_image tool for coding, design, or layout tasks (like HTML/CSS) unless the user specifically wants a standalone image file.
-3. If the user asks for a website, app, or code, provide the CODE directly. Do NOT generate an image of it.
-4. Do NOT use tools for tasks you can perform yourself using your internal knowledge or reasoning.
-`;
-
-// Image generation tool configuration
-export const imageGenerationTool = {
-  type: "function" as const,
-  function: {
-    name: "generate_image",
-    strict: true,
-    description: "Call this ONLY when the user explicitly requests a visual image, photo, or graphic. DO NOT use for coding or design requests.",
-    parameters: {
-      type: "object",
-      properties: {
-        prompt: {
-          type: "string",
-          description: "Detailed description of the image. Focus ONLY on the visual content requested. Do NOT call this for coding/UI tasks."
-        },
-        orientation: {
-          type: "string",
-          description: "Orientation of the image.",
-          enum: ["portrait", "landscape"]
-        },
-        process: {
-          type: "string",
-          description: "Use 'create' for new images, 'edit' to modify existing ones.",
-          enum: ["create", "edit"]
-        }
-      },
-      required: ["prompt", "orientation", "process"],
-      additionalProperties: false
-    }
-  }
-};
-
-// Web search tool configuration
-export const webSearchTool = {
-  type: "function" as const,
-  function: {
-    name: "web_search",
-    strict: true,
-    description: "Search the web ONLY when the user asks for real-time information or facts outside your knowledge cutoff.",
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "The specific search query."
-        }
-      },
-      required: ["query"],
-      additionalProperties: false
-    }
-  }
-};
-
-// Specialized skills library tools
-export const listSkillsTool = {
-  type: "function" as const,
-  function: {
-    name: "list_skills",
-    strict: true,
-    description: "Get a list of all available specialized skills and prompt instructions that you can read to perform tasks better.",
-    parameters: {
-      type: "object",
-      properties: {},
-      additionalProperties: false
-    }
-  }
-};
-
-export const readSkillTool = {
-  type: "function" as const,
-  function: {
-    name: "read_skill",
-    strict: true,
-    description: "Read the detailed instructions and guidelines of a specific skill to apply to the user's task.",
-    parameters: {
-      type: "object",
-      properties: {
-        name: {
-          type: "string",
-          description: "The name of the skill to read (e.g., 'frontend_design')."
-        }
-      },
-      required: ["name"],
-      additionalProperties: false
-    }
-  }
-};
+// Tool definitions, selection and execution live in api/_lib/tools.ts.
 
 
 // Helper function to process memory tags from AI response
@@ -688,7 +611,8 @@ export const readSkillTool = {
 export async function processMemoryTags(
   content: string,
   userId: string | null,
-  persona: string
+  persona: string,
+  client: SupabaseClient = supabase,
 ): Promise<{ content: string; memoryContent: string | null; hasSavedMemory: boolean }> {
   const memoryRegex = /<memory>([\s\S]*?)<\/memory>/gi;
   const matches = content.match(memoryRegex);
@@ -705,7 +629,7 @@ export async function processMemoryTags(
     const innerContent = match.replace(/<\/?memory>/gi, '').trim();
     if (innerContent && userId) {
       memoryContent = innerContent;
-      const newMemory = await addUserMemory(userId, innerContent, 'general', 5, persona);
+      const newMemory = await addUserMemory(userId, innerContent, 'general', 5, persona, client);
       if (newMemory) {
         hasSavedMemory = true;
       }
@@ -713,7 +637,7 @@ export async function processMemoryTags(
   }
 
   // Remove memory tags from content
-  let cleanedContent = content.replace(memoryRegex, '').trim();
+  const cleanedContent = content.replace(memoryRegex, '').trim();
 
   return { content: cleanedContent, memoryContent, hasSavedMemory };
 }
@@ -736,74 +660,6 @@ const EAON_API_URL = 'https://api.eaon.dev/v1/chat/completions';
 const NVIDIA_API_KEY = (process.env.NVIDIA_API_KEY || process.env.NIM_API_KEY || '').trim();
 const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 
-interface ImageGenerationParams {
-  prompt: string;
-  orientation?: 'portrait' | 'landscape';
-  process?: 'create' | 'edit';
-  inputImageUrls?: string[];
-  persona?: keyof typeof AI_PERSONAS;
-  imageWidth?: number;
-  imageHeight?: number;
-}
-
-function generateImageUrl(params: ImageGenerationParams): string {
-  const {
-    prompt,
-    orientation = 'portrait',
-    process = 'create',
-    inputImageUrls,
-    persona = 'default',
-    imageWidth,
-    imageHeight
-  } = params;
-
-  // Generate a proxy URL that points to our secure image endpoint
-  // The actual Pollinations URL with the secret key is constructed server-side in /api/image
-  const encodedPrompt = encodeURIComponent(prompt);
-
-  let url = `/api/image?prompt=${encodedPrompt}&orientation=${orientation}&process=${process}&persona=${persona}`;
-
-  // For edit process, include the original image dimensions if available
-  if (process === 'edit' && imageWidth && imageHeight) {
-    url += `&width=${imageWidth}&height=${imageHeight}`;
-  }
-
-  // Handle multiple reference images (up to 4)
-  if (inputImageUrls && inputImageUrls.length > 0) {
-    const imageUrls = inputImageUrls.slice(0, 4).map(encodeURIComponent).join(',');
-    url += `&inputImageUrls=${imageUrls}`;
-  }
-
-  return url;
-}
-
-export function createImageMarkdown(params: ImageGenerationParams): string {
-  const imageUrl = generateImageUrl(params);
-  return `![Generated Image](${imageUrl})`;
-}
-
-interface WebSearchParams {
-  query: string;
-}
-
-export async function fetchWebSearchResults(params: WebSearchParams): Promise<string> {
-  const { query } = params;
-  const encodedQuery = encodeURIComponent(query);
-
-  const url = `https://gen.pollinations.ai/text/${encodedQuery}?model=perplexity-fast&key=${POLLINATIONS_API_KEY}`;
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Web search failed: ${response.status}`);
-    }
-    const text = await response.text();
-    return text;
-  } catch (error) {
-    console.error('Web search error:', error);
-    throw error;
-  }
-}
 
 // Memory tool params (MemoryParams kept for reference)
 // interface MemoryParams { content: string; }
@@ -820,9 +676,20 @@ interface AIMemory {
   created_at: string;
 }
 
-export async function fetchUserMemories(userId: string, persona: string = 'default'): Promise<AIMemory[]> {
+/**
+ * Read a user's stored memories.
+ *
+ * `client` should be a request-scoped client carrying the caller's JWT so RLS
+ * applies. It falls back to the service-role client only for callers with no
+ * request context (the Trigger.dev PRO task) — never for a client-supplied id.
+ */
+export async function fetchUserMemories(
+  userId: string,
+  persona: string = 'default',
+  client: SupabaseClient = supabase,
+): Promise<AIMemory[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('ai_memories')
       .select('*')
       .eq('user_id', userId)
@@ -848,10 +715,11 @@ export async function addUserMemory(
   content: string,
   memoryType: string = 'general',
   importance: number = 5,
-  persona: string = 'default'
+  persona: string = 'default',
+  client: SupabaseClient = supabase,
 ): Promise<AIMemory | null> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('ai_memories')
       .insert({
         user_id: userId,
@@ -937,15 +805,83 @@ export function formatMemoriesForContext(memories: AIMemory[], userProfile?: { n
 
 // Default rate limiting configuration (fallback when no custom limits set)
 const DEFAULT_PERSONA_LIMITS: Record<string, number> = {
-  default: parseInt(process.env.VITE_DEFAULT_PERSONA_LIMIT || '50'),
+  default: parseInt(process.env.VITE_DEFAULT_PERSONA_LIMIT || '400'),
   girlie: parseInt(process.env.VITE_GIRLIE_PERSONA_LIMIT || '70'),
-  pro: parseInt(process.env.VITE_PRO_PERSONA_LIMIT || '50'),
-  // External AIs have higher limits since they use their own APIs
-  chatgpt: 25,
-  gemini: 20,
-  claude: 20,
-  grok: 20
+  pro: parseInt(process.env.VITE_PRO_PERSONA_LIMIT || '200'),
 };
+
+// Anonymous trial. These are the numbers the UI shows, and they are enforced
+// here — the localStorage counter in useAnonymousRateLimit is display only and
+// resets when a visitor clears site data.
+export const ANONYMOUS_PERSONA_LIMITS: Record<string, number> = {
+  default: parseInt(process.env.ANON_DEFAULT_PERSONA_LIMIT || '3'),
+  girlie: 0,
+  pro: 0,
+};
+
+export function getAnonymousLimit(persona: string): number {
+  return ANONYMOUS_PERSONA_LIMITS[persona] ?? 0;
+}
+
+// ─── Anonymous device cookie ────────────────────────────────────────────────
+// An anonymous visitor is counted against two independent buckets: their IP
+// (which they cannot clear) and a signed device id (which survives an IP
+// change). Whichever is exhausted first stops them, so neither clearing site
+// data nor hopping networks grants a fresh trial on its own.
+
+const ANON_COOKIE_NAME = 'tm_anon';
+const ANON_TRIAL_SECRET = process.env.ANON_TRIAL_SECRET || '';
+
+function signDeviceId(deviceId: string): string {
+  return createHmac('sha256', ANON_TRIAL_SECRET).update(deviceId).digest('base64url');
+}
+
+function parseCookies(header: string | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!header) return out;
+  for (const part of header.split(';')) {
+    const index = part.indexOf('=');
+    if (index === -1) continue;
+    out[part.slice(0, index).trim()] = decodeURIComponent(part.slice(index + 1).trim());
+  }
+  return out;
+}
+
+/**
+ * Read the signed device id from the request, or mint a new one and set it.
+ * Returns null when ANON_TRIAL_SECRET is unset — the IP bucket still applies.
+ */
+export function resolveAnonymousDeviceId(req: VercelRequest, res: VercelResponse): string | null {
+  if (!ANON_TRIAL_SECRET) return null;
+
+  const cookies = parseCookies(req.headers.cookie);
+  const raw = cookies[ANON_COOKIE_NAME];
+
+  if (raw) {
+    const separator = raw.lastIndexOf('.');
+    if (separator > 0) {
+      const deviceId = raw.slice(0, separator);
+      const signature = raw.slice(separator + 1);
+      const expected = signDeviceId(deviceId);
+      // Compare in constant time, and only when the lengths already match —
+      // timingSafeEqual throws on a length mismatch.
+      if (
+        signature.length === expected.length &&
+        timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+      ) {
+        return deviceId;
+      }
+    }
+  }
+
+  const deviceId = randomUUID();
+  const value = `${deviceId}.${signDeviceId(deviceId)}`;
+  res.setHeader(
+    'Set-Cookie',
+    `${ANON_COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; Max-Age=${60 * 60 * 24 * 30}; HttpOnly; SameSite=Lax; Secure`,
+  );
+  return deviceId;
+}
 
 // Get rate limit for a user - checks for custom overrides in profiles.rate_limit_overrides
 // You can set custom limits per user from Supabase Table Editor:
@@ -969,110 +905,233 @@ async function getUserRateLimit(userId: string | null, persona: string): Promise
       console.error('Error fetching user rate limits:', error);
     }
   }
-  return DEFAULT_PERSONA_LIMITS[persona] || 50;
+  return DEFAULT_PERSONA_LIMITS[persona] ?? 50;
 }
 
-// Supabase-based rate limiting functions
-export async function checkRateLimit(userId: string | null, ip: string, persona: string): Promise<boolean> {
+export type RateLimitOutcome =
+  // `providers` is the requested chain minus anything at its daily ceiling —
+  // the whole chain when no ceiling is configured. Empty only when the caller
+  // named no providers at all.
+  | { allowed: true; providers: string[] }
+  | { allowed: false; reason: 'limit'; limit: number }
+  | { allowed: false; reason: 'backend_error' }
+  | { allowed: false; reason: 'spend_ceiling'; providers: string[] };
+
+// Reserved bucket keys in the rate_limits table. Real personas are lowercase
+// identifiers, so a '__' prefix cannot collide with one.
+const PROVIDER_BUCKET_PREFIX = '__provider__:';
+const GLOBAL_BUCKET_IP = '__global__';
+
+/**
+ * Read one bucket's usage in the current 24h window.
+ * Throws on a backend error so callers can fail closed.
+ */
+async function readBucketCount(
+  persona: string,
+  key: { userId: string } | { ip: string },
+): Promise<number> {
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  let query = supabase.from('rate_limits').select('*').eq('persona', persona);
+  query = 'userId' in key ? query.eq('user_id', key.userId) : query.eq('ip_address', key.ip);
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw new Error(`rate_limit_backend_error: ${error.message}`);
+  if (!data) return 0;
+
+  // Window expired — increment will reset it, so it reads as zero usage.
+  if (new Date(data.window_start) < dayAgo) return 0;
+
+  return data.message_count ?? 0;
+}
+
+/**
+ * Daily ceiling on total generations per provider. A hard stop that protects
+ * the card when something (a leak, a bug, a bot) drives volume past anything
+ * a real user population would produce. 0 / unset disables the ceiling.
+ *
+ * Returns the subset of `providers` still under their ceiling, in the order
+ * given. This is per *provider*, not per run: one provider hitting its cap
+ * means the run skips that provider, not that the app stops answering. The
+ * previous version checked only the primary and refused the whole turn on it,
+ * which — now that Air has a fallback chain — took two healthy providers down
+ * with the capped one.
+ */
+async function providersUnderCeiling(providers: string[]): Promise<string[]> {
+  const ceiling = parseInt(process.env.PROVIDER_DAILY_CEILING || '0', 10);
+  if (!ceiling || Number.isNaN(ceiling)) return providers;
+
+  const verdicts = await Promise.all(providers.map(async (provider) => {
+    const used = await readBucketCount(`${PROVIDER_BUCKET_PREFIX}${provider}`, { ip: GLOBAL_BUCKET_IP });
+    if (used >= ceiling) {
+      console.warn(`provider_spend_ceiling_reached provider=${provider} used=${used} ceiling=${ceiling}`);
+      return null;
+    }
+    return provider;
+  }));
+
+  const open = verdicts.filter((provider): provider is string => provider !== null);
+  if (open.length === 0 && providers.length > 0) {
+    console.error(`provider_spend_ceiling_reached_all providers=${providers.join(',')} ceiling=${ceiling}`);
+  }
+  return open;
+}
+
+/**
+ * Supabase-based rate limiting.
+ *
+ * Fails CLOSED: a backend error denies the request. The previous behaviour
+ * ("allow on error to not block users") meant a Supabase incident removed all
+ * limits and made spend unbounded — see production-check.md 0.4.
+ */
+/**
+ * Remaining quota for the caller in the current 24h window.
+ * Returns null when the limiter backend is unavailable — callers should show
+ * nothing rather than a number they cannot stand behind.
+ */
+export async function getRemainingQuota(
+  userId: string | null,
+  ip: string,
+  persona: string,
+  anonymousDeviceId?: string | null,
+): Promise<{ remaining: number; limit: number } | null> {
   try {
-    const now = new Date();
-    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-    // Query by user_id if logged in, otherwise by ip_address
-    let query = supabase
-      .from('rate_limits')
-      .select('*')
-      .eq('persona', persona);
-
     if (userId) {
-      query = query.eq('user_id', userId);
-    } else {
-      query = query.eq('ip_address', ip);
+      const limit = await getUserRateLimit(userId, persona);
+      const used = await readBucketCount(persona, { userId });
+      return { remaining: Math.max(0, limit - used), limit };
     }
 
-    const { data, error } = await query.maybeSingle();
+    const limit = getAnonymousLimit(persona);
+    if (limit <= 0) return { remaining: 0, limit: 0 };
 
-    if (error) {
-      console.error('Rate limit check error:', error);
-      return true; // Allow on error to not block users
+    let used = await readBucketCount(persona, { ip });
+    if (anonymousDeviceId) {
+      used = Math.max(used, await readBucketCount(persona, { ip: `device:${anonymousDeviceId}` }));
     }
-
-    if (!data) {
-      return true; // No record = no usage yet
-    }
-
-    // Check if window has expired (24 hours)
-    const windowStart = new Date(data.window_start);
-    if (windowStart < dayAgo) {
-      // Window expired, will be reset on increment
-      return true;
-    }
-
-    // Get custom limit for this user (or fall back to default)
-    const limit = await getUserRateLimit(userId, persona);
-    return data.message_count < limit;
+    return { remaining: Math.max(0, limit - used), limit };
   } catch (error) {
-    console.error('Rate limit check exception:', error);
-    return true; // Allow on error
+    console.error('rate_limit_backend_error', error instanceof Error ? error.message : error);
+    return null;
   }
 }
 
-export async function incrementRateLimit(userId: string | null, ip: string, persona: string): Promise<void> {
+export async function checkRateLimit(
+  userId: string | null,
+  ip: string,
+  persona: string,
+  options: { anonymousDeviceId?: string | null; providers?: string[] } = {},
+): Promise<RateLimitOutcome> {
   try {
-    const now = new Date();
-    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-    // Query existing record
-    let query = supabase
-      .from('rate_limits')
-      .select('*')
-      .eq('persona', persona);
+    // Only a run with nowhere left to go is refused here. A single capped
+    // provider just drops out of the chain.
+    const requested = options.providers ?? [];
+    const open = requested.length > 0 ? await providersUnderCeiling(requested) : [];
+    if (requested.length > 0 && open.length === 0) {
+      return { allowed: false, reason: 'spend_ceiling', providers: requested };
+    }
 
     if (userId) {
-      query = query.eq('user_id', userId);
-    } else {
-      query = query.eq('ip_address', ip);
+      const limit = await getUserRateLimit(userId, persona);
+      const used = await readBucketCount(persona, { userId });
+      return used < limit
+        ? { allowed: true, providers: open }
+        : { allowed: false, reason: 'limit', limit };
     }
 
-    const { data: existing } = await query.maybeSingle();
+    // Anonymous: enforce the same number the UI advertises, server-side.
+    const limit = getAnonymousLimit(persona);
+    if (limit <= 0) return { allowed: false, reason: 'limit', limit };
 
-    if (existing) {
-      const windowStart = new Date(existing.window_start);
+    const ipUsed = await readBucketCount(persona, { ip });
+    if (ipUsed >= limit) return { allowed: false, reason: 'limit', limit };
 
-      if (windowStart < dayAgo) {
-        // Reset the window
-        await supabase
-          .from('rate_limits')
-          .update({
-            message_count: 1,
-            window_start: now.toISOString(),
-            updated_at: now.toISOString()
-          })
-          .eq('id', existing.id);
-      } else {
-        // Increment count
-        await supabase
-          .from('rate_limits')
-          .update({
-            message_count: existing.message_count + 1,
-            updated_at: now.toISOString()
-          })
-          .eq('id', existing.id);
-      }
+    if (options.anonymousDeviceId) {
+      const deviceUsed = await readBucketCount(persona, { ip: `device:${options.anonymousDeviceId}` });
+      if (deviceUsed >= limit) return { allowed: false, reason: 'limit', limit };
+    }
+
+    return { allowed: true, providers: open };
+  } catch (error) {
+    // Deliberately fail closed. This log line is the signal that the limiter
+    // backend is down — alert on it (production-check.md 2.1).
+    console.error('rate_limit_backend_error', error instanceof Error ? error.message : error);
+    return { allowed: false, reason: 'backend_error' };
+  }
+}
+
+/** Increment one bucket by `amount`, resetting the window if it has expired. */
+async function bumpBucket(
+  persona: string,
+  key: { userId: string } | { ip: string },
+  amount: number,
+): Promise<void> {
+  const now = new Date();
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  let query = supabase.from('rate_limits').select('*').eq('persona', persona);
+  query = 'userId' in key ? query.eq('user_id', key.userId) : query.eq('ip_address', key.ip);
+
+  const { data: existing, error } = await query.maybeSingle();
+  if (error) throw new Error(`rate_limit_backend_error: ${error.message}`);
+
+  if (existing) {
+    const windowExpired = new Date(existing.window_start) < dayAgo;
+    await supabase
+      .from('rate_limits')
+      .update(
+        windowExpired
+          ? { message_count: amount, window_start: now.toISOString(), updated_at: now.toISOString() }
+          : {
+              // Never let a refund drive the counter below zero.
+              message_count: Math.max(0, (existing.message_count ?? 0) + amount),
+              updated_at: now.toISOString(),
+            },
+      )
+      .eq('id', existing.id);
+    return;
+  }
+
+  if (amount <= 0) return; // nothing to refund against
+
+  await supabase.from('rate_limits').insert({
+    user_id: 'userId' in key ? key.userId : null,
+    ip_address: 'userId' in key ? null : key.ip,
+    persona,
+    message_count: amount,
+    window_start: now.toISOString(),
+  });
+}
+
+/**
+ * Charge (or, with a negative amount, refund) quota for one generation.
+ *
+ * Call this only after a generation has actually succeeded. Charging up front
+ * means a failed request silently costs the user a message — the behaviour
+ * reported in production-check.md 0.4.
+ */
+export async function incrementRateLimit(
+  userId: string | null,
+  ip: string,
+  persona: string,
+  options: { amount?: number; anonymousDeviceId?: string | null; provider?: string } = {},
+): Promise<void> {
+  const amount = options.amount ?? 1;
+  try {
+    if (userId) {
+      await bumpBucket(persona, { userId }, amount);
     } else {
-      // Create new record
-      await supabase
-        .from('rate_limits')
-        .insert({
-          user_id: userId,
-          ip_address: userId ? null : ip,
-          persona,
-          message_count: 1,
-          window_start: now.toISOString()
-        });
+      await bumpBucket(persona, { ip }, amount);
+      if (options.anonymousDeviceId) {
+        await bumpBucket(persona, { ip: `device:${options.anonymousDeviceId}` }, amount);
+      }
+    }
+
+    if (options.provider) {
+      await bumpBucket(`${PROVIDER_BUCKET_PREFIX}${options.provider}`, { ip: GLOBAL_BUCKET_IP }, amount);
     }
   } catch (error) {
-    console.error('Rate limit increment error:', error);
+    console.error('rate_limit_increment_error', error instanceof Error ? error.message : error);
   }
 }
 
@@ -1083,7 +1142,8 @@ export async function extractImageContent(imageUrls: string[]): Promise<string> 
     image_url: { url }
   }));
 
-  const response = await fetch(POLLINATIONS_API_URL, {
+  const response = await providerFetch(POLLINATIONS_API_URL, {
+    providerLabel: 'pollinations',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1169,7 +1229,8 @@ export async function callCerebrasAirAPIStreaming(
     toolCount: tools?.length || 0
   }));
 
-  const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+  const response = await providerFetch('https://api.cerebras.ai/v1/chat/completions', {
+    providerLabel: 'cerebras',
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${CEREBRAS_API_KEY}`,
@@ -1257,7 +1318,8 @@ export async function callGroqStandardAPIStreaming(
     requestBody.tool_choice = "auto";
   }
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const response = await providerFetch('https://api.groq.com/openai/v1/chat/completions', {
+    providerLabel: 'groq',
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${GROQ_API_KEY}`,
@@ -1418,7 +1480,8 @@ export async function callSecretsToAIAPIStreaming(
     toolCount: tools?.length || 0
   });
 
-  const response = await fetch(SECRETSTOAI_API_URL, {
+  const response = await providerFetch(SECRETSTOAI_API_URL, {
+    providerLabel: 'secretstoai',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1548,7 +1611,8 @@ export async function callNvidiaAPIStreaming(
     toolCount: tools?.length || 0
   });
 
-  const response = await fetch(NVIDIA_API_URL, {
+  const response = await providerFetch(NVIDIA_API_URL, {
+    providerLabel: 'nvidia',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1682,7 +1746,8 @@ export async function callEaonAPIStreaming(
     toolCount: tools?.length || 0
   });
 
-  const response = await fetch(EAON_API_URL, {
+  const response = await providerFetch(EAON_API_URL, {
+    providerLabel: 'eaon',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1817,7 +1882,8 @@ export async function callPollinationsAPIStreaming(
     toolCount: tools?.length || 0
   });
 
-  const response = await fetch(POLLINATIONS_API_URL, {
+  const response = await providerFetch(POLLINATIONS_API_URL, {
+    providerLabel: 'pollinations',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1948,7 +2014,8 @@ async function callSecretsToAIAPI(
     toolCount: tools?.length || 0
   });
 
-  const response = await fetch(SECRETSTOAI_API_URL, {
+  const response = await providerFetch(SECRETSTOAI_API_URL, {
+    providerLabel: 'secretstoai',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -2007,7 +2074,8 @@ async function callNvidiaAPI(
     toolCount: tools?.length || 0
   });
 
-  const response = await fetch(NVIDIA_API_URL, {
+  const response = await providerFetch(NVIDIA_API_URL, {
+    providerLabel: 'nvidia',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -2070,7 +2138,8 @@ async function callEaonAPI(
     toolCount: tools?.length || 0
   });
 
-  const response = await fetch(EAON_API_URL, {
+  const response = await providerFetch(EAON_API_URL, {
+    providerLabel: 'eaon',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -2129,7 +2198,8 @@ async function callPollinationsAPI(
     toolCount: tools?.length || 0
   });
 
-  const response = await fetch(POLLINATIONS_API_URL, {
+  const response = await providerFetch(POLLINATIONS_API_URL, {
+    providerLabel: 'pollinations',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -2147,53 +2217,251 @@ async function callPollinationsAPI(
   return await response.json();
 }
 
+// ─── Streaming provider dispatch ────────────────────────────────────────────
+// One place that knows how to start a streaming turn on each provider, so the
+// agent loop can call the model repeatedly without every persona carrying its
+// own six-branch if/else.
+
+const STREAMING_PROVIDERS = new Set([
+  'groq', 'pollinations', 'secretstoai', 'secrectstoai',
+  'eaon', 'nvidia', 'nim', 'cerebras',
+]);
+
+/** Map a configured provider name onto a supported one, preserving each persona's historical fallback. */
+export function normalizeStreamingProvider(provider: string | undefined, fallback: string): string {
+  return provider && STREAMING_PROVIDERS.has(provider) ? provider : fallback;
+}
+
+export interface PersonaProviderConfig {
+  provider?: string;
+  flowState?: { provider?: string };
+}
+
+/**
+ * The single source of truth for which upstream a run will hit.
+ *
+ * Both the spend-ceiling check (which happens before generation) and the
+ * dispatch itself read from here. They used to derive it separately with
+ * different fallbacks, so the ceiling could bill 'nvidia' for a run that
+ * actually went to Cerebras.
+ */
+export function resolveRunProvider(
+  persona: string,
+  personaConfig: PersonaProviderConfig,
+  flowState: boolean,
+): string {
+  if (persona === 'default') {
+    const flowConfig = personaConfig.flowState;
+    if (flowState && flowConfig) {
+      return normalizeStreamingProvider(flowConfig.provider || 'groq', 'cerebras');
+    }
+    return normalizeStreamingProvider(personaConfig.provider || 'cerebras', 'cerebras');
+  }
+  if (persona === 'pro') {
+    return normalizeStreamingProvider(personaConfig.provider || 'pollinations', 'pollinations');
+  }
+  return normalizeStreamingProvider(personaConfig.provider || 'groq', 'groq');
+}
+
+/**
+ * The ordered list of (provider, model) pairs a run may use: the persona's
+ * primary first, then whatever `fallbacks` that persona declares.
+ *
+ * One provider's bad minute should not be an outage (production-check.md
+ * 1.11). The chain is read from the persona config rather than hardcoded here
+ * so the whole routing decision lives in one place — AI_PERSONAS at the top of
+ * this file — instead of being split across two definitions that can drift.
+ *
+ * Special modes and Flow State override the model but not the fallbacks, so a
+ * hop still runs its own configured model. Duplicate (provider, model) pairs
+ * are dropped: retrying the exact same pair after it just failed only adds
+ * latency before the error the user actually sees.
+ */
+export function buildProviderChain(
+  provider: string,
+  model: string,
+  fallbacks: ProviderHop[] = [],
+): ProviderHop[] {
+  const chain: ProviderHop[] = [];
+  const seen = new Set<string>();
+
+  for (const hop of [{ provider, model }, ...fallbacks]) {
+    if (!hop?.provider || !hop?.model) continue;
+    // A hop naming a provider with no dispatch branch would fall through to
+    // the `default:` case and be sent to Cerebras under someone else's model
+    // id — a fallback that fails in a more confusing way than no fallback.
+    if (!STREAMING_PROVIDERS.has(hop.provider)) {
+      console.warn(`[provider] skipping unknown fallback provider '${hop.provider}'`);
+      continue;
+    }
+    const key = `${hop.provider}:${hop.model}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    chain.push({ provider: hop.provider, model: hop.model });
+  }
+
+  // The primary may itself have been dropped as unknown; never return nothing.
+  return chain.length > 0 ? chain : [{ provider, model }];
+}
+
+/**
+ * Every provider a run may touch, primary first.
+ *
+ * The spend ceiling needs this before a model is resolved, so it works in
+ * provider names rather than full hops.
+ */
+export function runProviderNames(provider: string, personaConfig: unknown): string[] {
+  const names = [provider, ...personaFallbacks(personaConfig).map(hop => hop.provider)];
+  return [...new Set(names.filter(name => STREAMING_PROVIDERS.has(name)))];
+}
+
+/** The declared fallbacks for a persona, if it has any. */
+export function personaFallbacks(personaConfig: unknown): ProviderHop[] {
+  const declared = (personaConfig as { fallbacks?: unknown })?.fallbacks;
+  if (!Array.isArray(declared)) return [];
+  return declared.filter((hop): hop is ProviderHop =>
+    Boolean(hop) && typeof hop.provider === 'string' && typeof hop.model === 'string');
+}
+
+interface StreamingModelConfig {
+  model: string;
+  temperature?: number;
+  maxTokens?: number;
+  reasoningEffort?: string;
+}
+
+export async function dispatchStreamingProvider(
+  provider: string,
+  messages: any[],
+  tools: any[] | undefined,
+  cfg: StreamingModelConfig
+): Promise<ReadableStream> {
+  const { model, temperature, maxTokens, reasoningEffort } = cfg;
+
+  switch (provider) {
+    case 'groq':
+      return callGroqStandardAPIStreaming(messages, model, temperature as number, maxTokens as number, tools, reasoningEffort);
+    case 'pollinations':
+      return callPollinationsAPIStreaming(messages, model, temperature, maxTokens, tools);
+    case 'secretstoai':
+    case 'secrectstoai':
+      return callSecretsToAIAPIStreaming(messages, model, temperature, maxTokens, tools);
+    case 'eaon':
+      return callEaonAPIStreaming(messages, model, temperature, maxTokens, tools);
+    case 'nvidia':
+    case 'nim':
+      return callNvidiaAPIStreaming(messages, model, temperature, maxTokens, tools);
+    case 'cerebras':
+    default:
+      return callCerebrasAirAPIStreaming(messages, tools, model, temperature, maxTokens);
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Handle CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  applyCors(req, res, 'GET, POST, OPTIONS');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  // A browser page on a disallowed origin gets nothing. Non-browser clients
+  // send no Origin at all and are handled by the auth check below.
+  if (!hasAcceptableOrigin(req)) {
+    return res.status(403).json(apiErrorBody('FORBIDDEN', 'Origin not allowed'));
+  }
+
+  // GET /api/ai-proxy?quota=<persona> — the authoritative remaining count for
+  // this caller, so the UI never has to guess (production-check.md 0.4).
+  if (req.method === 'GET') {
+    const quotaPersona = typeof req.query.quota === 'string' ? req.query.quota : '';
+    if (!quotaPersona || !(quotaPersona in AI_PERSONAS)) {
+      return res.status(400).json(apiErrorBody('BAD_REQUEST', 'Unknown persona'));
+    }
+
+    const quotaUser = await getAuthenticatedRequestUser(req);
+    const quotaIpHeader = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket.remoteAddress || 'unknown';
+    const quotaIp = Array.isArray(quotaIpHeader) ? quotaIpHeader[0] : quotaIpHeader;
+    const quotaDeviceId = quotaUser ? null : resolveAnonymousDeviceId(req, res);
+
+    const quota = await getRemainingQuota(quotaUser?.id ?? null, quotaIp, quotaPersona, quotaDeviceId);
+    if (!quota) return res.status(503).json(apiErrorBody('UNAVAILABLE', 'Service temporarily unavailable'));
+
+    return res.status(200).json({ ...quota, anonymous: !quotaUser });
+  }
+
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json(apiErrorBody('BAD_REQUEST', 'Method not allowed'));
   }
 
   try {
-    const { messages, persona = 'default', imageData, heatLevel = 2, stream = false, flowState = false, inputImageUrls, imageDimensions, userId, userMemories, specialMode, pdfData, pdfFileName, pdfExtractedText } = req.body;
+    // Identity comes from the verified JWT, never from the request body.
+    // `userId` is deliberately NOT destructured below — see production-check.md
+    // 0.1 and 0.2. A client-supplied id let anyone read another user's stored
+    // memories through the service-role Supabase client.
+    const authedUser = await getAuthenticatedRequestUser(req);
+    const userId = authedUser?.id ?? null;
 
-    if (!messages || !Array.isArray(messages)) {
-      return res.status(400).json({ error: 'Invalid messages format' });
-    }
+    // User-scoped Supabase client: RLS applies, so even a bug that passed the
+    // wrong id here cannot read another user's rows. Falls back to the
+    // service-role client only if the anon key is unset.
+    const accessToken = getRequestAccessToken(req);
+    const userClient = (userId && accessToken && createUserScopedClient(accessToken)) || supabase;
+
+    // Bound every input before doing any work with it (1.8). Oversized and
+    // malformed payloads are rejected here, not after a 300-second run.
+    if (rejectIfTooLarge(req, res)) return;
+    const body = parseOrReject(res, aiProxyBodySchema, req.body);
+    if (!body) return;
+
+    const { messages, persona, imageData, heatLevel, stream, flowState, inputImageUrls, imageDimensions, userMemories, specialMode, pdfData, pdfFileName, pdfExtractedText } = body;
+
+    const personaConfig = AI_PERSONAS[persona as keyof typeof AI_PERSONAS];
 
     // Get client IP for rate limiting
     const clientIP = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket.remoteAddress || 'unknown';
     const ip = Array.isArray(clientIP) ? clientIP[0] : clientIP;
 
-    // Check rate limit (using Supabase)
-    const withinLimit = await checkRateLimit(userId || null, ip, persona);
-    if (!withinLimit) {
-      return res.status(429).json({
-        error: 'Rate limit exceeded',
-        type: 'rateLimit'
-      });
+    // Anonymous visitors get a small trial, enforced here rather than in
+    // localStorage. Personas with a zero anonymous allowance need an account.
+    const anonymousDeviceId = userId ? null : resolveAnonymousDeviceId(req, res);
+    if (!userId && getAnonymousLimit(persona) <= 0) {
+      return res.status(401).json(
+        apiErrorBody('AUTH_REQUIRED', 'Sign in to use this persona', { type: 'authRequired' })
+      );
     }
 
-    const personaConfig = AI_PERSONAS[persona as keyof typeof AI_PERSONAS];
-    if (!personaConfig) {
-      return res.status(400).json({ error: 'Invalid persona' });
+    // Which upstream this run will bill. Special modes override the model but
+    // never the provider, so the persona config is the only source. Derived by
+    // the same function the dispatch uses, so the two cannot drift apart.
+    const provider = resolveRunProvider(persona, personaConfig as PersonaProviderConfig, !!flowState);
+
+    // Check rate limit (using Supabase). Fails closed.
+    const runProviders = runProviderNames(provider, personaConfig);
+    const limitOutcome = await checkRateLimit(userId, ip, persona, { anonymousDeviceId, providers: runProviders });
+    if (!limitOutcome.allowed) {
+      if (limitOutcome.reason === 'backend_error') {
+        return res.status(503).json(
+          apiErrorBody('UNAVAILABLE', 'Service temporarily unavailable', { type: 'rateLimitBackend' })
+        );
+      }
+      if (limitOutcome.reason === 'spend_ceiling') {
+        return res.status(503).json(
+          apiErrorBody('UNAVAILABLE', 'Service temporarily unavailable', { type: 'spendCeiling' })
+        );
+      }
+      return res.status(429).json(
+        apiErrorBody('RATE_LIMITED', 'Rate limit exceeded', {
+          type: 'rateLimit',
+          ...(userId ? {} : { anonymous: true, limit: limitOutcome.limit }),
+        })
+      );
     }
+
+    // Providers still under their daily ceiling, in chain order. With no
+    // ceiling configured this is the whole chain.
+    const openProviders = limitOutcome.providers;
 
     // Resolve special mode per-persona config (if active)
-    const toolMap: Record<string, any> = {
-      imageGeneration: imageGenerationTool,
-      webSearch: webSearchTool,
-      listSkills: listSkillsTool,
-      readSkill: readSkillTool
-    };
-
     // Map persona key to the 3 base personas used in special mode configs
     const basePersona = (['default', 'girlie', 'pro'].includes(persona) ? persona : 'default') as 'default' | 'girlie' | 'pro';
     const specialModeConfig = specialMode && (SPECIAL_MODE_CONFIGS as Record<string, any>)[specialMode]
@@ -2215,7 +2483,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Fetch user memories and add to system prompt if user is logged in
     let memoryContext = '';
     if (userId) {
-      const memories = await fetchUserMemories(userId, persona);
+      // Defence in depth: the id already comes from the verified token, but a
+      // future refactor that reintroduces a body field must fail loudly here.
+      assertOwnUserId(userId, authedUser?.id ?? null);
+      const memories = await fetchUserMemories(userId, persona, userClient);
       // userMemories from request contains profile info (nickname, about_me)
       const userProfile = userMemories as { nickname?: string; about_me?: string } | undefined;
       memoryContext = formatMemoriesForContext(memories, userProfile);
@@ -2234,22 +2505,27 @@ Example: If user says "My favorite song is Attention by Charlie Puth", you would
 The memory tags will be processed and removed from the visible response, so write your actual response normally before the tags.` : '';
 
     // Enhanced system prompt with tool usage instructions, guardrails and memory context
+    // music-compose must emit only JSON, so it gets neither memory tags nor
+    // the thinking directive.
+    const thinkingDirective = specialMode === 'music-compose' ? '' : THINKING_DIRECTIVE;
+
     const enhancedSystemPrompt = `${systemPrompt}${memoryContext}${memoryInstructions}
 
 ${TOOL_GUARDRAIL}
-
-.`;
+${thinkingDirective}`;
 
     // Initialize model, system prompt, and tools — apply special mode overrides
-    let modelToUse = specialModeConfig?.model || personaConfig.model;
+    const modelToUse = specialModeConfig?.model || personaConfig.model;
     let systemPromptToUse = enhancedSystemPrompt;
-    let toolsToUse: any[] = specialModeConfig && 'tools' in specialModeConfig
-      ? specialModeConfig.tools.map((t: string) => toolMap[t]).filter(Boolean)
-      : [imageGenerationTool, webSearchTool];
-
-    if (persona === 'pro') {
-      toolsToUse.push(listSkillsTool, readSkillTool);
-    }
+    // Decided in code, not asked of the model: see api/_lib/tools.ts.
+    const imageAllowed = resolveImageAllowed(messages, !!imageData);
+    const searchAllowed = resolveWebSearchAllowed(messages);
+    const toolsToUse: any[] = selectTools({
+      specialModeConfig,
+      includeSkills: persona === 'pro',
+      imageAllowed,
+      searchAllowed,
+    });
 
     // Apply temperature, maxTokens, and reasoningEffort overrides from special mode
     const temperatureToUse = specialModeConfig?.temperature ?? personaConfig.temperature;
@@ -2287,25 +2563,12 @@ ${TOOL_GUARDRAIL}
     {
       // Build apiMessages the same way for all cases (text-only messages)
       // If images are present, the OCR pipeline will inject extracted text before the API call
-      const externalAIs = ['chatgpt', 'gemini', 'claude', 'deepseek', 'grok'];
-      const isExternalAI = externalAIs.includes(persona);
-
-      if (isExternalAI) {
-        // No system prompt for external AIs
-        apiMessages = processedMessages.map((msg: any) => ({
-          role: msg.isAI ? 'assistant' : 'user',
-          content: msg.content
-        }));
-      } else {
-        // TimeMachine personas use system prompts
-        apiMessages = [
-          { role: 'system', content: systemPromptToUse },
-          ...processedMessages.map((msg: any) => ({
-            role: msg.isAI ? 'assistant' : 'user',
-            content: msg.content
-          }))
-        ];
-      }
+      // Every persona is a TimeMachine persona now and carries a system prompt.
+      // The third-party-branded personas were removed — see production-check.md 0.9.
+      apiMessages = [
+        { role: 'system', content: systemPromptToUse },
+        ...toApiMessages(processedMessages)
+      ];
     }
 
     // Document text injection: enrich the last user message with the file content
@@ -2336,7 +2599,6 @@ ${TOOL_GUARDRAIL}
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
 
-      let streamingResponse: ReadableStream;
 
 
 
@@ -2378,556 +2640,119 @@ ${TOOL_GUARDRAIL}
         res.write('[IMAGE_ANALYZED]');
       }
 
-      // Choose API based on persona
-      const externalAIs = ['chatgpt', 'gemini', 'claude', 'deepseek', 'grok'];
-      if (externalAIs.includes(persona)) {
-        // External AI models use Pollinations API
-        streamingResponse = await callPollinationsAPIStreaming(
-          apiMessages,
-          personaConfig.model
-        );
-      } else if (persona === 'default') {
-        // Air persona — check Flow State first, then configured provider
-        const flowConfig = (personaConfig as any).flowState;
-        if (flowState && flowConfig) {
-          // Flow State: route based on configured provider
-          const fsProvider = flowConfig.provider || 'groq';
-          if (fsProvider === 'groq') {
-            streamingResponse = await callGroqStandardAPIStreaming(
-              apiMessages,
-              flowConfig.model,
-              flowConfig.temperature,
-              flowConfig.maxTokens,
-              toolsToUse,
-              reasoningEffortToUse
-            );
-          } else if (fsProvider === 'pollinations') {
-            streamingResponse = await callPollinationsAPIStreaming(
-              apiMessages,
-              flowConfig.model,
-              flowConfig.temperature,
-              flowConfig.maxTokens,
-              toolsToUse
-            );
-          } else if (fsProvider === 'secretstoai' || fsProvider === 'secrectstoai') {
-            streamingResponse = await callSecretsToAIAPIStreaming(
-              apiMessages,
-              flowConfig.model,
-              flowConfig.temperature,
-              flowConfig.maxTokens,
-              toolsToUse
-            );
-          } else if (fsProvider === 'eaon') {
-            streamingResponse = await callEaonAPIStreaming(
-              apiMessages,
-              flowConfig.model,
-              flowConfig.temperature,
-              flowConfig.maxTokens,
-              toolsToUse
-            );
-          } else if (fsProvider === 'nvidia' || fsProvider === 'nim') {
-            streamingResponse = await callNvidiaAPIStreaming(
-              apiMessages,
-              flowConfig.model,
-              flowConfig.temperature,
-              flowConfig.maxTokens,
-              toolsToUse
-            );
-          } else {
-            streamingResponse = await callCerebrasAirAPIStreaming(
-              apiMessages,
-              toolsToUse,
-              flowConfig.model,
-              flowConfig.temperature,
-              flowConfig.maxTokens
-            );
-          }
-        } else {
-          const airProvider = (personaConfig as any).provider || 'cerebras';
+      // ─── Resolve which provider and model this run uses ───────────────
+      // Each persona keeps its own historical fallback provider.
+      // Same derivation the spend ceiling used above.
+      const runProvider = provider;
+      let runModel: string = modelToUse;
+      let runTemperature: number | undefined = temperatureToUse;
+      let runMaxTokens: number | undefined = maxTokensToUse;
+      const runTools = toolsToUse;
 
-          if (airProvider === 'groq') {
-            streamingResponse = await callGroqStandardAPIStreaming(
-              apiMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              toolsToUse,
-              reasoningEffortToUse
-            );
-          } else if (airProvider === 'pollinations') {
-            streamingResponse = await callPollinationsAPIStreaming(
-              apiMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              toolsToUse
-            );
-          } else if (airProvider === 'secretstoai' || airProvider === 'secrectstoai') {
-            streamingResponse = await callSecretsToAIAPIStreaming(
-              apiMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              toolsToUse
-            );
-          } else if (airProvider === 'eaon') {
-            streamingResponse = await callEaonAPIStreaming(
-              apiMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              toolsToUse
-            );
-          } else if (airProvider === 'nvidia' || airProvider === 'nim') {
-            streamingResponse = await callNvidiaAPIStreaming(
-              apiMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              toolsToUse
-            );
-          } else {
-            streamingResponse = await callCerebrasAirAPIStreaming(
-              apiMessages,
-              toolsToUse,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse
-            );
-          }
-        }
-      } else if (persona === 'pro') {
-        // Run the agentic loop for TimeMachine PRO (streaming)
-        let currentMessages = [...apiMessages];
-        let iteration = 0;
-        const maxIterations = 5;
-        const toolCallsMap = new Map();
-        let fullContent = '';
+      // Flow State swaps the model alongside the provider.
+      const flowConfig = (personaConfig as PersonaProviderConfig & {
+        flowState?: { model?: string; temperature?: number; maxTokens?: number };
+      }).flowState;
+      if (persona === 'default' && flowState && flowConfig) {
+        runModel = flowConfig.model ?? runModel;
+        runTemperature = flowConfig.temperature;
+        runMaxTokens = flowConfig.maxTokens;
+      }
 
-        while (iteration < maxIterations) {
-          iteration++;
+      try {
+        // Every persona runs the same agentic loop. Tool results go back to the
+        // model instead of being spliced into the user's response, which is what
+        // lets the runtime backstop refuse a bad generate_image call and have the
+        // model recover on the next iteration.
+        const toolPolicy = createToolPolicy({ imageAllowed, searchAllowed });
 
-          // On the final iteration, disable tools to force a response
-          const activeTools = (iteration === maxIterations) ? [] : toolsToUse;
+        // Opening a provider stream is the only retryable moment: it either
+        // yields a stream or throws before a single byte reaches the client.
+        // Once tokens are flowing there is no resume, so a mid-stream death
+        // surfaces as truncated instead (1.9/1.11).
+        const fullChain = buildProviderChain(runProvider, runModel, personaFallbacks(personaConfig));
+        // Drop hops whose provider is out of budget for the day. With no ceiling
+        // configured openProviders holds the whole chain, so nothing is lost.
+        const providerChain = openProviders.length > 0
+          ? fullChain.filter(hop => openProviders.includes(hop.provider))
+          : fullChain;
 
-          console.log(`PRO Persona Agent Loop: Iteration ${iteration} of ${maxIterations}`);
+        // Which provider actually produced the turn. The ceiling used to be
+        // charged to the primary regardless, so a run served by a fallback
+        // spent the primary's budget and capped it early.
+        let servedProvider = runProvider;
 
-          const proProvider = (personaConfig as any).provider || 'pollinations';
-          let streamingResponse;
-          if (proProvider === 'secretstoai' || proProvider === 'secrectstoai') {
-            streamingResponse = await callSecretsToAIAPIStreaming(
-              currentMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              activeTools
-            );
-          } else if (proProvider === 'eaon') {
-            streamingResponse = await callEaonAPIStreaming(
-              currentMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              activeTools
-            );
-          } else if (proProvider === 'nvidia' || proProvider === 'nim') {
-            streamingResponse = await callNvidiaAPIStreaming(
-              currentMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              activeTools
-            );
-          } else if (proProvider === 'groq') {
-            streamingResponse = await callGroqStandardAPIStreaming(
-              currentMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              activeTools,
-              reasoningEffortToUse
-            );
-          } else if (proProvider === 'cerebras') {
-            streamingResponse = await callCerebrasAirAPIStreaming(
-              currentMessages,
-              activeTools,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse
-            );
-          } else {
-            streamingResponse = await callPollinationsAPIStreaming(
-              currentMessages,
-              modelToUse,
-              temperatureToUse,
-              maxTokensToUse,
-              activeTools
-            );
-          }
-
-          const reader = streamingResponse.getReader();
-          const decoder = new TextDecoder();
-          let assistantContent = '';
-          let hasToolCalls = false;
-          let isFirstContentOfIteration = true;
-          toolCallsMap.clear();
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n').filter(line => line.trim());
-
-            for (const line of lines) {
-              try {
-                const data = JSON.parse(line);
-                if (data.type === 'content') {
-                  if (isFirstContentOfIteration) {
-                    isFirstContentOfIteration = false;
-                    res.write('[STATUS_END]');
-                    if (fullContent.trim().length > 0) {
-                      const gap = '\n\n';
-                      assistantContent += gap;
-                      res.write(gap);
-                      fullContent += gap;
-                    }
-                  }
-                  assistantContent += data.content;
-                  res.write(data.content);
-                  fullContent += data.content;
-                } else if (data.type === 'tool_calls') {
-                  hasToolCalls = true;
-                  for (const delta of data.tool_calls) {
-                    const index = delta.index;
-                    if (!toolCallsMap.has(index)) {
-                      toolCallsMap.set(index, {
-                        id: delta.id || '',
-                        type: delta.type || 'function',
-                        function: {
-                          name: delta.function?.name || '',
-                          arguments: delta.function?.arguments || ''
-                        }
-                      });
-                    } else {
-                      const existing = toolCallsMap.get(index);
-                      if (delta.function?.name) existing.function.name = delta.function.name;
-                      if (delta.function?.arguments) existing.function.arguments += delta.function.arguments;
-                    }
-                  }
+        const loopResult = await runAgentLoop({
+          messages: apiMessages,
+          tools: runTools,
+          toolContext: { persona, inputImageUrls, imageDimensions, policy: toolPolicy },
+          emit: {
+            emitContent: (text) => { res.write(text); },
+            emitToolText: (text) => { res.write(`\n\n${text}\n\n`); },
+            emitMarker: (marker) => { res.write(marker); },
+          },
+          callModel: async (msgs, activeTools) => {
+            const run = await runWithProviderFallback(
+              providerChain,
+              (hop) => dispatchStreamingProvider(
+                hop.provider,
+                msgs,
+                activeTools,
+                {
+                  model: hop.model,
+                  temperature: runTemperature,
+                  maxTokens: runMaxTokens,
+                  reasoningEffort: reasoningEffortToUse,
                 }
-              } catch (e) {
-                // Ignore parsing errors
-              }
+              ),
+              (message) => console.log(`[${persona}] ${message}`),
+            );
+            servedProvider = run.provider;
+            if (run.provider !== runProvider) {
+              console.warn(`[${persona}] fell back from ${runProvider} to ${run.provider}`);
             }
-          }
+            return run.value;
+          },
+          log: (message) => console.log(`[${persona}] ${message}`),
+        });
 
-          if (hasToolCalls && toolCallsMap.size > 0) {
-            const toolCalls = Array.from(toolCallsMap.values()).filter(tc => tc.id && tc.function?.name);
+        let fullContent = loopResult.content;
 
-            // Append assistant message with tool calls to history
-            currentMessages.push({
-              role: 'assistant',
-              content: assistantContent || null,
-              tool_calls: toolCalls
-            });
-
-            // Execute tools, write status messages, and append tool response messages
-            for (const toolCall of toolCalls) {
-              const name = toolCall.function.name;
-              const argsStr = toolCall.function.arguments;
-              let result = '';
-
-              if (name === 'web_search') {
-                try {
-                  const params = JSON.parse(argsStr);
-                  // Write status marker to user for shimmering effect
-                  res.write(`[STATUS:Searching the web for "${params.query}"]`);
-                  const searchResults = await fetchWebSearchResults(params);
-
-                  // Truncate search results to protect context window
-                  result = searchResults.slice(0, 10000);
-                } catch (err: any) {
-                  result = `Error: ${err.message}`;
-                }
-              } else if (name === 'generate_image') {
-                try {
-                  const params = JSON.parse(argsStr);
-                  res.write(`[STATUS:Generating image with prompt: "${params.prompt}"]`);
-                  const imageMarkdown = createImageMarkdown({
-                    ...params,
-                    persona,
-                    inputImageUrls,
-                    imageWidth: imageDimensions?.width,
-                    imageHeight: imageDimensions?.height
-                  });
-                  // Stream the markdown directly to the user response
-                  res.write(`\n\n${imageMarkdown}\n\n`);
-
-                  result = `Image generated successfully. Markdown link: ${imageMarkdown}`;
-                } catch (err: any) {
-                  result = `Error: ${err.message}`;
-                }
-              } else if (name === 'list_skills') {
-                try {
-                  res.write('[STATUS:Reading skills library]');
-                  const list = Object.keys(SKILLS_DATA).map(key => ({
-                    name: SKILLS_DATA[key].name,
-                    description: SKILLS_DATA[key].description
-                  }));
-                  result = JSON.stringify(list, null, 2);
-                } catch (err: any) {
-                  result = `Error: ${err.message}`;
-                }
-              } else if (name === 'read_skill') {
-                try {
-                  const params = JSON.parse(argsStr);
-                  res.write(`[STATUS:Reading skill instructions for ${params.name}]`);
-                  const skill = SKILLS_DATA[params.name];
-                  if (skill) {
-                    result = skill.content;
-                  } else {
-                    result = `Error: Skill "${params.name}" not found. Available skills: ${Object.keys(SKILLS_DATA).join(', ')}`;
-                  }
-                } catch (err: any) {
-                  result = `Error: ${err.message}`;
-                }
-              }
-
-              currentMessages.push({
-                role: 'tool',
-                tool_call_id: toolCall.id,
-                name: name,
-                content: result
-              });
-            }
-
-            // Loop again to call the LLM with the tool results
-            continue;
-          }
-
-          // No tool calls, meaning the assistant responded with final text. Done!
-          break;
-        }
-
-        // Check if max iterations reached and last response had tool calls
-        if (iteration >= maxIterations && toolCallsMap.size > 0) {
+        if (loopResult.hitMaxIterations) {
           const warning = '\n\n*System: Maximum reasoning iterations (5) reached. Stopped further tool executions.*';
           res.write(warning);
           fullContent += warning;
         }
 
-        // Finalize rate limits & memories
-        const quotaCost = 1;
-        for (let i = 0; i < quotaCost; i++) {
-          incrementRateLimit(userId || null, ip, persona);
-        }
-
-        if (userId && fullContent) {
-          const memoryResult = await processMemoryTags(fullContent, userId, persona);
-          if (memoryResult.hasSavedMemory) {
-            res.write('\n\n[MEMORY_SAVED]');
-          }
-        }
-
-        res.write('[STATUS_END]');
-        res.end();
-        return;
-      } else {
-        const provider = (personaConfig as any).provider || 'groq';
-        if (provider === 'secretstoai' || provider === 'secrectstoai') {
-          streamingResponse = await callSecretsToAIAPIStreaming(
-            apiMessages,
-            modelToUse,
-            temperatureToUse,
-            maxTokensToUse,
-            toolsToUse
-          );
-        } else if (provider === 'eaon') {
-          streamingResponse = await callEaonAPIStreaming(
-            apiMessages,
-            modelToUse,
-            temperatureToUse,
-            maxTokensToUse,
-            toolsToUse
-          );
-        } else if (provider === 'nvidia' || provider === 'nim') {
-          streamingResponse = await callNvidiaAPIStreaming(
-            apiMessages,
-            modelToUse,
-            temperatureToUse,
-            maxTokensToUse,
-            toolsToUse
-          );
-        } else if (provider === 'pollinations') {
-          streamingResponse = await callPollinationsAPIStreaming(
-            apiMessages,
-            modelToUse,
-            temperatureToUse,
-            maxTokensToUse,
-            toolsToUse
-          );
-        } else if (provider === 'cerebras') {
-          streamingResponse = await callCerebrasAirAPIStreaming(
-            apiMessages,
-            toolsToUse,
-            modelToUse,
-            temperatureToUse,
-            maxTokensToUse
-          );
-        } else {
-          streamingResponse = await callGroqStandardAPIStreaming(
-            apiMessages,
-            modelToUse,
-            temperatureToUse,
-            maxTokensToUse,
-            toolsToUse,
-            reasoningEffortToUse
-          );
-        }
-      }
-
-      // Process streaming response
-      const reader = streamingResponse.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = '';
-      let toolCallsMap: Map<number, any> = new Map(); // Accumulate tool calls by index
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n').filter(line => line.trim());
-
-          for (const line of lines) {
-            try {
-              const data = JSON.parse(line);
-
-              if (data.type === 'content') {
-                fullContent += data.content;
-                res.write(data.content);
-              } else if (data.type === 'tool_calls') {
-                console.log('Received tool calls in stream:', JSON.stringify(data.tool_calls));
-                // Accumulate tool calls by index
-                for (const delta of data.tool_calls) {
-                  const index = delta.index;
-                  if (!toolCallsMap.has(index)) {
-                    toolCallsMap.set(index, {
-                      id: delta.id || '',
-                      type: delta.type || 'function',
-                      function: {
-                        name: delta.function?.name || '',
-                        arguments: delta.function?.arguments || ''
-                      }
-                    });
-                  } else {
-                    const existing = toolCallsMap.get(index);
-                    if (delta.function?.name) {
-                      existing.function.name = delta.function.name;
-                    }
-                    if (delta.function?.arguments) {
-                      existing.function.arguments += delta.function.arguments;
-                    }
-                  }
-                }
-              } else if (data.type === 'finish') {
-                // Process any accumulated tool calls
-                console.log('Processing tool calls, map size:', toolCallsMap.size);
-                if (toolCallsMap.size > 0) {
-                  for (const [_index, toolCall] of toolCallsMap.entries()) {
-                    console.log('Processing tool call:', toolCall.function?.name, 'args length:', toolCall.function?.arguments?.length);
-
-                    // Skip if arguments are empty or invalid
-                    if (!toolCall.function?.arguments || toolCall.function.arguments.trim() === '') {
-                      console.log('Skipping tool call with empty arguments');
-                      continue;
-                    }
-
-                    if (toolCall.function?.name === 'generate_image') {
-                      try {
-                        const params: ImageGenerationParams = JSON.parse(toolCall.function.arguments);
-
-                        if (inputImageUrls && inputImageUrls.length > 0) {
-                          params.inputImageUrls = inputImageUrls;
-                        }
-
-                        // Pass original image dimensions for edit operations
-                        if (imageDimensions) {
-                          params.imageWidth = imageDimensions.width;
-                          params.imageHeight = imageDimensions.height;
-                        }
-
-                        params.persona = persona;
-
-                        const imageMarkdown = createImageMarkdown(params);
-                        res.write(`\n\n${imageMarkdown}`);
-                        fullContent += `\n\n${imageMarkdown}`;
-                      } catch (error) {
-                        console.error('Error processing image generation:', error);
-                        console.error('Tool call arguments:', toolCall.function.arguments);
-                        const errorMsg = '\n\nSorry, I had trouble generating that image. Please try again.';
-                        res.write(errorMsg);
-                        fullContent += errorMsg;
-                      }
-                    } else if (toolCall.function?.name === 'web_search') {
-                      try {
-                        const params: WebSearchParams = JSON.parse(toolCall.function.arguments);
-
-                        // Show loading state
-                        const loadingMsg = '\n\n*Searching the web...*';
-                        res.write(loadingMsg);
-
-                        // Fetch actual search results
-                        const searchResults = await fetchWebSearchResults(params);
-
-                        // Clear loading message and show results
-                        const resultsMsg = `\n\n${searchResults}`;
-                        res.write(resultsMsg);
-                        fullContent += resultsMsg;
-                      } catch (error) {
-                        console.error('Error processing web search:', error);
-                        console.error('Tool call arguments:', toolCall.function.arguments);
-                        const errorMsg = '\n\nSorry, I had trouble performing that web search. Please try again.';
-                        res.write(errorMsg);
-                        fullContent += errorMsg;
-                      }
-                    }
-                  }
-                  // Fix: clear the map after processing so we don't double-fire if multiple finish headers arrive
-                  toolCallsMap.clear();
-                }
-                break;
-              }
-            } catch (error) {
-              console.error('Error parsing streaming chunk:', error);
-            }
-          }
-        }
-
-        // Increment rate limit after successful response (async, don't await)
-        // Flow State consumes 3 quota instead of 1
+        // Charge quota only now that the generation has actually succeeded.
+        // Flow State consumes 3 quota instead of 1.
         const quotaCost = (flowState && persona === 'default') ? 3 : 1;
-        for (let i = 0; i < quotaCost; i++) {
-          incrementRateLimit(userId || null, ip, persona);
-        }
+        await incrementRateLimit(userId, ip, persona, {
+          amount: quotaCost,
+          anonymousDeviceId,
+          provider: servedProvider,
+        });
 
         // Process memory tags from the full content (XML-based memory system)
         if (userId && fullContent) {
-          const memoryResult = await processMemoryTags(fullContent, userId, persona);
+          const memoryResult = await processMemoryTags(fullContent, userId, persona, userClient);
           if (memoryResult.hasSavedMemory) {
             // Send a special marker that the frontend can detect
             res.write('\n\n[MEMORY_SAVED]');
           }
         }
 
-
+        res.write('[STATUS_END]');
         res.end();
       } catch (error) {
-        console.error('Streaming error:', error);
-        res.status(500).end('Stream error occurred');
+        // Never log the prompt or the partial generation, only the failure.
+        console.error('Streaming error:', error instanceof Error ? error.message : error);
+        // Headers are already committed by this point (the status/keep-alive
+        // writes above), so res.status(500) would be a no-op and .end(text)
+        // would append the error to the assistant's message. sendApiError
+        // switches to a control frame and ends the stream *without*
+        // [STATUS_END], which is how the client learns the turn failed (1.9).
+        sendApiError(res, 'PROVIDER_DOWN', 'The model provider failed mid-response.');
       }
     } else {
       // Non-streaming response (fallback)
@@ -2962,14 +2787,7 @@ ${TOOL_GUARDRAIL}
       }
 
       // Choose API based on persona
-      const externalAIs = ['chatgpt', 'gemini', 'claude', 'deepseek', 'grok'];
-      if (externalAIs.includes(persona)) {
-        // External AI models use Pollinations API
-        apiResponse = await callPollinationsAPI(
-          apiMessages,
-          personaConfig.model
-        );
-      } else if (persona === 'default') {
+      if (persona === 'default') {
         // Air persona — check Flow State first, then configured provider
         const flowConfig = (personaConfig as any).flowState;
         if (flowState && flowConfig) {
@@ -2990,7 +2808,8 @@ ${TOOL_GUARDRAIL}
               requestBody.tools = toolsToUse;
               requestBody.tool_choice = "auto";
             }
-            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            const response = await providerFetch('https://api.groq.com/openai/v1/chat/completions', {
+              providerLabel: 'groq',
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
@@ -3045,7 +2864,8 @@ ${TOOL_GUARDRAIL}
               requestBody.tools = toolsToUse;
               requestBody.tool_choice = "auto";
             }
-            const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+            const response = await providerFetch('https://api.cerebras.ai/v1/chat/completions', {
+              providerLabel: 'cerebras',
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${process.env.CEREBRAS_API_KEY}`,
@@ -3076,7 +2896,8 @@ ${TOOL_GUARDRAIL}
               requestBody.tool_choice = "auto";
             }
 
-            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            const response = await providerFetch('https://api.groq.com/openai/v1/chat/completions', {
+              providerLabel: 'groq',
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
@@ -3141,7 +2962,8 @@ ${TOOL_GUARDRAIL}
               toolCount: toolsToUse?.length || 0
             }));
 
-            const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+            const response = await providerFetch('https://api.cerebras.ai/v1/chat/completions', {
+              providerLabel: 'cerebras',
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${process.env.CEREBRAS_API_KEY}`,
@@ -3160,15 +2982,16 @@ ${TOOL_GUARDRAIL}
         }
       } else if (persona === 'pro') {
         // Run the agentic loop for TimeMachine PRO (non-streaming)
-        let currentMessages = [...apiMessages];
+        const currentMessages = [...apiMessages];
         let iteration = 0;
         const maxIterations = 5;
         let finalContent = '';
+        const toolPolicy = createToolPolicy({ imageAllowed, searchAllowed });
 
         while (iteration < maxIterations) {
           iteration++;
 
-          const activeTools = (iteration === maxIterations) ? [] : toolsToUse;
+          const activeTools = (iteration === maxIterations) ? [] : applyPolicy(toolsToUse, toolPolicy);
 
           console.log(`PRO Persona Agent Loop (non-streaming): Iteration ${iteration} of ${maxIterations}`);
 
@@ -3211,7 +3034,8 @@ ${TOOL_GUARDRAIL}
               requestBody.tools = activeTools;
               requestBody.tool_choice = "auto";
             }
-            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            const response = await providerFetch('https://api.groq.com/openai/v1/chat/completions', {
+              providerLabel: 'groq',
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
@@ -3234,7 +3058,8 @@ ${TOOL_GUARDRAIL}
               requestBody.tools = activeTools;
               requestBody.tool_choice = "auto";
             }
-            const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+            const response = await providerFetch('https://api.cerebras.ai/v1/chat/completions', {
+              providerLabel: 'cerebras',
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${process.env.CEREBRAS_API_KEY}`,
@@ -3265,57 +3090,21 @@ ${TOOL_GUARDRAIL}
             });
 
             for (const toolCall of toolCalls) {
-              const name = toolCall.function?.name;
-              const argsStr = toolCall.function?.arguments || '{}';
-              let result = '';
-
-              if (name === 'web_search') {
-                try {
-                  const params = JSON.parse(argsStr);
-                  const searchResults = await fetchWebSearchResults(params);
-                  result = searchResults.slice(0, 10000);
-                } catch (err: any) {
-                  result = `Error: ${err.message}`;
+              const result = await executeTool(
+                toolCall,
+                { persona, inputImageUrls, imageDimensions, policy: toolPolicy },
+                {
+                  // Non-streaming: image markdown is folded into the final content,
+                  // and status markers have nowhere to go.
+                  emitText: (text) => { finalContent += (finalContent ? '\n\n' : '') + text; },
+                  emitMarker: () => {},
                 }
-              } else if (name === 'generate_image') {
-                try {
-                  const params = JSON.parse(argsStr);
-                  const imageMarkdown = createImageMarkdown({
-                    ...params,
-                    persona,
-                    inputImageUrls,
-                    imageWidth: imageDimensions?.width,
-                    imageHeight: imageDimensions?.height
-                  });
-                  result = `Image generated successfully. Markdown link: ${imageMarkdown}`;
-                  finalContent += (finalContent ? '\n\n' : '') + imageMarkdown;
-                } catch (err: any) {
-                  result = `Error: ${err.message}`;
-                }
-              } else if (name === 'list_skills') {
-                try {
-                  const list = Object.keys(SKILLS_DATA).map(key => ({
-                    name: SKILLS_DATA[key].name,
-                    description: SKILLS_DATA[key].description
-                  }));
-                  result = JSON.stringify(list, null, 2);
-                } catch (err: any) {
-                  result = `Error: ${err.message}`;
-                }
-              } else if (name === 'read_skill') {
-                try {
-                  const params = JSON.parse(argsStr);
-                  const skill = SKILLS_DATA[params.name];
-                  result = skill ? skill.content : `Error: Skill "${params.name}" not found.`;
-                } catch (err: any) {
-                  result = `Error: ${err.message}`;
-                }
-              }
+              );
 
               currentMessages.push({
                 role: 'tool',
                 tool_call_id: toolCall.id,
-                name: name,
+                name: toolCall.function?.name,
                 content: result
               });
             }
@@ -3341,14 +3130,15 @@ ${TOOL_GUARDRAIL}
           }
         }
 
-        // Finalize rate limits & memories
-        const quotaCost = 1;
-        for (let i = 0; i < quotaCost; i++) {
-          incrementRateLimit(userId || null, ip, persona);
-        }
+        // Finalize rate limits & memories — charged only on success.
+        await incrementRateLimit(userId, ip, persona, {
+          amount: 1,
+          anonymousDeviceId,
+          provider,
+        });
 
         if (userId && finalContent) {
-          const memoryResult = await processMemoryTags(finalContent, userId, persona);
+          const memoryResult = await processMemoryTags(finalContent, userId, persona, userClient);
           if (memoryResult.hasSavedMemory) {
             finalContent = memoryResult.content + '\n\n[MEMORY_SAVED]';
           }
@@ -3360,7 +3150,7 @@ ${TOOL_GUARDRAIL}
           thinking: result.thinking
         });
       } else {
-        const provider = (personaConfig as any).provider || 'groq';
+        // Same derivation as the ceiling check and the streaming path.
         if (provider === 'secretstoai' || provider === 'secrectstoai') {
           apiResponse = await callSecretsToAIAPI(
             apiMessages,
@@ -3407,7 +3197,8 @@ ${TOOL_GUARDRAIL}
             requestBody.tools = toolsToUse;
             requestBody.tool_choice = "auto";
           }
-          const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+          const response = await providerFetch('https://api.cerebras.ai/v1/chat/completions', {
+            providerLabel: 'cerebras',
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${process.env.CEREBRAS_API_KEY}`,
@@ -3417,7 +3208,8 @@ ${TOOL_GUARDRAIL}
           });
           apiResponse = await response.json();
         } else {
-          const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          const response = await providerFetch('https://api.groq.com/openai/v1/chat/completions', {
+            providerLabel: 'groq',
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
@@ -3439,62 +3231,48 @@ ${TOOL_GUARDRAIL}
 
       let fullContent = apiResponse.choices?.[0]?.message?.content || '';
 
-      // Process tool calls for image generation and web search
+      // Process tool calls. This legacy fallback has no loop to feed results
+      // back into, so tool output is appended to the response as before — but
+      // it still goes through the shared executor, so the image gate and the
+      // runtime backstop apply here too.
       const toolCalls = apiResponse.choices?.[0]?.message?.tool_calls || [];
       if (toolCalls.length > 0) {
+        const toolPolicy = createToolPolicy({ imageAllowed, searchAllowed });
+
         for (const toolCall of toolCalls) {
-          if (toolCall.function?.name === 'generate_image') {
-            try {
-              const params: ImageGenerationParams = JSON.parse(toolCall.function.arguments);
-
-              if (inputImageUrls && inputImageUrls.length > 0) {
-                params.inputImageUrls = inputImageUrls;
-              }
-
-              // Pass original image dimensions for edit operations
-              if (imageDimensions) {
-                params.imageWidth = imageDimensions.width;
-                params.imageHeight = imageDimensions.height;
-              }
-
-              params.persona = persona;
-
-              const imageMarkdown = createImageMarkdown(params);
-              fullContent += `\n\n${imageMarkdown}`;
-            } catch (error) {
-              console.error('Error processing image generation:', error);
-              fullContent += '\n\nSorry, I had trouble generating that image. Please try again.';
+          const result = await executeTool(
+            toolCall,
+            { persona, inputImageUrls, imageDimensions, policy: toolPolicy },
+            {
+              emitText: (text) => { fullContent += `\n\n${text}`; },
+              emitMarker: () => {},
             }
-          } else if (toolCall.function?.name === 'web_search') {
-            try {
-              const params: WebSearchParams = JSON.parse(toolCall.function.arguments);
+          );
 
-              // Fetch actual search results
-              const searchResults = await fetchWebSearchResults(params);
-              fullContent += `\n\n${searchResults}`;
-            } catch (error) {
-              console.error('Error processing web search:', error);
-              fullContent += '\n\nSorry, I had trouble performing that web search. Please try again.';
-            }
+          // web_search emits nothing of its own; its results are the answer here.
+          if (toolCall.function?.name === 'web_search') {
+            fullContent += `\n\n${result}`;
           }
         }
       }
 
       // Process memory tags from the full content (XML-based memory system)
       if (userId && fullContent) {
-        const memoryResult = await processMemoryTags(fullContent, userId, persona);
+        const memoryResult = await processMemoryTags(fullContent, userId, persona, userClient);
         if (memoryResult.hasSavedMemory) {
           // Replace memory tags with marker and clean content
           fullContent = memoryResult.content + '\n\n[MEMORY_SAVED]';
         }
       }
 
-      // Increment rate limit after successful response (async, don't await)
-      // Flow State consumes 3 quota instead of 1
+      // Charge quota only now that the generation has actually succeeded.
+      // Flow State consumes 3 quota instead of 1.
       const quotaCost = (flowState && persona === 'default') ? 3 : 1;
-      for (let i = 0; i < quotaCost; i++) {
-        incrementRateLimit(userId || null, ip, persona);
-      }
+      await incrementRateLimit(userId, ip, persona, {
+        amount: quotaCost,
+        anonymousDeviceId,
+        provider,
+      });
 
       // Extract reasoning content for all personas
       const result = extractReasoningAndContent(fullContent);
@@ -3507,20 +3285,39 @@ ${TOOL_GUARDRAIL}
     }
 
   } catch (error) {
-    console.error('AI Proxy Error:', error);
+    // Log the failure, never the request body or prompt content.
+    console.error('AI Proxy Error:', error instanceof Error ? error.message : error);
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    // Check for rate limit errors
-    if (errorMessage.includes('Rate limit') || errorMessage.includes('429')) {
-      return res.status(429).json({
-        error: 'Rate limit exceeded',
-        type: 'rateLimit'
-      });
+    // A streaming response may already be committed by the time an error
+    // bubbles up here. Writing a JSON body onto it would land inside the
+    // assistant's message (1.9).
+    if (res.headersSent) {
+      sendApiError(res, 'UNKNOWN', 'The request failed.');
+      return;
     }
 
-    return res.status(500).json({
-      error: 'We are facing huge load on our servers and thus we\'ve had to temporarily limit access to maintain system stability. Please be patient, we hate this as much as you do but this thing doesn\'t grow on trees :")'
-    });
+    // An upstream provider saying 429 is not the caller hitting *their* quota.
+    // These used to be string-matched into RATE_LIMITED, which is why a busy
+    // minute at Groq surfaced to beta testers as "you've used up your
+    // messages" — an account-level popup for what was really a transient
+    // capacity blip on one provider, already handled by the fallback chain.
+    // RATE_LIMITED is now reserved for the quota check above; everything a
+    // provider does becomes PROVIDER_DOWN, which the client renders as a
+    // retryable bubble on the failed turn.
+    if (error instanceof ProviderHttpError) {
+      return res.status(STATUS_FOR_CODE.PROVIDER_DOWN).json(
+        apiErrorBody('PROVIDER_DOWN', 'Every model provider failed for this turn.')
+      );
+    }
+
+    if (errorMessage.includes('Rate limit') || errorMessage.includes('429')) {
+      return res.status(429).json(
+        apiErrorBody('RATE_LIMITED', 'Rate limit exceeded', { type: 'rateLimit' })
+      );
+    }
+
+    return res.status(500).json(apiErrorBody('UNKNOWN', 'The request failed.'));
   }
 }

@@ -1,12 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getAuthenticatedRequestUser } from './_lib/auth.js';
+import { applyCors, hasAcceptableOrigin, isSameOriginSubresource } from './_lib/cors.js';
+import { apiErrorBody } from './_lib/errors.js';
+import { musicQuerySchema, parseOrReject } from './_lib/validation.js';
 
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || '';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Handle CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  applyCors(req, res, 'GET, OPTIONS');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -16,20 +17,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  if (!hasAcceptableOrigin(req)) {
+    return res.status(403).json({ error: 'Origin not allowed' });
+  }
+
+  // These URLs are loaded as <img src> / <audio src>, so they cannot carry an
+  // Authorization header. The gate is the browser's own fetch metadata plus the
+  // origin allowlist — see isSameOriginSubresource. A bearer token is still
+  // accepted for non-browser callers we control.
+  const bearer = await getAuthenticatedRequestUser(req);
+  if (!bearer && !isSameOriginSubresource(req)) {
+    return res.status(401).json({ error: 'Not authorized' });
+  }
+
   try {
-    const { prompt, duration = '60', seed } = req.query;
+    const parsed = parseOrReject(res, musicQuerySchema, {
+      prompt: req.query.prompt,
+      duration: req.query.duration,
+      seed: req.query.seed,
+    });
+    if (!parsed) return;
 
-    if (!prompt || typeof prompt !== 'string') {
-      return res.status(400).json({ error: 'Missing or invalid prompt parameter' });
-    }
-
-    const url = new URL(`https://gen.pollinations.ai/audio/${encodeURIComponent(prompt)}`);
+    const url = new URL(`https://gen.pollinations.ai/audio/${encodeURIComponent(parsed.prompt)}`);
     url.searchParams.set('model', 'acestep');
-    url.searchParams.set('duration', typeof duration === 'string' ? duration : '60');
+    url.searchParams.set('duration', String(parsed.duration));
     url.searchParams.set('key', POLLINATIONS_API_KEY);
-    
-    if (seed && typeof seed === 'string') {
-      url.searchParams.set('seed', seed);
+
+    if (parsed.seed !== undefined) {
+      url.searchParams.set('seed', String(parsed.seed));
     }
 
     const debugUrl = url.toString().replace(/key=[^&]+/, 'key=***');
@@ -45,11 +60,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!audioResponse.ok) {
       const errorText = await audioResponse.text().catch(() => '');
-      return res.status(502).json({
-        error: 'Failed to generate audio',
-        pollinationsStatus: audioResponse.status,
-        pollinationsError: errorText,
-      });
+      // The upstream status and body stay in the server log. Returning them
+      // leaked provider internals to the browser (production-check.md 1.7).
+      console.error('Pollinations error:', errorText.slice(0, 500));
+      return res.status(502).json(
+        apiErrorBody('PROVIDER_DOWN', 'Failed to generate audio')
+      );
     }
 
     const audioBuffer = await audioResponse.arrayBuffer();

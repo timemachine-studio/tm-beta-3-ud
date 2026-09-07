@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Message, ImageDimensions, MusicVariation } from '../types/chat';
+import { Message, ImageDimensions, MusicVariation, ChatErrorCode, RetryContext } from '../types/chat';
 import { generateAIResponse, generateAIResponseStreaming, resolveMcpApproval, getActiveProRun, streamProRun, YouTubeMusicData, UserMemoryContext } from '../services/ai/aiProxyService';
 import type { McpApprovalDecision, McpApprovalRequest } from '../types/flightControls';
+import { ChatError } from '../services/ai/chatErrors';
 import { INITIAL_MESSAGE, AI_PERSONAS } from '../config/constants';
 import { chatService, ChatSession } from '../services/chat/chatService';
 import { processGeneratedImages } from '../services/image/imageService';
@@ -15,20 +16,7 @@ import {
   getGroupChatMusic
 } from '../services/groupChat/groupChatService';
 import { GroupChatParticipant } from '../types/groupChat';
-
-// Generate a proper UUID for session IDs
-function generateUUID(): string {
-  // Use crypto.randomUUID if available (modern browsers)
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  // Fallback for older browsers
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+import { newId } from '../utils/id';
 
 // Format collaborative messages as dialogue for AI context
 // Bundles consecutive user messages between AI responses
@@ -79,6 +67,53 @@ function formatMessagesAsDialogue(messages: Message[]): Message[] {
   return formatted;
 }
 
+const VALID_EMOTIONS = [
+  'sadness', 'joy', 'love', 'excitement', 'anger',
+  'motivation', 'jealousy', 'relaxation', 'anxiety', 'hope'
+];
+
+// Pure, so they live at module scope: as inner functions they were a fresh
+// identity every render and accounted for five of this file's
+// exhaustive-deps violations (production-check.md 1.13).
+function extractEmotion(content: string): string | null {
+  const match = content.match(/<emotion>([a-z]+)<\/emotion>/i);
+  if (!match) return null;
+
+  const emotion = match[1].toLowerCase();
+  return VALID_EMOTIONS.includes(emotion) ? emotion : 'joy';
+}
+
+function cleanContent(content: string): string {
+  const emotion = extractEmotion(content);
+  if (emotion) {
+    return content.replace(/<emotion>[a-z]+<\/emotion>/i, '').replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
+  }
+  return content.replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
+}
+
+/**
+ * Freeze a message list for saving while a turn is still in flight.
+ *
+ * The interrupted assistant turn is stored as a failed turn rather than an
+ * empty bubble, so reopening the chat shows a Retry instead of a blank
+ * response (1.10/1.13).
+ */
+function markStreamingAsInterrupted(list: Message[]): Message[] {
+  return list.map(message => (
+    message.status === 'streaming'
+      ? {
+        ...message,
+        status: 'error' as const,
+        errorCode: 'ABORTED' as const,
+        partialContent: message.content?.trim() ? message.content : undefined,
+        content: '',
+        rawContent: undefined,
+        hasAnimated: true,
+      }
+      : message
+  ));
+}
+
 export function useChat(
   userId?: string | null,
   userProfile?: { nickname?: string | null; about_me?: string | null },
@@ -99,9 +134,8 @@ export function useChat(
   const [currentEmotion, setCurrentEmotion] = useState<string>('joy');
   const [error, setError] = useState<string | null>(null);
   const [showAboutUs, setShowAboutUs] = useState(false);
-  const [showRateLimitModal, setShowRateLimitModal] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string>(initialSession?.id || '');
-  const [streamingMessageId, setStreamingMessageId] = useState<number | null>(null);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [useStreaming, setUseStreaming] = useState(true);
   const [youtubeMusic, setYoutubeMusic] = useState<YouTubeMusicData | null>(null);
   // Track loading phase for image pipeline UX: 'analyzing_photo' | 'thinking' | null
@@ -125,6 +159,9 @@ export function useChat(
 
   // Track if streaming is in progress - don't save during streaming (AI message is incomplete)
   const isStreamingRef = useRef<boolean>(false);
+
+  // In-flight generation, so Stop / unmount / switching chats can cancel it (1.5).
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Track if there are unsaved changes in this session to prevent auto-saves on initial loads
   const isDirtyRef = useRef(false);
@@ -219,12 +256,18 @@ export function useChat(
       saveTimeoutRef.current = null;
     }
 
-    // Save current session immediately before switching (only if not streaming)
-    if (currentSessionId && messages.length > 1 && !isStreamingRef.current) {
-      saveChatSession(currentSessionId, messages, currentPersona, true); // Force immediate save
+    // Save the outgoing session before switching. Streaming used to skip this
+    // entirely, so leaving a chat mid-generation threw away the user's own
+    // message too — and once storage is device-only there is no cloud copy to
+    // recover it from (1.13).
+    if (currentSessionId && messages.length > 1) {
+      saveChatSession(currentSessionId, markStreamingAsInterrupted(messages), currentPersona, true);
     }
 
-    // Clear streaming state if somehow still set
+    // Cancel any generation still in flight: its result belongs to the chat
+    // being left, and there is nowhere safe to put it once we've switched.
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     isStreamingRef.current = false;
     setStreamingMessageId(null);
     setIsLoading(false);
@@ -240,12 +283,13 @@ export function useChat(
     setActivePdfText(null); // Clear PDF context on persona switch
 
     // Start new chat with new persona
-    const newSessionId = generateUUID();
+    const newSessionId = newId();
     setCurrentSessionId(newSessionId);
 
     const initialMessage = cleanContent(AI_PERSONAS[persona].initialMessage);
     setMessages([{
-      id: Date.now(),
+      id: newId(),
+      createdAt: new Date().toISOString(),
       content: initialMessage,
       isAI: true,
       hasAnimated: false
@@ -263,24 +307,29 @@ export function useChat(
       saveTimeoutRef.current = null;
     }
 
-    // Save current session immediately before starting new one (only if not streaming)
-    if (currentSessionId && messages.length > 1 && !isStreamingRef.current) {
-      saveChatSession(currentSessionId, messages, currentPersona, true); // Force immediate save
+    // Save the outgoing session before starting a new one — including a turn
+    // that was still streaming, which used to be dropped wholesale (1.13).
+    if (currentSessionId && messages.length > 1) {
+      saveChatSession(currentSessionId, markStreamingAsInterrupted(messages), currentPersona, true);
     }
 
-    // Clear streaming state if somehow still set
+    // Cancel any generation still in flight: its result belongs to the chat
+    // being left, and there is nowhere safe to put it once we've switched.
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     isStreamingRef.current = false;
     setStreamingMessageId(null);
     setIsLoading(false);
 
     // Start fresh chat with same persona
-    const newSessionId = generateUUID();
+    const newSessionId = newId();
     setCurrentSessionId(newSessionId);
     setActivePdfText(null); // Clear PDF context on new chat
 
     const initialMessage = cleanContent(AI_PERSONAS[currentPersona].initialMessage);
     setMessages([{
-      id: Date.now(),
+      id: newId(),
+      createdAt: new Date().toISOString(),
       content: initialMessage,
       isAI: true,
       hasAnimated: false
@@ -290,7 +339,7 @@ export function useChat(
   }, [currentSessionId, messages, currentPersona, saveChatSession]);
 
   // Handle streaming message updates
-  const updateStreamingMessage = useCallback((messageId: number, chunk: string) => {
+  const updateStreamingMessage = useCallback((messageId: string, chunk: string) => {
     setMessages(prev => prev.map(msg => {
       if (msg.id !== messageId) return msg;
 
@@ -384,8 +433,18 @@ export function useChat(
     }));
   }, []);
 
-  // Complete streaming message
-  const completeStreamingMessage = useCallback(async (messageId: number, finalContent: string, thinking?: string, audioUrl?: string) => {
+  // Complete streaming message.
+  //
+  // `turnSessionId` is the session this generation *started* in. It is passed
+  // in rather than read from state so a completion can never be written to
+  // whichever chat happens to be open when it lands (1.13).
+  const completeStreamingMessage = useCallback(async (
+    messageId: string,
+    finalContent: string,
+    thinking?: string,
+    audioUrl?: string,
+    turnSessionId?: string,
+  ) => {
     let processedContent = finalContent;
 
     // If user is logged in and content has generated images, upload them to Supabase
@@ -402,17 +461,18 @@ export function useChat(
     setMessages(prev => {
       const updatedMessages = prev.map(msg =>
         msg.id === messageId
-          ? { ...msg, content: processedContent, thinking, audioUrl, hasAnimated: false }
+          ? { ...msg, content: processedContent, thinking, audioUrl, status: 'complete' as const, errorCode: undefined, partialContent: undefined, hasAnimated: false }
           : msg
       );
 
-      // Force immediate save after streaming completes to prevent data loss
-      // This is critical - debounced saves can be cancelled if user navigates away
-      // Guard: only save when the completed message actually exists in the
-      // current state. If the user switched chats mid-stream, the stale
-      // completion must not save the new chat's messages under the old
-      // session id.
-      if (currentSessionId && !isCollaborative && updatedMessages.some(msg => msg.id === messageId)) {
+      // Force immediate save after streaming completes to prevent data loss.
+      // Debounced saves can be cancelled if the user navigates away.
+      //
+      // Two guards, both about the same hazard: the completion must belong to
+      // the chat that is actually open. The message has to still be here, and
+      // the session must be the one this turn started in.
+      const sessionMatches = !turnSessionId || turnSessionId === currentSessionId;
+      if (currentSessionId && sessionMatches && !isCollaborative && updatedMessages.some(msg => msg.id === messageId)) {
         // Use setTimeout(0) to ensure this runs after state update is applied
         setTimeout(() => {
           saveChatSession(currentSessionId, updatedMessages, currentPersona, true);
@@ -442,27 +502,6 @@ export function useChat(
     }
   }, [userId, isCollaborative, collaborativeId, userProfile, currentSessionId, currentPersona, saveChatSession]);
 
-  const extractEmotion = (content: string): string | null => {
-    const match = content.match(/<emotion>([a-z]+)<\/emotion>/i);
-    if (!match) return null;
-
-    const emotion = match[1].toLowerCase();
-    const validEmotions = [
-      'sadness', 'joy', 'love', 'excitement', 'anger',
-      'motivation', 'jealousy', 'relaxation', 'anxiety', 'hope'
-    ];
-
-    return validEmotions.includes(emotion) ? emotion : 'joy';
-  };
-
-  const cleanContent = (content: string): string => {
-    const emotion = extractEmotion(content);
-    if (emotion) {
-      return content.replace(/<emotion>[a-z]+<\/emotion>/i, '').replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
-    }
-    return content.replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
-  };
-
   // Resume an in-flight PRO background generation when its chat is opened.
   // The Trigger.dev stream retains every chunk, so we replay from index 0 and
   // the message rebuilds itself exactly as if the page had never been closed.
@@ -477,7 +516,7 @@ export function useChat(
       // Never hijack an ongoing stream in this tab
       if (isStreamingRef.current) return;
 
-      const aiMessageId = Date.now() + 1;
+      const aiMessageId = newId();
       setMessages(prev => [...prev, {
         id: aiMessageId,
         content: '',
@@ -495,7 +534,7 @@ export function useChat(
           updateStreamingMessage(aiMessageId, chunk);
         },
         onStatusChange: (status: string) => {
-          setLoadingPhase(status as any);
+          setLoadingPhase(status as 'analyzing_photo' | 'thinking');
         },
         onComplete: (response) => {
           const emotion = extractEmotion(response.content);
@@ -509,8 +548,12 @@ export function useChat(
           completeStreamingMessage(aiMessageId, cleanedContent, response.thinking);
         },
         onError: (error) => {
-          console.error('Failed to resume PRO generation:', error);
-          setMessages(prev => prev.filter(msg => msg.id !== aiMessageId));
+          console.error('Failed to resume PRO generation:', error.message);
+          // Same treatment as any other failed turn: leave it in place with a
+          // retry affordance rather than silently deleting the placeholder.
+          setMessages(prev => prev.map(msg => msg.id === aiMessageId
+            ? { ...msg, status: 'error' as const, errorCode: 'PROVIDER_DOWN' as const, hasAnimated: true }
+            : msg));
           setStreamingMessageId(null);
           setIsLoading(false);
           setLoadingPhase(null);
@@ -522,7 +565,7 @@ export function useChat(
     }
   }, [updateStreamingMessage, completeStreamingMessage]);
 
-  const handleMcpApprovalDecision = useCallback(async (messageId: number, decision: McpApprovalDecision) => {
+  const handleMcpApprovalDecision = useCallback(async (messageId: string, decision: McpApprovalDecision) => {
     const target = messages.find(message => message.id === messageId);
     if (!target?.mcpApproval || target.mcpApproval.status !== 'pending') return;
 
@@ -561,11 +604,6 @@ export function useChat(
       setIsLoading(false);
     }
   }, [messages, currentSessionId, currentPersona, isCollaborative, saveChatSession]);
-
-  // Dismiss rate limit modal
-  const dismissRateLimitModal = useCallback(() => {
-    setShowRateLimitModal(false);
-  }, []);
 
   // Clear YouTube music
   const clearYoutubeMusic = useCallback(() => {
@@ -610,29 +648,45 @@ export function useChat(
   // Initialize session ID on first load
   useEffect(() => {
     if (!currentSessionId) {
-      setCurrentSessionId(generateUUID());
+      setCurrentSessionId(newId());
     }
   }, [currentSessionId]);
 
-  // Set theme when loaded from initial session (history)
+  // Set theme when loaded from initial session (history).
+  // The ref, not an empty dependency array, is what makes this run once —
+  // so the real dependencies can be declared honestly (1.13).
+  const themeAppliedRef = useRef(false);
   useEffect(() => {
+    if (themeAppliedRef.current) return;
     if (initialSession && initialPersona) {
+      themeAppliedRef.current = true;
       setPersonaTheme(initialPersona);
     }
-  }, []); // Only run once on mount
+  }, [initialSession, initialPersona, setPersonaTheme]);
 
   // If the app was (re)loaded straight into a PRO chat with a generation
   // still running in the background, reattach to its stream.
+  const proResumeStartedRef = useRef(false);
   useEffect(() => {
+    if (proResumeStartedRef.current) return;
     if (initialSession?.id && initialPersona === 'pro') {
+      proResumeStartedRef.current = true;
       tryResumeProGeneration(initialSession.id, 'pro');
     }
-  }, []); // Only run once on mount
+  }, [initialSession?.id, initialPersona, tryResumeProGeneration]);
 
   // Initialize chat once auth loading is complete
   useEffect(() => {
     // Wait until auth is done loading before initializing
     if (authLoading || isInitialized) return;
+
+    // The composer is live from the first frame now (1.14), so the user can
+    // send before this runs. Never overwrite a conversation that has already
+    // started — just mark the chat initialized and leave it alone.
+    if (messages.length > 0) {
+      setIsInitialized(true);
+      return;
+    }
 
     // Now we can safely determine the persona (either from profile or default)
     const persona = initialPersona || 'default';
@@ -643,13 +697,14 @@ export function useChat(
     setCurrentPersona(persona);
     setPersonaTheme(persona);
     setMessages([{
-      id: Date.now(),
+      id: newId(),
+      createdAt: new Date().toISOString(),
       content: initialMessage,
       isAI: true,
       hasAnimated: false
     }]);
     setIsInitialized(true);
-  }, [authLoading, isInitialized, initialPersona, setPersonaTheme]);
+  }, [authLoading, isInitialized, initialPersona, setPersonaTheme, messages.length]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -660,21 +715,309 @@ export function useChat(
     };
   }, []);
 
+  // Everything the send pipeline reads *when a generation finishes* rather
+  // than when it starts. A completion callback can fire minutes after the
+  // send: capturing these in the closure is why switching chats mid-stream
+  // saved the completion under the previous session id (1.13).
+  const latest = useRef({
+    messages,
+    currentPersona,
+    currentProHeatLevel,
+    currentSessionId,
+    activePdfText,
+    isCollaborative,
+    collaborativeId,
+    userId,
+    userProfile,
+    flowStateActive,
+    useStreaming,
+  });
+  useEffect(() => {
+    latest.current = {
+      messages,
+      currentPersona,
+      currentProHeatLevel,
+      currentSessionId,
+      activePdfText,
+      isCollaborative,
+      collaborativeId,
+      userId,
+      userProfile,
+      flowStateActive,
+      useStreaming,
+    };
+  });
+
+  // Stable handles for the callbacks the pipeline invokes on completion, so
+  // the pipeline itself never has to be rebuilt (and never goes stale).
+  const completeStreamingMessageRef = useRef(completeStreamingMessage);
+  const updateStreamingMessageRef = useRef(updateStreamingMessage);
+  const saveChatSessionRef = useRef(saveChatSession);
+  useEffect(() => {
+    completeStreamingMessageRef.current = completeStreamingMessage;
+    updateStreamingMessageRef.current = updateStreamingMessage;
+    saveChatSessionRef.current = saveChatSession;
+  });
+
+  const clearTurnState = useCallback(() => {
+    setStreamingMessageId(null);
+    setIsLoading(false);
+    setLoadingPhase(null);
+    isStreamingRef.current = false;
+    abortControllerRef.current = null;
+  }, []);
+
+  // Mark the assistant placeholder as failed, in place.
+  //
+  // The old code deleted the placeholder and set a global `error` string,
+  // which rendered as a banner at the top of the transcript — detached from
+  // the turn that failed, with the user's prompt gone and no way to re-run it
+  // (1.10). The failure now stays attached to its own turn.
+  const failTurn = useCallback((aiMessageId: string, error: unknown) => {
+    const code: ChatErrorCode = error instanceof ChatError ? error.code : 'UNKNOWN';
+    const partial = error instanceof ChatError ? error.partialContent : undefined;
+
+    isDirtyRef.current = true;
+    setMessages(prev => prev.map(msg =>
+      msg.id === aiMessageId
+        ? {
+          ...msg,
+          status: 'error' as const,
+          errorCode: code,
+          content: '',
+          rawContent: undefined,
+          partialContent: partial && partial.trim() ? cleanContent(partial) : undefined,
+          hasAnimated: true,
+        }
+        : msg
+    ));
+    clearTurnState();
+  }, [clearTurnState]);
+
+  /**
+   * Run one assistant turn against an already-built message list.
+   *
+   * Shared by first sends and retries so a retry is byte-for-byte the same
+   * request the first attempt made (1.10).
+   */
+  const runTurn = useCallback(async (
+    aiMessageId: string,
+    apiMessages: Message[],
+    ctx: RetryContext,
+  ) => {
+    const {
+      messages: _ignored,
+      currentSessionId: sessionId,
+      activePdfText: cachedPdfText,
+      isCollaborative: collaborative,
+      userId: uid,
+      userProfile: profile,
+      useStreaming: streamingEnabled,
+    } = latest.current;
+    void _ignored;
+
+    const persona = ctx.persona as keyof typeof AI_PERSONAS;
+    const userMemoryContext: UserMemoryContext | undefined = profile ? {
+      nickname: profile.nickname || undefined,
+      about_me: profile.about_me || undefined
+    } : undefined;
+
+    setIsLoading(true);
+    setLoadingPhase(ctx.inputImageUrls?.length || ctx.imageData ? 'analyzing_photo' : 'thinking');
+    setStreamingMessageId(aiMessageId);
+    isStreamingRef.current = true;
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    if (streamingEnabled) {
+      let approvalReceived = false;
+      await generateAIResponseStreaming(
+        apiMessages,
+        ctx.imageData,
+        '', // System prompt is now handled server-side
+        persona,
+        persona === 'pro' ? ctx.heatLevel : undefined,
+        ctx.inputImageUrls,
+        ctx.imageDimensions,
+        // onChunk callback
+        (chunk: string) => {
+          updateStreamingMessageRef.current(aiMessageId, chunk);
+        },
+        // onComplete callback
+        (response) => {
+          if (approvalReceived) return;
+          const emotion = extractEmotion(response.content);
+          const cleanedContent = cleanContent(response.content);
+
+          if (emotion) {
+            setCurrentEmotion(emotion);
+          }
+
+          // Handle YouTube music if present
+          if (response.youtubeMusic) {
+            setYoutubeMusic(response.youtubeMusic);
+          }
+
+          // A well-formed stream that carried no answer is still a failed
+          // turn. Painting an empty bubble is exactly the "it just glitched"
+          // symptom 1.9 set out to remove, so it gets the same retry row.
+          if (!cleanedContent.trim() && !response.youtubeMusic) {
+            failTurn(aiMessageId, new ChatError('EMPTY', 'The model returned an empty response.'));
+            return;
+          }
+
+          setLoadingPhase(null);
+          abortControllerRef.current = null;
+          completeStreamingMessageRef.current(aiMessageId, cleanedContent, response.thinking, undefined, sessionId);
+        },
+        // onError callback
+        (error) => {
+          if (approvalReceived) return;
+          console.error('Failed to generate streaming response:', error.message);
+
+          // Every failure — rate limit included — now lands as an inline
+          // bubble on the turn that failed. The modal it used to raise was a
+          // full-screen interrupt for something that is about one message,
+          // and it blamed server load for what was usually a single provider
+          // having a bad minute.
+          if (error && typeof error === 'object' && 'type' in error && (error as { type?: string }).type === 'rateLimit') {
+            failTurn(aiMessageId, new ChatError('RATE_LIMITED', 'Rate limit exceeded'));
+            return;
+          }
+          failTurn(aiMessageId, error);
+        },
+        uid || undefined,
+        userMemoryContext,
+        ctx.specialMode,
+        // onStatusChange callback for image pipeline UX
+        (status) => {
+          setLoadingPhase(status as 'analyzing_photo' | 'thinking');
+        },
+        ctx.pdfData,
+        ctx.pdfFileName,
+        // Pass cached PDF text for follow-up messages (avoids re-extraction)
+        cachedPdfText || undefined,
+        // Flow State: route through Groq for faster speeds
+        persona === 'default' ? ctx.flowState : undefined,
+        !collaborative ? sessionId : undefined,
+        (approval: McpApprovalRequest) => {
+          approvalReceived = true;
+          isDirtyRef.current = true;
+          clearTurnState();
+          setMessages(previous => {
+            const updated = previous.map(messageItem => messageItem.id === aiMessageId
+              ? {
+                ...messageItem,
+                content: `Approval required to run ${approval.toolName}.`,
+                rawContent: undefined,
+                status: 'complete' as const,
+                mcpApproval: approval,
+                hasAnimated: false,
+              }
+              : messageItem);
+            if (sessionId && !collaborative) {
+              setTimeout(() => saveChatSessionRef.current(sessionId, updated, persona, true), 0);
+            }
+            return updated;
+          });
+        },
+        controller.signal,
+      );
+      return;
+    }
+
+    // Non-streaming fallback.
+    try {
+      const aiResponse = await generateAIResponse(
+        apiMessages,
+        ctx.imageData,
+        '', // System prompt is now handled server-side
+        persona,
+        persona === 'pro' ? ctx.heatLevel : undefined,
+        ctx.inputImageUrls,
+        ctx.imageDimensions,
+        uid || undefined,
+        userMemoryContext,
+        ctx.specialMode,
+        ctx.pdfData,
+        ctx.pdfFileName,
+        cachedPdfText || undefined,
+        persona === 'default' ? ctx.flowState : undefined,
+        !collaborative ? sessionId : undefined,
+      );
+
+      if (aiResponse.mcpApproval) {
+        isDirtyRef.current = true;
+        clearTurnState();
+        setMessages(previous => previous.map(messageItem => messageItem.id === aiMessageId
+          ? {
+            ...messageItem,
+            content: `Approval required to run ${aiResponse.mcpApproval!.toolName}.`,
+            status: 'complete' as const,
+            mcpApproval: aiResponse.mcpApproval,
+          }
+          : messageItem));
+        return;
+      }
+
+      const emotion = extractEmotion(aiResponse.content);
+      const cleanedContent = cleanContent(aiResponse.content);
+
+      if (emotion) {
+        setCurrentEmotion(emotion);
+      }
+
+      if (!cleanedContent.trim()) {
+        failTurn(aiMessageId, new ChatError('EMPTY', 'The model returned an empty response.'));
+        return;
+      }
+
+      setLoadingPhase(null);
+      abortControllerRef.current = null;
+      completeStreamingMessageRef.current(aiMessageId, cleanedContent, aiResponse.thinking, undefined, sessionId);
+    } catch (error) {
+      console.error('Failed to generate response:', error instanceof Error ? error.message : error);
+
+      if (error && typeof error === 'object' && 'type' in error && (error as { type?: string }).type === 'rateLimit') {
+        failTurn(aiMessageId, new ChatError('RATE_LIMITED', 'Rate limit exceeded'));
+        return;
+      }
+      failTurn(aiMessageId, error);
+    }
+  }, [clearTurnState, failTurn]);
+
+  /** Messages worth sending as context: no welcome bubble, no failed turns. */
+  const toApiContext = useCallback((list: Message[]) => (
+    list.filter(msg => msg.id !== INITIAL_MESSAGE.id && msg.status !== 'error')
+  ), []);
+
   const handleSendMessage = useCallback(async (
     content: string,
     imageData?: string | string[],
     inputImageUrls?: string[],
     imageDimensions?: ImageDimensions,
-    replyTo?: { id: number; content: string; sender_nickname?: string; isAI: boolean },
+    replyTo?: { id: string; content: string; sender_nickname?: string; isAI: boolean },
     specialMode?: string,
     pdfData?: string,
     pdfFileName?: string
   ) => {
-    let messagePersona = currentPersona;
+    const {
+      messages: currentMessages,
+      currentPersona: persona,
+      currentProHeatLevel: heatLevel,
+      isCollaborative: collaborative,
+      collaborativeId: collabId,
+      userId: uid,
+      userProfile: profile,
+      flowStateActive: flowState,
+    } = latest.current;
+
+    let messagePersona = persona;
     let messageContent = content;
 
     // Check for @persona mentions (case-insensitive)
-    const mentionMatch = content.match(/^@(chatgpt|gemini|claude|grok|girlie|pro)\s+(.+)$/i);
+    const mentionMatch = content.match(/^@(girlie|pro)\s+(.+)$/i);
     if (mentionMatch) {
       const mentionedModel = mentionMatch[1].toLowerCase();
       messagePersona = mentionedModel as keyof typeof AI_PERSONAS;
@@ -690,11 +1033,26 @@ export function useChat(
       finalContent = isPdf ? `[PDF: ${pdfFileName || 'document.pdf'}]` : `[File: ${pdfFileName || 'document.txt'}]`; // Placeholder text for UI
     }
 
+    // Everything a retry needs, captured now. Retry re-runs the turn from
+    // this, never from whatever the UI happens to be set to later (1.10).
+    const retryContext: RetryContext = {
+      persona: messagePersona,
+      heatLevel: messagePersona === 'pro' ? heatLevel : undefined,
+      specialMode,
+      flowState: messagePersona === 'default' ? flowState : undefined,
+      imageData,
+      inputImageUrls,
+      imageDimensions,
+      pdfData,
+      pdfFileName,
+    };
+
     // Create user message with content for display
     // Use finalContent for attachment-only placeholders, otherwise keep the original content.
     const displayContent = (finalContent === '[Image message]' || finalContent.startsWith('[PDF:') || finalContent.startsWith('[File:')) ? finalContent : content;
     const userMessage: Message = {
-      id: Date.now(),
+      id: newId(),
+      createdAt: new Date().toISOString(),
       content: displayContent, // Use placeholder for image/audio/pdf-only, otherwise original content
       isAI: false,
       hasAnimated: false,
@@ -703,16 +1061,18 @@ export function useChat(
       imageDimensions: imageDimensions,
       pdfData: pdfData ? 'attached' : undefined, // Don't store full base64 in message state, just flag it
       pdfFileName: pdfFileName,
+      retryContext,
       // Add sender info for collaborative mode
-      sender_id: isCollaborative ? userId || undefined : undefined,
-      sender_nickname: isCollaborative ? userProfile?.nickname || undefined : undefined,
+      sender_id: collaborative ? uid || undefined : undefined,
+      sender_nickname: collaborative ? profile?.nickname || undefined : undefined,
       // Add reply info if replying
       replyTo: replyTo
     };
 
     // Create API message with cleaned content (without @mention) for API call
     const apiUserMessage: Message = {
-      id: Date.now(),
+      id: newId(),
+      createdAt: userMessage.createdAt,
       content: finalContent,
       isAI: false,
       hasAnimated: false,
@@ -725,17 +1085,14 @@ export function useChat(
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     setError(null);
-    // Set initial loading phase based on whether images/pdf are attached
-    const hasImages = !!(imageData || (inputImageUrls && inputImageUrls.length > 0));
-    setLoadingPhase(hasImages ? 'analyzing_photo' : 'thinking');
 
     // If in collaborative mode, sync user message to group_chat_messages table
-    if (isCollaborative && collaborativeId && userId && userProfile?.nickname) {
+    if (collaborative && collabId && uid && profile?.nickname) {
       sendGroupChatMessage(
-        collaborativeId,
+        collabId,
         displayContent,
-        userId,
-        userProfile.nickname,
+        uid,
+        profile.nickname,
         undefined, // avatar
         false, // isAI
         inputImageUrls,
@@ -757,193 +1114,103 @@ export function useChat(
     }
 
     // Create placeholder AI message for streaming
-    const aiMessageId = Date.now() + 1;
+    const aiMessageId = newId();
     const aiMessage: Message = {
       id: aiMessageId,
+      createdAt: new Date().toISOString(),
       content: '',
       rawContent: '',
       isAI: true,
       hasAnimated: false,
+      status: 'streaming',
       specialMode: specialMode
     };
 
     setMessages(prev => [...prev, aiMessage]);
-    setStreamingMessageId(aiMessageId);
-    isStreamingRef.current = true; // Mark streaming as started
 
-    // Filter out initial welcome message (ID: 1) - it's just for UI aesthetics
-    let apiMessages = [...messages, apiUserMessage].filter(msg => msg.id !== 1);
+    let apiMessages = toApiContext([...currentMessages, apiUserMessage]);
 
     // In collaborative mode, format user messages as dialogue for AI context
-    if (isCollaborative) {
+    if (collaborative) {
       apiMessages = formatMessagesAsDialogue(apiMessages);
     }
-
-    // Prepare user memory context from profile
-    const userMemoryContext: UserMemoryContext | undefined = userProfile ? {
-      nickname: userProfile.nickname || undefined,
-      about_me: userProfile.about_me || undefined
-    } : undefined;
 
     // If this message includes PDF text, cache it for follow-up questions
     if (pdfData) {
       setActivePdfText(pdfData);
     }
 
-    if (useStreaming) {
-      let approvalReceived = false;
-      // Use streaming response - send API messages (without @mention in content and without initial message)
-      generateAIResponseStreaming(
-        apiMessages,
-        imageData,
-        '', // System prompt is now handled server-side
-        messagePersona,
-        messagePersona === 'pro' ? currentProHeatLevel : undefined,
-        inputImageUrls,
-        imageDimensions,
-        // onChunk callback
-        (chunk: string) => {
-          updateStreamingMessage(aiMessageId, chunk);
-        },
-        // onComplete callback
-        (response) => {
-          if (approvalReceived) return;
-          const emotion = extractEmotion(response.content);
-          const cleanedContent = cleanContent(response.content);
+    await runTurn(aiMessageId, apiMessages, retryContext);
+  }, [runTurn, toApiContext]);
 
-          if (emotion) {
-            setCurrentEmotion(emotion);
-          }
+  /**
+   * Rewind to just before a failed turn and re-run it.
+   *
+   * "Please try again" used to mean *retype your message* — the prompt was
+   * gone from the input box and the placeholder had been deleted. This
+   * re-sends the original user turn with its original attachments and
+   * persona, and costs no extra quota: the server charges only for a
+   * generation that succeeded, so the failed attempt was never billed (1.10).
+   */
+  const retryMessage = useCallback(async (aiMessageId: string) => {
+    if (isStreamingRef.current) return;
 
-          // Handle YouTube music if present
-          if (response.youtubeMusic) {
-            setYoutubeMusic(response.youtubeMusic);
-          }
+    const currentMessages = latest.current.messages;
+    const failedIndex = currentMessages.findIndex(msg => msg.id === aiMessageId);
+    if (failedIndex < 0) return;
 
+    // The user turn that produced it.
+    let userIndex = failedIndex - 1;
+    while (userIndex >= 0 && currentMessages[userIndex].isAI) userIndex--;
+    if (userIndex < 0) return;
 
-          setLoadingPhase(null);
-          completeStreamingMessage(aiMessageId, cleanedContent, response.thinking);
-        },
-        // onError callback
-        (error) => {
-          console.error('Failed to generate streaming response:', error);
+    const userMessage = currentMessages[userIndex];
+    const ctx: RetryContext = userMessage.retryContext ?? {
+      persona: latest.current.currentPersona,
+      heatLevel: latest.current.currentProHeatLevel,
+      flowState: latest.current.flowStateActive,
+      imageData: userMessage.imageData,
+      inputImageUrls: userMessage.inputImageUrls,
+      imageDimensions: userMessage.imageDimensions,
+    };
 
-          // Check if it's a rate limit error
-          if (error && typeof error === 'object' && 'type' in error && error.type === 'rateLimit') {
-            setShowRateLimitModal(true);
-          } else {
-            setError('Failed to generate response. Please try again.');
-          }
+    // Everything strictly before the failed turn, plus a fresh placeholder.
+    const history = currentMessages.slice(0, failedIndex);
+    const newAiMessageId = newId();
 
-          // Remove the placeholder message on error
-          setMessages(prev => prev.filter(msg => msg.id !== aiMessageId));
-          setStreamingMessageId(null);
-          setIsLoading(false);
-          setLoadingPhase(null);
-          isStreamingRef.current = false; // Clear streaming flag on error
-        },
-        userId || undefined,
-        userMemoryContext,
-        specialMode,
-        // onStatusChange callback for image pipeline UX
-        (status) => {
-          setLoadingPhase(status as any);
-        },
-        pdfData,
-        pdfFileName,
-        // Pass cached PDF text for follow-up messages (avoids re-extraction)
-        activePdfText || undefined,
-        // Flow State: route through Groq for faster speeds
-        currentPersona === 'default' ? flowStateActive : undefined,
-        !isCollaborative ? currentSessionId : undefined,
-        (approval: McpApprovalRequest) => {
-          approvalReceived = true;
-          isDirtyRef.current = true;
-          isStreamingRef.current = false;
-          setStreamingMessageId(null);
-          setIsLoading(false);
-          setLoadingPhase(null);
-          setMessages(previous => {
-            const updated = previous.map(messageItem => messageItem.id === aiMessageId
-              ? {
-                ...messageItem,
-                content: `Approval required to run ${approval.toolName}.`,
-                rawContent: undefined,
-                mcpApproval: approval,
-                hasAnimated: false,
-              }
-              : messageItem);
-            if (currentSessionId && !isCollaborative) {
-              setTimeout(() => saveChatSession(currentSessionId, updated, currentPersona, true), 0);
-            }
-            return updated;
-          });
-        },
-      );
-    } else {
-      // Use non-streaming response (fallback) - send API messages (without @mention in content and without initial message)
-      try {
-        const aiResponse = await generateAIResponse(
-          apiMessages,
-          imageData,
-          '', // System prompt is now handled server-side
-          messagePersona,
-          messagePersona === 'pro' ? currentProHeatLevel : undefined,
-          inputImageUrls,
-          imageDimensions,
-          userId || undefined,
-          userMemoryContext,
-          specialMode,
-          pdfData,
-          pdfFileName,
-          activePdfText || undefined,
-          // Flow State: route through Groq for faster speeds
-          currentPersona === 'default' ? flowStateActive : undefined,
-          !isCollaborative ? currentSessionId : undefined,
-        );
+    isDirtyRef.current = true;
+    setMessages([
+      ...history,
+      {
+        id: newAiMessageId,
+        createdAt: new Date().toISOString(),
+        content: '',
+        rawContent: '',
+        isAI: true,
+        hasAnimated: false,
+        status: 'streaming',
+        specialMode: ctx.specialMode,
+      },
+    ]);
+    setError(null);
 
-        if (aiResponse.mcpApproval) {
-          isDirtyRef.current = true;
-          isStreamingRef.current = false;
-          setStreamingMessageId(null);
-          setIsLoading(false);
-          setMessages(previous => previous.map(messageItem => messageItem.id === aiMessageId
-            ? { ...messageItem, content: `Approval required to run ${aiResponse.mcpApproval!.toolName}.`, mcpApproval: aiResponse.mcpApproval }
-            : messageItem));
-          return;
-        }
-
-        const emotion = extractEmotion(aiResponse.content);
-        const cleanedContent = cleanContent(aiResponse.content);
-
-        if (emotion) {
-          setCurrentEmotion(emotion);
-        }
-
-
-        setLoadingPhase(null);
-        completeStreamingMessage(aiMessageId, cleanedContent, aiResponse.thinking);
-      } catch (error) {
-        console.error('Failed to generate response:', error);
-
-        // Check if it's a rate limit error
-        if (error && typeof error === 'object' && 'type' in error && error.type === 'rateLimit') {
-          setShowRateLimitModal(true);
-        } else {
-          setError('Failed to generate response. Please try again.');
-        }
-
-        // Remove the placeholder message on error
-        setMessages(prev => prev.filter(msg => msg.id !== aiMessageId));
-        setStreamingMessageId(null);
-        setIsLoading(false);
-        setLoadingPhase(null);
-        isStreamingRef.current = false; // Clear streaming flag on error
-      }
+    let apiMessages = toApiContext(history);
+    if (latest.current.isCollaborative) {
+      apiMessages = formatMessagesAsDialogue(apiMessages);
     }
-  }, [messages, currentPersona, currentProHeatLevel, userId, userProfile, isCollaborative, collaborativeId, flowStateActive]);
 
-  const markMessageAsAnimated = useCallback((messageId: number) => {
+    await runTurn(newAiMessageId, apiMessages, ctx);
+  }, [runTurn, toApiContext]);
+
+  /** Cancel the generation in flight. */
+  const stopGeneration = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
+  // Navigating away mid-generation used to leave the request running (and
+  // billing) with nobody listening.
+  useEffect(() => () => abortControllerRef.current?.abort(), []);
+  const markMessageAsAnimated = useCallback((messageId: string) => {
     setMessages(prev => prev.map(msg =>
       msg.id === messageId ? { ...msg, hasAnimated: true } : msg
     ));
@@ -960,12 +1227,16 @@ export function useChat(
       saveTimeoutRef.current = null;
     }
 
-    // Save current session immediately before loading new one (only if not streaming)
-    if (currentSessionId && messages.length > 1 && !isStreamingRef.current) {
-      saveChatSession(currentSessionId, messages, currentPersona, true); // Force immediate save
+    // Save the outgoing session before loading another — including a turn that
+    // was still streaming, which used to be dropped wholesale (1.13).
+    if (currentSessionId && messages.length > 1) {
+      saveChatSession(currentSessionId, markStreamingAsInterrupted(messages), currentPersona, true);
     }
 
-    // Clear streaming state if somehow still set
+    // Cancel any generation still in flight: its result belongs to the chat
+    // being left, and there is nowhere safe to put it once we've switched.
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     isStreamingRef.current = false;
     setStreamingMessageId(null);
     setIsLoading(false);
@@ -976,7 +1247,13 @@ export function useChat(
     // Ensure we have at least the initial message if all messages were empty
     const messagesToLoad = validMessages.length > 0
       ? validMessages
-      : [{ id: Date.now(), content: cleanContent(AI_PERSONAS[session.persona].initialMessage), isAI: true, hasAnimated: false }];
+      : [{
+        id: newId(),
+        createdAt: new Date().toISOString(),
+        content: cleanContent(AI_PERSONAS[session.persona].initialMessage),
+        isAI: true,
+        hasAnimated: false,
+      }];
 
     // Update all state together
     setCurrentPersona(session.persona);
@@ -1022,8 +1299,8 @@ export function useChat(
       }]);
 
       // Push existing messages to group_chat_messages table
-      // Skip the initial welcome message (id: 1)
-      const messagesToSync = messages.filter(m => m.id !== 1);
+      // Skip the initial welcome message
+      const messagesToSync = messages.filter(m => m.id !== INITIAL_MESSAGE.id);
       for (const msg of messagesToSync) {
         await sendGroupChatMessage(
           shareId,
@@ -1244,7 +1521,7 @@ export function useChat(
   }, []);
 
   // Update reactions on a specific message
-  const updateMessageReactions = useCallback((messageId: number, reactions: Record<string, string[]>) => {
+  const updateMessageReactions = useCallback((messageId: string, reactions: Record<string, string[]>) => {
     isDirtyRef.current = true;
     setMessages(prev => prev.map(msg =>
       msg.id === messageId ? { ...msg, reactions } : msg
@@ -1253,7 +1530,7 @@ export function useChat(
 
   // Update music variations (Supabase URLs) on a specific message
   // Called when MusicComposeCard finishes uploading to Supabase
-  const updateMusicVariations = useCallback((messageId: number, variations: MusicVariation[]) => {
+  const updateMusicVariations = useCallback((messageId: string, variations: MusicVariation[]) => {
     isDirtyRef.current = true;
     setMessages(prev => {
       const updated = prev.map(msg =>
@@ -1290,7 +1567,6 @@ export function useChat(
     currentEmotion,
     error,
     showAboutUs,
-    showRateLimitModal,
     streamingMessageId,
     useStreaming,
     youtubeMusic,
@@ -1303,12 +1579,13 @@ export function useChat(
     // Actions
     setChatMode,
     handleSendMessage,
+    retryMessage,
+    stopGeneration,
     handlePersonaChange,
     setCurrentProHeatLevel,
     startNewChat,
     markMessageAsAnimated,
     dismissAboutUs,
-    dismissRateLimitModal,
     loadChat,
     setUseStreaming,
     clearYoutubeMusic,

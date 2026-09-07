@@ -6,7 +6,7 @@ interface ToggleHistoryProps {
   onToggle: () => void;
 }
 
-export function ToggleHistory({ showHistory, onToggle }: ToggleHistoryProps) {
+export function ToggleHistory({ onToggle }: ToggleHistoryProps) {
   return (
     <button
       onClick={onToggle}

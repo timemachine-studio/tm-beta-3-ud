@@ -11,7 +11,6 @@ interface LyricsYouTubePlayerProps {
 declare global {
   interface Window {
     onYouTubeIframeAPIReady: () => void;
-    YT: any;
   }
 }
 
@@ -42,7 +41,7 @@ const LyricsYouTubePlayer: React.FC<LyricsYouTubePlayerProps> = React.memo(({
       if (playerRef.current) {
         try {
           playerRef.current.destroy();
-        } catch (e) {
+        } catch {
           // Ignore errors during destroy
         }
       }
@@ -61,7 +60,6 @@ const LyricsYouTubePlayer: React.FC<LyricsYouTubePlayerProps> = React.memo(({
           disablekb: 1,
           fs: 0,
           rel: 0,
-          showinfo: 0,
           modestbranding: 1,
           playsinline: 1,
         },
@@ -122,7 +120,7 @@ const LyricsYouTubePlayer: React.FC<LyricsYouTubePlayerProps> = React.memo(({
         if (playerRef.current && playerRef.current.getCurrentTime) {
           try {
             callbacks.current.onTimeUpdate(playerRef.current.getCurrentTime());
-          } catch (e) {
+          } catch {
             // Player might have been destroyed
           }
         }
@@ -142,7 +140,7 @@ const LyricsYouTubePlayer: React.FC<LyricsYouTubePlayerProps> = React.memo(({
       if (playerRef.current) {
         try {
           playerRef.current.destroy();
-        } catch (e) {
+        } catch {
           // Ignore errors on destroy
         }
         playerRef.current = null;

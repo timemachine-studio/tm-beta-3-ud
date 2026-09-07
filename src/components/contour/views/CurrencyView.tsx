@@ -91,12 +91,16 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
   }, [amount, fromCode, toCode]);
 
   // Sync from textbox detection (until user interacts with card)
+  const detectedFrom = curr?.fromCurrency;
+  const detectedTo = curr?.toCurrency;
+  const detectedValue = curr?.fromValue;
+  const detectedPartial = curr?.isPartial;
   useEffect(() => {
-    if (hasInteracted || !curr || curr.isPartial) return;
-    setFromCode(curr.fromCurrency);
-    if (curr.toCurrency) setToCode(curr.toCurrency);
-    setAmount(String(curr.fromValue));
-  }, [curr?.fromCurrency, curr?.toCurrency, curr?.fromValue, curr?.isPartial, hasInteracted]);
+    if (hasInteracted || !detectedFrom || detectedPartial) return;
+    setFromCode(detectedFrom);
+    if (detectedTo) setToCode(detectedTo);
+    setAmount(String(detectedValue));
+  }, [detectedFrom, detectedTo, detectedValue, detectedPartial, hasInteracted]);
 
   const handleSwap = () => {
     setHasInteracted(true);

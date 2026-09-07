@@ -79,10 +79,16 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
             </div>
 
             {/* Iframe rendering the HTML */}
+            {/*
+              No allow-same-origin: combined with allow-scripts it voids the
+              sandbox entirely, leaving the framed document on our origin —
+              where it can read the Supabase session out of localStorage.
+              See production-check.md 0.6.
+            */}
             <iframe
               srcDoc={htmlCode}
               title="HTML Preview"
-              sandbox="allow-scripts allow-modals allow-forms allow-same-origin"
+              sandbox="allow-scripts allow-modals allow-forms"
               className="w-full flex-1 border-0 bg-white"
             />
           </motion.div>

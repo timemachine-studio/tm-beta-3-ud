@@ -1,7 +1,6 @@
 import React from 'react';
     import { motion } from 'framer-motion';
     import { wordAnimationVariants, textGlowStyle } from '../../utils/animations';
-    import { ANIMATION_CONFIG } from '../../utils/constants';
 
     interface AnimatedWordsProps {
       text: string;

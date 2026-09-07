@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://etpehiyzlkhknzceizar.supabase.co';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+if (!supabaseUrl) {
+  throw new Error('Supabase URL is not set. Please set VITE_SUPABASE_URL in your environment variables.');
+}
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 if (!supabaseAnonKey) {

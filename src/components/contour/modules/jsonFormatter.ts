@@ -74,7 +74,7 @@ export function detectJson(input: string): JsonFormatResult | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
   // Only trigger for things that look like JSON objects or arrays
-  if (!/^\s*[\[{]/.test(trimmed)) return null;
+  if (!/^\s*[[{]/.test(trimmed)) return null;
   // Must have a closing bracket somewhere
   if (!trimmed.includes('}') && !trimmed.includes(']')) return null;
   return formatJson(trimmed);

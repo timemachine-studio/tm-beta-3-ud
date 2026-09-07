@@ -3,6 +3,7 @@ import { AI_PERSONAS } from '../../config/constants';
 import { supabase } from '../../lib/supabase';
 import type { McpApprovalRequest } from '../../types/flightControls';
 import type { McpApprovalDecision } from '../../types/flightControls';
+import { ChatError, chatErrorFromResponse, isRetryableCode, toChatErrorCode } from './chatErrors';
 
 export interface YouTubeMusicData {
   videoId: string;
@@ -58,6 +59,10 @@ interface StreamChunkParserCallbacks {
 function createStreamChunkParser(callbacks: StreamChunkParserCallbacks) {
   let controlFrame: string | null = null;
   let fullContent = '';
+  // The server writes [STATUS_END] as the last thing before res.end(). Its
+  // absence is the only way to tell a truncated stream from a finished one —
+  // `done` is true for both (production-check.md 1.9).
+  let sawStatusEnd = false;
 
   const push = (decoded: string) => {
     let chunk = '';
@@ -107,6 +112,7 @@ function createStreamChunkParser(callbacks: StreamChunkParserCallbacks) {
     }
     if (chunk.includes('[STATUS_END]')) {
       chunk = chunk.replace(/\[STATUS_END\]/g, '');
+      sawStatusEnd = true;
       if (callbacks.onStatusChange) callbacks.onStatusChange('thinking');
     }
 
@@ -128,7 +134,122 @@ function createStreamChunkParser(callbacks: StreamChunkParserCallbacks) {
     fullContent += chunk;
   };
 
-  return { push, getFullContent: () => fullContent };
+  return {
+    push,
+    getFullContent: () => fullContent,
+    sawStatusEnd: () => sawStatusEnd,
+  };
+}
+
+// ─── Time and retry budget for a streaming attempt ──────────────────────────
+// vercel.json gives ai-proxy a 300s maxDuration, so without a client budget a
+// stalled upstream leaves the user watching a spinner for five minutes
+// (production-check.md 1.5 / 1.11).
+const TIME_TO_FIRST_TOKEN_MS = 60_000;
+const TOTAL_STREAM_BUDGET_MS = 180_000;
+const MAX_RETRIES = 2;
+
+type TimeoutKind = 'first_token' | 'total' | null;
+
+interface StreamBudget {
+  signal: AbortSignal;
+  /** Which deadline fired, if the abort came from us rather than the caller. */
+  timedOut: () => TimeoutKind;
+  firstTokenArrived: () => void;
+  dispose: () => void;
+}
+
+function createStreamBudget(callerSignal?: AbortSignal): StreamBudget {
+  const controller = new AbortController();
+  let kind: TimeoutKind = null;
+
+  const firstTokenTimer = setTimeout(() => {
+    kind = 'first_token';
+    controller.abort();
+  }, TIME_TO_FIRST_TOKEN_MS);
+
+  const totalTimer = setTimeout(() => {
+    kind = 'total';
+    controller.abort();
+  }, TOTAL_STREAM_BUDGET_MS);
+
+  const forwardAbort = () => controller.abort();
+  if (callerSignal) {
+    if (callerSignal.aborted) controller.abort();
+    else callerSignal.addEventListener('abort', forwardAbort);
+  }
+
+  return {
+    signal: controller.signal,
+    timedOut: () => kind,
+    firstTokenArrived: () => clearTimeout(firstTokenTimer),
+    dispose: () => {
+      clearTimeout(firstTokenTimer);
+      clearTimeout(totalTimer);
+      if (callerSignal) callerSignal.removeEventListener('abort', forwardAbort);
+    },
+  };
+}
+
+/**
+ * Give a thrown value a ChatError code, and record whether the attempt had
+ * already streamed tokens — a partially delivered generation must never be
+ * retried, because there is no way to resume it.
+ */
+function annotateStreamError(thrown: unknown, budget: StreamBudget, streamedAnything: boolean): ChatError {
+  let error: ChatError;
+
+  if (thrown instanceof ChatError) {
+    error = thrown;
+  } else if (thrown instanceof DOMException && thrown.name === 'AbortError') {
+    const kind = budget.timedOut();
+    error = kind
+      ? new ChatError('TIMEOUT', kind === 'first_token'
+        ? 'The model did not start responding in time.'
+        : 'The response took too long and was stopped.')
+      : new ChatError('ABORTED', 'Generation stopped.');
+  } else if (thrown instanceof TypeError) {
+    // fetch() rejects with TypeError when the network itself failed.
+    error = new ChatError('NETWORK', "Couldn't reach TimeMachine.");
+  } else {
+    error = new ChatError('UNKNOWN', thrown instanceof Error ? thrown.message : 'Unknown error occurred');
+  }
+
+  (error as ChatError & { streamedAnything?: boolean }).streamedAnything = streamedAnything;
+  return error;
+}
+
+function backoffDelay(attemptIndex: number): number {
+  const base = 500 * Math.pow(2, attemptIndex);
+  return base + Math.random() * base * 0.5; // jitter, so retries don't sync up
+}
+
+/**
+ * Retry idempotent failures a couple of times with exponential backoff.
+ * Never retries a request that already streamed tokens, and never retries a
+ * user-caused failure (rate limit, expired session, oversized payload).
+ */
+async function runWithRetries<T>(attempt: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+
+  for (let i = 0; i <= MAX_RETRIES; i++) {
+    try {
+      return await attempt();
+    } catch (error) {
+      lastError = error;
+      const chatError = error instanceof ChatError ? error : null;
+      const alreadyStreamed = Boolean(
+        (error as { streamedAnything?: boolean } | null)?.streamedAnything
+      );
+
+      if (!chatError || alreadyStreamed || !isRetryableCode(chatError.code) || i === MAX_RETRIES) {
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, backoffDelay(i)));
+    }
+  }
+
+  throw lastError;
 }
 
 function extractReasoningFromContent(fullContent: string): { content: string; thinking?: string } {
@@ -206,10 +327,8 @@ export async function streamProRun(runId: string, callbacks: ProRunCallbacks): P
     try {
       const response = await fetch(`/api/pro-stream?runId=${encodeURIComponent(runId)}&start=${index}`, { headers });
 
-      if (!response.ok || !response.body) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `PRO stream error: ${response.status}`);
-      }
+      if (!response.ok) throw await chatErrorFromResponse(response);
+      if (!response.body) throw new ChatError('PROVIDER_DOWN', 'PRO stream returned no body');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -295,11 +414,9 @@ async function startProRun(body: Record<string, unknown>): Promise<string> {
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    if (response.status === 429 || errorData.type === 'rateLimit') {
-      throw new RateLimitError('Rate limit exceeded');
-    }
-    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    const failure = await chatErrorFromResponse(response);
+    if (failure.code === 'RATE_LIMITED') throw new RateLimitError(failure.message);
+    throw failure;
   }
 
   const data = await response.json();
@@ -310,7 +427,7 @@ async function startProRun(body: Record<string, unknown>): Promise<string> {
 export async function generateAIResponseStreaming(
   messages: Message[],
   imageData?: string | string[],
-  systemPrompt: string = '', // Not used anymore, kept for compatibility
+  _systemPrompt: string = '', // Not used anymore, kept for positional compatibility
   currentPersona: keyof typeof AI_PERSONAS = 'default',
   heatLevel?: number,
   inputImageUrls?: string[],
@@ -328,6 +445,7 @@ export async function generateAIResponseStreaming(
   flowState?: boolean,
   chatSessionId?: string,
   onMcpApproval?: (approval: McpApprovalRequest) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   try {
     // TimeMachine PRO runs in the background (Trigger.dev) so long generations
@@ -356,96 +474,148 @@ export async function generateAIResponseStreaming(
       return;
     }
 
-    // Call the Vercel API route with streaming enabled
-    const response = await fetch('/api/ai-proxy', {
-      method: 'POST',
-      headers: await requestHeaders(),
-      body: JSON.stringify({
-        messages: messages.map(msg => ({
-          content: msg.content,
-          isAI: msg.isAI
-        })),
-        persona: currentPersona,
-        imageData,
-        heatLevel,
-        inputImageUrls,
-        imageDimensions,
-        stream: true,
-        flowState,
-        userMemories,
-        specialMode,
-        pdfData,
-        pdfFileName,
-        pdfExtractedText,
-        chatSessionId,
-      })
+    const requestBody = JSON.stringify({
+      messages: messages.map(msg => ({
+        content: msg.content,
+        isAI: msg.isAI
+      })),
+      persona: currentPersona,
+      imageData,
+      heatLevel,
+      inputImageUrls,
+      imageDimensions,
+      stream: true,
+      flowState,
+      userMemories,
+      specialMode,
+      pdfData,
+      pdfFileName,
+      pdfExtractedText,
+      chatSessionId,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-
-      // Check for rate limit errors
-      if (response.status === 429 || errorData.type === 'rateLimit') {
-        throw new RateLimitError('Rate limit exceeded');
-      }
-
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-    }
-
-    if (!response.body) {
-      throw new Error('No response body received');
-    }
-
-    // Process streaming response
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
+    const headers = await requestHeaders();
     let youtubeMusic: YouTubeMusicData | undefined;
 
-    const parser = createStreamChunkParser({
-      onChunk,
-      onStatusChange,
-      onYoutubeMusic: (music) => { youtubeMusic = music; },
-      onMcpApproval,
-    });
+    // One attempt at the streaming endpoint. Throws ChatError on every failure
+    // path so the caller has a code to act on.
+    const attempt = async (): Promise<{ content: string; thinking?: string }> => {
+      const budget = createStreamBudget(signal);
+      // True once the first byte of the model's answer has been delivered to
+      // the UI. A request that has already streamed can never be retried —
+      // there is no resume, and re-running would duplicate the output.
+      let streamedAnything = false;
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) break;
-
-        parser.push(decoder.decode(value, { stream: true }));
-      }
-
-      // Extract reasoning and clean content
-      const { content: cleanContent, thinking } = extractReasoningFromContent(parser.getFullContent());
-
-      if (onComplete) {
-        onComplete({
-          content: cleanContent,
-          thinking,
-          youtubeMusic,
+      try {
+        const response = await fetch('/api/ai-proxy', {
+          method: 'POST',
+          headers,
+          body: requestBody,
+          signal: budget.signal,
         });
-      }
 
-    } catch (streamError) {
-      console.error('Stream processing error:', streamError);
-      if (onError) {
-        onError(streamError instanceof Error ? streamError : new Error('Stream processing failed'));
+        if (!response.ok) throw await chatErrorFromResponse(response);
+        if (!response.body) throw new ChatError('PROVIDER_DOWN', 'No response body received');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        // An error control frame beats the missing-sentinel check: it carries
+        // the real reason the generation stopped.
+        let frameError: ChatError | null = null;
+
+        const parser = createStreamChunkParser({
+          onChunk: (chunk) => {
+            streamedAnything = true;
+            budget.firstTokenArrived();
+            if (onChunk) onChunk(chunk);
+          },
+          onStatusChange,
+          onYoutubeMusic: (music) => { youtubeMusic = music; },
+          onMcpApproval: onMcpApproval
+            ? (approval) => { streamedAnything = true; onMcpApproval(approval); }
+            : undefined,
+          onControlEvent: (event) => {
+            if (event?.type === 'error') {
+              frameError = new ChatError(
+                toChatErrorCode(event.code),
+                typeof event.message === 'string' ? event.message : 'The model provider failed mid-response.',
+                parser.getFullContent(),
+              );
+            }
+          },
+        });
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            parser.push(decoder.decode(value, { stream: true }));
+          }
+        } finally {
+          try { await reader.cancel(); } catch { /* already closed */ }
+        }
+
+        if (frameError) throw frameError;
+
+        // A cancelled request is not a provider failure. Check this before the
+        // sentinel test: aborting can end the stream cleanly rather than
+        // rejecting the read, which would otherwise read as a truncation.
+        if (budget.signal.aborted) {
+          const kind = budget.timedOut();
+          throw kind
+            ? new ChatError('TIMEOUT', kind === 'first_token'
+              ? 'The model did not start responding in time.'
+              : 'The response took too long and was stopped.',
+              parser.getFullContent())
+            : new ChatError('ABORTED', 'Generation stopped.', parser.getFullContent());
+        }
+
+        // `done` is true for a clean finish AND for a stream that died
+        // mid-flight. Only the sentinel distinguishes them; without this check
+        // a truncated generation ran straight into onComplete and painted an
+        // empty bubble with no error and no spinner (1.9).
+        if (!parser.sawStatusEnd()) {
+          throw new ChatError(
+            'TRUNCATED',
+            'The response was cut off before it finished.',
+            parser.getFullContent(),
+          );
+        }
+
+        return extractReasoningFromContent(parser.getFullContent());
+      } catch (attemptError) {
+        throw annotateStreamError(attemptError, budget, streamedAnything);
+      } finally {
+        budget.dispose();
       }
+    };
+
+    const { content: cleanContent, thinking } = await runWithRetries(attempt);
+
+    if (onComplete) {
+      onComplete({
+        content: cleanContent,
+        thinking,
+        youtubeMusic,
+      });
     }
 
   } catch (error) {
-    console.error('Error calling AI proxy:', error);
+    // Never log prompt or response content, only the failure itself.
+    console.error('AI proxy request failed:', error instanceof Error ? error.message : error);
 
     if (error instanceof RateLimitError) {
       if (onError) onError(error);
       return;
     }
+    if (error instanceof ChatError) {
+      // Rate limits still surface through the dedicated modal path.
+      if (onError) onError(error.code === 'RATE_LIMITED' ? new RateLimitError(error.message) : error);
+      return;
+    }
 
-    const fallbackError = error instanceof Error ? error : new Error('Unknown error occurred');
     if (onError) {
-      onError(fallbackError);
+      onError(new ChatError('UNKNOWN', error instanceof Error ? error.message : 'Unknown error occurred'));
     }
   }
 }
@@ -454,7 +624,7 @@ export async function generateAIResponseStreaming(
 export async function generateAIResponse(
   messages: Message[],
   imageData?: string | string[],
-  systemPrompt: string = '', // Not used anymore, kept for compatibility
+  _systemPrompt: string = '', // Not used anymore, kept for positional compatibility
   currentPersona: keyof typeof AI_PERSONAS = 'default',
   heatLevel?: number,
   inputImageUrls?: string[],
@@ -536,14 +706,9 @@ export async function generateAIResponse(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-
-      // Check for rate limit errors
-      if (response.status === 429 || errorData.type === 'rateLimit') {
-        throw new RateLimitError('Rate limit exceeded');
-      }
-
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      const failure = await chatErrorFromResponse(response);
+      if (failure.code === 'RATE_LIMITED') throw new RateLimitError(failure.message);
+      throw failure;
     }
 
     // Get the complete JSON response
@@ -551,22 +716,17 @@ export async function generateAIResponse(
     return result;
 
   } catch (error) {
-    console.error('Error calling AI proxy:', error);
+    console.error('AI proxy request failed:', error instanceof Error ? error.message : error);
 
-    if (error instanceof RateLimitError) {
-      throw error; // Re-throw rate limit errors to be handled by the UI
+    if (error instanceof RateLimitError || error instanceof ChatError) throw error;
+
+    // Returning an apology *as the assistant's answer* is what made outages
+    // look like successful generations. Failures throw now, so the caller can
+    // show a retryable error instead (1.7 / 1.9).
+    if (error instanceof TypeError) {
+      throw new ChatError('NETWORK', "Couldn't reach TimeMachine.");
     }
-
-    if (error instanceof Error) {
-      // Return simplified error message for other errors
-      return {
-        content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
-      };
-    }
-
-    return {
-      content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
-    };
+    throw new ChatError('UNKNOWN', error instanceof Error ? error.message : 'Unknown error occurred');
   }
 }
 

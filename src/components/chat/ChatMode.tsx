@@ -13,7 +13,7 @@ import { SesameMark } from '../icons/SesameMark';
 import type { McpApprovalDecision } from '../../types/flightControls';
 
 interface ReplyTo {
-  id: number;
+  id: string;
   content: string;
   sender_nickname?: string;
   isAI: boolean;
@@ -22,18 +22,20 @@ interface ReplyTo {
 interface ChatModeProps {
   messages: Message[];
   currentPersona: keyof typeof AI_PERSONAS;
-  onMessageAnimated: (messageId: number) => void;
+  onMessageAnimated: (messageId: string) => void;
   error?: string | null;
-  streamingMessageId?: number | null;
+  streamingMessageId?: string | null;
   loadingPhase?: 'analyzing_photo' | 'thinking' | null;
   isGroupMode?: boolean;
   currentUserId?: string;
   onReply?: (message: ReplyTo) => void;
-  onReact?: (messageId: number, emoji: string) => void;
+  onReact?: (messageId: string, emoji: string) => void;
   brandOverride?: BrandOverride;
-  onMusicVariationsChange?: (messageId: number, variations: SavedVariation[]) => void;
+  onMusicVariationsChange?: (messageId: string, variations: SavedVariation[]) => void;
   onOpenSesame?: () => void;
-  onMcpApprovalDecision?: (messageId: number, decision: McpApprovalDecision) => void;
+  onMcpApprovalDecision?: (messageId: string, decision: McpApprovalDecision) => void;
+  onRetry?: (messageId: string) => void;
+  isRetrying?: boolean;
 }
 
 export function ChatMode({
@@ -51,16 +53,18 @@ export function ChatMode({
   onMusicVariationsChange,
   onOpenSesame,
   onMcpApprovalDecision,
+  onRetry,
+  isRetrying,
 }: ChatModeProps) {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // Track the last user message ID we've scrolled to (prevents duplicate scrolls)
-  const lastScrolledUserMsgId = useRef<number | null>(null);
+  const lastScrolledUserMsgId = useRef<string | null>(null);
 
   // Smart scroll: positions user message at the top of viewport
   // No auto-scroll for AI messages - they naturally fill below
-  const scrollUserMessageToTop = (messageId: number) => {
+  const scrollUserMessageToTop = (messageId: string) => {
     const container = document.querySelector('.message-container');
     const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
 
@@ -92,8 +96,9 @@ export function ChatMode({
 
   // Smart scroll effect: detect new user messages and scroll to them
   useEffect(() => {
-    // Find all user messages (excluding the welcome message with id: 1)
-    const userMessages = messages.filter(m => !m.isAI && m.id !== 1);
+    // Find all user messages. The welcome message is always an AI message,
+    // so filtering by role already excludes it.
+    const userMessages = messages.filter(m => !m.isAI);
 
     if (userMessages.length > 0) {
       const lastUserMessage = userMessages[userMessages.length - 1];
@@ -194,7 +199,7 @@ export function ChatMode({
         {/* Messages */}
         {!showWelcomeText && (
           <div className="space-y-6">
-            {displayMessages.map((message, index) => {
+            {displayMessages.map((message) => {
               // For AI messages, get the previous user message to detect @mentions
               const prevIndex = messages.findIndex(m => m.id === message.id) - 1;
               const previousMessage = message.isAI && prevIndex >= 0 ? messages[prevIndex].content : null;
@@ -218,6 +223,8 @@ export function ChatMode({
                     brandOverride={brandOverride}
                     onMusicVariationsChange={onMusicVariationsChange}
                     onMcpApprovalDecision={onMcpApprovalDecision}
+                    onRetry={onRetry}
+                    isRetrying={isRetrying}
                   />
                 </div>
               );

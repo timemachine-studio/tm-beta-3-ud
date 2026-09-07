@@ -13,14 +13,15 @@ export function WebViewerView({
     // Initialize to empty string so the very first trigger waits the 800ms debounce
     const [debouncedUrl, setDebouncedUrl] = useState('');
 
+    const detectedUrl = web?.url;
     useEffect(() => {
-        if (!web) return;
+        if (!detectedUrl) return;
         setLoading(true);
         const timer = setTimeout(() => {
-            setDebouncedUrl(web.url);
+            setDebouncedUrl(detectedUrl);
         }, 800);
         return () => clearTimeout(timer);
-    }, [web?.url]);
+    }, [detectedUrl]);
 
     if (!web) return null;
 
@@ -50,11 +51,20 @@ export function WebViewerView({
 
             {/* Browser Canvas */}
             <div className="w-full bg-white relative flex-1 flex items-center justify-center" style={{ minHeight: '350px' }}>
+                {/*
+                    The iframe below deliberately omits allow-same-origin. Sites
+                    embedded here render fine without it (verified against Google
+                    search with igu=1), and keeping it meant any URL that resolved
+                    back to our own origin got a scripted frame with full access
+                    to the Supabase session in localStorage. toSafeExternalUrl now
+                    guarantees an absolute http(s) URL; this is the second lock on
+                    the same door. See production-check.md 0.6.
+                */}
                 {debouncedUrl ? (
                     <iframe
                         src={debouncedUrl}
                         className="absolute inset-0 w-full h-full border-none"
-                        sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                        sandbox="allow-scripts allow-forms allow-popups"
                         onLoad={() => setLoading(false)}
                         title="Web Viewer"
                     />

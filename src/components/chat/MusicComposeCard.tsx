@@ -351,7 +351,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText, saved
   );
 }
 
-export function MusicComposeCard({ content, isStreamingActive, personaColor, displayPersona, onVariationsChange, savedVariations }: MusicComposeCardProps) {
+export function MusicComposeCard({ content, isStreamingActive, personaColor, onVariationsChange, savedVariations }: MusicComposeCardProps) {
   const { theme } = useTheme();
 
   const [parsedData, setParsedData] = useState<ParsedMusicData | null>(null);
@@ -375,7 +375,9 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
     return Math.abs(hash) % 1000000;
   };
 
-  // Restore saved variations from history on mount
+  // Restore saved variations from history on mount. initialSeedSet is what
+  // makes this run once; re-running it on every seed change would fight the
+  // user's own generations.
   useEffect(() => {
     if (savedVariations && savedVariations.length > 0 && seeds.length === 0 && !initialSeedSet.current) {
       initialSeedSet.current = true;
@@ -387,6 +389,7 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
       setSeeds(restoredSeeds);
       setSavedUrlMap(restoredMap);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedVariations]);
 
   // Parse JSON — only depends on content, NOT seeds.length

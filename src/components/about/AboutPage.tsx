@@ -115,9 +115,9 @@ export function AboutPage() {
             }}
           >
             <Globe className="w-8 h-8 text-blue-400 mb-5" />
-            <h2 className="text-xl font-bold text-white mb-3">One App, Every AI</h2>
+            <h2 className="text-xl font-bold text-white mb-3">One App, Three Minds</h2>
             <p className="text-white/45 leading-relaxed">
-              Access ChatGPT, Gemini, Claude, Grok, DeepSeek, and our own TimeMachine personas — all from one interface. No switching between apps. No extra subscriptions.
+              TimeMachine Air, Girlie and PRO — three personas with distinct strengths, all from one interface. No switching between apps. No extra subscriptions.
             </p>
           </div>
         </motion.section>

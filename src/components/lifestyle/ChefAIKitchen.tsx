@@ -77,17 +77,17 @@ The JSON must perfectly match this structure:
 
             // Call AI
             const response = await generateAIResponse([
-                { id: 1, content: systemContent, isAI: false, hasAnimated: false }
+                { id: 'kitchen-prompt', content: systemContent, isAI: false, hasAnimated: false }
             ], undefined, '', 'pro');
 
             // Parse response
             let finalContent = response.content;
 
             // Strip markdown formatting if AI still includes it
-            if (finalContent.includes('\`\`\`json')) {
-                finalContent = finalContent.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
-            } else if (finalContent.includes('\`\`\`')) {
-                finalContent = finalContent.replace(/\`\`\`/g, '').trim();
+            if (finalContent.includes('```json')) {
+                finalContent = finalContent.replace(/```json/g, '').replace(/```/g, '').trim();
+            } else if (finalContent.includes('```')) {
+                finalContent = finalContent.replace(/```/g, '').trim();
             }
 
             // Sometimes there's conversational text before/after the JSON

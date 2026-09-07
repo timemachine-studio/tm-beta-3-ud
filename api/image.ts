@@ -1,9 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getAuthenticatedRequestUser } from './_lib/auth.js';
+import { applyCors, hasAcceptableOrigin, isSameOriginSubresource } from './_lib/cors.js';
+import { apiErrorBody } from './_lib/errors.js';
+import { promptQuerySchema, parseOrReject, isAllowedImageUrl, LIMITS } from './_lib/validation.js';
 
 // Pollinations API key from environment variable
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || '';
 
-type Persona = 'default' | 'girlie' | 'pro' | 'chatgpt' | 'gemini' | 'claude' | 'grok';
+type Persona = 'default' | 'girlie' | 'pro';
 type Process = 'create' | 'edit';
 type Orientation = 'portrait' | 'landscape';
 
@@ -81,10 +85,7 @@ function constructPollinationsUrl(params: ImageParams): URL {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Handle CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  applyCors(req, res, 'GET, OPTIONS');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -92,6 +93,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (!hasAcceptableOrigin(req)) {
+    return res.status(403).json({ error: 'Origin not allowed' });
+  }
+
+  // These URLs are loaded as <img src> / <audio src>, so they cannot carry an
+  // Authorization header. The gate is the browser's own fetch metadata plus the
+  // origin allowlist — see isSameOriginSubresource. A bearer token is still
+  // accepted for non-browser callers we control.
+  const bearer = await getAuthenticatedRequestUser(req);
+  if (!bearer && !isSameOriginSubresource(req)) {
+    return res.status(401).json({ error: 'Not authorized' });
   }
 
   try {
@@ -106,27 +120,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } = req.query;
 
     // Validate required parameters
-    if (!prompt || typeof prompt !== 'string') {
-      return res.status(400).json({ error: 'Missing or invalid prompt parameter' });
-    }
+    const parsedPrompt = parseOrReject(res, promptQuerySchema, { prompt });
+    if (!parsedPrompt) return;
 
     // Parse inputImageUrls if provided (comma-separated)
+    // These are handed to Pollinations, which fetches them — so only hosts we
+    // trust may appear here (1.8, SSRF).
     let parsedImageUrls: string[] | undefined;
     if (inputImageUrls) {
-      if (typeof inputImageUrls === 'string') {
-        parsedImageUrls = inputImageUrls.split(',').filter(url => url.trim());
-      } else if (Array.isArray(inputImageUrls)) {
-        parsedImageUrls = inputImageUrls.filter(url => typeof url === 'string' && url.trim());
+      const raw = typeof inputImageUrls === 'string'
+        ? inputImageUrls.split(',')
+        : Array.isArray(inputImageUrls) ? inputImageUrls : [];
+      const candidates = raw
+        .filter((url): url is string => typeof url === 'string' && url.trim() !== '')
+        .map(url => url.trim())
+        .slice(0, LIMITS.maxImageUrls);
+      if (candidates.some(url => !isAllowedImageUrl(url))) {
+        return res.status(400).json(apiErrorBody('BAD_REQUEST', 'Invalid request: inputImageUrls'));
       }
+      parsedImageUrls = candidates;
     }
 
     // Parse width and height for edit operations
-    const parsedWidth = width && typeof width === 'string' ? parseInt(width, 10) : undefined;
-    const parsedHeight = height && typeof height === 'string' ? parseInt(height, 10) : undefined;
+    const boundDimension = (value: unknown): number | undefined => {
+      if (typeof value !== 'string') return undefined;
+      const parsedValue = parseInt(value, 10);
+      if (!Number.isFinite(parsedValue)) return undefined;
+      return Math.min(4096, Math.max(64, parsedValue));
+    };
+    const parsedWidth = boundDimension(width);
+    const parsedHeight = boundDimension(height);
 
     // Construct the Pollinations URL with secret key (server-side only)
     const pollinationsUrl = constructPollinationsUrl({
-      prompt,
+      prompt: parsedPrompt.prompt,
       orientation: (orientation as Orientation) || 'portrait',
       process: (process as Process) || 'create',
       persona: (persona as Persona) || 'default',
@@ -152,12 +179,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const errorText = await imageResponse.text().catch(() => '');
       console.error('Pollinations API error:', imageResponse.status, errorText);
       console.error('Request URL was:', debugUrl);
-      return res.status(502).json({
-        error: 'Failed to generate image',
-        pollinationsStatus: imageResponse.status,
-        pollinationsError: errorText,
-        requestUrl: debugUrl
-      });
+      // Status, upstream body and our own request URL stay server-side (1.7).
+      return res.status(502).json(apiErrorBody('PROVIDER_DOWN', 'Failed to generate image'));
     }
 
     // Get the image as a buffer
