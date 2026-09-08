@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Square, Plus, X, CornerDownRight, ImagePlus, Code, Music, HeartPulse, FileText } from 'lucide-react';
+import { Square, Plus, X, CornerDownRight, ImagePlus, Code, Music, HeartPulse, FileText } from 'lucide-react';
+import SendIcon from '../icons/SendIcon';
 import { useNavigate } from 'react-router-dom';
 import { SpeechTranscriptionButton } from './SpeechTranscriptionButton';
 import { ChatInputProps, ImageDimensions } from '../../types/chat';
@@ -904,7 +905,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                   ) : isLoading || isUploading ? (
                     <LoadingSpinner size="sm" />
                   ) : (
-                    <Send className="w-5 h-5 relative z-10" />
+                    <SendIcon className="w-5 h-5 relative z-10" />
                   )}
                 </motion.button>
               </div>

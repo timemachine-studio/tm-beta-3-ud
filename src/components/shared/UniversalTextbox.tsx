@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import SendIcon from '../icons/SendIcon';
 import { AI_PERSONAS } from '../../config/constants';
 
 type Persona = keyof typeof AI_PERSONAS;
@@ -150,7 +151,7 @@ export function UniversalTextbox({
                   boxShadow: `${personaStyles.glowShadow[key]}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`,
                 }}
               >
-                <Send className="w-5 h-5 relative z-10" />
+                <SendIcon className="w-5 h-5 relative z-10" />
               </motion.button>
             </div>
           </div>

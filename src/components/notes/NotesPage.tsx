@@ -28,7 +28,6 @@ import {
   X,
   Sparkles,
   Loader2,
-  Send,
   PanelLeftOpen,
   PanelLeftClose,
   Pencil,
@@ -41,6 +40,7 @@ import {
   Underline,
   Highlighter,
 } from 'lucide-react';
+import SendIcon from '../icons/SendIcon';
 import { useTheme } from '../../context/ThemeContext';
 import { sendNotesAIRequest } from '../../services/ai/notesAiService';
 import { renderInline } from './renderInline';
@@ -2732,7 +2732,7 @@ export function NotesPage() {
                       {aiLoading ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
                       ) : (
-                        <Send className="w-5 h-5 relative z-10" />
+                        <SendIcon className="w-5 h-5 relative z-10" />
                       )}
                     </motion.button>
                   </div>

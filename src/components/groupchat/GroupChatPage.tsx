@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Users,
-  Send,
   Loader2,
   UserPlus,
   Copy,
@@ -15,6 +14,7 @@ import {
   Heart,
   Smile
 } from 'lucide-react';
+import SendIcon from '../icons/SendIcon';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -719,7 +719,7 @@ export function GroupChatPage() {
                 {isSending ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  <Send className="w-5 h-5" />
+                  <SendIcon className="w-5 h-5" />
                 )}
               </motion.button>
             </div>

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Mail, Send } from 'lucide-react';
+import { ArrowLeft, Mail } from 'lucide-react';
+import SendIcon from '../icons/SendIcon';
 import { supabase } from '../../lib/supabase';
 
 export function ContactPage() {
@@ -198,7 +199,7 @@ export function ContactPage() {
                   <span>Message Sent!</span>
                 ) : (
                   <>
-                    <Send className="w-4 h-4" />
+                    <SendIcon className="w-4 h-4" />
                     <span>Send Message</span>
                   </>
                 )}
