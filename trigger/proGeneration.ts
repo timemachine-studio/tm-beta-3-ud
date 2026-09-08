@@ -2,19 +2,34 @@ import type { ProviderMessage, ProviderTool } from '../api/_lib/providerTypes.js
 import { task, logger } from "@trigger.dev/sdk";
 import {
   dispatchStreamingProvider,
+  extractImageContent,
   normalizeStreamingProvider,
   incrementRateLimit,
   processMemoryTags,
 } from "../api/ai-proxy.js";
 import { runWithProviderFallback, type ProviderHop } from "../api/_lib/providerResilience.js";
+import {
+  attachmentsFrom,
+  chainIsAllNative,
+  createVisionAdapter,
+  passThroughVisionAdapter,
+  resolveVisionMode,
+  type VisionHop,
+} from "../api/_lib/vision.js";
 import { createToolPolicy } from "../api/_lib/tools.js";
 import { runAgentLoop } from "../api/_lib/agentLoop.js";
 import { completeProJob, failProJob } from "../api/_lib/proJobs.js";
 import { proOutputStream } from "./streams.js";
 
 // Payload is fully prepared by /api/pro-generation (prompt building, RAG,
-// PDF injection, image OCR, quota check) so this task only does the
-// long-running part: the PRO agentic tool loop.
+// PDF injection, quota check) so this task only does the long-running part:
+// the PRO agentic tool loop.
+//
+// Images are the one exception. How they reach the model depends on which hop
+// serves the run, and that is not known until the chain runs here — so the
+// route ships the image URLs and this task shapes the messages per hop
+// (api/_lib/vision.ts). When the route decided the matter itself, the messages
+// arrive final and `visionImages` is absent.
 export interface ProGenerationPayload {
   jobId: string;
   apiMessages: ProviderMessage[];
@@ -34,6 +49,14 @@ export interface ProGenerationPayload {
   inputImageUrls?: string[];
   imageDimensions?: { width?: number; height?: number };
   hadImageInput?: boolean;
+  /**
+   * Image URLs for this turn, already reduced to one transport by the route.
+   * Absent when the route settled vision itself (no hop on the chain can see,
+   * or the images were too large to serialise into a payload).
+   */
+  visionImages?: string[];
+  /** Index in `apiMessages` of the user message the images belong to. */
+  visionImageIndex?: number;
   /** Results of the intent gates, decided in /api/pro-generation. */
   imageAllowed?: boolean;
   searchAllowed?: boolean;
@@ -82,13 +105,11 @@ export const proGeneration = task({
       await proOutputStream.append(marker);
     };
 
-    try {
-      if (payload.hadImageInput) {
-        // OCR already happened in the API route; mirror the old marker so the
-        // frontend switches from "Analyzing photo..." to "Thinking...".
-        await emitMarker("[IMAGE_ANALYZED]");
-      }
+    // Once any token has been appended to the output stream, a status marker
+    // written after it would flip the UI back to "Analyzing photo…" mid-answer.
+    let hasStreamedContent = false;
 
+    try {
       // ─── PRO agentic loop (shared with /api/ai-proxy) ─────────────────
       const toolPolicy = createToolPolicy({
         imageAllowed: payload.imageAllowed !== false,
@@ -103,6 +124,33 @@ export const proGeneration = task({
         : [{ provider: normalizeStreamingProvider(payload.provider, "pollinations"), model: payload.model }];
       let servedProvider = providerChain[0].provider;
 
+      // Images the route left for this task to place. Without them the
+      // messages are already final — either there was no image, or the route
+      // transcribed it before queueing the job.
+      const visionImages = payload.visionImages ?? [];
+      const adaptForHop = visionImages.length > 0 && typeof payload.visionImageIndex === "number"
+        ? createVisionAdapter({
+            attachments: attachmentsFrom(visionImages),
+            imageIndex: payload.visionImageIndex,
+            extractText: extractImageContent,
+            onOcrStart: async () => { if (!hasStreamedContent) await emitMarker("[IMAGE_ANALYZING]"); },
+            onOcrEnd: async () => { if (!hasStreamedContent) await emitMarker("[IMAGE_ANALYZED]"); },
+            log: (message) => logger.log(`[pro] ${message}`),
+          })
+        : passThroughVisionAdapter;
+
+      if (payload.hadImageInput) {
+        // The client put itself in "Analyzing photo…" the moment the user hit
+        // send. Either the route already transcribed, or the first hop can see
+        // and the looking happens inside the answer — both mean "Thinking…".
+        // A later fallback to an OCR hop re-emits the pair around its own call.
+        const firstHopSees = visionImages.length > 0
+          && resolveVisionMode(providerChain[0] as VisionHop) === "native";
+        if (firstHopSees || visionImages.length === 0) {
+          await emitMarker("[IMAGE_ANALYZED]");
+        }
+      }
+
       const loopResult = await runAgentLoop({
         messages: payload.apiMessages,
         tools: payload.tools,
@@ -113,16 +161,16 @@ export const proGeneration = task({
           policy: toolPolicy,
         },
         emit: {
-          emitContent: (text) => emitText(text),
-          emitToolText: (text) => emitText(`\n\n${text}\n\n`),
+          emitContent: async (text) => { hasStreamedContent = true; await emitText(text); },
+          emitToolText: async (text) => { hasStreamedContent = true; await emitText(`\n\n${text}\n\n`); },
           emitMarker: (marker) => emitMarker(marker),
         },
         callModel: async (messages, activeTools) => {
-          const run = await runWithProviderFallback(
+          const walkChain = (forceOcr: boolean) => runWithProviderFallback(
             providerChain,
-            (hop) => dispatchStreamingProvider(
+            async (hop) => dispatchStreamingProvider(
               hop.provider,
-              messages,
+              await adaptForHop(hop as VisionHop, messages, { forceOcr }),
               activeTools,
               {
                 model: hop.model,
@@ -133,6 +181,19 @@ export const proGeneration = task({
             ),
             (message) => logger.log(`[pro] ${message}`),
           );
+
+          let run;
+          try {
+            run = await walkChain(false);
+          } catch (error) {
+            // PRO's whole chain is K3, so it is exactly the all-native case
+            // with no cushion: one bad assumption about the endpoint takes out
+            // every hop. Transcribe and walk it once more rather than failing
+            // the job. See the matching retry in api/ai-proxy.ts.
+            if (visionImages.length === 0 || !chainIsAllNative(providerChain as VisionHop[])) throw error;
+            logger.warn("[pro] every hop failed with images attached; retrying the chain with transcription");
+            run = await walkChain(true);
+          }
           servedProvider = run.provider;
           if (run.provider !== providerChain[0].provider) {
             logger.warn(`[pro] fell back from ${providerChain[0].provider} to ${run.provider}`);

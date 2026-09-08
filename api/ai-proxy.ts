@@ -1,6 +1,6 @@
 import type { Database } from '../src/types/database.js';
 import type { HealthcareBrand } from '../shared/healthcare.js';
-import type { ModelConfig, SpecialModeConfig } from './_lib/providerTypes.js';
+import type { ModelConfig, SpecialModeConfig, VisionCapability } from './_lib/providerTypes.js';
 import type { ProviderMessage, ProviderTool, ProviderRequest, ProviderResponse } from './_lib/providerTypes.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -26,6 +26,20 @@ import {
 import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
 import { apiErrorBody, sendApiError, STATUS_FOR_CODE } from './_lib/errors.js';
 import { providerFetch, runWithProviderFallback, ProviderHttpError, type ProviderHop } from './_lib/providerResilience.js';
+import {
+  OCR_MODEL,
+  chainIsAllNative,
+  collectAttachments,
+  createVisionAdapter,
+  hasAttachments,
+  passThroughVisionAdapter,
+  resolveVisionMode,
+  selectOcrImages,
+  selectVisionImages,
+  applyNativeVision,
+  applyOcrVision,
+  type VisionHop,
+} from './_lib/vision.js';
 import { aiProxyBodySchema, parseOrReject, rejectIfTooLarge } from './_lib/validation.js';
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 
@@ -56,6 +70,9 @@ export const AI_PERSONAS = {
     name: 'TimeMachine Air',
     provider: 'groq', // allowed change to 'groq' or 'cerebras' or 'pollinations' or 'eaon' or 'nvidia'
     model: 'qwen/qwen3.6-27b',
+    // Qwen 3.6 takes image parts, so an image message goes straight to it —
+    // no transcription step in front. See api/_lib/vision.ts.
+    vision: 'native' as const,
     // Air's fallback chain, in order. If the primary above fails for any
     // reason — 429, 5xx, timeout, missing key, unknown model — the run moves
     // to the next entry without the user seeing anything. Only when every
@@ -64,15 +81,22 @@ export const AI_PERSONAS = {
     // Each entry must name a model that provider actually serves. A hop
     // pointed at a model id the provider does not have fails worse than no
     // hop at all, so do not add one without a verified (provider, model) pair.
+    //
+    // `vision` is per hop because the hops disagree: neither of these two can
+    // see, so a turn that falls through to one of them gets the image
+    // transcribed at that point — and only at that point.
     fallbacks: [
-      { provider: 'eaon', model: 'glm-5.2-extended' },
-      { provider: 'nvidia', model: 'openai/gpt-oss-20b' },
+      { provider: 'eaon', model: 'glm-5.2-extended', vision: 'ocr' as const },
+      { provider: 'nvidia', model: 'openai/gpt-oss-20b', vision: 'ocr' as const },
     ],
     temperature: 0.8,
     maxTokens: 9304,
     flowState: {
       provider: 'groq',
       model: 'openai/gpt-oss-20b',
+      // Flow State swaps the model, so it carries its own capability. Air's
+      // Air's `vision: 'native'` above describes Qwen 3.6, not this.
+      vision: 'ocr' as const,
       temperature: 0.8,
       maxTokens: 9304,
       quotaCost: 4
@@ -189,6 +213,7 @@ Some Information (no need to say these out loud to the users unless asked):
 You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMachine PRO".`,
     initialMessage: "Hiee✨ I'm TimeMachine Girlie!",
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    vision: 'native' as const,
     temperature: 0.9,
     maxTokens: 2500
   },
@@ -425,12 +450,14 @@ You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule wi
     initialMessage: "It's TimeMachine PRO, from future.",
     provider: 'nvidia',
     model: 'moonshotai/kimi-k3',
+    // Every K3 in this chain is multimodal, so PRO never transcribes.
+    vision: 'native' as const,
     // Same contract as Air's chain above: tried in order, silently, and only
     // an exhausted chain reaches the user. PRO runs as a Trigger.dev job, so
     // the chain travels in the job payload (see api/pro-generation.ts).
     fallbacks: [
-      { provider: 'eaon', model: 'logfare/kimi-k3' },
-      { provider: 'eaon', model: 'kimi-k3-extended' },
+      { provider: 'eaon', model: 'logfare/kimi-k3', vision: 'native' as const },
+      { provider: 'eaon', model: 'kimi-k3-extended', vision: 'native' as const },
     ],
     temperature: 0.8,
     maxTokens: 57200
@@ -1139,7 +1166,13 @@ export async function incrementRateLimit(
   }
 }
 
-// Extract text content from images using Qwen Vision via Pollinations (OCR pipeline)
+/**
+ * Transcribe images to text, for hops whose model cannot see (api/_lib/vision.ts).
+ *
+ * This is the fallback path now, not the default one. A model that takes image
+ * parts gets the image itself; this only runs when the hop actually serving
+ * the turn is text-only.
+ */
 export async function extractImageContent(imageUrls: string[]): Promise<string> {
   const imageContents = imageUrls.map((url: string) => ({
     type: 'image_url',
@@ -1154,7 +1187,7 @@ export async function extractImageContent(imageUrls: string[]): Promise<string> 
       'Authorization': `Bearer ${POLLINATIONS_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'qwen-vision',
+      model: OCR_MODEL.model,
       messages: [{
         role: 'user',
         content: [
@@ -1181,8 +1214,8 @@ Output ONLY the extracted content, nothing else.`
           ...imageContents
         ]
       }],
-      temperature: 0.1,
-      max_tokens: 4000,
+      temperature: OCR_MODEL.temperature,
+      max_tokens: OCR_MODEL.maxTokens,
       stream: false
     })
   });
@@ -1454,7 +1487,10 @@ export async function callSecretsToAIAPIStreaming(
 
   // Filter out empty system messages
   const cleanedMessages = messages.filter(msg =>
-    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+    // A system message is always plain text; the parts form only ever appears
+    // on the user turn a native-vision run attached images to, and that one is
+    // never empty.
+    msg.role !== 'system' || (typeof msg.content === 'string' ? msg.content.trim() !== '' : !!msg.content)
   );
 
   const requestBody: ProviderRequest = {
@@ -1590,7 +1626,10 @@ export async function callNvidiaAPIStreaming(
 
   // Filter out empty system messages
   const cleanedMessages = messages.filter(msg =>
-    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+    // A system message is always plain text; the parts form only ever appears
+    // on the user turn a native-vision run attached images to, and that one is
+    // never empty.
+    msg.role !== 'system' || (typeof msg.content === 'string' ? msg.content.trim() !== '' : !!msg.content)
   );
 
   const requestBody: ProviderRequest = {
@@ -1722,7 +1761,10 @@ export async function callEaonAPIStreaming(
 
   // Filter out empty system messages
   const cleanedMessages = messages.filter(msg =>
-    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+    // A system message is always plain text; the parts form only ever appears
+    // on the user turn a native-vision run attached images to, and that one is
+    // never empty.
+    msg.role !== 'system' || (typeof msg.content === 'string' ? msg.content.trim() !== '' : !!msg.content)
   );
 
   const requestBody: ProviderRequest = {
@@ -1858,7 +1900,10 @@ export async function callPollinationsAPIStreaming(
 
   // Filter out empty system messages
   const cleanedMessages = messages.filter(msg =>
-    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+    // A system message is always plain text; the parts form only ever appears
+    // on the user turn a native-vision run attached images to, and that one is
+    // never empty.
+    msg.role !== 'system' || (typeof msg.content === 'string' ? msg.content.trim() !== '' : !!msg.content)
   );
 
   const requestBody: ProviderRequest = {
@@ -1992,7 +2037,10 @@ async function callSecretsToAIAPI(
 
   // Filter out empty system messages
   const cleanedMessages = messages.filter(msg =>
-    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+    // A system message is always plain text; the parts form only ever appears
+    // on the user turn a native-vision run attached images to, and that one is
+    // never empty.
+    msg.role !== 'system' || (typeof msg.content === 'string' ? msg.content.trim() !== '' : !!msg.content)
   );
 
   const requestBody: ProviderRequest = {
@@ -2056,7 +2104,10 @@ async function callNvidiaAPI(
 
   // Filter out empty system messages
   const cleanedMessages = messages.filter(msg =>
-    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+    // A system message is always plain text; the parts form only ever appears
+    // on the user turn a native-vision run attached images to, and that one is
+    // never empty.
+    msg.role !== 'system' || (typeof msg.content === 'string' ? msg.content.trim() !== '' : !!msg.content)
   );
 
   const requestBody: ProviderRequest = {
@@ -2116,7 +2167,10 @@ async function callEaonAPI(
 
   // Filter out empty system messages
   const cleanedMessages = messages.filter(msg =>
-    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+    // A system message is always plain text; the parts form only ever appears
+    // on the user turn a native-vision run attached images to, and that one is
+    // never empty.
+    msg.role !== 'system' || (typeof msg.content === 'string' ? msg.content.trim() !== '' : !!msg.content)
   );
 
   const requestBody: ProviderRequest = {
@@ -2180,7 +2234,10 @@ async function callPollinationsAPI(
 
   // Filter out empty system messages
   const cleanedMessages = messages.filter(msg =>
-    msg.role !== 'system' || (msg.content && msg.content.trim() !== '')
+    // A system message is always plain text; the parts form only ever appears
+    // on the user turn a native-vision run attached images to, and that one is
+    // never empty.
+    msg.role !== 'system' || (typeof msg.content === 'string' ? msg.content.trim() !== '' : !!msg.content)
   );
 
   const requestBody: ProviderRequest = {
@@ -2285,16 +2342,23 @@ export function resolveRunProvider(
  * hop still runs its own configured model. Duplicate (provider, model) pairs
  * are dropped: retrying the exact same pair after it just failed only adds
  * latency before the error the user actually sees.
+ *
+ * `primaryCapability` is the vision annotation belonging to whichever config
+ * supplied `model` — the persona, a special mode, or Flow State. It is passed
+ * in rather than read from the persona because those overrides change the
+ * model, and a capability that describes a model the run is not using is worse
+ * than none: it would hand image parts to something that cannot take them.
  */
 export function buildProviderChain(
   provider: string,
   model: string,
   fallbacks: ProviderHop[] = [],
+  primaryCapability: VisionCapability = {},
 ): ProviderHop[] {
   const chain: ProviderHop[] = [];
   const seen = new Set<string>();
 
-  for (const hop of [{ provider, model }, ...fallbacks]) {
+  for (const hop of [{ provider, model, ...primaryCapability }, ...fallbacks]) {
     if (!hop?.provider || !hop?.model) continue;
     // A hop naming a provider with no dispatch branch would fall through to
     // the `default:` case and be sent to Cerebras under someone else's model
@@ -2306,7 +2370,15 @@ export function buildProviderChain(
     const key = `${hop.provider}:${hop.model}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    chain.push({ provider: hop.provider, model: hop.model });
+    // The vision annotation travels with the hop: whether the turn's image is
+    // sent as an image or as transcribed text is decided per hop, at the
+    // moment that hop runs (api/_lib/vision.ts).
+    chain.push({
+      provider: hop.provider,
+      model: hop.model,
+      ...(hop.vision ? { vision: hop.vision } : {}),
+      ...(hop.imageTransport ? { imageTransport: hop.imageTransport } : {}),
+    });
   }
 
   // The primary may itself have been dropped as unknown; never return nothing.
@@ -2328,6 +2400,8 @@ export function runProviderNames(provider: string, personaConfig: unknown): stri
 export function personaFallbacks(personaConfig: unknown): ProviderHop[] {
   const declared = (personaConfig as { fallbacks?: unknown })?.fallbacks;
   if (!Array.isArray(declared)) return [];
+  // Returned as declared, so any `vision` / `imageTransport` written next to a
+  // fallback in AI_PERSONAS survives into the chain buildProviderChain builds.
   return declared.filter((hop): hop is ProviderHop =>
     Boolean(hop) && typeof hop.provider === 'string' && typeof hop.model === 'string');
 }
@@ -2565,13 +2639,15 @@ ${thinkingDirective}`;
     // Messages can carry tool-call fields (tool_calls / tool_call_id) once the
     // PRO agentic loop appends them, so keep the element shape open.
     let apiMessages: ProviderMessage[];
-    // Track if we need to run the image OCR pipeline before the main AI call
-    const hasImageInput = !!imageData;
-    const imageUrlsForOCR = hasImageInput ? (Array.isArray(imageData) ? imageData : [imageData]) : [];
+    // Images on this turn, in both the hosted and inline forms the client sent.
+    // Nothing is done with them yet: whether they go to the model as images or
+    // as transcribed text depends on which hop ends up serving the turn, and
+    // that is not known until the chain runs (api/_lib/vision.ts).
+    const attachments = collectAttachments(imageData, inputImageUrls);
+    const hasImageInput = hasAttachments(attachments);
 
     {
-      // Build apiMessages the same way for all cases (text-only messages)
-      // If images are present, the OCR pipeline will inject extracted text before the API call
+      // Build apiMessages the same way for all cases (text-only messages).
       // Every persona is a TimeMachine persona now and carries a system prompt.
       // The third-party-branded personas were removed — see production-check.md 0.9.
       apiMessages = [
@@ -2584,8 +2660,10 @@ ${thinkingDirective}`;
     if (pdfTextContent && apiMessages.length > 0) {
       const lastMsgIndex = apiMessages.length - 1;
       const lastMsg = apiMessages[lastMsgIndex];
-      const isPlaceholderOnly = lastMsg.content?.startsWith('[PDF:') || lastMsg.content?.startsWith('[File:');
-      const userPrompt = isPlaceholderOnly ? '' : (lastMsg.content || '');
+      // Runs before any image parts are attached, so content is still a string.
+      const lastText = typeof lastMsg.content === 'string' ? lastMsg.content : '';
+      const isPlaceholderOnly = lastText.startsWith('[PDF:') || lastText.startsWith('[File:');
+      const userPrompt = isPlaceholderOnly ? '' : lastText;
       const ext = pdfFileName?.split('.').pop()?.toLowerCase() || '';
       const isPdf = ext === 'pdf';
       const fileLabel = pdfFileName ? `"${pdfFileName}"` : (isPdf ? 'the uploaded PDF' : 'the uploaded file');
@@ -2611,44 +2689,6 @@ ${thinkingDirective}`;
 
 
 
-      // Image handling: use OCR pipeline to extract text from images
-      if (hasImageInput && imageUrlsForOCR.length > 0) {
-        // Send status marker so frontend shows "Analyzing photo..."
-        res.write('[IMAGE_ANALYZING]');
-
-        try {
-          const extractedText = await extractImageContent(imageUrlsForOCR);
-
-          // Inject extracted text into the last user message in apiMessages
-          const lastMsgIndex = apiMessages.length - 1;
-          const lastMsg = apiMessages[lastMsgIndex];
-          const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
-
-          // Build enriched message combining extracted image content + user prompt
-          const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
-
-          const enrichedContent = userPrompt
-            ? `[Content extracted from the attached image(s):\n${extractedText}\n]${imageEditContext}\n\nUser's message: ${userPrompt}`
-            : `[Content extracted from the attached image(s):\n${extractedText}\n]\n\nThe user shared this image. Respond based on the extracted content above.`;
-
-          apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
-        } catch (ocrError) {
-          console.error('Image OCR pipeline error:', ocrError);
-          const lastMsgIndex = apiMessages.length - 1;
-          const lastMsg = apiMessages[lastMsgIndex];
-          const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
-          apiMessages[lastMsgIndex] = {
-            ...lastMsg,
-            content: userPrompt
-              ? `[The user attached an image but text extraction failed. Please respond to their message as best you can. If the user wanted to edit the image, use the generate_image tool with process="edit" and describe what the user wants.]\n\nUser's message: ${userPrompt}`
-              : `[The user attached an image but text extraction failed. Let them know you couldn't process the image and ask them to try again.]`
-          };
-        }
-
-        // Send status marker so frontend switches to "Thinking..."
-        res.write('[IMAGE_ANALYZED]');
-      }
-
       // ─── Resolve which provider and model this run uses ───────────────
       // Each persona keeps its own historical fallback provider.
       // Same derivation the spend ceiling used above.
@@ -2660,13 +2700,25 @@ ${thinkingDirective}`;
 
       // Flow State swaps the model alongside the provider.
       const flowConfig = (personaConfig as PersonaProviderConfig & {
-        flowState?: { model?: string; temperature?: number; maxTokens?: number };
+        flowState?: VisionCapability & { model?: string; temperature?: number; maxTokens?: number };
       }).flowState;
-      if (persona === 'default' && flowState && flowConfig) {
+      const usingFlowState = persona === 'default' && flowState && !!flowConfig;
+      if (usingFlowState && flowConfig) {
         runModel = flowConfig.model ?? runModel;
         runTemperature = flowConfig.temperature;
         runMaxTokens = flowConfig.maxTokens;
       }
+
+      // The vision annotation has to come from whichever config supplied
+      // runModel. Reading it off the persona would describe the persona's own
+      // model, which a special mode or Flow State has just replaced — and
+      // claiming 'native' for a model that cannot see is a 400, not a worse
+      // answer.
+      const primaryCapability: VisionCapability = usingFlowState && flowConfig
+        ? { vision: flowConfig.vision, imageTransport: flowConfig.imageTransport }
+        : specialModeConfig
+          ? { vision: specialModeConfig.vision, imageTransport: specialModeConfig.imageTransport }
+          : { vision: (personaConfig as ModelConfig).vision, imageTransport: (personaConfig as ModelConfig).imageTransport };
 
       try {
         // Every persona runs the same agentic loop. Tool results go back to the
@@ -2679,7 +2731,7 @@ ${thinkingDirective}`;
         // yields a stream or throws before a single byte reaches the client.
         // Once tokens are flowing there is no resume, so a mid-stream death
         // surfaces as truncated instead (1.9/1.11).
-        const fullChain = buildProviderChain(runProvider, runModel, personaFallbacks(personaConfig));
+        const fullChain = buildProviderChain(runProvider, runModel, personaFallbacks(personaConfig), primaryCapability);
         // Drop hops whose provider is out of budget for the day. With no ceiling
         // configured openProviders holds the whole chain, so nothing is lost.
         const providerChain = openProviders.length > 0
@@ -2691,21 +2743,50 @@ ${thinkingDirective}`;
         // spent the primary's budget and capped it early.
         let servedProvider = runProvider;
 
+        // The index of the user message carrying the images. Captured now,
+        // before the agent loop starts appending assistant and tool messages
+        // after it — "the last message" stops being the right one on the
+        // second iteration.
+        const imageIndex = apiMessages.length - 1;
+
+        // Once any token has reached the client, a status marker written after
+        // it would flip the UI back to "Analyzing photo…" mid-answer. The
+        // marker pair is only honest before the first token.
+        let hasStreamedContent = false;
+
+        const adaptForHop = hasImageInput
+          ? createVisionAdapter({
+              attachments,
+              imageIndex,
+              extractText: extractImageContent,
+              onOcrStart: () => { if (!hasStreamedContent) res.write('[IMAGE_ANALYZING]'); },
+              onOcrEnd: () => { if (!hasStreamedContent) res.write('[IMAGE_ANALYZED]'); },
+              log: (message) => console.log(`[${persona}] ${message}`),
+            })
+          : passThroughVisionAdapter;
+
+        // A native hop never writes [IMAGE_ANALYZING], so the client — which
+        // put itself in "Analyzing photo…" the moment the user hit send — needs
+        // telling that the looking is happening inside the answer itself.
+        if (hasImageInput && providerChain[0] && resolveVisionMode(providerChain[0] as VisionHop) === 'native') {
+          res.write('[IMAGE_ANALYZED]');
+        }
+
         const loopResult = await runAgentLoop({
           messages: apiMessages,
           tools: runTools,
           toolContext: { persona, inputImageUrls, imageDimensions, policy: toolPolicy },
           emit: {
-            emitContent: (text) => { res.write(text); },
-            emitToolText: (text) => { res.write(`\n\n${text}\n\n`); },
+            emitContent: (text) => { hasStreamedContent = true; res.write(text); },
+            emitToolText: (text) => { hasStreamedContent = true; res.write(`\n\n${text}\n\n`); },
             emitMarker: (marker) => { res.write(marker); },
           },
           callModel: async (msgs, activeTools) => {
-            const run = await runWithProviderFallback(
+            const walkChain = (forceOcr: boolean) => runWithProviderFallback(
               providerChain,
-              (hop) => dispatchStreamingProvider(
+              async (hop) => dispatchStreamingProvider(
                 hop.provider,
-                msgs,
+                await adaptForHop(hop as VisionHop, msgs, { forceOcr }),
                 activeTools,
                 {
                   model: hop.model,
@@ -2716,6 +2797,21 @@ ${thinkingDirective}`;
               ),
               (message) => console.log(`[${persona}] ${message}`),
             );
+
+            let run;
+            try {
+              run = await walkChain(false);
+            } catch (error) {
+              // A chain where every hop claims to see the image has nothing
+              // under it: if that claim is wrong for the endpoint rather than
+              // the model, all of them 400 and the turn dies. Transcribing and
+              // walking it once more turns that into a worse answer instead of
+              // no answer. Safe to retry — opening a stream either yields one
+              // or throws, so nothing has reached the client yet.
+              if (!hasImageInput || !chainIsAllNative(providerChain as VisionHop[])) throw error;
+              console.warn(`[${persona}] every hop failed with images attached; retrying the chain with transcription`);
+              run = await walkChain(true);
+            }
             servedProvider = run.provider;
             if (run.provider !== runProvider) {
               console.warn(`[${persona}] fell back from ${runProvider} to ${run.provider}`);
@@ -2767,31 +2863,36 @@ ${thinkingDirective}`;
       // Non-streaming response (fallback)
       let apiResponse: ProviderResponse = {};
 
-      // Image handling for non-streaming: use OCR pipeline
-      if (hasImageInput && imageUrlsForOCR.length > 0) {
-        try {
-          const extractedText = await extractImageContent(imageUrlsForOCR);
-          const lastMsgIndex = apiMessages.length - 1;
-          const lastMsg = apiMessages[lastMsgIndex];
-          const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
+      // Image handling for non-streaming. This path has no fallback chain — it
+      // dispatches to exactly one (provider, model) — so the vision mode can be
+      // settled here instead of per hop.
+      if (hasImageInput) {
+        const nonStreamFlow = (personaConfig as ModelConfig).flowState;
+        const usingFlowState = persona === 'default' && flowState && !!nonStreamFlow;
+        const nonStreamModel = usingFlowState && nonStreamFlow ? nonStreamFlow.model : modelToUse;
+        const capabilitySource: VisionCapability = usingFlowState && nonStreamFlow
+          ? nonStreamFlow
+          : (specialModeConfig ?? (personaConfig as ModelConfig));
 
-          const imageEditContext = `\n\n[IMPORTANT: The user has attached ${imageUrlsForOCR.length} image(s) to this message. If the user is asking to edit, modify, or transform the image — use the generate_image tool with process="edit" and write a detailed prompt describing the desired result. The image URLs and dimensions are automatically handled by the system.]`;
+        const hop: VisionHop = {
+          provider,
+          model: nonStreamModel,
+          vision: capabilitySource.vision,
+          imageTransport: capabilitySource.imageTransport,
+        };
 
-          const enrichedContent = userPrompt
-            ? `[Content extracted from the attached image(s):\n${extractedText}\n]${imageEditContext}\n\nUser's message: ${userPrompt}`
-            : `[Content extracted from the attached image(s):\n${extractedText}\n]\n\nThe user shared this image. Respond based on the extracted content above.`;
-          apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
-        } catch (ocrError) {
-          console.error('Image OCR pipeline error (non-streaming):', ocrError);
-          const lastMsgIndex = apiMessages.length - 1;
-          const lastMsg = apiMessages[lastMsgIndex];
-          const userPrompt = lastMsg.content === '[Image message]' ? '' : lastMsg.content;
-          apiMessages[lastMsgIndex] = {
-            ...lastMsg,
-            content: userPrompt
-              ? `[The user attached an image but text extraction failed. Please respond to their message as best you can. If the user wanted to edit the image, use the generate_image tool with process="edit" and describe what the user wants.]\n\nUser's message: ${userPrompt}`
-              : `[The user attached an image but text extraction failed. Let them know you couldn't process the image and ask them to try again.]`
-          };
+        if (resolveVisionMode(hop) === 'native') {
+          const images = selectVisionImages(attachments, hop.imageTransport);
+          apiMessages = applyNativeVision(apiMessages, apiMessages.length - 1, images);
+        } else {
+          const ocrImages = selectOcrImages(attachments);
+          let extractedText: string | null = null;
+          try {
+            extractedText = await extractImageContent(ocrImages);
+          } catch (ocrError) {
+            console.error('Image OCR pipeline error (non-streaming):', ocrError);
+          }
+          apiMessages = applyOcrVision(apiMessages, apiMessages.length - 1, ocrImages.length, extractedText);
         }
       }
 
@@ -3238,7 +3339,8 @@ ${thinkingDirective}`;
         }
       }
 
-      let fullContent = apiResponse.choices?.[0]?.message?.content || '';
+      const responseContent = apiResponse.choices?.[0]?.message?.content;
+      let fullContent = typeof responseContent === 'string' ? responseContent : '';
 
       // Process tool calls. This legacy fallback has no loop to feed results
       // back into, so tool output is appended to the response as before — but

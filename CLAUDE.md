@@ -63,7 +63,8 @@ ChatInput → useChat → aiProxyService → POST /api/ai-proxy
   → rate limit check (Supabase)
   → resolve persona + special mode → system prompt
   → fetch user memories → inject into prompt
-  → select tools → provider fetch (NVIDIA / Groq / Cerebras / Pollinations / Eaon)
+  → select tools → shape images for the hop (native parts, or OCR fallback)
+  → provider fetch (NVIDIA / Groq / Cerebras / Pollinations / Eaon)
   → optional agent loop for tool calls
   → stream back over a custom wire protocol
   → createStreamChunkParser in aiProxyService decodes it
@@ -81,6 +82,17 @@ ChatInput → useChat → aiProxyService → POST /api/ai-proxy
 ### Providers
 
 Six are wired: `nvidia` (default), `groq`, `cerebras`, `pollinations`, `eaon`, `secretstoai`. Each has its own near-duplicate `fetch` block in `ai-proxy.ts` — around six of them. Adding a provider currently means touching all the call sites. Collapsing these into one adapter is a known refactor (`production-check.md` 3.5).
+
+How images reach the model is decided per hop, in `api/_lib/vision.ts`. A model
+that takes image parts gets the image itself (`vision: 'native'`); the OCR
+transcriber is the fallback for models that cannot see (`vision: 'ocr'`). The
+capability is a property of the (provider, model) pair, not the persona —
+special modes, Flow State and fallback hops all swap the model — so it is
+resolved for each hop at the moment that hop runs, and the transcription only
+happens if a text-only hop actually serves the turn. To change it for a model,
+write `vision:` next to that model in `AI_PERSONAS`, or add it to `MODEL_VISION`
+in `vision.ts`. Unlisted models default to OCR: an unverified `native` guess is
+a hard 400, an unnecessary OCR is only a worse answer.
 
 Which provider a run uses is decided in exactly one place: `resolveRunProvider(persona, personaConfig, flowState)` in `ai-proxy.ts`. The spend-ceiling check and the actual dispatch both read from it — don't reintroduce a second derivation, or the ceiling will bill a provider the run never touched.
 

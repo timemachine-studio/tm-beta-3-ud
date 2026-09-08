@@ -1,3 +1,5 @@
+import type { VisionCapability } from './providerTypes.js';
+
 /**
  * Timeouts, retries, a circuit breaker and a fallback chain for upstream model
  * providers (production-check.md 1.11).
@@ -155,7 +157,7 @@ function backoffDelay(attemptIndex: number, retryAfterMs?: number): number {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export interface ProviderHop {
+export interface ProviderHop extends VisionCapability {
   provider: string;
   model: string;
 }
