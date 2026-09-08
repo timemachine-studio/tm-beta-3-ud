@@ -11,3 +11,10 @@ dist/
 # Local logs and OS metadata
 npm-debug.log*
 .DS_Store
+
+# Deploy tooling scratch (created by `vercel link` and the Trigger.dev CLI)
+.vercel
+.trigger
+
+# Test coverage output
+coverage/
