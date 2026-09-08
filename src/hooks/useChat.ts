@@ -163,6 +163,14 @@ export function useChat(
   // In-flight generation, so Stop / unmount / switching chats can cancel it (1.5).
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // The assistant placeholder the in-flight turn is writing into, and the
+  // turns the user has stopped. Stop has to be authoritative in the UI on its
+  // own: aborting the request is best-effort (the PRO path reconnects, a
+  // provider can keep flushing buffered bytes), so any callback that arrives
+  // after a stop for that turn is dropped rather than allowed to resurrect it.
+  const streamingMessageIdRef = useRef<string | null>(null);
+  const stoppedTurnsRef = useRef<Set<string>>(new Set());
+
   // Track if there are unsaved changes in this session to prevent auto-saves on initial loads
   const isDirtyRef = useRef(false);
 
@@ -761,6 +769,7 @@ export function useChat(
 
   const clearTurnState = useCallback(() => {
     setStreamingMessageId(null);
+    streamingMessageIdRef.current = null;
     setIsLoading(false);
     setLoadingPhase(null);
     isStreamingRef.current = false;
@@ -825,10 +834,16 @@ export function useChat(
     setIsLoading(true);
     setLoadingPhase(ctx.inputImageUrls?.length || ctx.imageData ? 'analyzing_photo' : 'thinking');
     setStreamingMessageId(aiMessageId);
+    streamingMessageIdRef.current = aiMessageId;
     isStreamingRef.current = true;
+    stoppedTurnsRef.current.delete(aiMessageId);
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
+
+    // True once the user has pressed Stop for this turn. Every transport
+    // callback checks it, because an abort is not guaranteed to reach us.
+    const wasStopped = () => stoppedTurnsRef.current.has(aiMessageId);
 
     if (streamingEnabled) {
       let approvalReceived = false;
@@ -842,11 +857,12 @@ export function useChat(
         ctx.imageDimensions,
         // onChunk callback
         (chunk: string) => {
+          if (wasStopped()) return;
           updateStreamingMessageRef.current(aiMessageId, chunk);
         },
         // onComplete callback
         (response) => {
-          if (approvalReceived) return;
+          if (approvalReceived || wasStopped()) return;
           const emotion = extractEmotion(response.content);
           const cleanedContent = cleanContent(response.content);
 
@@ -873,7 +889,7 @@ export function useChat(
         },
         // onError callback
         (error) => {
-          if (approvalReceived) return;
+          if (approvalReceived || wasStopped()) return;
           console.error('Failed to generate streaming response:', error.message);
 
           // Every failure — rate limit included — now lands as an inline
@@ -892,6 +908,7 @@ export function useChat(
         ctx.specialMode,
         // onStatusChange callback for image pipeline UX
         (status) => {
+          if (wasStopped()) return;
           setLoadingPhase(status as 'analyzing_photo' | 'thinking');
         },
         ctx.pdfData,
@@ -902,6 +919,7 @@ export function useChat(
         persona === 'default' ? ctx.flowState : undefined,
         !collaborative ? sessionId : undefined,
         (approval: McpApprovalRequest) => {
+          if (wasStopped()) return;
           approvalReceived = true;
           isDirtyRef.current = true;
           clearTurnState();
@@ -945,7 +963,10 @@ export function useChat(
         cachedPdfText || undefined,
         persona === 'default' ? ctx.flowState : undefined,
         !collaborative ? sessionId : undefined,
+        controller.signal,
       );
+
+      if (wasStopped()) return;
 
       if (aiResponse.mcpApproval) {
         isDirtyRef.current = true;
@@ -977,6 +998,7 @@ export function useChat(
       abortControllerRef.current = null;
       completeStreamingMessageRef.current(aiMessageId, cleanedContent, aiResponse.thinking, undefined, sessionId);
     } catch (error) {
+      if (wasStopped()) return;
       console.error('Failed to generate response:', error instanceof Error ? error.message : error);
 
       if (error && typeof error === 'object' && 'type' in error && (error as { type?: string }).type === 'rateLimit') {
@@ -1202,10 +1224,52 @@ export function useChat(
     await runTurn(newAiMessageId, apiMessages, ctx);
   }, [runTurn, toApiContext]);
 
-  /** Cancel the generation in flight. */
+  /**
+   * Cancel the generation in flight and settle the turn immediately.
+   *
+   * Aborting the fetch alone was not enough: whatever streamed so far stayed
+   * on screen with the spinner still running until (and unless) the transport
+   * surfaced the abort, and on the PRO path the signal was never wired up at
+   * all, so Stop did nothing. The UI now finalises the turn itself — partial
+   * text is kept as the answer, an empty one becomes a stopped-turn error —
+   * and late callbacks for that turn are ignored.
+   */
   const stopGeneration = useCallback(() => {
-    abortControllerRef.current?.abort();
-  }, []);
+    const aiMessageId = streamingMessageIdRef.current;
+    const controller = abortControllerRef.current;
+    if (!aiMessageId && !controller) return;
+
+    if (aiMessageId) stoppedTurnsRef.current.add(aiMessageId);
+    controller?.abort();
+    abortControllerRef.current = null;
+
+    if (!aiMessageId) {
+      clearTurnState();
+      return;
+    }
+
+    const turnSessionId = latest.current.currentSessionId;
+    isDirtyRef.current = true;
+    setMessages(prev => {
+      const updated = prev.map(msg => {
+        if (msg.id !== aiMessageId) return msg;
+        const partial = cleanContent(msg.content || '');
+        return partial.trim()
+          ? { ...msg, content: partial, rawContent: undefined, status: 'complete' as const, errorCode: undefined, partialContent: undefined, hasAnimated: true }
+          : { ...msg, content: '', rawContent: undefined, status: 'error' as const, errorCode: 'ABORTED' as ChatErrorCode, partialContent: undefined, hasAnimated: true };
+      });
+
+      // A stopped turn is a real turn: it has to survive a reload like any
+      // other, and with storage going device-only there is no cloud copy.
+      if (turnSessionId && !latest.current.isCollaborative) {
+        setTimeout(() => saveChatSessionRef.current(turnSessionId, updated, latest.current.currentPersona, true), 0);
+      }
+
+      return updated;
+    });
+
+    clearTurnState();
+  }, [clearTurnState]);
 
   // Navigating away mid-generation used to leave the request running (and
   // billing) with nobody listening.

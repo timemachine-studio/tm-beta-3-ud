@@ -265,6 +265,8 @@ export interface ProRunCallbacks {
   onStatusChange?: (status: string) => void;
   onComplete?: (response: AIResponse) => void;
   onError?: (error: Error) => void;
+  /** Cancels the read loop. Without it, Stop could not reach a PRO run. */
+  signal?: AbortSignal;
 }
 
 export async function getActiveProRun(chatSessionId: string): Promise<{ runId: string } | null> {
@@ -296,7 +298,7 @@ async function getProRunStatus(runId: string): Promise<{ status: string; error?:
 // whenever the stream proxy ends its (platform-capped) response. Chunk
 // indexes are absolute, so reconnects resume exactly where they left off.
 export async function streamProRun(runId: string, callbacks: ProRunCallbacks): Promise<void> {
-  const { onChunk, onStatusChange, onComplete, onError } = callbacks;
+  const { onChunk, onStatusChange, onComplete, onError, signal } = callbacks;
 
   let sawTerminal = false;
   let terminalError: string | null = null;
@@ -322,10 +324,11 @@ export async function streamProRun(runId: string, callbacks: ProRunCallbacks): P
   let emptyRounds = 0;
 
   while (!sawTerminal) {
+    if (signal?.aborted) throw new ChatError('ABORTED', 'Generation stopped.', parser.getFullContent());
     let framesThisRound = 0;
 
     try {
-      const response = await fetch(`/api/pro-stream?runId=${encodeURIComponent(runId)}&start=${index}`, { headers });
+      const response = await fetch(`/api/pro-stream?runId=${encodeURIComponent(runId)}&start=${index}`, { headers, signal });
 
       if (!response.ok) throw await chatErrorFromResponse(response);
       if (!response.body) throw new ChatError('PROVIDER_DOWN', 'PRO stream returned no body');
@@ -356,8 +359,9 @@ export async function streamProRun(runId: string, callbacks: ProRunCallbacks): P
           }
         }
 
-        if (sawTerminal) {
-          // Terminal frame received — close the connection and finish.
+        if (sawTerminal || signal?.aborted) {
+          // Terminal frame received (or the user stopped) — close the
+          // connection and finish.
           try { await reader.cancel(); } catch { /* ignore */ }
           break;
         }
@@ -384,6 +388,11 @@ export async function streamProRun(runId: string, callbacks: ProRunCallbacks): P
         emptyRounds = 0;
       }
     } catch (error) {
+      // A user-initiated stop is not a flaky connection: reconnecting here
+      // would resume the very stream Stop just cancelled.
+      if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+        throw new ChatError('ABORTED', 'Generation stopped.', parser.getFullContent());
+      }
       failures++;
       console.error(`PRO stream connection failed (attempt ${failures}):`, error);
       if (failures >= 6) {
@@ -470,7 +479,7 @@ export async function generateAIResponseStreaming(
         chatSessionId,
       });
 
-      await streamProRun(runId, { onChunk, onStatusChange, onComplete, onError });
+      await streamProRun(runId, { onChunk, onStatusChange, onComplete, onError, signal });
       return;
     }
 
@@ -637,6 +646,7 @@ export async function generateAIResponse(
   pdfExtractedText?: string,
   flowState?: boolean,
   chatSessionId?: string,
+  signal?: AbortSignal,
 ): Promise<AIResponse> {
   try {
     // TimeMachine PRO runs in the background (Trigger.dev): start the run,
@@ -663,6 +673,7 @@ export async function generateAIResponse(
 
       const deadline = Date.now() + 45 * 60 * 1000;
       while (Date.now() < deadline) {
+        if (signal?.aborted) throw new ChatError('ABORTED', 'Generation stopped.');
         const status = await getProRunStatus(runId);
 
         if (status?.status === 'completed') {
@@ -702,7 +713,8 @@ export async function generateAIResponse(
         pdfFileName,
         pdfExtractedText,
         chatSessionId,
-      })
+      }),
+      signal,
     });
 
     if (!response.ok) {
@@ -719,6 +731,10 @@ export async function generateAIResponse(
     console.error('AI proxy request failed:', error instanceof Error ? error.message : error);
 
     if (error instanceof RateLimitError || error instanceof ChatError) throw error;
+
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ChatError('ABORTED', 'Generation stopped.');
+    }
 
     // Returning an apology *as the assistant's answer* is what made outages
     // look like successful generations. Failures throw now, so the caller can

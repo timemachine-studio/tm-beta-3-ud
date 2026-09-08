@@ -107,6 +107,7 @@ export function HomePage() {
     handleSendMessage,
     markMessageAsAnimated,
     handleMcpApprovalDecision,
+    stopGeneration,
   } = useChat(
     user?.id,
     profile ? { nickname: profile.nickname, about_me: profile.about_me } : undefined,
@@ -320,6 +321,7 @@ export function HomePage() {
                       onSendMessage={handleSendMessageWithRateLimit}
                       isLoading={isLoading}
                       currentPersona={currentPersona}
+                      onStop={stopGeneration}
                     />
                   </div>
                 </div>

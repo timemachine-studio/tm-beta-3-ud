@@ -261,13 +261,38 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
       // Close mention modal when sending message
       setShowMentionCall(false);
 
-      if (selectedImages.length > 0) {
+      // The composer empties the moment the message leaves it. It used to be
+      // cleared after `await onSendMessage(...)`, which only resolves once the
+      // model has finished answering — so the text the user just sent sat in
+      // the (disabled, faded) textarea for the whole generation.
+      const outgoingMessage = message;
+      const outgoingImages = selectedImages;
+      const outgoingFile = selectedFile;
+      const outgoingFileText = fileExtractedText;
+      const restoreComposer = () => {
+        setMessage(outgoingMessage);
+        setSelectedImages(outgoingImages);
+        // Clearing the previews revoked their object URLs (see the cleanup
+        // effect above), so put the thumbnails back with fresh ones.
+        setImagePreviewUrls(outgoingImages.map(file => URL.createObjectURL(file)));
+        setSelectedFile(outgoingFile);
+        setFileExtractedText(outgoingFileText);
+      };
+
+      setMessage('');
+      contour.dismiss();
+
+      const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-file' ? selectedPlusOption : undefined;
+
+      if (outgoingImages.length > 0) {
+        setSelectedImages([]);
+        setImagePreviewUrls([]);
         setIsUploading(true);
         try {
           // Get dimensions of the first image (for edit operations)
-          const firstImageDimensions = await getImageDimensions(selectedImages[0]);
+          const firstImageDimensions = await getImageDimensions(outgoingImages[0]);
 
-          const base64Images = await Promise.all(selectedImages.map(convertImageToBase64));
+          const base64Images = await Promise.all(outgoingImages.map(convertImageToBase64));
 
           // Upload images using the new service (uses Supabase for logged in users, ImgBB for anonymous)
           const uploadResults = await Promise.all(
@@ -279,41 +304,37 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           if (successfulUploads.length === 0) {
             alert('Failed to upload images. Please try again.');
             setIsUploading(false);
+            restoreComposer();
             return;
           }
 
           const publicUrls = successfulUploads.map(result => result.url);
 
-          const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-file' ? selectedPlusOption : undefined;
-          await onSendMessage(message, base64Images, publicUrls, firstImageDimensions, undefined, activeMode);
-          setSelectedImages([]);
-          setImagePreviewUrls([]);
+          setIsUploading(false);
+          await onSendMessage(outgoingMessage, base64Images, publicUrls, firstImageDimensions, undefined, activeMode);
         } catch (error) {
+          setIsUploading(false);
+          restoreComposer();
           alert('Failed to process images. Please try again.');
           console.error('Error processing images:', error);
-        } finally {
-          setIsUploading(false);
         }
-      } else if (selectedFile && fileExtractedText) {
+      } else if (outgoingFile && outgoingFileText) {
+        setSelectedFile(null);
+        setFileExtractedText(null);
+        if (docInputRef.current) docInputRef.current.value = '';
         setIsUploading(true);
         try {
-          const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-file' ? selectedPlusOption : undefined;
-          await onSendMessage(message, undefined, undefined, undefined, undefined, activeMode, fileExtractedText, selectedFile.name);
-          setSelectedFile(null);
-          setFileExtractedText(null);
-          if (docInputRef.current) docInputRef.current.value = '';
+          setIsUploading(false);
+          await onSendMessage(outgoingMessage, undefined, undefined, undefined, undefined, activeMode, outgoingFileText, outgoingFile.name);
         } catch (error) {
+          setIsUploading(false);
+          restoreComposer();
           alert('Failed to process file. Please try again.');
           console.error('Error processing file:', error);
-        } finally {
-          setIsUploading(false);
         }
       } else {
-        const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-file' ? selectedPlusOption : undefined;
-        await onSendMessage(message, undefined, undefined, undefined, undefined, activeMode);
+        await onSendMessage(outgoingMessage, undefined, undefined, undefined, undefined, activeMode);
       }
-      setMessage('');
-      contour.dismiss();
     }
   };
 

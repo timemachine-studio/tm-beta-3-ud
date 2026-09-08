@@ -606,6 +606,8 @@ Add a catch-all `<NotFoundPage />` with navigation back into the app, and `<SEOH
 ### 1.5 — Add abort, timeout, and retry to AI requests ✅
 
 > **Done 2026-08-27.** An `AbortSignal` is threaded through `generateAIResponseStreaming`; the send button becomes **Stop** while generating; 60s time-to-first-token and 180s total budgets abort and surface a typed `TIMEOUT`; retryable failures retry twice with exponential backoff + jitter, and never after tokens have streamed. Aborting on unmount and on chat switch stops paying for orphaned generations. Verified live: Stop halts a running stream, keeps the partial text and shows "Generation stopped."
+>
+> **Follow-up 2026-09-08.** Stop was only wired to the transport, so it did nothing on the paths the signal never reached: the PRO run (`streamProRun` ignored the signal entirely, and its reconnect loop would have resumed the cancelled stream anyway) and the non-streaming fallback (`generateAIResponse` took no signal). It was also absent from the home-page composer, which never received `onStop`. `stopGeneration` is now authoritative in the UI — it settles the turn itself (partial text kept as the answer, an empty one becomes an `ABORTED` error), and every transport callback for a stopped turn is dropped so a late chunk cannot resurrect it. The signal now reaches all three request paths.
 
 **Severity:** High · **Effort:** M · **Files:** `src/services/ai/aiProxyService.ts`, `src/hooks/useChat.ts`, `api/ai-proxy.ts`
 
