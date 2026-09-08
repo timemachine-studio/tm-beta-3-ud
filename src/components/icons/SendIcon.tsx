@@ -10,10 +10,18 @@ import React from "react";
 // same box size. Zooming here keeps every button 44px and every sibling
 // spinner aligned. strokeWidth drops to 1.31 (1.5 x 21/24) so the zoom does
 // not also thicken the line -- it renders at 1.25px, exactly like AiMicIcon.
+//
+// The origin is offset because the artwork's bounding box is centred but its
+// mass is not: the filled outline's centroid sits at (13.35, 10.64), i.e. 1.35
+// units up and to the right, so a box-centred arrow reads as riding high. The
+// origin shifts 40% of that offset (0.54 units down-left) -- optical centring
+// lands between box centre and mass centre, and a full correction would push
+// the tail outside the viewBox and clip it. Raise the 0.4 to lean it further
+// down-left; the artwork clips past roughly 0.55.
 const SendIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    viewBox="1.5 1.5 21 21"
+    viewBox="2.04 0.96 21 21"
     fill="none"
     stroke="currentColor"
     strokeWidth={1.31}
