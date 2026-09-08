@@ -1,6 +1,12 @@
 /**
  * TimeMachine Contour - Web Viewer Module
- * Parses `/web`, `/search`, `/google` commands and raw URLs to display an iframe.
+ * Parses `/web`, `/search`, `/google` commands and raw URLs.
+ *
+ * A raw URL is framed; a search query is not. Google dropped support for the
+ * `igu=1` embeddable-search parameter, and now answers a bot-check redirect to
+ * /sorry instead — every other major engine sends X-Frame-Options or
+ * frame-ancestors too. The `url` on a search result is therefore only the
+ * open-in-a-new-tab target; the results themselves come from /api/search?web=.
  */
 
 export interface WebViewerResult {
@@ -46,7 +52,7 @@ export function detectWebViewer(input: string): WebViewerResult | null {
     if (whatIsMatch) {
         const query = trimmed; // the whole question
         return {
-            url: `https://www.google.com/search?q=${encodeURIComponent(query)}&igu=1`,
+            url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
             query
         };
     }
@@ -56,7 +62,7 @@ export function detectWebViewer(input: string): WebViewerResult | null {
     if (searchMatch) {
         const query = searchMatch[1].trim();
         return {
-            url: `https://www.google.com/search?q=${encodeURIComponent(query)}&igu=1`,
+            url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
             query
         };
     }

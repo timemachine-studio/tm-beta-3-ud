@@ -264,11 +264,11 @@ export function useContour() {
       }
       case 'web-viewer': {
         if (!trimmed) return { id: 'web-viewer', focused: true };
-        // Very basic parsing for focused mode (default to google search if not url)
+        // Very basic parsing for focused mode (default to a search if not a url)
         const isUrl = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,})(?:\/.*)?$/i);
         // toSafeExternalUrl settles the scheme; a rejected URL falls back to a search.
         const finalUrl = (isUrl && toSafeExternalUrl(trimmed))
-          || `https://www.google.com/search?q=${encodeURIComponent(trimmed)}&igu=1`;
+          || `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`;
         return { id: 'web-viewer', focused: true, webViewer: { url: finalUrl, query: isUrl ? undefined : trimmed } };
       }
       case 'help': {

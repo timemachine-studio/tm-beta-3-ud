@@ -200,6 +200,10 @@ export const searchQuerySchema = z.object({
   q: z.string().min(1).max(300),
 });
 
+export const webSearchQuerySchema = z.object({
+  web: z.string().min(1).max(300),
+});
+
 /** Query params arrive as strings, so numbers are coerced then bounded. */
 const optionalSeed = z.coerce.number().int().min(0).max(2_147_483_647).optional();
 

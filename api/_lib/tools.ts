@@ -8,8 +8,7 @@ import type { ProviderTool } from './providerTypes.js';
 // Everything tool-related now lives here; call sites supply an emitter.
 
 import { SKILLS_DATA } from '../../shared/skills.js';
-
-const POLLINATIONS_API_KEY = (process.env.POLLINATIONS_API_KEY || '').trim();
+import { runWebSearch, formatResultsForModel } from './webSearch.js';
 
 // ─── Tool definitions ───────────────────────────────────────────────────────
 
@@ -178,20 +177,8 @@ export function createImageMarkdown(params: ImageGenerationParams): string {
 
 export async function fetchWebSearchResults(params: WebSearchParams): Promise<string> {
   const { query } = params;
-  const encodedQuery = encodeURIComponent(query);
-
-  const url = `https://gen.pollinations.ai/text/${encodedQuery}?model=perplexity-fast&key=${POLLINATIONS_API_KEY}`;
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Web search failed: ${response.status}`);
-    }
-    return await response.text();
-  } catch (error) {
-    console.error('Web search error:', error);
-    throw error;
-  }
+  const response = await runWebSearch(query);
+  return formatResultsForModel(response);
 }
 
 // ─── Tool selection ─────────────────────────────────────────────────────────
