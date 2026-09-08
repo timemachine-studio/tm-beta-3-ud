@@ -3,13 +3,20 @@ import React from "react";
 // Hugeicons "send" (stroke-rounded). Replaces lucide's Send in the composers.
 // No width/height attributes: every call site sizes it with Tailwind classes,
 // and a CSS class does not override a presentational attribute on all engines.
+//
+// The viewBox is tightened from 24 to 21 (a 14% zoom) rather than growing the
+// w-5 h-5 boxes at the call sites: this arrow is a diagonal glyph, so it leaves
+// two empty corners and reads smaller than the upright mic beside it at the
+// same box size. Zooming here keeps every button 44px and every sibling
+// spinner aligned. strokeWidth drops to 1.31 (1.5 x 21/24) so the zoom does
+// not also thicken the line -- it renders at 1.25px, exactly like AiMicIcon.
 const SendIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
+    viewBox="1.5 1.5 21 21"
     fill="none"
     stroke="currentColor"
-    strokeWidth={1.5}
+    strokeWidth={1.31}
     strokeLinecap="round"
     strokeLinejoin="round"
     {...props}
