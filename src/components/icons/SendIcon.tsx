@@ -4,27 +4,26 @@ import React from "react";
 // No width/height attributes: every call site sizes it with Tailwind classes,
 // and a CSS class does not override a presentational attribute on all engines.
 //
-// The viewBox is tightened from 24 to 21 (a 14% zoom) rather than growing the
-// w-5 h-5 boxes at the call sites: this arrow is a diagonal glyph, so it leaves
-// two empty corners and reads smaller than the upright mic beside it at the
-// same box size. Zooming here keeps every button 44px and every sibling
-// spinner aligned. strokeWidth drops to 1.31 (1.5 x 21/24) so the zoom does
+// The viewBox is tightened from 24 to 21.6 (an 11% zoom) rather than growing
+// the w-5 h-5 boxes at the call sites: this arrow is a diagonal glyph, so it
+// leaves two empty corners and reads smaller than the upright mic beside it at
+// the same box size. Zooming here keeps every button 44px and every sibling
+// spinner aligned. strokeWidth scales to 1.35 (1.5 x 21.6/24) so the zoom does
 // not also thicken the line -- it renders at 1.25px, exactly like AiMicIcon.
 //
-// The origin is offset because the artwork's bounding box is centred but its
-// mass is not: the filled outline's centroid sits at (13.35, 10.64), i.e. 1.35
-// units up and to the right, so a box-centred arrow reads as riding high. The
-// origin shifts 40% of that offset (0.54 units down-left) -- optical centring
-// lands between box centre and mass centre, and a full correction would push
-// the tail outside the viewBox and clip it. Raise the 0.4 to lean it further
-// down-left; the artwork clips past roughly 0.55.
+// The origin is offset because the bounding box is centred but the mass is not:
+// the ink centroid sits 1.2 units up and to the right, so a box-centred arrow
+// reads as riding high. The origin pushes the artwork as far down and left as
+// it can go -- the tail's leftmost and lowest points stop 0.15 units short of
+// the edge. Any further travel needs a larger viewBox (a smaller glyph); the
+// size and position here were picked together against the mic on screen.
 const SendIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    viewBox="2.04 0.96 21 21"
+    viewBox="2.19 0.21 21.6 21.6"
     fill="none"
     stroke="currentColor"
-    strokeWidth={1.31}
+    strokeWidth={1.35}
     strokeLinecap="round"
     strokeLinejoin="round"
     {...props}
