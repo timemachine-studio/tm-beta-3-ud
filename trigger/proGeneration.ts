@@ -1,5 +1,4 @@
 import type { ProviderMessage, ProviderTool } from '../api/_lib/providerTypes.js';
-import { durableProcessingAvailable, RETENTION_UNAVAILABLE } from '../api/_lib/retention/policy.js';
 import { task, logger } from "@trigger.dev/sdk";
 import {
   dispatchStreamingProvider,
@@ -54,11 +53,6 @@ export const proGeneration = task({
   maxDuration: 3600,
   retry: { maxAttempts: 1 },
   run: async (payload: ProGenerationPayload) => {
-    // Direct/queued task invocations cannot bypass the API retention gate.
-    if (!durableProcessingAvailable()) {
-      await failProJob(payload.jobId, RETENTION_UNAVAILABLE.code);
-      return { ok: false, error: RETENTION_UNAVAILABLE.code };
-    }
     let pendingText = "";
     let lastFlush = Date.now();
 

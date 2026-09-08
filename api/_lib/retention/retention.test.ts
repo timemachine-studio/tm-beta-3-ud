@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { proContentExpired, RETENTION, durableProcessingAvailable } from './policy';
+import { proContentExpired, RETENTION } from './policy';
 import { cleanupProcessingData } from './cleanup';
 import { purgeUserStorage } from './accountStorage';
 import { chatErrorFromResponse, isRetryableCode } from '../../../src/services/ai/chatErrors';
@@ -10,10 +10,6 @@ const date = (age: number) => new Date(now - age).toISOString();
 afterEach(() => vi.unstubAllEnvs());
 
 describe('processing expiry', () => {
-  it('fails closed despite unverified environment flags', () => {
-    vi.stubEnv('DURABLE_RETENTION_VERIFIED', 'true');
-    expect(durableProcessingAvailable()).toBe(false);
-  });
   it('bounds completed recovery and absolute age without sliding reads', () => {
     expect(proContentExpired({ created_at: date(5000), updated_at: date(1000), status: 'completed' }, now)).toBe(false);
     expect(proContentExpired({ created_at: date(RETENTION.recoveryMs + 1), updated_at: date(RETENTION.recoveryMs), status: 'completed' }, now)).toBe(true);

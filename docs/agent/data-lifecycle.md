@@ -62,7 +62,9 @@ These are published policies, not observations of the supplied accounts. No vend
 
 ## Local controls and deployment boundary
 
-`api/_lib/retention/policy.ts` defines application limits. `durableProcessingAvailable()` is deliberately false and has no environment override. `/api/pro-generation` rejects new runs with `503 RETENTION_UNVERIFIED` before auth, prompt preparation, database writes or Trigger dispatch. The worker and job creation helper independently reject bypasses. Existing recent run reads remain possible for recovery; there is no automatic switch to a different provider or background path. The frontend treats this as a specific non-retryable error.
+`api/_lib/retention/policy.ts` defines application limits. The `durableProcessingAvailable()` gate that rejected every new background PRO run with `503 RETENTION_UNVERIFIED` was **removed on 2026-09-08 at the owner's instruction**: beta testers need PRO to work, and a permanently closed gate is not a retention control. `/api/pro-generation` now dispatches runs normally.
+
+The retention facts below are unchanged by that removal: Trigger.dev payload, output, checkpoint and stream deletion is still unverified, so PRO prompts and completions reach a processor whose deletion behaviour we have not confirmed. The bounded expiry helpers (`proContentExpired`, recovery/abandoned/max-age windows) and the cleanup hook still apply to our own rows. Do not describe PRO processing as retention-verified in user-facing copy until the TM-02.5 checks are done.
 
 `api/_lib/retention/cleanup.ts` operates only on the existing PRO and MCP processing tables. It attempts each cleanup phase and returns a fixed failure identifier if any phase fails. It never touches saved chat history, notes, memories, attachments or subscription state. It can run repeatedly; content expiry is anchored to creation/terminal timestamps, not read time. This source change does not make direct Supabase owner reads expire: deployed RLS and deletion must be verified before enabling durable runs.
 

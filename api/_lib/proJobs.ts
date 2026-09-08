@@ -1,4 +1,4 @@
-import { durableProcessingAvailable, proContentExpired, RETENTION } from './retention/policy.js';
+import { proContentExpired, RETENTION } from './retention/policy.js';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 // Shared store for TimeMachine PRO background generation jobs.
@@ -39,7 +39,6 @@ export interface ProGenerationJob {
 }
 
 export async function createProJob(userId: string | null, chatSessionId: string | null): Promise<ProGenerationJob> {
-  if (!durableProcessingAvailable()) throw new Error('RETENTION_UNVERIFIED');
   const { data, error } = await getClient()
     .from('pro_generation_jobs')
     .insert({
@@ -79,10 +78,10 @@ export async function completeProJob(jobId: string, finalContent: string): Promi
   if (error || !data) throw new Error('pro_job_completion_failed_or_expired');
 }
 
-export async function failProJob(jobId: string, message: string): Promise<void> {
+export async function failProJob(jobId: string, _message: string): Promise<void> {
   const { error } = await getClient()
     .from('pro_generation_jobs')
-    .update({ status: 'failed', error: message === 'RETENTION_UNVERIFIED' ? message : 'PRO_GENERATION_FAILED', final_content: null })
+    .update({ status: 'failed', error: 'PRO_GENERATION_FAILED', final_content: null })
     .eq('id', jobId).eq('status', 'running');
 
   if (error) {

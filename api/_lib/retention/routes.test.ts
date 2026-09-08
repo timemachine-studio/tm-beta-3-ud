@@ -23,11 +23,10 @@ function req(headers = {}, method = 'POST') { return { headers, method, body: {}
 afterEach(() => { vi.clearAllMocks(); vi.unstubAllEnvs(); });
 
 describe('retention API boundaries (mock services)', () => {
-  it('rejects PRO before auth, preparation, persistence or dispatch', async () => {
+  it('rejects a malformed PRO body before auth, persistence or dispatch', async () => {
     const res = response();
     await proHandler(req(), res as unknown as VercelResponse);
-    expect(res.statusCode).toBe(503);
-    expect(res.body).toMatchObject({ error: { code: 'RETENTION_UNVERIFIED' } });
+    expect(res.statusCode).toBe(400);
     expect(mocks.trigger).not.toHaveBeenCalled();
     expect(mocks.auth).not.toHaveBeenCalled();
     expect(res.headers['Cache-Control']).toBe('no-store');

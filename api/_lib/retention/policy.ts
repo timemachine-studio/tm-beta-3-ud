@@ -7,15 +7,6 @@ export const RETENTION = Object.freeze({
   metadataMs: 30 * 24 * 60 * 60 * 1000,
 });
 
-// No environment toggle can substitute for verifying Trigger payload/output,
-// stream/checkpoint deletion and deployed cleanup. Reopen only with evidence
-// recorded in docs/agent/data-lifecycle.md (TM-02/TM-16).
-export function durableProcessingAvailable(): boolean { return false; }
-export const RETENTION_UNAVAILABLE = {
-  code: 'RETENTION_UNVERIFIED',
-  message: 'Background PRO generation is unavailable while data retention is being verified. You can use Air.',
-} as const;
-
 export function proContentExpired(job: { created_at: string; updated_at: string; status: string; final_content?: string | null; error?: string | null }, now = Date.now()): boolean {
   // Database UPDATE triggers advance updated_at during scrubbing. A scrubbed
   // receipt must never reopen access to the processor's older output stream.

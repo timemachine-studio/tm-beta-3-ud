@@ -1,6 +1,5 @@
 import type { ModelConfig, SpecialModeConfig } from './_lib/providerTypes.js';
 import type { ProviderMessage, ProviderTool } from './_lib/providerTypes.js';
-import { durableProcessingAvailable, RETENTION_UNAVAILABLE } from './_lib/retention/policy.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { tasks } from '@trigger.dev/sdk';
 import {
@@ -43,7 +42,6 @@ import { proGenerationBodySchema, parseOrReject, rejectIfTooLarge } from './_lib
 const personaConfig = AI_PERSONAS.pro;
 
 async function handlePost(req: VercelRequest, res: VercelResponse) {
-  if (!durableProcessingAvailable()) return res.status(503).json({ error: RETENTION_UNAVAILABLE });
   // Bound every input before starting a paid background run (1.8).
   if (rejectIfTooLarge(req, res)) return;
   const body = parseOrReject(res, proGenerationBodySchema, req.body ?? {});

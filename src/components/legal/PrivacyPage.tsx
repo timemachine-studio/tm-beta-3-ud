@@ -65,8 +65,8 @@ export function PrivacyPage() {
           We also use <span className="text-white/70">Supabase</span> for authentication, database
           storage, and file storage, and <span className="text-white/70">Vercel</span> for hosting.
           Background PRO processing uses Trigger.dev, which receives prepared messages and
-          stores task data and output streams. New background runs are unavailable while
-          their retention and deletion settings are being verified.
+          stores task data and output streams. Its retention and deletion settings are
+          governed by that service; we do not control how long it keeps them.
         </p>
       </LegalSection>
 

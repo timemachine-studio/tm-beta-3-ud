@@ -90,7 +90,7 @@ export async function chatErrorFromResponse(response: Response): Promise<ChatErr
  * stack trace and never an upstream error body.
  */
 export const CHAT_ERROR_COPY: Record<ChatErrorCode, string> = {
-  RETENTION_UNVERIFIED: 'Background PRO is unavailable while data retention is being verified. You can use Air.',
+  RETENTION_UNVERIFIED: 'That background PRO run could not be started. Try again, or use Air.',
   RATE_LIMITED: "You've used up your messages for now.",
   AUTH_EXPIRED: 'Your session expired. Sign in again to continue.',
   PROVIDER_DOWN: 'The model is having a rough moment.',
