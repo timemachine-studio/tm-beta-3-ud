@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { VercelRequest, VercelResponse } from './_lib/vercelTypes.js';
+import type { VercelRequest, VercelResponse } from '../../api/_lib/vercelTypes.js';
 
 const mocks = vi.hoisted(() => ({
   read: vi.fn(),
@@ -9,12 +9,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@trigger.dev/sdk', () => ({ runs: { retrieve: vi.fn() } }));
-vi.mock('../trigger/streams.js', () => ({ proOutputStream: { read: mocks.read } }));
-vi.mock('./_lib/proJobs.js', () => ({ getProJobByRunId: mocks.getProJobByRunId }));
-vi.mock('./_lib/auth.js', () => ({ getAuthenticatedRequestUser: mocks.getAuthenticatedRequestUser }));
-vi.mock('./_lib/retention/policy.js', () => ({ proContentExpired: () => false }));
+vi.mock('../../trigger/streams.js', () => ({ proOutputStream: { read: mocks.read } }));
+vi.mock('../../api/_lib/proJobs.js', () => ({ getProJobByRunId: mocks.getProJobByRunId }));
+vi.mock('../../api/_lib/auth.js', () => ({ getAuthenticatedRequestUser: mocks.getAuthenticatedRequestUser }));
+vi.mock('../../api/_lib/retention/policy.js', () => ({ proContentExpired: () => false }));
 
-import handler from './pro-stream.js';
+import handler from '../../api/pro-stream.js';
 
 function streamingResponse() {
   const headers = new Map<string, unknown>();

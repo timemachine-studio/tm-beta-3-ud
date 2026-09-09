@@ -5,10 +5,10 @@ const { getAuthenticatedRequestUser, searchYouTubeVideos } = vi.hoisted(() => ({
   searchYouTubeVideos: vi.fn(),
 }));
 
-vi.mock('./_lib/auth.js', () => ({ getAuthenticatedRequestUser }));
-vi.mock('./_lib/youtubeSearch.js', () => ({ searchYouTubeVideos }));
+vi.mock('../../api/_lib/auth.js', () => ({ getAuthenticatedRequestUser }));
+vi.mock('../../api/_lib/youtubeSearch.js', () => ({ searchYouTubeVideos }));
 
-import handler from './search.js';
+import handler from '../../api/search.js';
 
 function response() {
   const res = {

@@ -16,7 +16,7 @@ npm ci               # reproduce the lockfile exactly
 npm run dev          # Vite dev server on :5173 (also serves api/*.ts via middleware)
 npm run typecheck    # TypeScript 6 strict typecheck; currently clean
 npm run lint         # ESLint 10 + Hooks recommended-latest; currently clean
-npm test             # Vitest 5; currently 23 files / 150 tests
+npm test             # Vitest 5; currently 24 files / 152 tests
 npm run build        # typechecks first, then builds with Vite 8
 npm run preview      # preview the production build
 ```

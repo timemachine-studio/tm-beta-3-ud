@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -74,6 +75,13 @@ export default defineConfig(({ mode }) => {
         }
       }
     ],
+    test: {
+      // `vercel build` writes compiled copies of the suite into
+      // .vercel/output/functions, and Vitest's default excludes do not cover
+      // that directory — so a local Vercel build would otherwise make the same
+      // tests run twice, once from source and once from a stale bundle.
+      exclude: ['**/node_modules/**', '**/dist/**', '**/.vercel/**'],
+    },
     resolve: {
       dedupe: ['react', 'react-dom'],
     },

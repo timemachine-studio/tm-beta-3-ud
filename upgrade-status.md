@@ -21,7 +21,7 @@ These results were rechecked on 2026-09-09.
 | `npm ci` | Pass | Isolated temporary-copy lockfile install with Node 24.20.0 and npm 11.19.0; 669 packages installed |
 | `npm run typecheck` | Pass | TypeScript 6.0.3 |
 | `npm run lint` | Pass | 0 errors, 0 warnings with Hooks 7 `recommended-latest` enabled |
-| `npm test` | Pass | Vitest 5.0.0; 23 files, 150 tests |
+| `npm test` | Pass | Vitest 5.0.0; 24 files, 152 tests |
 | `npm run build` | Pass | Vite 8.2.2 with Tailwind CSS 4.3.3; no CSS import-order warning; one non-fatal chunk-size warning remains after the entry chunk reduction |
 | `npx trigger.dev --help` | Pass | Trigger CLI loads on Node 24 |
 | Standalone `trigger.config.ts` compile | Pass | TypeScript 6 uses `--ignoreConfig`, NodeNext/ES2022, explicit Node types, and `--skipLibCheck` for optional Trigger declarations |
@@ -392,6 +392,41 @@ accessor, corrupt and wrong-shaped JSON, unserialisable input). Verified in the
 browser against the real Supabase project: with `defaultTheme`, `themeMode` and
 `seasonTheme` all deliberately poisoned, the app mounts, rejects the bad values
 and rewrites storage to `dark` / `autumnDark` instead of crashing.
+
+### 10.5 Two test files shipped as Vercel Functions and broke the deploy
+
+The first production deploy after the upgrade failed. The build itself
+succeeded — Vite finished, every Function compiled — and the deployment then
+errored at "Deploying outputs", which puts nothing in the build log.
+
+Vercel turns every file under `api/` into one deployed Function per file, and
+only skips path segments beginning with `_`. Task 2 added `api/pro-stream.test.ts`
+and `api/search.test.ts` beside the handlers they cover, so both were compiled
+and shipped as public endpoints, taking the deployment from 11 Functions to 13
+and past the plan's 12-Function ceiling. `vercel build` locally reproduces it
+exactly: `.vercel/output/functions/api/` contained `pro-stream.test.func` (8.6 MB)
+and `search.test.func` (4.6 MB). The sibling tests under `api/_lib/` were never
+affected, because of the underscore.
+
+Nothing in the toolchain could have caught this. The files typecheck, lint and
+pass as tests like any other; only the deploy notices, and only after the build
+reports success.
+
+Moved both to `tests/api/`, next to the existing `providerFallback.test.ts`,
+which is where handler tests already lived. Added `tests/api/deployableSurface.test.ts`
+to assert that no test or spec file is routable under `api/` and to pin the
+exact handler list, so a future test file placed there fails locally rather than
+at deploy time. Rebuilt: 11 Functions, 48 MB instead of 61 MB.
+
+Also excluded `.vercel/**` from Vitest. `vercel build` writes compiled copies of
+the suite into `.vercel/output/functions`, and Vitest's defaults do not cover
+that directory, so a local Vercel build made the same tests run twice — once
+from source and once from a stale bundle.
+
+Not the cause, but worth recording: the build log carries a repeated warning
+that `engines: { node: "24.x" }` overrides the Project Settings value of 22.x.
+That is informational — the `engines` field wins and the build ran on Node 24 —
+but the Vercel project setting should be moved to 24.x so the two agree.
 
 ### Live verification with real credentials (2026-09-10)
 
@@ -806,7 +841,7 @@ Recorded 2026-09-09 and carried forward on 2026-09-10. The dependency migration 
 - Complete the Supabase migration history. The generated types cover the current database, but the repository's five migration files are insufficient to recreate the full production schema.
 - Confirm production configuration in both Vercel and Trigger: provider credentials, `SUPABASE_SERVICE_ROLE_KEY`, `ALLOWED_ORIGINS`, `ANON_TRIAL_SECRET`, and a meaningful nonzero `PROVIDER_DAILY_CEILING`. Trigger has its own environment and must not be assumed to inherit Vercel variables.
 - Add or finish CI, staging discipline, error/uptime monitoring, deployment smoke checks, and a launch/rollback runbook.
-- Continue product-level and live integration coverage beyond the current 150 tests in 23 files, especially across provider failures, external services, browser file flows, and deployment boundaries.
+- Continue product-level and live integration coverage beyond the current 152 tests in 24 files, especially across provider failures, external services, browser file flows, and deployment boundaries.
 - Replace the anonymous chat-history `localStorage` blob with the planned IndexedDB/local-first store. The current design can hit browser quota and silently stop persisting history; signed-in storage behavior must be reconciled with the product's privacy direction.
 
 ### Owner and launch decisions
