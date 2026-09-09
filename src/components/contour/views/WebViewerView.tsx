@@ -6,19 +6,22 @@ import { searchWeb, type WebSearchResult } from '../../../services/search/webSea
 
 /** Results list for a search query — see webSearchService for why we render our own. */
 function SearchResults({ query }: { query: string }) {
-    const [results, setResults] = useState<WebSearchResult[] | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [response, setResponse] = useState<{
+        query: string;
+        results: WebSearchResult[] | null;
+        error: string | null;
+    } | null>(null);
+    const currentResponse = response?.query === query ? response : null;
+    const results = currentResponse?.results ?? null;
+    const error = currentResponse?.error ?? null;
 
     useEffect(() => {
         let cancelled = false;
-        setResults(null);
-        setError(null);
-
         // Same 800ms debounce the iframe used: this fires while the user types.
         const timer = setTimeout(() => {
             searchWeb(query)
-                .then((items) => { if (!cancelled) setResults(items); })
-                .catch((err: Error) => { if (!cancelled) setError(err.message); });
+                .then((items) => { if (!cancelled) setResponse({ query, results: items, error: null }); })
+                .catch((err: Error) => { if (!cancelled) setResponse({ query, results: null, error: err.message }); });
         }, 800);
 
         return () => { cancelled = true; clearTimeout(timer); };
@@ -81,7 +84,7 @@ export function WebViewerView({
     accent: AccentTheme;
 }) {
     const web = module.webViewer;
-    const [loading, setLoading] = useState(true);
+    const [loadedUrl, setLoadedUrl] = useState('');
     // Initialize to empty string so the very first trigger waits the 800ms debounce
     const [debouncedUrl, setDebouncedUrl] = useState('');
 
@@ -92,7 +95,6 @@ export function WebViewerView({
 
     useEffect(() => {
         if (!detectedUrl || isSearch) return;
-        setLoading(true);
         const timer = setTimeout(() => {
             setDebouncedUrl(detectedUrl);
         }, 800);
@@ -100,6 +102,7 @@ export function WebViewerView({
     }, [detectedUrl, isSearch]);
 
     if (!web) return null;
+    const loading = !isSearch && Boolean(debouncedUrl) && loadedUrl !== debouncedUrl;
 
     return (
         <div className="flex flex-col h-full w-full">
@@ -144,7 +147,7 @@ export function WebViewerView({
                         src={debouncedUrl}
                         className="absolute inset-0 w-full h-full border-none"
                         sandbox="allow-scripts allow-forms allow-popups"
-                        onLoad={() => setLoading(false)}
+                        onLoad={() => setLoadedUrl(debouncedUrl)}
                         title="Web Viewer"
                     />
                 ) : (

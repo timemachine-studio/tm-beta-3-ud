@@ -131,7 +131,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
           `}
         >
           {/* Category selector — full width on mobile, inline on sm+ */}
-          <div className="flex-shrink-0 relative">
+          <div className="shrink-0 relative">
             <select
               value={category}
               onChange={(e) => {
@@ -142,7 +142,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
                   fetchSuggestions(query, newCat);
                 }
               }}
-              className="appearance-none w-full sm:w-auto bg-white/10 border border-white/15 rounded-xl pl-3 pr-7 py-1.5 text-white text-xs font-medium cursor-pointer outline-none hover:bg-white/15 focus:border-emerald-400/50 transition-colors"
+              className="appearance-none w-full sm:w-auto bg-white/10 border border-white/15 rounded-xl pl-3 pr-7 py-1.5 text-white text-xs font-medium cursor-pointer outline-hidden hover:bg-white/15 focus:border-emerald-400/50 transition-colors"
             >
               {CATEGORY_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value} className="bg-gray-900 text-white">
@@ -154,12 +154,12 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
           </div>
 
           {/* Divider — hidden on mobile */}
-          <div className="hidden sm:block w-px h-6 bg-white/10 flex-shrink-0" />
+          <div className="hidden sm:block w-px h-6 bg-white/10 shrink-0" />
 
           {/* Search input row */}
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             {/* Icon */}
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               {isLoading ? (
                 <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
               ) : (
@@ -180,7 +180,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
                 category === 'generic' ? 'Search generic / ingredient...' :
                 'Search symptom or condition...'
               )}
-              className="flex-1 min-w-0 bg-transparent text-white placeholder-white/30 text-sm sm:text-base outline-none"
+              className="flex-1 min-w-0 bg-transparent text-white placeholder-white/30 text-sm sm:text-base outline-hidden"
               autoComplete="off"
               spellCheck={false}
             />
@@ -194,7 +194,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   onClick={handleClear}
-                  className="flex-shrink-0 p-1 rounded-full text-white/30 hover:text-white/70 transition-colors"
+                  className="shrink-0 p-1 rounded-full text-white/30 hover:text-white/70 transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </motion.button>
@@ -205,7 +205,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
             <motion.button
               type="submit"
               whileTap={{ scale: 0.95 }}
-              className="flex-shrink-0 px-3 sm:px-4 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/30 transition-colors"
+              className="shrink-0 px-3 sm:px-4 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/30 transition-colors"
             >
               Search
             </motion.button>
@@ -236,7 +236,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
                 `}
               >
                 {/* Icon */}
-                <div className="mt-0.5 flex-shrink-0">
+                <div className="mt-0.5 shrink-0">
                   {drug.indication ? (
                     <Stethoscope className="w-4 h-4 text-emerald-400/70" />
                   ) : (
@@ -268,7 +268,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
 
                 {/* Price badge */}
                 {drug.price && (
-                  <div className="flex-shrink-0 text-xs text-emerald-400/60 font-mono mt-0.5">
+                  <div className="shrink-0 text-xs text-emerald-400/60 font-mono mt-0.5">
                     ৳{drug.price}
                   </div>
                 )}

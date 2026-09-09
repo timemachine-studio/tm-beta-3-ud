@@ -50,7 +50,7 @@ export function ContactPage() {
   return (
     <div className="min-h-screen relative overflow-auto">
       {/* Purple to black gradient background */}
-      <div className="fixed inset-0 bg-gradient-to-t from-purple-900/40 via-black to-black -z-10" />
+      <div className="fixed inset-0 bg-linear-to-t from-purple-900/40 via-black to-black -z-10" />
 
       {/* Ambient effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
@@ -127,7 +127,7 @@ export function ContactPage() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Your name"
                   required
-                  className="w-full px-4 py-3 rounded-xl text-white placeholder-white/30 focus:outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all"
                   style={{
                     background: 'rgba(255, 255, 255, 0.05)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -144,7 +144,7 @@ export function ContactPage() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="your@email.com"
                   required
-                  className="w-full px-4 py-3 rounded-xl text-white placeholder-white/30 focus:outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all"
                   style={{
                     background: 'rgba(255, 255, 255, 0.05)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -161,7 +161,7 @@ export function ContactPage() {
                   placeholder="What would you like to tell us?"
                   required
                   rows={4}
-                  className="w-full px-4 py-3 rounded-xl text-white placeholder-white/30 focus:outline-none transition-all resize-none"
+                  className="w-full px-4 py-3 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all resize-none"
                   style={{
                     background: 'rgba(255, 255, 255, 0.05)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',

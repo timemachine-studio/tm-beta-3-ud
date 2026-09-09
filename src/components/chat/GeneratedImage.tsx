@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, memo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, ZoomIn } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
@@ -29,22 +29,15 @@ function GeneratedImageComponent({ src, alt, persona = 'default' }: GeneratedIma
   const [showFullView, setShowFullView] = useState(false);
   const { theme } = useTheme();
 
-  // Store the first successfully loaded URL - NEVER change it after initial load
-  // This prevents any flicker when URL swaps from proxy to Supabase
-  const loadedSrcRef = useRef<string | null>(null);
-  const initialSrcRef = useRef(src);
-
-  // The URL to actually display - either the successfully loaded one, or the initial one
-  const displaySrc = loadedSrcRef.current || initialSrcRef.current;
+  // Lock the rendered URL to the first value. The parent may replace a proxy
+  // URL with a persistent URL while this component is mounted; retaining the
+  // first URL avoids a visible reload without reading a ref during render.
+  const [displaySrc] = useState(src);
 
   // Memoize shimmer colors to prevent object recreation
   const shimmerColors = useMemo(() => getPersonaShimmerColors(persona), [persona]);
 
   const handleImageLoad = useCallback(() => {
-    // Lock in the current src as the loaded source - never change after this
-    if (!loadedSrcRef.current) {
-      loadedSrcRef.current = initialSrcRef.current;
-    }
     setIsLoading(false);
     setHasError(false);
   }, []);
@@ -113,7 +106,7 @@ function GeneratedImageComponent({ src, alt, persona = 'default' }: GeneratedIma
         <div className="relative rounded-3xl overflow-hidden shadow-2xl">
           {/* Clean Loading State with SF Pro Display font */}
           {isLoading && !hasError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm z-10 rounded-3xl">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-xs z-10 rounded-3xl">
               <AnimatedShinyText
                 text="Let me cook"
                 useShimmer={true}

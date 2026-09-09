@@ -90,7 +90,7 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
               >
                 <div
                   className="relative w-full p-8 rounded-2xl
-                    bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-3xl
+                    bg-linear-to-b from-white/10 to-white/5 backdrop-blur-3xl
                     border border-white/20 shadow-[0_8px_32px_rgba(139,92,246,0.2)]
                     overflow-hidden
                     max-h-[90vh] max-h-[90dvh] overflow-y-auto"
@@ -107,7 +107,7 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
                         repeat: Infinity,
                         ease: "linear"
                       }}
-                      className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-xl"
+                      className="absolute -top-20 -right-20 w-40 h-40 bg-linear-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-xl"
                     />
                     <motion.div
                       animate={{
@@ -119,7 +119,7 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
                         repeat: Infinity,
                         ease: "linear"
                       }}
-                      className="absolute -bottom-20 -left-20 w-32 h-32 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full blur-xl"
+                      className="absolute -bottom-20 -left-20 w-32 h-32 bg-linear-to-br from-cyan-500/20 to-blue-500/20 rounded-full blur-xl"
                     />
                   </div>
 
@@ -132,7 +132,7 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
                         animate={{ scale: 1 }}
                         transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
                         className="inline-flex items-center justify-center w-16 h-16 rounded-full
-                          bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-md
+                          bg-linear-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-md
                           border border-white/20 mb-6"
                       >
                         <Sparkles className="w-8 h-8 text-purple-400" />
@@ -200,7 +200,7 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
                               bg-white/10 backdrop-blur-md
                               border border-white/20 focus:border-purple-400/50
                               ${theme.text} placeholder-gray-400
-                              focus:outline-none focus:ring-2 focus:ring-purple-400/20
+                              focus:outline-hidden focus:ring-2 focus:ring-purple-400/20
                               transition-all duration-200`}
                             disabled={isValidating}
                             autoFocus

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { FileText, Copy, Check } from 'lucide-react';
 import { ModuleData, MODULE_META } from '../moduleRegistry';
 import { LoremResult, generateLorem } from '../modules/loremIpsum';
@@ -18,15 +18,15 @@ const LOREM_PRESETS = [
 
 export function LoremView({ module, accent, onCopyValue }: { module: ModuleData; accent: AccentTheme; onCopyValue?: (value: string) => void }) {
   const lorem = module.lorem;
-  const [current, setCurrent] = useState<LoremResult | null>(lorem && !lorem.isPartial ? lorem : null);
+  const [generated, setGenerated] = useState<{ source: LoremResult | null | undefined; value: LoremResult } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (lorem && !lorem.isPartial) setCurrent(lorem);
-  }, [lorem]);
+  const current = generated && generated.source === lorem
+    ? generated.value
+    : (lorem && !lorem.isPartial ? lorem : null);
 
   const handlePreset = (type: 'paragraphs' | 'sentences' | 'words', count: number) => {
-    setCurrent(generateLorem(type, count));
+    setGenerated({ source: lorem, value: generateLorem(type, count) });
     setCopied(false);
   };
 

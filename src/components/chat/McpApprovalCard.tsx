@@ -8,16 +8,18 @@ interface McpApprovalCardProps {
 }
 
 export function McpApprovalCard({ approval, onDecision }: McpApprovalCardProps) {
-  const [expired, setExpired] = useState(new Date(approval.expiresAt).getTime() <= Date.now());
+  const [expiredRequest, setExpiredRequest] = useState<string | null>(() =>
+    new Date(approval.expiresAt).getTime() <= Date.now() ? approval.expiresAt : null
+  );
+  const expired = expiredRequest === approval.expiresAt;
   const busy = approval.status === 'approved' || approval.status === 'denied';
 
   useEffect(() => {
     const remaining = new Date(approval.expiresAt).getTime() - Date.now();
-    if (remaining <= 0) {
-      setExpired(true);
-      return;
-    }
-    const timer = window.setTimeout(() => setExpired(true), remaining);
+    const timer = window.setTimeout(
+      () => setExpiredRequest(approval.expiresAt),
+      Math.max(0, remaining),
+    );
     return () => window.clearTimeout(timer);
   }, [approval.expiresAt]);
 
@@ -28,7 +30,7 @@ export function McpApprovalCard({ approval, onDecision }: McpApprovalCardProps) 
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-white/90">Allow external action?</p>
           <p className="mt-1 text-xs text-white/48">
-            <span className="text-white/70">{approval.serverName}</span> wants to run <code className="rounded bg-white/5 px-1.5 py-0.5 text-amber-100/80">{approval.toolName}</code>.
+            <span className="text-white/70">{approval.serverName}</span> wants to run <code className="rounded-sm bg-white/5 px-1.5 py-0.5 text-amber-100/80">{approval.toolName}</code>.
           </p>
         </div>
       </div>

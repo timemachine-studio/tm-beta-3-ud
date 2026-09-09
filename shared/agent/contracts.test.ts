@@ -3,8 +3,8 @@ import { inputSchemaSpecSchema } from './schemaSpec';
 import { parseAgentEventFrame as clientParse } from '../../src/services/agent/contracts';
 import { parseAgentEventFrame as serverParse } from '../../api/_lib/agent/contracts';
 import { agentEventSchema, ContractFrameError } from './events';
-import { canonicalArguments, hashArguments, jsonValueSchema, MAX_JSON_BYTES } from './primitives';
-import { modelMessageSchema, toolCallSchema, toolResultSchema } from './contracts';
+import { canonicalArguments, hashArguments, jsonValueSchema, MAX_JSON_BYTES, timestampSchema } from './primitives';
+import { modelMessageSchema, sourceRefSchema, toolCallSchema, toolResultSchema } from './contracts';
 import { chatsListInputSchema, chatsReadInputSchema, chatsListOutputSchema, type TrustedExecutionContext } from './interfaces';
 import { appDescriptorSchema } from '../apps/contracts';
 import { packageManifestSchema } from './packages';
@@ -71,6 +71,22 @@ describe('canonical arguments and untrusted data', () => {
     const context: TrustedExecutionContext = call;
     expect(context).toBe(call);
     expect(toolCallSchema.safeParse({ ...call, actorId: 'forged' }).success).toBe(false);
+  });
+});
+
+describe('Zod 4 validation semantics', () => {
+  it('accepts UTC and explicit offsets while rejecting local or invalid datetimes', () => {
+    expect(timestampSchema.safeParse('2026-09-09T12:00:00Z').success).toBe(true);
+    expect(timestampSchema.safeParse('2026-09-09T18:00:00+06:00').success).toBe(true);
+    expect(timestampSchema.safeParse('2026-09-09T12:00:00').success).toBe(false);
+    expect(timestampSchema.safeParse('2026-13-40T12:00:00Z').success).toBe(false);
+  });
+
+  it('keeps web sources limited to valid HTTP(S) URLs', () => {
+    const source = { type: 'web', title: 'Fixture', retrievedAt: '2026-09-09T12:00:00Z' };
+    expect(sourceRefSchema.safeParse({ ...source, url: 'https://example.test/path' }).success).toBe(true);
+    expect(sourceRefSchema.safeParse({ ...source, url: 'ftp://example.test/file' }).success).toBe(false);
+    expect(sourceRefSchema.safeParse({ ...source, url: 'not a URL' }).success).toBe(false);
   });
 });
 

@@ -1,7 +1,7 @@
 import js from '@eslint/js';
 import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
-import reactRefresh from 'eslint-plugin-react-refresh';
+import { reactRefresh } from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
@@ -15,10 +15,13 @@ export default tseslint.config(
     },
     plugins: {
       'react-hooks': reactHooks,
-      'react-refresh': reactRefresh,
+      'react-refresh': reactRefresh.plugin,
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
+      // Keep the complete forward-looking Hooks policy explicit. Hooks 7.1.1
+      // adds void-use-memo beyond the stable preset, and future supported
+      // Compiler diagnostics will be adopted on plugin upgrades.
+      ...reactHooks.configs.flat['recommended-latest'].rules,
       // A missing dependency is how handleSendMessage captured a stale
       // currentSessionId and saved completions into the previously-open chat.
       // Once storage is local-only (Gate LS) there is no cloud copy to recover

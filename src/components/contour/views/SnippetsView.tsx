@@ -1,5 +1,5 @@
 import type { AccentTheme } from './shared';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Plus, Trash2, Edit2, Copy, Check, ChevronLeft } from 'lucide-react';
 import { Snippet, loadSnippets, saveSnippets } from '../modules/snippetManager';
 import { ModuleData } from '../moduleRegistry';
@@ -12,15 +12,11 @@ export function SnippetsView({
     accent: AccentTheme;
     onCopyValue?: (value: string) => void;
 }) {
-    const [snippets, setSnippets] = useState<Snippet[]>([]);
+    const [snippets, setSnippets] = useState<Snippet[]>(loadSnippets);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [newTitle, setNewTitle] = useState('');
     const [newContent, setNewContent] = useState('');
     const [copiedId, setCopiedId] = useState<string | null>(null);
-
-    useEffect(() => {
-        setSnippets(loadSnippets());
-    }, []);
 
     const handleSave = () => {
         if (!newTitle.trim() || !newContent.trim()) return;
@@ -68,14 +64,14 @@ export function SnippetsView({
                         placeholder="Title (e.g., Code Boilerplate)"
                         value={newTitle}
                         onChange={(e) => setNewTitle(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30 outline-hidden"
                     />
                     <textarea
                         placeholder="Snippet content..."
                         value={newContent}
                         onChange={(e) => setNewContent(e.target.value)}
                         rows={4}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none resize-none custom-scrollbar"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30 outline-hidden resize-none custom-scrollbar"
                     />
                     <div className="flex justify-end gap-2">
                         <button

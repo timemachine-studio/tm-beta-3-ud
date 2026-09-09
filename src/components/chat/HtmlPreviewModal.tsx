@@ -54,7 +54,7 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
             }}
           >
             {/* Header bar styled like a browser window */}
-            <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" style={{
+            <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{
               background: 'rgba(255, 255, 255, 0.04)',
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
             }}>

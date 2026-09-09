@@ -12,10 +12,11 @@ interface CodeBlockProps {
 export function CodeBlock({ language, code, themeText, isComplete = true }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [activeTab, setActiveTab] = useState<'code' | 'preview'>('code');
+  const [selectedTab, setSelectedTab] = useState<'code' | 'preview' | null>(null);
   const preRef = useRef<HTMLPreElement>(null);
 
   const isHtml = language === 'html' || language === 'htm';
+  const activeTab = selectedTab ?? (isHtml && isComplete ? 'preview' : 'code');
 
   // Autoscroll during streaming
   useEffect(() => {
@@ -23,13 +24,6 @@ export function CodeBlock({ language, code, themeText, isComplete = true }: Code
       preRef.current.scrollTop = preRef.current.scrollHeight;
     }
   }, [code, isComplete, activeTab]);
-
-  // Auto preview HTML when finished generating
-  useEffect(() => {
-    if (isHtml && isComplete) {
-      setActiveTab('preview');
-    }
-  }, [isComplete, isHtml]);
 
   const handleCopy = useCallback(async () => {
     try {
@@ -63,7 +57,7 @@ export function CodeBlock({ language, code, themeText, isComplete = true }: Code
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
       }}>
         {/* Top bar with language label and buttons */}
-        <div className="flex items-center justify-between px-4 py-2 flex-shrink-0" style={{
+        <div className="flex items-center justify-between px-4 py-2 shrink-0" style={{
           background: 'rgba(255, 255, 255, 0.04)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
         }}>
@@ -75,10 +69,10 @@ export function CodeBlock({ language, code, themeText, isComplete = true }: Code
             {isHtml && isComplete && (
               <div className="flex items-center gap-0.5 bg-black/20 rounded-lg p-0.5 border border-white/5 select-none">
                 <button
-                  onClick={() => setActiveTab('code')}
+                  onClick={() => setSelectedTab('code')}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 ${
                     activeTab === 'code'
-                      ? 'bg-white/10 text-white shadow-sm'
+                      ? 'bg-white/10 text-white shadow-xs'
                       : 'text-white/40 hover:text-white/70'
                   }`}
                 >
@@ -86,10 +80,10 @@ export function CodeBlock({ language, code, themeText, isComplete = true }: Code
                   Code
                 </button>
                 <button
-                  onClick={() => setActiveTab('preview')}
+                  onClick={() => setSelectedTab('preview')}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 ${
                     activeTab === 'preview'
-                      ? 'bg-white/10 text-white shadow-sm'
+                      ? 'bg-white/10 text-white shadow-xs'
                       : 'text-white/40 hover:text-white/70'
                   }`}
                 >

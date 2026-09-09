@@ -58,11 +58,19 @@ const glassCard = {
 
 // ─── bottom bento card data ──────────────────────────────────────────
 
+type IconElement = React.ReactElement<{ className?: string }>;
+
 interface AppTile {
   id: string;
   label: string;
   description?: string;
-  icon: React.ReactNode;
+  icon: IconElement;
+  route: string;
+}
+
+interface SidebarItem {
+  icon: IconElement;
+  label: string;
   route: string;
 }
 
@@ -73,7 +81,7 @@ const bottomCardData: AppTile[] = [
 ];
 
 // sidebar icons
-const sidebarItems = [
+const sidebarItems: SidebarItem[] = [
   { icon: <Home />, label: 'Home', route: '/home' },
   { icon: <MessageCircle />, label: 'Chat', route: '/' },
   { icon: <History />, label: 'History', route: '/history' },
@@ -86,7 +94,7 @@ const sidebarItems = [
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] },
+  transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] as const },
 });
 
 // ─── component ───────────────────────────────────────────────────────
@@ -178,8 +186,8 @@ export function HomePage() {
     return () => clearInterval(id);
   }, []);
 
-  const greeting = useMemo(getGreeting, []);
-  const date = useMemo(formatDate, []);
+  const greeting = useMemo(() => getGreeting(), []);
+  const date = useMemo(() => formatDate(), []);
   const name = profile?.nickname || null;
 
   // ── Notes draft (side panel) ──────────────────────────────────
@@ -227,7 +235,7 @@ export function HomePage() {
               className="w-11 h-11 rounded-2xl flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-all duration-200"
               title={item.label}
             >
-              {React.cloneElement(item.icon as React.ReactElement, { className: 'w-5 h-5' })}
+              {React.cloneElement(item.icon, { className: 'w-5 h-5' })}
             </motion.button>
           ))}
         </motion.aside>
@@ -345,7 +353,7 @@ export function HomePage() {
                       value={notesDraft}
                       onChange={(e) => setNotesDraft(e.target.value)}
                       placeholder="Start writing here..."
-                      className="w-full h-full min-h-[120px] md:min-h-[180px] bg-transparent text-white/80 text-sm placeholder-white/15 outline-none resize-none leading-relaxed"
+                      className="w-full h-full min-h-[120px] md:min-h-[180px] bg-transparent text-white/80 text-sm placeholder-white/15 outline-hidden resize-none leading-relaxed"
                     />
                   </div>
 
@@ -384,7 +392,7 @@ export function HomePage() {
                   <div className="relative h-full flex flex-col justify-between p-4 sm:p-6">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center bg-white/[0.06]">
                       <span className="text-white/70">
-                        {React.cloneElement(app.icon as React.ReactElement, { className: 'w-5 h-5 sm:w-6 sm:h-6' })}
+                        {React.cloneElement(app.icon, { className: 'w-5 h-5 sm:w-6 sm:h-6' })}
                       </span>
                     </div>
                     <div className="mt-3 sm:mt-0">
@@ -435,7 +443,7 @@ export function HomePage() {
                 }}
                 title={item.label}
               >
-                {React.cloneElement(item.icon as React.ReactElement, {
+                {React.cloneElement(item.icon, {
                   className: `w-[18px] h-[18px] transition-colors duration-300 ${isActive ? 'text-purple-300' : 'text-white/40'}`,
                 })}
               </motion.button>

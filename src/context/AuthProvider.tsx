@@ -62,7 +62,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const cachedUser = useRef<User | null>(readCachedUser()).current;
+  const [cachedUser] = useState<User | null>(readCachedUser);
   const [user, setUser] = useState<User | null>(cachedUser);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);

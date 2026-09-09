@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '../vercelTypes.js';
 
 const mocks = vi.hoisted(() => ({ trigger: vi.fn(), cleanup: vi.fn(), createClient: vi.fn(), auth: vi.fn() }));
 vi.mock('@trigger.dev/sdk', () => ({ tasks: { trigger: mocks.trigger } }));

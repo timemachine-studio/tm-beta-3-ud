@@ -51,10 +51,13 @@ export function AgentsModal({ isOpen, onClose, onSignIn }: AgentsModalProps) {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user]);
 
   useEffect(() => {
-    if (isOpen) load();
+    if (!isOpen) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void load(); });
+    return () => { cancelled = true; };
   }, [isOpen, load]);
 
   const visibleItems = useMemo(() => items.filter(item => item.kind === activeTab), [activeTab, items]);
@@ -184,7 +187,7 @@ export function AgentsModal({ isOpen, onClose, onSignIn }: AgentsModalProps) {
                                 aria-label={`${item.enabled ? 'Disable' : 'Enable'} ${item.name}`}
                                 className="relative mt-1 h-6 w-11 shrink-0 rounded-full bg-white/10 transition data-[state=checked]:bg-cyan-400/45 disabled:cursor-not-allowed disabled:opacity-45"
                               >
-                                <Switch.Thumb className="block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow transition-transform data-[state=checked]:translate-x-[22px]" />
+                                <Switch.Thumb className="block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow-sm transition-transform data-[state=checked]:translate-x-[22px]" />
                               </Switch.Root>
                             </div>
                           );

@@ -5,7 +5,7 @@ import { GroupChat, GroupChatMessage, GroupChatParticipant, GroupChatInvite } fr
 import { AI_PERSONAS } from '../../config/constants';
 
 const musicSchema = z.object({ videoId: z.string(), title: z.string(), artist: z.string().optional() }).nullable();
-const reactionSchema = z.record(z.array(z.string()));
+const reactionSchema = z.record(z.string(), z.array(z.string()));
 function parseMusic(value: unknown) {
   const result = musicSchema.safeParse(value);
   return result.success ? result.data : null;

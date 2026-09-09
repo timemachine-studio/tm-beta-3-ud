@@ -4,7 +4,6 @@ import { cn } from '../../utils/cn';
 
 interface TextShimmerProps {
   children: string;
-  as?: React.ElementType;
   className?: string;
   duration?: number;
   spread?: number;
@@ -14,21 +13,18 @@ interface TextShimmerProps {
 
 export function TextShimmer({
   children,
-  as: Component = 'div',
   className,
   duration = 2,
   spread = 2,
   baseColor = '#a855f7', // Default purple
   shimmerColor = '#ffffff', // Default white
 }: TextShimmerProps) {
-  const MotionComponent = motion(Component);
-
   const dynamicSpread = useMemo(() => {
     return children.length * spread;
   }, [children, spread]);
 
   return (
-    <MotionComponent
+    <motion.div
       className={cn(
         'relative inline-block bg-[length:250%_100%,auto] bg-clip-text text-transparent',
         className
@@ -49,6 +45,6 @@ export function TextShimmer({
       } as React.CSSProperties}
     >
       {children}
-    </MotionComponent>
+    </motion.div>
   );
 }

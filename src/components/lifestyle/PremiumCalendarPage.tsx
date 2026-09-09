@@ -201,7 +201,7 @@ export function PremiumCalendarPage() {
                     className="flex items-center gap-3 px-6 py-4 rounded-full bg-white text-black font-bold text-sm tracking-wide shadow-[0_4px_24px_rgba(255,255,255,0.15)] hover:scale-[1.02] hover:shadow-[0_8px_32px_rgba(255,255,255,0.25)] transition-all"
                 >
                     <div className="relative">
-                        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 blur-sm opacity-50"></div>
+                        <div className="absolute inset-0 rounded-full bg-linear-to-r from-purple-500 to-blue-500 blur-xs opacity-50"></div>
                         <Plus className="w-6 h-6 relative z-10" />
                     </div>
                     Create Event
@@ -256,7 +256,7 @@ export function PremiumCalendarPage() {
                                 onClick={() => toggleCalendar(cal.id)}
                                 className="flex items-center w-full px-3 py-2 rounded-xl hover:bg-white/[0.04] transition-colors group"
                             >
-                                <div className={`w-5 h-5 rounded flex items-center justify-center mr-3 border transition-all ${cal.active ? `${COLORS[cal.color].bg} ${COLORS[cal.color].border}` : 'border-white/20'
+                                <div className={`w-5 h-5 rounded-sm flex items-center justify-center mr-3 border transition-all ${cal.active ? `${COLORS[cal.color].bg} ${COLORS[cal.color].border}` : 'border-white/20'
                                     }`}>
                                     {cal.active && <Check className={`w-3 h-3 ${COLORS[cal.color].text}`} />}
                                 </div>
@@ -272,7 +272,7 @@ export function PremiumCalendarPage() {
 
             {/* Main Calendar View */}
             <div className="flex-1 flex flex-col min-w-0 bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-[32px] overflow-hidden shadow-2xl relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-linear-to-br from-white/[0.02] to-transparent pointer-events-none" />
 
                 {/* Main Header */}
                 <div className="flex items-center justify-between px-6 md:px-8 py-5 md:py-6 border-b border-white/5 relative z-10 shrink-0">
@@ -292,7 +292,7 @@ export function PremiumCalendarPage() {
                     <div className="flex items-center gap-3">
                         <div className="hidden sm:flex items-center bg-white/5 rounded-full px-4 py-2 border border-white/10">
                             <Search className="w-4 h-4 text-white/40 mr-2" />
-                            <input type="text" placeholder="Search..." className="bg-transparent text-sm text-white focus:outline-none w-32 placeholder:text-white/30" />
+                            <input type="text" placeholder="Search..." className="bg-transparent text-sm text-white focus:outline-hidden w-32 placeholder:text-white/30" />
                         </div>
                         <button className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 text-sm font-bold text-white/80 hover:bg-white/10 transition-colors">
                             Month <ChevronRight className="w-4 h-4 rotate-90" />
@@ -307,7 +307,7 @@ export function PremiumCalendarPage() {
                 {/* Days Header */}
                 <div className="grid grid-cols-7 border-b border-white/5 shrink-0 relative z-10">
                     {DAYS.map(day => (
-                        <div key={day} className="py-3 text-center text-xs font-bold text-white/40 uppercase tracking-widest border-r border-white/5 last:border-0 border-opacity-50">
+                        <div key={day} className="py-3 text-center text-xs font-bold text-white/40 uppercase tracking-widest border-r border-white/[0.025] last:border-0">
                             {day}
                         </div>
                     ))}
@@ -344,7 +344,7 @@ export function PremiumCalendarPage() {
                                                 <div
                                                     key={ev.id}
                                                     onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }}
-                                                    className={`pointer-events-auto truncate px-2 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-semibold ${style.bg} ${style.text} border ${style.border} hover:brightness-125 transition-all cursor-pointer shadow-sm`}
+                                                    className={`pointer-events-auto truncate px-2 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-semibold ${style.bg} ${style.text} border ${style.border} hover:brightness-125 transition-all cursor-pointer shadow-xs`}
                                                 >
                                                     <span className="hidden md:inline mr-1 opacity-70">{ev.startTime}</span>
                                                     {ev.title}
@@ -372,7 +372,7 @@ export function PremiumCalendarPage() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                            className="absolute inset-0 bg-black/60 backdrop-blur-xs"
                             onClick={() => setIsEventModalOpen(false)}
                         />
                         <motion.div
@@ -383,7 +383,7 @@ export function PremiumCalendarPage() {
                             className="relative w-full max-w-[500px] rounded-[32px] bg-zinc-900 border border-white/10 shadow-2xl overflow-hidden"
                             style={{ background: 'linear-gradient(180deg, rgba(30,30,35,1) 0%, rgba(20,20,20,1) 100%)' }}
                         >
-                            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/20 to-transparent pointer-events-none" />
+                            <div className="absolute top-0 left-0 right-0 h-32 bg-linear-to-b from-purple-500/20 to-transparent pointer-events-none" />
 
                             <div className="flex items-center justify-between p-6 border-b border-white/5 relative z-10">
                                 <h3 className="text-xl font-bold text-white">{editingEvent ? 'Edit Event' : 'New Event'}</h3>
@@ -407,7 +407,7 @@ export function PremiumCalendarPage() {
                                     placeholder="Add title"
                                     value={fTitle}
                                     onChange={e => setFTitle(e.target.value)}
-                                    className="w-full text-2xl font-black bg-transparent text-white placeholder:text-white/20 border-0 border-b border-white/10 focus:border-purple-500 focus:ring-0 pb-3 transition-colors outline-none"
+                                    className="w-full text-2xl font-black bg-transparent text-white placeholder:text-white/20 border-0 border-b border-white/10 focus:border-purple-500 focus:ring-0 pb-3 transition-colors outline-hidden"
                                     autoFocus
                                 />
 
@@ -416,16 +416,16 @@ export function PremiumCalendarPage() {
                                     <div className="flex-1 grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="text-[10px] uppercase font-bold text-white/30 tracking-wider mb-1 block">Date</label>
-                                            <input type="date" value={fDate} onChange={e => setFDate(e.target.value)} className="w-full bg-transparent outline-none font-medium [color-scheme:dark]" />
+                                            <input type="date" value={fDate} onChange={e => setFDate(e.target.value)} className="w-full bg-transparent outline-hidden font-medium [color-scheme:dark]" />
                                         </div>
                                         <div className="flex gap-2">
                                             <div className="flex-1">
                                                 <label className="text-[10px] uppercase font-bold text-white/30 tracking-wider mb-1 block">Start</label>
-                                                <input type="time" value={fStart} onChange={e => setFStart(e.target.value)} className="w-full bg-transparent outline-none font-medium [color-scheme:dark]" />
+                                                <input type="time" value={fStart} onChange={e => setFStart(e.target.value)} className="w-full bg-transparent outline-hidden font-medium [color-scheme:dark]" />
                                             </div>
                                             <div className="flex-1">
                                                 <label className="text-[10px] uppercase font-bold text-white/30 tracking-wider mb-1 block">End</label>
-                                                <input type="time" value={fEnd} onChange={e => setFEnd(e.target.value)} className="w-full bg-transparent outline-none font-medium [color-scheme:dark]" />
+                                                <input type="time" value={fEnd} onChange={e => setFEnd(e.target.value)} className="w-full bg-transparent outline-hidden font-medium [color-scheme:dark]" />
                                             </div>
                                         </div>
                                     </div>
@@ -434,17 +434,17 @@ export function PremiumCalendarPage() {
                                 <div className="space-y-4 pt-2">
                                     <div className="flex items-center gap-4">
                                         <CalendarIcon className="w-5 h-5 text-white/30" />
-                                        <select value={fCalId} onChange={e => setFCalId(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-purple-500/50 appearance-none">
+                                        <select value={fCalId} onChange={e => setFCalId(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-hidden focus:border-purple-500/50 appearance-none">
                                             {calendars.map(c => <option key={c.id} value={c.id} className="bg-zinc-900">{c.name}</option>)}
                                         </select>
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <MapPin className="w-5 h-5 text-white/30" />
-                                        <input type="text" placeholder="Add location" value={fLoc} onChange={e => setFLoc(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 outline-none focus:border-purple-500/50" />
+                                        <input type="text" placeholder="Add location" value={fLoc} onChange={e => setFLoc(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 outline-hidden focus:border-purple-500/50" />
                                     </div>
                                     <div className="flex items-start gap-4">
                                         <AlignLeft className="w-5 h-5 text-white/30 mt-3" />
-                                        <textarea placeholder="Add description" rows={3} value={fDesc} onChange={e => setFDesc(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 outline-none focus:border-purple-500/50 resize-none custom-scrollbar" />
+                                        <textarea placeholder="Add description" rows={3} value={fDesc} onChange={e => setFDesc(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 outline-hidden focus:border-purple-500/50 resize-none custom-scrollbar" />
                                     </div>
                                 </div>
 

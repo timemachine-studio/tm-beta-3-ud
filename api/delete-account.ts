@@ -1,5 +1,5 @@
 import { purgeUserStorage } from './_lib/retention/accountStorage.js';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_lib/vercelTypes.js';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthenticatedRequestUser } from './_lib/auth.js';
 import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';

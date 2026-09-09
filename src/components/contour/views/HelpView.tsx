@@ -103,7 +103,7 @@ function HelpView({ accent }: { module: ModuleData; accent: AccentTheme }) {
                     {sc.keys.map((k, ki) => (
                       <kbd
                         key={ki}
-                        className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/5 border border-white/10 text-white/40"
+                        className="px-1.5 py-0.5 rounded-sm text-[10px] font-mono bg-white/5 border border-white/10 text-white/40"
                       >
                         {k}
                       </kbd>

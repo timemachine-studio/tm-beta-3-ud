@@ -94,7 +94,7 @@ export function FilePreview({ fileName, fileSize, onRemove, isUploading }: FileP
         </div>
 
         {isUploading && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/30 backdrop-blur-sm">
+          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/30 backdrop-blur-xs">
             <LoadingSpinner size="sm" />
           </div>
         )}

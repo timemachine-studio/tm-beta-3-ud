@@ -134,7 +134,7 @@ export function useChat(
   const [currentEmotion, setCurrentEmotion] = useState<string>('joy');
   const [error, setError] = useState<string | null>(null);
   const [showAboutUs, setShowAboutUs] = useState(false);
-  const [currentSessionId, setCurrentSessionId] = useState<string>(initialSession?.id || '');
+  const [currentSessionId, setCurrentSessionId] = useState<string>(() => initialSession?.id || newId());
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [useStreaming, setUseStreaming] = useState(true);
   const [youtubeMusic, setYoutubeMusic] = useState<YouTubeMusicData | null>(null);
@@ -653,13 +653,6 @@ export function useChat(
     }
   }, [messages, currentSessionId, currentPersona, saveChatSession, isCollaborative]);
 
-  // Initialize session ID on first load
-  useEffect(() => {
-    if (!currentSessionId) {
-      setCurrentSessionId(newId());
-    }
-  }, [currentSessionId]);
-
   // Set theme when loaded from initial session (history).
   // The ref, not an empty dependency array, is what makes this run once —
   // so the real dependencies can be declared honestly (1.13).
@@ -679,7 +672,8 @@ export function useChat(
     if (proResumeStartedRef.current) return;
     if (initialSession?.id && initialPersona === 'pro') {
       proResumeStartedRef.current = true;
-      tryResumeProGeneration(initialSession.id, 'pro');
+      const timer = setTimeout(() => void tryResumeProGeneration(initialSession.id, 'pro'), 0);
+      return () => clearTimeout(timer);
     }
   }, [initialSession?.id, initialPersona, tryResumeProGeneration]);
 
@@ -691,27 +685,30 @@ export function useChat(
     // The composer is live from the first frame now (1.14), so the user can
     // send before this runs. Never overwrite a conversation that has already
     // started — just mark the chat initialized and leave it alone.
-    if (messages.length > 0) {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (messages.length > 0) {
+        setIsInitialized(true);
+        return;
+      }
+
+      const persona = initialPersona || 'default';
+      const rawMessage = AI_PERSONAS[persona].initialMessage;
+      const initialMessage = rawMessage.replace(/<emotion>[a-z]+<\/emotion>/i, '').replace(/<reason>[\s\S]*?<\/reason>/i, '').trim();
+
+      setCurrentPersona(persona);
+      setPersonaTheme(persona);
+      setMessages([{
+        id: newId(),
+        createdAt: new Date().toISOString(),
+        content: initialMessage,
+        isAI: true,
+        hasAnimated: false
+      }]);
       setIsInitialized(true);
-      return;
-    }
-
-    // Now we can safely determine the persona (either from profile or default)
-    const persona = initialPersona || 'default';
-    // Clean emotion tags from initial message
-    const rawMessage = AI_PERSONAS[persona].initialMessage;
-    const initialMessage = rawMessage.replace(/<emotion>[a-z]+<\/emotion>/i, '').replace(/<reason>[\s\S]*?<\/reason>/i, '').trim();
-
-    setCurrentPersona(persona);
-    setPersonaTheme(persona);
-    setMessages([{
-      id: newId(),
-      createdAt: new Date().toISOString(),
-      content: initialMessage,
-      isAI: true,
-      hasAnimated: false
-    }]);
-    setIsInitialized(true);
+    });
+    return () => { cancelled = true; };
   }, [authLoading, isInitialized, initialPersona, setPersonaTheme, messages.length]);
 
   // Cleanup timeout on unmount

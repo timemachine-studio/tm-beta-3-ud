@@ -32,9 +32,10 @@ export const MemoriesModal: React.FC<MemoriesModalProps> = ({ isOpen, onClose })
   }, [user]);
 
   useEffect(() => {
-    if (isOpen && user) {
-      loadMemories();
-    }
+    if (!isOpen || !user) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void loadMemories(); });
+    return () => { cancelled = true; };
   }, [isOpen, user, loadMemories]);
 
   const handleAddMemory = async () => {
@@ -114,15 +115,15 @@ export const MemoriesModal: React.FC<MemoriesModalProps> = ({ isOpen, onClose })
               >
                 <div className="relative w-full max-w-lg max-h-[85vh] overflow-hidden rounded-3xl">
                   {/* Glass background */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10" />
+                  <div className="absolute inset-0 bg-linear-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
+                  <div className="absolute inset-0 bg-linear-to-br from-purple-500/10 via-transparent to-pink-500/10" />
                   <div className="absolute inset-[1px] rounded-3xl border border-white/[0.08]" />
 
                   <div className="relative p-6 flex flex-col max-h-[85vh]">
                     {/* Header */}
                     <div className="flex items-center justify-between mb-6">
                       <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20">
+                        <div className="p-2.5 rounded-2xl bg-linear-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20">
                           <Brain className="w-5 h-5 text-purple-400" />
                         </div>
                         <Dialog.Title className="text-xl font-semibold text-white">
@@ -148,14 +149,14 @@ export const MemoriesModal: React.FC<MemoriesModalProps> = ({ isOpen, onClose })
                           onChange={(e) => setNewMemory(e.target.value)}
                           placeholder="Add something you want TimeMachine to remember..."
                           rows={2}
-                          className="w-full px-4 py-3 pr-12 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-purple-500/50 resize-none transition-all text-sm"
+                          className="w-full px-4 py-3 pr-12 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-hidden focus:border-purple-500/50 resize-none transition-all text-sm"
                         />
                         <motion.button
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           onClick={handleAddMemory}
                           disabled={isAdding || !newMemory.trim()}
-                          className="absolute right-3 bottom-3 p-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white disabled:opacity-50 transition-all"
+                          className="absolute right-3 bottom-3 p-2 rounded-xl bg-linear-to-r from-purple-500 to-pink-500 text-white disabled:opacity-50 transition-all"
                         >
                           {isAdding ? (
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -187,7 +188,7 @@ export const MemoriesModal: React.FC<MemoriesModalProps> = ({ isOpen, onClose })
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className={`relative p-4 rounded-2xl bg-gradient-to-r ${getMemoryTypeColor(memory.memory_type)} border backdrop-blur-sm group`}
+                            className={`relative p-4 rounded-2xl bg-linear-to-r ${getMemoryTypeColor(memory.memory_type)} border backdrop-blur-xs group`}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">

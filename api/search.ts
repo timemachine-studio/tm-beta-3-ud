@@ -1,9 +1,9 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_lib/vercelTypes.js';
 import { getAuthenticatedRequestUser } from './_lib/auth.js';
 import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
-import yts from 'yt-search';
 import { searchQuerySchema, webSearchQuerySchema, parseOrReject } from './_lib/validation.js';
 import { runWebSearch } from './_lib/webSearch.js';
+import { searchYouTubeVideos } from './_lib/youtubeSearch.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(req, res, 'GET, OPTIONS');
@@ -42,13 +42,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // Search specifically for music/songs
-    const r = await yts(query);
-    const videos = r.videos.slice(0, 10);
+    const videos = await searchYouTubeVideos(query, 10);
 
     const tracks = videos.map((v) => ({
       id: v.videoId,
       title: v.title,
-      artist: v.author.name,
+      artist: v.author,
       thumbnail: v.thumbnail,
       duration: v.seconds,
     }));

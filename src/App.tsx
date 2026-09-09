@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { Suspense, lazy, useEffect, useState, useMemo, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import { ChatInput } from './components/chat/ChatInput';
-import { BrandLogo, BrandOverride } from './components/brand/BrandLogo';
+import { BrandLogo } from './components/brand/BrandLogo';
+import type { BrandOverride } from './components/brand/BrandLogo';
 import { MusicPlayer } from './components/music/MusicPlayer';
 import { YouTubePlayer } from './components/music/YouTubePlayer';
 import { searchMusic, getLyrics, Track as LyricsTrack, LyricLine } from './services/music/lyricsService';
@@ -14,33 +15,15 @@ import { useChat } from './hooks/useChat';
 import { useAnonymousRateLimit } from './hooks/useAnonymousRateLimit';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotFoundPage } from './components/NotFoundPage';
-import { AboutUsToast, AboutPage } from './components/about';
-import { ContactPage } from './components/contact';
+import { AboutUsToast } from './components/about/AboutUsToast';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ChatMode } from './components/chat/ChatMode';
 import { StageMode } from './components/chat/StageMode';
 import { WelcomeModal } from './components/modals/WelcomeModal';
-import { AuthModal, OnboardingModal, AccountPage } from './components/auth';
-import { PrivacyPage, TermsPage } from './components/legal';
-import { ChatHistoryPage } from './components/chat/ChatHistoryPage';
-import { SettingsPage } from './components/settings/SettingsPage';
-import { AlbumPage } from './components/album/AlbumPage';
-import { MemoriesPage } from './components/memories/MemoriesPage';
-import { HelpPage } from './components/help/HelpPage';
-import { PersonasPage } from './components/personas/PersonasPage';
-import { FeaturesPage } from './components/features/FeaturesPage';
+import { AuthModal } from './components/auth/AuthModal';
+import { OnboardingModal } from './components/auth/OnboardingModal';
 import { GroupChatModal } from './components/groupchat/GroupChatModal';
-import { GroupSettingsPage } from './components/groupchat/GroupSettingsPage';
-import { HomePage } from './components/home/HomePage';
-import { NotesPage } from './components/notes/NotesPage';
-import { HealthcarePage } from './components/healthcare/HealthcarePage';
-import { ShopPage } from './components/shop/ShopPage';
-import { LifestyleLayout } from './components/lifestyle/LifestyleLayout';
-import { CookBookPage } from './components/lifestyle/CookBookPage';
-import { FashionPage } from './components/lifestyle/FashionPage';
-import { ShoppingListPage } from './components/lifestyle/ShoppingListPage';
-import { PremiumCalendarPage } from './components/lifestyle/PremiumCalendarPage';
 import {
   getGroupChat,
   getGroupChatInvite,
@@ -52,6 +35,30 @@ import { GroupChat } from './types/groupChat';
 import { ACCESS_TOKEN_REQUIRED, MAINTENANCE_MODE, PRO_HEAT_LEVELS, AI_PERSONAS } from './config/constants';
 import { ChatSession, getSupabaseSessions, getLocalSessions } from './services/chat/chatService';
 import { SEOHead } from './components/seo/SEOHead';
+import { RouteLoadingFallback } from './components/routing/RouteLoadingFallback';
+
+const HomePage = lazy(() => import('./components/home/HomePage').then((module) => ({ default: module.HomePage })));
+const AccountPage = lazy(() => import('./components/auth/AccountPage').then((module) => ({ default: module.AccountPage })));
+const ChatHistoryPage = lazy(() => import('./components/chat/ChatHistoryPage').then((module) => ({ default: module.ChatHistoryPage })));
+const SettingsPage = lazy(() => import('./components/settings/SettingsPage').then((module) => ({ default: module.SettingsPage })));
+const AboutPage = lazy(() => import('./components/about/AboutPage').then((module) => ({ default: module.AboutPage })));
+const PersonasPage = lazy(() => import('./components/personas/PersonasPage').then((module) => ({ default: module.PersonasPage })));
+const FeaturesPage = lazy(() => import('./components/features/FeaturesPage').then((module) => ({ default: module.FeaturesPage })));
+const ContactPage = lazy(() => import('./components/contact/ContactPage').then((module) => ({ default: module.ContactPage })));
+const PrivacyPage = lazy(() => import('./components/legal/PrivacyPage').then((module) => ({ default: module.PrivacyPage })));
+const TermsPage = lazy(() => import('./components/legal/TermsPage').then((module) => ({ default: module.TermsPage })));
+const AlbumPage = lazy(() => import('./components/album/AlbumPage').then((module) => ({ default: module.AlbumPage })));
+const MemoriesPage = lazy(() => import('./components/memories/MemoriesPage').then((module) => ({ default: module.MemoriesPage })));
+const HelpPage = lazy(() => import('./components/help/HelpPage').then((module) => ({ default: module.HelpPage })));
+const NotesPage = lazy(() => import('./components/notes/NotesPage').then((module) => ({ default: module.NotesPage })));
+const HealthcarePage = lazy(() => import('./components/healthcare/HealthcarePage').then((module) => ({ default: module.HealthcarePage })));
+const ShopPage = lazy(() => import('./components/shop/ShopPage').then((module) => ({ default: module.ShopPage })));
+const LifestyleLayout = lazy(() => import('./components/lifestyle/LifestyleLayout').then((module) => ({ default: module.LifestyleLayout })));
+const CookBookPage = lazy(() => import('./components/lifestyle/CookBookPage').then((module) => ({ default: module.CookBookPage })));
+const FashionPage = lazy(() => import('./components/lifestyle/FashionPage').then((module) => ({ default: module.FashionPage })));
+const ShoppingListPage = lazy(() => import('./components/lifestyle/ShoppingListPage').then((module) => ({ default: module.ShoppingListPage })));
+const PremiumCalendarPage = lazy(() => import('./components/lifestyle/PremiumCalendarPage').then((module) => ({ default: module.PremiumCalendarPage })));
+const GroupSettingsPage = lazy(() => import('./components/groupchat/GroupSettingsPage').then((module) => ({ default: module.GroupSettingsPage })));
 
 // Chat by ID page component - defined OUTSIDE to prevent re-renders
 function ChatByIdPage() {
@@ -129,6 +136,12 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   const { user, profile, loading: authLoading, profileLoading, needsOnboarding, updateLastPersona } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    if (MAINTENANCE_MODE) {
+      window.location.href = '/maintenance.html';
+    }
+  }, []);
 
   // Check if we're loading a session from history BEFORE useChat initialization
   // This prevents the init effect from overwriting loaded messages
@@ -261,14 +274,18 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
 
   // If AI starts playing youtubeMusic, stop the lyrics track
   useEffect(() => {
-    if (youtubeMusic) {
+    if (!youtubeMusic) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
       setLyricsTrack(null);
       setLyricsList([]);
       setLyricsIsPlaying(false);
       setLyricsCurrentTime(0);
       setLyricsDuration(0);
       setIsLyricsMaximized(false);
-    }
+    });
+    return () => { cancelled = true; };
   }, [youtubeMusic]);
 
   // Check if navigating from homepage with a playQuery
@@ -276,12 +293,14 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
 
   // Clear navigation state after loading session/healthcare mode/playQuery to prevent reload on refresh
   useEffect(() => {
-    if (playQueryFromNav) {
-      handleLyricsPlay(playQueryFromNav);
-    }
-    if (sessionToLoad || healthcareModeFromNav || playQueryFromNav) {
+    if (!sessionToLoad && !healthcareModeFromNav && !playQueryFromNav) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (playQueryFromNav) void handleLyricsPlay(playQueryFromNav);
       window.history.replaceState({}, '', '/');
-    }
+    });
+    return () => { cancelled = true; };
   }, [playQueryFromNav, handleLyricsPlay, sessionToLoad, healthcareModeFromNav]);
 
   const { isRateLimited, getRemainingMessages, isAnonymous } = useAnonymousRateLimit(currentPersona, isLoading);
@@ -315,9 +334,10 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   const [authModalMessage, setAuthModalMessage] = useState<string | undefined>();
 
   useEffect(() => {
-    if (!authLoading && needsOnboarding) {
-      setShowOnboarding(true);
-    }
+    if (authLoading || !needsOnboarding) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) setShowOnboarding(true); });
+    return () => { cancelled = true; };
   }, [authLoading, needsOnboarding]);
 
   // Group chat loading and subscription
@@ -530,7 +550,6 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   }, [enableCollaborativeMode]);
 
   if (MAINTENANCE_MODE) {
-    window.location.href = '/maintenance.html';
     return null;
   }
 
@@ -555,7 +574,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   const backgroundClass = customBackgroundClass
     ? customBackgroundClass
     : isHealthcareActive
-      ? 'bg-gradient-to-t from-green-950 to-black to-50%'
+      ? 'bg-linear-to-t from-green-950 to-black to-50%'
       : theme.background;
 
   return (
@@ -665,7 +684,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                             }}
                             className={`w-full px-4 py-3 text-left transition-all duration-300
                               ${currentProHeatLevel === parseInt(level) ? 'text-cyan-400' : theme.text}
-                              ${currentProHeatLevel === parseInt(level) ? 'bg-gradient-to-r from-cyan-500/20 to-black/10' : 'bg-transparent'}
+                              ${currentProHeatLevel === parseInt(level) ? 'bg-linear-to-r from-cyan-500/20 to-black/10' : 'bg-transparent'}
                               flex flex-col gap-1 border-b border-white/5 last:border-b-0`}
                             style={{
                               background: currentProHeatLevel === parseInt(level) ?
@@ -906,8 +925,8 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                 className="w-full max-w-md"
               >
                 <div className="relative overflow-hidden rounded-3xl">
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-violet-500 opacity-20" />
+                  <div className="absolute inset-0 bg-linear-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
+                  <div className="absolute inset-0 bg-linear-to-br from-purple-500 to-violet-500 opacity-20" />
                   <div className="absolute inset-[1px] rounded-3xl border border-white/[0.08]" />
 
                   <div className="relative p-8 text-center">
@@ -933,7 +952,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                         whileTap={{ scale: 0.98 }}
                         onClick={handleJoinGroupChat}
                         disabled={isJoiningGroup}
-                        className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-500 to-violet-500 text-white font-semibold flex items-center justify-center gap-2"
+                        className="w-full py-4 rounded-xl bg-linear-to-r from-purple-500 to-violet-500 text-white font-semibold flex items-center justify-center gap-2"
                       >
                         {isJoiningGroup ? (
                           <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -946,7 +965,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleOpenAuth}
-                        className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-500 to-violet-500 text-white font-semibold"
+                        className="w-full py-4 rounded-xl bg-linear-to-r from-purple-500 to-violet-500 text-white font-semibold"
                       >
                         Sign In to Join
                       </motion.button>
@@ -1139,7 +1158,8 @@ function AppContent() {
   const navigate = useNavigate();
 
   return (
-    <Routes>
+    <Suspense fallback={<RouteLoadingFallback />}>
+      <Routes>
       <Route path="/" element={<><SEOHead /><MainChatPage /></>} />
       <Route path="/reveoule" element={
         <>
@@ -1195,7 +1215,8 @@ function AppContent() {
       <Route path="/groupchat/:id" element={<><SEOHead title="Group Chat" noIndex /><GroupChatWrapper /></>} />
       <Route path="/groupchat/:id/settings" element={<><SEOHead title="Group Settings" noIndex /><GroupSettingsPage /></>} />
       <Route path="*" element={<><SEOHead title="Page not found" description="This TimeMachine page doesn't exist." noIndex /><NotFoundPage /></>} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
 

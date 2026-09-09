@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 
 export function LoadingEffects() {
+  const [particles] = useState(() => Array.from({ length: 60 }, (_, index) => ({
+    index,
+    startX: Math.random() * window.innerWidth,
+    startY: Math.random() * window.innerHeight,
+    endX: Math.random() * window.innerWidth,
+    endY: Math.random() * window.innerHeight,
+    duration: Math.random() * 4 + 3,
+  })));
   return (
     <>
       {/* Hexagonal Grid Background */}
@@ -30,7 +38,7 @@ export function LoadingEffects() {
         {Array.from({ length: 10 }).map((_, i) => (
           <motion.div
             key={`circuit-${i}`}
-            className="absolute h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"
+            className="absolute h-px bg-linear-to-r from-transparent via-purple-500/20 to-transparent"
             style={{
               top: `${8 + i * 10}%`,
               left: '0',
@@ -50,22 +58,22 @@ export function LoadingEffects() {
       </div>
 
       {/* Animated Particles */}
-      {Array.from({ length: 60 }).map((_, i) => (
+      {particles.map(particle => (
         <motion.div
-          key={i}
+          key={particle.index}
           className="absolute w-1 h-1 bg-purple-500 rounded-full"
           initial={{
-            x: Math.random() * window.innerWidth,
-            y: Math.random() * window.innerHeight,
+            x: particle.startX,
+            y: particle.startY,
           }}
           animate={{
-            x: Math.random() * window.innerWidth,
-            y: Math.random() * window.innerHeight,
+            x: particle.endX,
+            y: particle.endY,
             scale: [0, 1.2, 0],
             opacity: [0, 0.6, 0],
           }}
           transition={{
-            duration: Math.random() * 4 + 3,
+            duration: particle.duration,
             repeat: Infinity,
             ease: "easeInOut",
           }}
@@ -97,7 +105,7 @@ export function LoadingEffects() {
 
       {/* Scanning Lines */}
       <motion.div
-        className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/3 to-transparent"
+        className="absolute inset-0 bg-linear-to-b from-transparent via-purple-500/3 to-transparent"
         style={{ height: '200%' }}
         animate={{
           y: ['-50%', '0%'],

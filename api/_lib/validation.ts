@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './vercelTypes.js';
 import { apiErrorBody } from './errors.js';
 
 /**
@@ -33,8 +33,8 @@ export const LIMITS = {
  *
  * Vercel buffers and JSON-parses the body before the handler runs, so this is
  * a cost ceiling on what we then do with it, not a true streaming limit. The
- * dev middleware in vite.config.ts has no body limit at all — see
- * production-check.md item 3 in "Things that will bite you".
+ * dev middleware mirrors Vercel's separate 4.5 MB platform ceiling before it
+ * constructs this parsed request object.
  */
 export function bodyTooLarge(req: VercelRequest): boolean {
   const declared = Number(req.headers['content-length']);
@@ -162,7 +162,7 @@ export const notesAiBodySchema = z.object({
  * The message names the offending fields but never echoes their values —
  * a rejected payload should not come back as a reflection of itself.
  */
-export function parseOrReject<T extends z.ZodTypeAny>(
+export function parseOrReject<T extends z.ZodType>(
   res: VercelResponse,
   schema: T,
   data: unknown,

@@ -251,7 +251,7 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
             min={0} max={23}
             value={customH}
             onChange={e => setCustomH(e.target.value)}
-            className="w-[40px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-1.5 text-white text-xs font-mono text-center focus:outline-none focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-[40px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-1.5 text-white text-xs font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <span className="text-white/20 text-[10px]">h</span>
         </div>
@@ -261,7 +261,7 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
             min={0} max={59}
             value={customM}
             onChange={e => setCustomM(e.target.value)}
-            className="w-[40px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-1.5 text-white text-xs font-mono text-center focus:outline-none focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-[40px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-1.5 text-white text-xs font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <span className="text-white/20 text-[10px]">m</span>
         </div>
@@ -271,7 +271,7 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
             min={0} max={59}
             value={customS}
             onChange={e => setCustomS(e.target.value)}
-            className="w-[40px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-1.5 text-white text-xs font-mono text-center focus:outline-none focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-[40px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-1.5 text-white text-xs font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <span className="text-white/20 text-[10px]">s</span>
         </div>

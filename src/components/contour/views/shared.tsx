@@ -21,7 +21,7 @@ export const SELECT_ARROW = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3
 
 export function IconBadge({ icon: Icon, accent }: { icon: React.ComponentType<{ className?: string }>; accent: AccentTheme }) {
   return (
-    <div className="p-2.5 rounded-xl flex-shrink-0" style={{ background: accent.bg, border: `1px solid ${accent.border}` }}>
+    <div className="p-2.5 rounded-xl shrink-0" style={{ background: accent.bg, border: `1px solid ${accent.border}` }}>
       <Icon className={`w-5 h-5 ${accent.text}`} />
     </div>
   );

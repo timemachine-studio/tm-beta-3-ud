@@ -1,6 +1,12 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
+import {
+  ApiRequestError,
+  createVercelRequest,
+  withVercelResponseHelpers,
+} from './api/_lib/nodeHttpAdapter.js';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -25,6 +31,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      tailwindcss(),
       {
         name: 'api-serverless-middleware',
         configureServer(server) {
@@ -41,74 +48,24 @@ export default defineConfig(({ mode }) => {
                 const handler = module.default;
 
                 if (typeof handler === 'function') {
-                  // Parse query parameters
-                  const query: Record<string, string | string[]> = {};
-                  urlObj.searchParams.forEach((value, key) => {
-                    if (query[key]) {
-                      if (Array.isArray(query[key])) {
-                        (query[key] as string[]).push(value);
-                      } else {
-                        query[key] = [query[key] as string, value];
-                      }
-                    } else {
-                      query[key] = value;
-                    }
-                  });
-
-                  // Read request body if present
-                  let body: unknown = null;
-                  if (req.method === 'POST' || req.method === 'PUT') {
-                    body = await new Promise((resolve) => {
-                      let data = '';
-                      req.on('data', chunk => { data += chunk; });
-                      req.on('end', () => {
-                        try {
-                          resolve(JSON.parse(data));
-                        } catch {
-                          resolve(data);
-                        }
-                      });
-                    });
-                  }
-
-                  const vercelReq = Object.assign(req, {
-                    query,
-                    body,
-                  });
-
-                  const vercelRes = Object.assign(res, {
-                    status(code: number) {
-                      res.statusCode = code;
-                      return vercelRes;
-                    },
-                    json(data: unknown) {
-                      res.setHeader('Content-Type', 'application/json');
-                      res.end(JSON.stringify(data));
-                      return vercelRes;
-                    },
-                    send(data: unknown) {
-                      if (Buffer.isBuffer(data)) {
-                        res.end(data);
-                      } else if (typeof data === 'object') {
-                        res.setHeader('Content-Type', 'application/json');
-                        res.end(JSON.stringify(data));
-                      } else {
-                        res.end(String(data));
-                      }
-                      return vercelRes;
-                    }
-                  });
+                  const vercelReq = await createVercelRequest(req, urlObj);
+                  const vercelRes = withVercelResponseHelpers(res);
 
                   await handler(vercelReq, vercelRes);
                   return;
                 }
               } catch (err) {
                 console.error(`Error executing API handler for ${urlObj.pathname}:`, err);
-                res.statusCode = 500;
+                res.statusCode = err instanceof ApiRequestError ? err.statusCode : 500;
                 res.setHeader('Content-Type', 'application/json');
                 // Never return the exception text: it is a stack trace and
                 // whatever the handler was holding (production-check.md 1.7).
-                res.end(JSON.stringify({ error: { code: 'UNKNOWN', message: 'Internal Server Error' } }));
+                res.end(JSON.stringify(err instanceof ApiRequestError
+                  ? { error: {
+                    code: err.statusCode === 413 ? 'PAYLOAD_TOO_LARGE' : 'BAD_REQUEST',
+                    message: err.message,
+                  } }
+                  : { error: { code: 'UNKNOWN', message: 'Internal Server Error' } }));
                 return;
               }
             }
@@ -125,4 +82,3 @@ export default defineConfig(({ mode }) => {
     }
   };
 });
-

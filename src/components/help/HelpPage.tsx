@@ -153,7 +153,7 @@ export function HelpPage() {
           </motion.button>
 
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/20">
+            <div className="p-2.5 rounded-2xl bg-linear-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/20">
               <HelpCircle className="w-5 h-5 text-blue-400" />
             </div>
             <h1 className="text-2xl font-bold text-white">Help & FAQ</h1>
@@ -212,7 +212,7 @@ export function HelpPage() {
                 onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}
                 className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl text-left flex items-center gap-4 hover:bg-white/[0.07] transition-all"
               >
-                <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 text-purple-400">
+                <div className="p-2.5 rounded-xl bg-linear-to-br from-purple-500/20 to-blue-500/20 text-purple-400">
                   {faq.icon}
                 </div>
                 <div className="flex-1">
@@ -253,7 +253,7 @@ export function HelpPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mt-12 p-6 rounded-3xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-white/10 text-center"
+          className="mt-12 p-6 rounded-3xl bg-linear-to-br from-purple-500/10 to-blue-500/10 border border-white/10 text-center"
         >
           <h2 className="text-lg font-semibold text-white mb-2">Still have questions?</h2>
           <p className="text-white/50 text-sm mb-4">
@@ -263,7 +263,7 @@ export function HelpPage() {
             href="mailto:support@timemachine.ai"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 text-white font-medium"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-purple-500 to-blue-500 text-white font-medium"
           >
             <MessageSquare className="w-4 h-4" />
             Contact Support

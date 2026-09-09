@@ -115,7 +115,7 @@ export function LyricsMiniPlayer({
           }}
         >
           {/* Subtle background glow */}
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 pointer-events-none" />
+          <div className="absolute inset-0 bg-linear-to-r from-purple-500/10 to-pink-500/10 pointer-events-none" />
 
           {!isOpen ? (
             // Minimized View - Shows only Cover Art
@@ -143,7 +143,7 @@ export function LyricsMiniPlayer({
               {/* Header */}
               <div className="flex items-start gap-3 mb-3 relative z-10">
                 {/* Thumbnail */}
-                <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center shrink-0">
                   {track.thumbnail ? (
                     <img
                       src={track.thumbnail}
@@ -169,7 +169,7 @@ export function LyricsMiniPlayer({
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -220,7 +220,7 @@ export function LyricsMiniPlayer({
                     }
                     setLocalTime(null);
                   }}
-                  className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer outline-none transition-all accent-purple-500 hover:accent-pink-500 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:opacity-0 [&::-webkit-slider-thumb]:group-hover/slider:opacity-100 [&::-webkit-slider-thumb]:transition-opacity [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:opacity-0 [&::-moz-range-thumb]:group-hover/slider:opacity-100 [&::-moz-range-thumb]:border-none"
+                  className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer outline-hidden transition-all accent-purple-500 hover:accent-pink-500 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:opacity-0 group-hover/slider:[&::-webkit-slider-thumb]:opacity-100 [&::-webkit-slider-thumb]:transition-opacity [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:opacity-0 group-hover/slider:[&::-moz-range-thumb]:opacity-100 [&::-moz-range-thumb]:border-none"
                   style={{
                     background: `linear-gradient(to right, #a855f7 0%, #ec4899 ${progress}%, rgba(255, 255, 255, 0.1) ${progress}%, rgba(255, 255, 255, 0.1) 100%)`
                   }}

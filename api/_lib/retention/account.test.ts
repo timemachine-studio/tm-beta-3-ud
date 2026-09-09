@@ -1,5 +1,5 @@
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '../vercelTypes.js';
 const mocks = vi.hoisted(() => ({ from: vi.fn(), deleteUser: vi.fn(), purge: vi.fn() }));
 vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({ from: mocks.from, auth: { admin: { deleteUser: mocks.deleteUser } } }) }));
 vi.mock('../auth.js', () => ({ getAuthenticatedRequestUser: async () => ({ id: 'owner' }) }));

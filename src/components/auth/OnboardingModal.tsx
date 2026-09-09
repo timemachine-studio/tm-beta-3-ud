@@ -136,7 +136,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                                   onChange={(e) => setNickname(e.target.value)}
                                   placeholder="Enter your nickname"
                                   maxLength={30}
-                                  className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white text-[15px] placeholder-white/30 focus:outline-none transition-all"
+                                  className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white text-[15px] placeholder-white/30 focus:outline-hidden transition-all"
                                   style={{
                                     background: 'rgba(255, 255, 255, 0.05)',
                                     backdropFilter: 'blur(20px)',
@@ -201,7 +201,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                               placeholder="Things you'd like TimeMachine to know about you..."
                               rows={4}
                               maxLength={500}
-                              className="w-full px-4 py-3.5 rounded-xl text-white text-[15px] placeholder-white/30 focus:outline-none transition-all resize-none"
+                              className="w-full px-4 py-3.5 rounded-xl text-white text-[15px] placeholder-white/30 focus:outline-hidden transition-all resize-none"
                               style={{
                                 background: 'rgba(255, 255, 255, 0.05)',
                                 backdropFilter: 'blur(20px)',

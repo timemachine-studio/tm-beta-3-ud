@@ -8,7 +8,6 @@ import { ChatInputProps, ImageDimensions } from '../../types/chat';
 import { LoadingSpinner } from '../loading/LoadingSpinner';
 import { ImagePreview } from './ImagePreview';
 import { FilePreview } from './FilePreview';
-import { extractPdfText } from '../../services/pdf/pdfService';
 import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -131,7 +130,9 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     // No comparison against current state: setState already no-ops on an
     // identical value, and reading it here made the dependency list dishonest.
     if (initialMode) {
-      setSelectedPlusOption(initialMode);
+      let cancelled = false;
+      queueMicrotask(() => { if (!cancelled) setSelectedPlusOption(initialMode); });
+      return () => { cancelled = true; };
     }
   }, [initialMode]);
 
@@ -609,6 +610,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     try {
       let extractedText = '';
       if (isPdf) {
+        const { extractPdfText } = await import('../../services/pdf/pdfService');
         const result = await extractPdfText(file);
         extractedText = result.text;
       } else {
@@ -674,6 +676,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
       try {
         let extractedText = '';
         if (isPdf) {
+          const { extractPdfText } = await import('../../services/pdf/pdfService');
           const result = await extractPdfText(docFile);
           extractedText = result.text;
         } else {
@@ -737,7 +740,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
             exit={{ opacity: 0, y: 10 }}
             className="flex items-center gap-2 mb-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl"
           >
-            <CornerDownRight className="w-4 h-4 text-purple-400 flex-shrink-0" />
+            <CornerDownRight className="w-4 h-4 text-purple-400 shrink-0" />
             <div className="flex-1 min-w-0">
               <span className="text-purple-400 text-xs font-medium">
                 Replying to {replyTo.isAI ? 'TimeMachine' : replyTo.sender_nickname || 'User'}
@@ -852,7 +855,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                 disabled={isLoading || isUploading}
                 className={`w-full px-6 pr-32 rounded-[28px]
                   ${theme.input.text} placeholder-gray-400
-                  outline-none
+                  outline-hidden
                   disabled:opacity-50
                   transition-all duration-300
                   text-base resize-none

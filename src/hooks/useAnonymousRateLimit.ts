@@ -105,7 +105,9 @@ export function useAnonymousRateLimit(trackedPersona?: string, turnInProgress?: 
 
   useEffect(() => {
     if (user || !trackedPersona) return;
-    void refreshFromServer(trackedPersona);
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void refreshFromServer(trackedPersona); });
+    return () => { cancelled = true; };
   }, [user, trackedPersona, refreshFromServer]);
 
   // Falling edge of the turn: the generation has finished (or failed) and the

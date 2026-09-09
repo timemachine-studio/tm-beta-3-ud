@@ -1,5 +1,5 @@
 import type { ProviderMessage } from './_lib/providerTypes.js';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_lib/vercelTypes.js';
 import { getAuthenticatedRequestUser } from './_lib/auth.js';
 import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
 import { notesAiBodySchema, parseOrReject, rejectIfTooLarge } from './_lib/validation.js';

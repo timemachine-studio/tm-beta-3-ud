@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowLeftRight, Shuffle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ModuleData } from '../moduleRegistry';
@@ -35,39 +35,21 @@ function UnitsInteractive({ units, accent, onCopyValue }: { units?: UnitResult; 
   const [fromUnitLabel, setFromUnitLabel] = useState(UNIT_CATEGORIES[0].units[0].label);
   const [toUnitLabel, setToUnitLabel] = useState(UNIT_CATEGORIES[0].units[1]?.label || UNIT_CATEGORIES[0].units[0].label);
   const [inputValue, setInputValue] = useState('1');
-  const [result, setResult] = useState<UnitResult | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const currentCategory = UNIT_CATEGORIES.find(c => c.id === categoryId) || UNIT_CATEGORIES[0];
-
-  useEffect(() => {
-    const num = parseFloat(inputValue);
-    if (isNaN(num) || inputValue === '') {
-      setResult(null);
-      return;
-    }
-    setResult(convertDirect(num, fromUnitLabel, toUnitLabel));
-  }, [inputValue, fromUnitLabel, toUnitLabel]);
-
-  const detectedFromLabel = units?.fromLabel;
-  const detectedToLabel = units?.toLabel;
-  const detectedValue = units?.fromValue;
-  const detectedPartial = units?.isPartial;
-  useEffect(() => {
-    if (hasInteracted || !detectedFromLabel || detectedPartial) return;
-    for (const cat of UNIT_CATEGORIES) {
-      const from = cat.units.find(u => u.label === detectedFromLabel);
-      const to = cat.units.find(u => u.label === detectedToLabel);
-      if (from && to) {
-        setCategoryId(cat.id);
-        setFromUnitLabel(from.label);
-        setToUnitLabel(to.label);
-        setInputValue(String(detectedValue));
-        break;
-      }
-    }
-  }, [detectedFromLabel, detectedToLabel, detectedValue, detectedPartial, hasInteracted]);
+  const detectedCategory = !hasInteracted && !units?.isPartial
+    ? UNIT_CATEGORIES.find(cat => cat.units.some(unit => unit.label === units?.fromLabel) && cat.units.some(unit => unit.label === units?.toLabel))
+    : undefined;
+  const activeCategoryId = detectedCategory?.id ?? categoryId;
+  const activeFromUnitLabel = detectedCategory ? units!.fromLabel : fromUnitLabel;
+  const activeToUnitLabel = detectedCategory ? units!.toLabel : toUnitLabel;
+  const activeInputValue = detectedCategory ? String(units!.fromValue) : inputValue;
+  const currentCategory = UNIT_CATEGORIES.find(c => c.id === activeCategoryId) || UNIT_CATEGORIES[0];
+  const parsedInput = parseFloat(activeInputValue);
+  const result = isNaN(parsedInput) || activeInputValue === ''
+    ? null
+    : convertDirect(parsedInput, activeFromUnitLabel, activeToUnitLabel);
 
   const handleCategoryChange = (catId: string) => {
     setHasInteracted(true);
@@ -84,8 +66,8 @@ function UnitsInteractive({ units, accent, onCopyValue }: { units?: UnitResult; 
 
   const handleSwap = () => {
     setHasInteracted(true);
-    setFromUnitLabel(toUnitLabel);
-    setToUnitLabel(fromUnitLabel);
+    setFromUnitLabel(activeToUnitLabel);
+    setToUnitLabel(activeFromUnitLabel);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -109,9 +91,9 @@ function UnitsInteractive({ units, accent, onCopyValue }: { units?: UnitResult; 
             key={cat.id}
             onClick={() => handleCategoryChange(cat.id)}
             className={`px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all ${
-              categoryId === cat.id ? 'text-white' : 'text-white/40 hover:text-white/60'
+              activeCategoryId === cat.id ? 'text-white' : 'text-white/40 hover:text-white/60'
             }`}
-            style={categoryId === cat.id ? {
+            style={activeCategoryId === cat.id ? {
               background: accent.bg,
               border: `1px solid ${accent.border}`,
               boxShadow: `0 0 8px ${accent.border.replace('0.25', '0.08')}`,
@@ -129,15 +111,15 @@ function UnitsInteractive({ units, accent, onCopyValue }: { units?: UnitResult; 
         <input
           ref={inputRef}
           type="number"
-          value={inputValue}
+          value={activeInputValue}
           onChange={e => { setHasInteracted(true); setInputValue(e.target.value); }}
-          className="w-[72px] bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm font-mono text-center focus:outline-none focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="w-[72px] bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           placeholder="0"
         />
         <select
-          value={fromUnitLabel}
+          value={activeFromUnitLabel}
           onChange={e => { setHasInteracted(true); setFromUnitLabel(e.target.value); }}
-          className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-none focus:border-white/25 transition-colors appearance-none cursor-pointer pr-7"
+          className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-hidden focus:border-white/25 transition-colors appearance-none cursor-pointer pr-7"
           style={selectStyle}
         >
           {currentCategory.units.map(u => (
@@ -146,15 +128,15 @@ function UnitsInteractive({ units, accent, onCopyValue }: { units?: UnitResult; 
         </select>
         <button
           onClick={handleSwap}
-          className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors flex-shrink-0"
+          className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors shrink-0"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
         >
           <Shuffle className="w-3.5 h-3.5" />
         </button>
         <select
-          value={toUnitLabel}
+          value={activeToUnitLabel}
           onChange={e => { setHasInteracted(true); setToUnitLabel(e.target.value); }}
-          className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-none focus:border-white/25 transition-colors appearance-none cursor-pointer pr-7"
+          className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-hidden focus:border-white/25 transition-colors appearance-none cursor-pointer pr-7"
           style={selectStyle}
         >
           {currentCategory.units.map(u => (

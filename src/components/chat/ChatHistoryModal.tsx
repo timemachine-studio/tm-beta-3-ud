@@ -89,9 +89,10 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
   }, [user]);
 
   useEffect(() => {
-    if (isOpen) {
-      loadChatSessions();
-    }
+    if (!isOpen) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void loadChatSessions(); });
+    return () => { cancelled = true; };
   }, [isOpen, loadChatSessions]);
 
   useEffect(() => {
@@ -613,7 +614,7 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
                                       onChange={(e) => setEditingName(e.target.value)}
                                       onKeyDown={(e) => e.key === 'Enter' && handleSaveRename()}
                                       className={`w-full px-4 py-2 rounded-lg bg-white/10 text-white
-                                        border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400
+                                        border border-white/20 focus:outline-hidden focus:ring-2 focus:ring-purple-400
                                         text-sm font-medium`}
                                       autoFocus
                                       onClick={(e) => e.stopPropagation()}

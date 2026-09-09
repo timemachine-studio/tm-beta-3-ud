@@ -37,7 +37,7 @@ export function AboutUsToast({ isVisible, onClose, currentPersona = 'default' }:
           className="fixed bottom-24 right-4 z-50"
         >
           <div className={`p-4 rounded-lg
-            bg-gradient-to-r ${personaColors[currentPersona]}
+            bg-linear-to-r ${personaColors[currentPersona]}
             backdrop-blur-xl border border-white/10
             ${personaGlowColors[currentPersona]}
             flex items-center gap-3`}

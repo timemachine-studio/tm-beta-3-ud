@@ -43,6 +43,31 @@ const TimeMachineLogo = () => (
   </svg>
 );
 
+function StatCard({ icon, label, value, onClick }: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  onClick?: () => void;
+}) {
+  return (
+    <motion.button
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className="relative overflow-hidden rounded-2xl p-4 text-left w-full group"
+      style={{ background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)' }}
+    >
+      <div className="relative flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl" style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>{icon}</div>
+          <div><p className="text-2xl font-bold text-white">{value}</p><p className="text-white/50 text-sm font-medium">{label}</p></div>
+        </div>
+        {onClick && <ChevronRight className="w-5 h-5 text-white/30 group-hover:text-white/60 transition-colors" />}
+      </div>
+    </motion.button>
+  );
+}
+
 export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
   const navigate = useNavigate();
   const { user, profile, updateProfile, signOut, changePassword } = useAuth();
@@ -245,49 +270,6 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
     setPasswordLoading(false);
   };
 
-  // Stat card component
-  const StatCard: React.FC<{
-    icon: React.ReactNode;
-    label: string;
-    value: number;
-    onClick?: () => void;
-  }> = ({ icon, label, value, onClick }) => (
-    <motion.button
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className="relative overflow-hidden rounded-2xl p-4 text-left w-full group"
-      style={{
-        background: 'rgba(255, 255, 255, 0.05)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-      }}
-    >
-      <div className="relative flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="p-2.5 rounded-xl"
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
-            }}
-          >
-            {icon}
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-white">{value}</p>
-            <p className="text-white/50 text-sm font-medium">{label}</p>
-          </div>
-        </div>
-        {onClick && (
-          <ChevronRight className="w-5 h-5 text-white/30 group-hover:text-white/60 transition-colors" />
-        )}
-      </div>
-    </motion.button>
-  );
-
   return (
     <div
       className="h-screen overflow-hidden flex flex-col"
@@ -316,7 +298,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
             </motion.button>
 
             {profile?.is_pro && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-linear-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30">
                 <Crown size={14} className="text-amber-400" />
                 <span className="text-amber-400 text-xs font-semibold">PRO</span>
               </div>
@@ -480,7 +462,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                         <select
                           value={gender}
                           onChange={(e) => setGender(e.target.value)}
-                          className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-purple-500/50 text-white focus:outline-none appearance-none cursor-pointer"
+                          className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-purple-500/50 text-white focus:outline-hidden appearance-none cursor-pointer"
                         >
                           <option value="" className="bg-gray-900">Prefer not to say</option>
                           <option value="male" className="bg-gray-900">Male</option>
@@ -544,7 +526,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                             type="date"
                             value={birthDate}
                             onChange={(e) => setBirthDate(e.target.value)}
-                            className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/5 border border-purple-500/50 text-white focus:outline-none [color-scheme:dark]"
+                            className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/5 border border-purple-500/50 text-white focus:outline-hidden [color-scheme:dark]"
                           />
                         </div>
                         <motion.button
@@ -718,7 +700,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                     onChange={(e) => setDeleteConfirmation(e.target.value)}
                     placeholder="DELETE"
                     autoComplete="off"
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-red-500/30 text-white placeholder-white/20 focus:outline-none focus:border-red-500/60 transition-all"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-red-500/30 text-white placeholder-white/20 focus:outline-hidden focus:border-red-500/60 transition-all"
                   />
                 </div>
 
@@ -775,7 +757,9 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
             transition={{ delay: 0.3 }}
             className="text-center text-white/20 text-xs mt-6"
           >
-            Member since {new Date(profile?.created_at || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            {profile?.created_at
+              ? `Member since ${new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+              : 'Membership date unavailable'}
           </motion.p>
         </div>
       </div>
@@ -861,7 +845,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                       value={oldPassword}
                       onChange={(e) => setOldPassword(e.target.value)}
                       placeholder="Current password"
-                      className="w-full pl-12 pr-12 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-none transition-all text-[15px]"
+                      className="w-full pl-12 pr-12 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
                       style={{
                         background: 'rgba(255, 255, 255, 0.05)',
                         border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -886,7 +870,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="New password"
-                      className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-none transition-all text-[15px]"
+                      className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
                       style={{
                         background: 'rgba(255, 255, 255, 0.05)',
                         border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -904,7 +888,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
                       placeholder="Confirm new password"
-                      className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-none transition-all text-[15px]"
+                      className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
                       style={{
                         background: 'rgba(255, 255, 255, 0.05)',
                         border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -998,7 +982,7 @@ const EditableField: React.FC<EditableFieldProps> = ({
               onChange={(e) => onChange(e.target.value)}
               placeholder={placeholder}
               rows={3}
-              className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-purple-500/50 text-white placeholder-white/30 focus:outline-none resize-none transition-all"
+              className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-purple-500/50 text-white placeholder-white/30 focus:outline-hidden resize-none transition-all"
             />
           ) : (
             <input
@@ -1006,7 +990,7 @@ const EditableField: React.FC<EditableFieldProps> = ({
               value={value}
               onChange={(e) => onChange(e.target.value)}
               placeholder={placeholder}
-              className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-purple-500/50 text-white placeholder-white/30 focus:outline-none transition-all"
+              className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-purple-500/50 text-white placeholder-white/30 focus:outline-hidden transition-all"
             />
           )}
           <div className={`flex ${multiline ? 'flex-col' : ''} gap-2`}>

@@ -60,7 +60,7 @@ function DictHeader({ dict, accent }: { dict: DictionaryResult; accent: AccentTh
       {dict.phoneticAudio && (
         <button
           onClick={handlePlayAudio}
-          className="p-0.5 hover:bg-white/10 rounded transition-colors"
+          className="p-0.5 hover:bg-white/10 rounded-sm transition-colors"
           title="Play pronunciation"
         >
           <Play className={`w-3.5 h-3.5 ${accent.text}`} />
@@ -79,7 +79,7 @@ function DictMeanings({ dict, accent, compact }: { dict: DictionaryResult; accen
       {dict.meanings.slice(0, maxMeanings).map((meaning, i) => (
         <div key={i}>
           <span
-            className="text-[10px] font-medium tracking-wider uppercase px-1.5 py-0.5 rounded"
+            className="text-[10px] font-medium tracking-wider uppercase px-1.5 py-0.5 rounded-sm"
             style={{ background: accent.bg, color: accent.solid }}
           >
             {meaning.partOfSpeech}
@@ -98,7 +98,7 @@ function DictMeanings({ dict, accent, compact }: { dict: DictionaryResult; accen
             <div className="mt-1 flex items-center gap-1 flex-wrap">
               <span className="text-white/25 text-[10px]">Synonyms:</span>
               {meaning.synonyms.map((s, k) => (
-                <span key={k} className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.04] text-white/40">{s}</span>
+                <span key={k} className="text-[10px] px-1.5 py-0.5 rounded-sm bg-white/[0.04] text-white/40">{s}</span>
               ))}
             </div>
           )}
@@ -106,7 +106,7 @@ function DictMeanings({ dict, accent, compact }: { dict: DictionaryResult; accen
             <div className="mt-1 flex items-center gap-1 flex-wrap">
               <span className="text-white/25 text-[10px]">Antonyms:</span>
               {meaning.antonyms.map((s, k) => (
-                <span key={k} className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.04] text-white/40">{s}</span>
+                <span key={k} className="text-[10px] px-1.5 py-0.5 rounded-sm bg-white/[0.04] text-white/40">{s}</span>
               ))}
             </div>
           )}
@@ -117,45 +117,34 @@ function DictMeanings({ dict, accent, compact }: { dict: DictionaryResult; accen
 }
 
 function DictionaryInteractive({ dict, accent, onCopyValue }: { dict?: DictionaryResult; accent: AccentTheme; onCopyValue?: (value: string) => void }) {
-  const [inputWord, setInputWord] = useState('');
-  const [result, setResult] = useState<DictionaryResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [localInputWord, setInputWord] = useState('');
+  const [resolvedResult, setResolvedResult] = useState<DictionaryResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const genRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Sync from auto-detect
-  useEffect(() => {
-    if (hasInteracted || !dict) return;
-    if (!dict.isLoading && dict.meanings.length > 0) {
-      setResult(dict);
-      setInputWord(dict.word);
-    }
-  }, [dict, hasInteracted]);
+  const detectedResult = !hasInteracted && dict && !dict.isLoading && dict.meanings.length > 0 ? dict : null;
+  const inputWord = detectedResult?.word ?? localInputWord;
 
   // Debounced lookup
   useEffect(() => {
-    if (!hasInteracted) return;
     const word = inputWord.trim();
-    if (!word || word.length < 2) { setResult(null); setIsLoading(false); return; }
-
-    setIsLoading(true);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    debounceRef.current = setTimeout(() => {
+    if (!hasInteracted || !word || word.length < 2) return;
+    const timer = setTimeout(() => {
       const gen = ++genRef.current;
       const req = lookupWord(word);
       resolveDictionary(req).then(resolved => {
         if (genRef.current !== gen) return;
-        setResult(resolved);
-        setIsLoading(false);
+        setResolvedResult(resolved);
       });
     }, 600);
 
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    return () => clearTimeout(timer);
   }, [inputWord, hasInteracted]);
+
+  const trimmedWord = inputWord.trim();
+  const result = detectedResult ?? (resolvedResult?.word === trimmedWord ? resolvedResult : null);
+  const isLoading = hasInteracted && trimmedWord.length >= 2 && !result;
 
   const handleCopy = () => {
     if (result && result.meanings.length > 0) {
@@ -179,7 +168,7 @@ function DictionaryInteractive({ dict, accent, onCopyValue }: { dict?: Dictionar
           value={inputWord}
           onChange={e => { setHasInteracted(true); setInputWord(e.target.value); }}
           placeholder="Type a word to look up..."
-          className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/25 transition-colors"
+          className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors"
         />
       </div>
 

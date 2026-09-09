@@ -7,8 +7,13 @@ import { supabase } from '../lib/supabase';
 import type { Json } from '../types/database';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>('dark');
-  const [season, setSeason] = useState<SeasonTheme>('autumnDark');
+  const [mode, setMode] = useState<ThemeMode>(() =>
+    (localStorage.getItem('themeMode') as ThemeMode | null) ?? 'dark'
+  );
+  const [season, setSeason] = useState<SeasonTheme>(() => {
+    const saved = localStorage.getItem('seasonTheme') as SeasonTheme | null;
+    return saved && saved in seasonThemes ? saved : 'autumnDark';
+  });
   const [previousSeason, setPreviousSeason] = useState<SeasonTheme>('autumnDark');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [defaultTheme, setDefaultTheme] = useState<DefaultThemeType | null>(() => {
@@ -45,26 +50,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Load theme preferences from localStorage on mount
-  useEffect(() => {
-    const savedMode = localStorage.getItem('themeMode') as ThemeMode;
-    const savedSeason = localStorage.getItem('seasonTheme') as SeasonTheme;
-
-    if (savedMode) setMode(savedMode);
-    if (savedSeason && savedSeason in seasonThemes) setSeason(savedSeason);
-  }, []);
-
   // NOTE: Auth listener removed - theme loading from server should be triggered
   // by the component that needs it (e.g., after profile loads) to avoid race conditions
   // with multiple onAuthStateChange listeners competing
 
-  // Listen for theme change events (persona-driven) - use ref to avoid re-subscribing
-  const defaultThemeRef = React.useRef(defaultTheme);
-  defaultThemeRef.current = defaultTheme;
-
   useEffect(() => {
     const handleThemeChange = (event: CustomEvent<SeasonTheme>) => {
-      if (!defaultThemeRef.current && event.detail) {
+      if (!defaultTheme && event.detail) {
         setSeason(event.detail);
         setMode('dark');
         localStorage.setItem('seasonTheme', event.detail);
@@ -77,7 +69,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => {
       window.removeEventListener('themeChange', handleThemeChange as EventListener);
     };
-  }, []);
+  }, [defaultTheme]);
 
   // Save theme preferences to localStorage
   useEffect(() => {

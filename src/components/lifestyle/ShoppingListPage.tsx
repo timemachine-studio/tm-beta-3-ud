@@ -13,7 +13,7 @@ const glassCard = {
 const fadeUp = (delay = 0) => ({
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] as const },
 });
 
 interface ShoppingItem {
@@ -102,7 +102,7 @@ export function ShoppingListPage() {
                             onChange={(e) => setNewItem(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && add()}
                             placeholder="Add an item... (e.g. Milk, Eggs, Bread)"
-                            className="flex-1 bg-transparent text-white text-base placeholder:text-white/30 outline-none"
+                            className="flex-1 bg-transparent text-white text-base placeholder:text-white/30 outline-hidden"
                         />
                     </div>
                     <motion.button
@@ -137,7 +137,7 @@ export function ShoppingListPage() {
                             >
                                 <button
                                     onClick={() => toggle(item.id)}
-                                    className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-all duration-200 shadow-sm
+                                    className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-all duration-200 shadow-xs
                     ${item.done
                                             ? 'bg-purple-500 border-purple-400 text-white'
                                             : 'bg-black/20 border-white/20 text-transparent hover:border-white/40'

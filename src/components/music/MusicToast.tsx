@@ -29,7 +29,7 @@ const MusicVisualizer = ({ currentPersona = 'default' }: { currentPersona?: 'def
       {[...Array(4)].map((_, i) => (
         <motion.div
           key={i}
-          className={`w-[2px] bg-gradient-to-t from-white/40 to-white rounded-full
+          className={`w-[2px] bg-linear-to-t from-white/40 to-white rounded-full
             ${currentPersona === 'girlie' ? 'from-pink-300/40 to-white' : ''}`}
           animate={{
             height: [

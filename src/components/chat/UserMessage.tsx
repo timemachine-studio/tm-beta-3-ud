@@ -42,7 +42,7 @@ function UserMessageComponent({ content, imageData, inputImageUrls, pdfFileName,
               ? 'bg-blue-500/10 border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
               : 'bg-purple-500/10 border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
             }
-            backdrop-blur-sm border
+            backdrop-blur-xs border
             ${theme.text} text-base`}
           >
           {/* Display images if present - prefer inputImageUrls (persistent URLs) over imageData (base64) */}
@@ -144,7 +144,7 @@ function UserMessageComponent({ content, imageData, inputImageUrls, pdfFileName,
               const { Icon, colorClass, bgClass } = getFileDetails(pdfFileName);
               return (
                 <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-md border flex-shrink-0 ${bgClass}`}>
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-md border shrink-0 ${bgClass}`}>
                     <Icon className={`w-4 h-4 ${colorClass}`} />
                   </div>
                   <span className="text-white/70 text-sm truncate" title={pdfFileName}>{pdfFileName}</span>

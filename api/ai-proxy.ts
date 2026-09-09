@@ -2,7 +2,7 @@ import type { Database } from '../src/types/database.js';
 import type { HealthcareBrand } from '../shared/healthcare.js';
 import type { ModelConfig, SpecialModeConfig, VisionCapability } from './_lib/providerTypes.js';
 import type { ProviderMessage, ProviderTool, ProviderRequest, ProviderResponse } from './_lib/providerTypes.js';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_lib/vercelTypes.js';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
 import {

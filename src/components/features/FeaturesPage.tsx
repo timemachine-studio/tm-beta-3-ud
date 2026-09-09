@@ -63,7 +63,7 @@ export function FeaturesPage() {
     <div className="min-h-screen relative overflow-auto bg-black">
       {/* Background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-black to-violet-950/20" />
+        <div className="absolute inset-0 bg-linear-to-b from-black via-black to-violet-950/20" />
         <div className="absolute top-[60%] left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-violet-500/6 rounded-full blur-[150px]" />
       </div>
 
@@ -93,7 +93,7 @@ export function FeaturesPage() {
         <motion.header {...fadeUp} transition={{ delay: 0.1 }} className="text-center mb-20">
           <h1 className="text-5xl sm:text-7xl font-bold text-white mb-6 tracking-tight">
             Everything you need.<br />
-            <span className="bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">One chat.</span>
+            <span className="bg-linear-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">One chat.</span>
           </h1>
           <p className="text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
             TimeMachine is more than a chat app. It's an intelligent platform packed with tools, AI models, and features that replace a dozen apps on your phone.

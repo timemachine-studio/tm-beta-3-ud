@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ModuleData } from '../moduleRegistry';
@@ -39,39 +39,27 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
   const [dateInput1, setDateInput1] = useState('');
   const [dateInput2, setDateInput2] = useState('');
   const [numDays, setNumDays] = useState('30');
-  const [result, setResult] = useState<DateResult | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
-
-  // Compute result whenever inputs change
-  useEffect(() => {
-    if (operation === 'until' || operation === 'since') {
+  const activeOperation = !hasInteracted && date && !date.isPartial ? date.type : operation;
+  const result = (() => {
+    if (activeOperation === 'until' || activeOperation === 'since') {
       const parsed = dateInput1 ? parseDate(dateInput1) : null;
-      if (!parsed) { setResult(null); return; }
-      setResult(computeDateDirect(operation, parsed));
-    } else if (operation === 'from_now' || operation === 'ago') {
+      return parsed ? computeDateDirect(activeOperation, parsed) : null;
+    } else if (activeOperation === 'from_now' || activeOperation === 'ago') {
       const n = parseInt(numDays);
-      if (isNaN(n) || numDays === '') { setResult(null); return; }
-      setResult(computeDateDirect(operation, null, null, n));
-    } else if (operation === 'between') {
+      return isNaN(n) || numDays === '' ? null : computeDateDirect(activeOperation, null, null, n);
+    } else if (activeOperation === 'between') {
       const d1 = dateInput1 ? parseDate(dateInput1) : null;
       const d2 = dateInput2 ? parseDate(dateInput2) : null;
-      if (!d1 || !d2) { setResult(null); return; }
-      setResult(computeDateDirect(operation, d1, d2));
+      return d1 && d2 ? computeDateDirect(activeOperation, d1, d2) : null;
     }
-  }, [operation, dateInput1, dateInput2, numDays]);
-
-  // Sync from textbox detection
-  const detectedType = date?.type;
-  const detectedPartial = date?.isPartial;
-  useEffect(() => {
-    if (hasInteracted || !detectedType || detectedPartial) return;
-    setOperation(detectedType);
-  }, [detectedType, detectedPartial, hasInteracted]);
+    return null;
+  })();
 
   const handleQuickPick = (value: string) => {
     setHasInteracted(true);
     setDateInput1(value);
-    if (operation !== 'until' && operation !== 'since') {
+    if (activeOperation !== 'until' && activeOperation !== 'since') {
       setOperation('until');
     }
   };
@@ -83,9 +71,9 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
     }
   };
 
-  const needsDateInput = operation === 'until' || operation === 'since';
-  const needsNumInput = operation === 'from_now' || operation === 'ago';
-  const needsTwoDates = operation === 'between';
+  const needsDateInput = activeOperation === 'until' || activeOperation === 'since';
+  const needsNumInput = activeOperation === 'from_now' || activeOperation === 'ago';
+  const needsTwoDates = activeOperation === 'between';
 
   return (
     <div className="p-4 space-y-3" onKeyDown={handleKeyDown}>
@@ -96,9 +84,9 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
             key={op.id}
             onClick={() => { setHasInteracted(true); setOperation(op.id); }}
             className={`px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all ${
-              operation === op.id ? 'text-white' : 'text-white/40 hover:text-white/60'
+              activeOperation === op.id ? 'text-white' : 'text-white/40 hover:text-white/60'
             }`}
-            style={operation === op.id ? {
+            style={activeOperation === op.id ? {
               background: accent.bg,
               border: `1px solid ${accent.border}`,
               boxShadow: `0 0 8px ${accent.border.replace('0.25', '0.08')}`,
@@ -141,7 +129,7 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
             type="text"
             value={dateInput1}
             onChange={e => { setHasInteracted(true); setDateInput1(e.target.value); }}
-            className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-none focus:border-white/25 transition-colors"
+            className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-hidden focus:border-white/25 transition-colors"
             placeholder="e.g. Dec 25, March 15 2026"
           />
         )}
@@ -151,10 +139,10 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
               type="number"
               value={numDays}
               onChange={e => { setHasInteracted(true); setNumDays(e.target.value); }}
-              className="w-[80px] bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm font-mono text-center focus:outline-none focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="w-[80px] bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               placeholder="30"
             />
-            <span className="text-white/30 text-sm">days {operation === 'from_now' ? 'from now' : 'ago'}</span>
+            <span className="text-white/30 text-sm">days {activeOperation === 'from_now' ? 'from now' : 'ago'}</span>
           </>
         )}
         {needsTwoDates && (
@@ -163,7 +151,7 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
               type="text"
               value={dateInput1}
               onChange={e => { setHasInteracted(true); setDateInput1(e.target.value); }}
-              className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-none focus:border-white/25 transition-colors"
+              className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-hidden focus:border-white/25 transition-colors"
               placeholder="Start date"
             />
             <span className="text-white/25 text-xs">to</span>
@@ -171,7 +159,7 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
               type="text"
               value={dateInput2}
               onChange={e => { setHasInteracted(true); setDateInput2(e.target.value); }}
-              className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-none focus:border-white/25 transition-colors"
+              className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-hidden focus:border-white/25 transition-colors"
               placeholder="End date"
             />
           </>

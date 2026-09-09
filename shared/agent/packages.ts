@@ -7,7 +7,7 @@ export const packageManifestSchema = z.object({
   ownerId: idSchema, author: z.string().min(1).max(256), visibility: z.enum(['private', 'review', 'public']),
   sourceKind: z.enum(['builtin', 'template', 'generated', 'mcp']), description: z.string().min(1).max(2048),
   tools: z.array(toolDefinitionSchema).max(64), entryPoint: fileSchema,
-  requiredGrants: z.array(grantScopeSchema).max(64), networkDestinations: z.array(z.string().url().max(2048)).max(64),
+  requiredGrants: z.array(grantScopeSchema).max(64), networkDestinations: z.array(z.url().max(2048)).max(64),
   resourceEffects: z.array(grantScopeSchema).max(64),
   runtimeLimits: z.object({ timeoutMs: z.number().int().positive().max(3600000), memoryMb: z.number().int().positive().max(65536), maxCostMicrousd: z.number().int().nonnegative().safe() }).strict(),
   dependencies: z.array(z.object({ id: idSchema, version: versionSchema, contentHash: digestSchema }).strict()).max(128),

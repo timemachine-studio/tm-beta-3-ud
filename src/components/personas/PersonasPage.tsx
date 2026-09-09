@@ -15,7 +15,7 @@ export function PersonasPage() {
     <div className="min-h-screen relative overflow-auto bg-black">
       {/* Background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-black to-purple-950/30" />
+        <div className="absolute inset-0 bg-linear-to-b from-black via-black to-purple-950/30" />
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-purple-500/8 rounded-full blur-[150px]" />
       </div>
 
@@ -44,7 +44,7 @@ export function PersonasPage() {
         {/* Hero */}
         <motion.header {...fadeUp} transition={{ delay: 0.1 }} className="text-center mb-20">
           <h1 className="text-5xl sm:text-7xl font-bold text-white mb-6 tracking-tight">
-            Meet the <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">Personas</span>
+            Meet the <span className="bg-linear-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">Personas</span>
           </h1>
           <p className="text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
             TimeMachine AI gives you three distinct intelligences — each built for a different side of you. Switch anytime. One app, many minds.

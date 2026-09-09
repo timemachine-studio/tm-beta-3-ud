@@ -31,10 +31,10 @@ export function SettingsPage() {
             <button
               onClick={() => setSeason(key as keyof typeof seasonThemes)}
               className={`w-16 h-16 rounded-full
-                ${seasonTheme.background} bg-opacity-20 backdrop-blur-md
+                ${seasonTheme.background} backdrop-blur-md
                 border-2 border-white/20
                 ${season === key ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-transparent' : ''}
-                hover:bg-opacity-30 relative group transition-all duration-200`}
+                relative group transition-all duration-200`}
               aria-label={`Select ${seasonTheme.name} theme`}
             >
               {season === key && (
@@ -102,8 +102,8 @@ export function SettingsPage() {
           className="relative overflow-hidden rounded-3xl"
         >
           {/* Glass background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/5" />
+          <div className="absolute inset-0 bg-linear-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
+          <div className="absolute inset-0 bg-linear-to-br from-purple-500/10 via-transparent to-pink-500/5" />
           <div className="absolute inset-[1px] rounded-3xl border border-white/[0.08]" />
 
           <div className="relative p-6 space-y-8">

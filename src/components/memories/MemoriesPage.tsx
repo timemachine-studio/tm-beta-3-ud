@@ -30,9 +30,10 @@ export function MemoriesPage() {
   }, [user]);
 
   useEffect(() => {
-    if (user) {
-      loadMemories();
-    }
+    if (!user) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void loadMemories(); });
+    return () => { cancelled = true; };
   }, [user, loadMemories]);
 
   const handleAddMemory = async () => {
@@ -133,7 +134,7 @@ export function MemoriesPage() {
           </motion.button>
 
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20">
+            <div className="p-2.5 rounded-2xl bg-linear-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20">
               <Brain className="w-5 h-5 text-purple-400" />
             </div>
             <h1 className="text-2xl font-bold text-white">Memories</h1>
@@ -155,14 +156,14 @@ export function MemoriesPage() {
               onChange={(e) => setNewMemory(e.target.value)}
               placeholder="Add something you want TimeMachine to remember..."
               rows={3}
-              className="w-full px-4 py-4 pr-14 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-purple-500/50 resize-none transition-all"
+              className="w-full px-4 py-4 pr-14 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-hidden focus:border-purple-500/50 resize-none transition-all"
             />
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleAddMemory}
               disabled={isAdding || !newMemory.trim()}
-              className="absolute right-3 bottom-3 p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white disabled:opacity-50 transition-all"
+              className="absolute right-3 bottom-3 p-3 rounded-xl bg-linear-to-r from-purple-500 to-pink-500 text-white disabled:opacity-50 transition-all"
             >
               {isAdding ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -194,7 +195,7 @@ export function MemoriesPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className={`relative p-5 rounded-2xl bg-gradient-to-r ${getMemoryTypeColor(memory.memory_type)} border backdrop-blur-sm group`}
+                className={`relative p-5 rounded-2xl bg-linear-to-r ${getMemoryTypeColor(memory.memory_type)} border backdrop-blur-xs group`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">

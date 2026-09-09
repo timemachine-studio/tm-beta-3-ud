@@ -11,48 +11,41 @@ import { AccentTheme, IconBadge, FooterHint, SELECT_ARROW } from './shared';
 const ALL_LANGUAGES = getLanguageList();
 
 function TranslatorInteractive({ trans, accent, onCopyValue }: { trans?: TranslationResult; accent: AccentTheme; onCopyValue?: (value: string) => void }) {
-  const [fromCode, setFromCode] = useState('en');
-  const [toCode, setToCode] = useState('bn');
-  const [inputText, setInputText] = useState('');
-  const [result, setResult] = useState<TranslationResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [localFromCode, setFromCode] = useState('en');
+  const [localToCode, setToCode] = useState('bn');
+  const [localInputText, setInputText] = useState('');
+  const [resolvedResult, setResolvedResult] = useState<TranslationResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const genRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Sync from auto-detect (only until user interacts)
-  useEffect(() => {
-    if (hasInteracted || !trans || trans.isPartial) return;
-    if (trans.translatedText) {
-      setResult(trans);
-      setInputText(trans.sourceText);
-      if (trans.sourceLangCode !== 'auto') setFromCode(trans.sourceLangCode);
-      setToCode(trans.targetLangCode);
-    }
-  }, [trans, hasInteracted]);
+  const useDetection = !hasInteracted && trans && !trans.isPartial && trans.translatedText;
+  const fromCode = useDetection && trans.sourceLangCode !== 'auto' ? trans.sourceLangCode : localFromCode;
+  const toCode = useDetection ? trans.targetLangCode : localToCode;
+  const inputText = useDetection ? trans.sourceText : localInputText;
 
   // Debounced translation when inputs change
   useEffect(() => {
-    if (!hasInteracted) return;
-    if (!inputText.trim()) { setResult(null); setIsLoading(false); return; }
-
-    setIsLoading(true);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    debounceRef.current = setTimeout(() => {
+    if (!hasInteracted || !inputText.trim()) return;
+    const timer = setTimeout(() => {
       const gen = ++genRef.current;
       const req = translateDirect(inputText.trim(), fromCode, toCode);
       resolveTranslation(req).then(resolved => {
         if (genRef.current !== gen) return;
-        setResult(resolved);
-        setIsLoading(false);
+        setResolvedResult(resolved);
       });
     }, 500);
 
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    return () => clearTimeout(timer);
   }, [inputText, fromCode, toCode, hasInteracted]);
+
+  const result = useDetection
+    ? trans
+    : resolvedResult?.sourceText === inputText.trim() &&
+        resolvedResult.sourceLangCode === fromCode && resolvedResult.targetLangCode === toCode
+      ? resolvedResult
+      : null;
+  const isLoading = hasInteracted && Boolean(inputText.trim()) && !result;
 
   const handleSwap = () => {
     setHasInteracted(true);
@@ -88,7 +81,7 @@ function TranslatorInteractive({ trans, accent, onCopyValue }: { trans?: Transla
         <select
           value={fromCode}
           onChange={e => { setHasInteracted(true); setFromCode(e.target.value); }}
-          className="flex-1 rounded-lg px-3 py-2 text-white text-xs appearance-none focus:outline-none focus:border-white/25 transition-colors pr-6"
+          className="flex-1 rounded-lg px-3 py-2 text-white text-xs appearance-none focus:outline-hidden focus:border-white/25 transition-colors pr-6"
           style={selectStyle}
         >
           {POPULAR_LANGUAGES.map(code => (
@@ -102,7 +95,7 @@ function TranslatorInteractive({ trans, accent, onCopyValue }: { trans?: Transla
 
         <button
           onClick={handleSwap}
-          className="p-2 rounded-lg hover:bg-white/[0.06] transition-colors flex-shrink-0"
+          className="p-2 rounded-lg hover:bg-white/[0.06] transition-colors shrink-0"
           title="Swap languages"
         >
           <ArrowLeftRight className={`w-4 h-4 ${accent.text}`} />
@@ -111,7 +104,7 @@ function TranslatorInteractive({ trans, accent, onCopyValue }: { trans?: Transla
         <select
           value={toCode}
           onChange={e => { setHasInteracted(true); setToCode(e.target.value); }}
-          className="flex-1 rounded-lg px-3 py-2 text-white text-xs appearance-none focus:outline-none focus:border-white/25 transition-colors pr-6"
+          className="flex-1 rounded-lg px-3 py-2 text-white text-xs appearance-none focus:outline-hidden focus:border-white/25 transition-colors pr-6"
           style={selectStyle}
         >
           {POPULAR_LANGUAGES.map(code => (
@@ -131,7 +124,7 @@ function TranslatorInteractive({ trans, accent, onCopyValue }: { trans?: Transla
         value={inputText}
         onChange={e => { setHasInteracted(true); setInputText(e.target.value); }}
         placeholder="Type text to translate..."
-        className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/25 transition-colors mb-3"
+        className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors mb-3"
       />
 
       {/* Result */}

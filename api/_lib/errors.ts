@@ -1,4 +1,4 @@
-import type { VercelResponse } from '@vercel/node';
+import type { VercelResponse } from './vercelTypes.js';
 
 // One error vocabulary for the whole API. The client maps each code to a
 // specific message and recovery action; before this, everything collapsed to

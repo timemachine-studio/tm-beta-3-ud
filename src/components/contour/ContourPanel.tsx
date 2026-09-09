@@ -293,7 +293,7 @@ export function ContourPanel({
                                   border: isSelected ? `1px solid ${accent.border}` : '1px solid transparent',
                                 }}
                               >
-                                <div className="p-1.5 rounded-lg flex-shrink-0" style={{ background: isSelected ? accent.border.replace('0.25', '0.15') : 'rgba(255, 255, 255, 0.04)' }}>
+                                <div className="p-1.5 rounded-lg shrink-0" style={{ background: isSelected ? accent.border.replace('0.25', '0.15') : 'rgba(255, 255, 255, 0.04)' }}>
                                   <IconComponent className={`w-4 h-4 ${isSelected ? accent.text : 'text-white/40'}`} />
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -301,7 +301,7 @@ export function ContourPanel({
                                   <div className={`text-xs truncate ${isSelected ? 'text-white/40' : 'text-white/20'}`}>{cmd.description}</div>
                                 </div>
                                 {isSelected && (
-                                  <div className="flex-shrink-0 text-[10px] text-white/20 font-mono">↵</div>
+                                  <div className="shrink-0 text-[10px] text-white/20 font-mono">↵</div>
                                 )}
                               </div>
                             </button>
@@ -319,13 +319,13 @@ export function ContourPanel({
               <div className="px-4 py-2 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
                 <div className="flex items-center gap-3">
                   <span className="text-[10px] text-white/20 flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/30">↑↓</kbd> navigate
+                    <kbd className="px-1.5 py-0.5 rounded-sm bg-white/5 border border-white/10 text-white/30">↑↓</kbd> navigate
                   </span>
                   <span className="text-[10px] text-white/20 flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/30">↵</kbd> open
+                    <kbd className="px-1.5 py-0.5 rounded-sm bg-white/5 border border-white/10 text-white/30">↵</kbd> open
                   </span>
                   <span className="text-[10px] text-white/20 flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/30">esc</kbd> dismiss
+                    <kbd className="px-1.5 py-0.5 rounded-sm bg-white/5 border border-white/10 text-white/30">esc</kbd> dismiss
                   </span>
                 </div>
               </div>
@@ -345,7 +345,7 @@ export function ContourPanel({
                   </button>
                 ) : (
                   <span className="text-[10px] text-white/20 flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/30">esc</kbd> back
+                    <kbd className="px-1.5 py-0.5 rounded-sm bg-white/5 border border-white/10 text-white/30">esc</kbd> back
                   </span>
                 )}
               </div>

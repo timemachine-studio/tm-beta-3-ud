@@ -301,7 +301,7 @@ export function GraphView({ module, accent }: { module: ModuleData; accent: Acce
             onChange={(e) => handleEq2Change(e.target.value)}
             placeholder="add 2nd equation…"
             spellCheck={false}
-            className={`flex-1 bg-transparent outline-none text-sm font-mono placeholder-white/20 min-w-0 ${eq2Err ? 'text-red-300' : 'text-white/55'}`}
+            className={`flex-1 bg-transparent outline-hidden text-sm font-mono placeholder-white/20 min-w-0 ${eq2Err ? 'text-red-300' : 'text-white/55'}`}
             onMouseDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           />

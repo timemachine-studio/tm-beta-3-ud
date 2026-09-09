@@ -15,7 +15,7 @@ const glassCard = {
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] },
+  transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] as const },
 });
 
 interface Product {
@@ -150,7 +150,7 @@ export function ShopPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search products..."
-                className="flex-1 bg-transparent text-white text-sm placeholder:text-white/25 outline-none"
+                className="flex-1 bg-transparent text-white text-sm placeholder:text-white/25 outline-hidden"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="text-white/30 hover:text-white/60">
@@ -244,7 +244,7 @@ export function ShopPage() {
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
             onClick={() => setSelectedProduct(null)}
           >
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" />
 
             <motion.div
               initial={{ opacity: 0, y: 40, scale: 0.97 }}

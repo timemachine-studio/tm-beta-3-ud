@@ -10,7 +10,7 @@ export function ScanningEffect() {
     >
       {/* Horizontal scan line */}
       <motion.div
-        className="absolute w-full h-[2px] bg-gradient-to-r from-transparent via-purple-500/50 to-transparent"
+        className="absolute w-full h-[2px] bg-linear-to-r from-transparent via-purple-500/50 to-transparent"
         animate={{
           top: ['0%', '100%', '0%'],
         }}

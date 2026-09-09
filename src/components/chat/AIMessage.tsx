@@ -17,6 +17,7 @@ import { CodeBlock } from './CodeBlock';
 import { BrandOverride } from '../brand/BrandLogo';
 import { MusicComposeCard, SavedVariation } from './MusicComposeCard';
 import type { Components } from 'react-markdown';
+import { isMarkdownCodeComplete } from './markdownRuntime';
 
 // MessageProps declares onAnimationComplete as `() => void`; the AI message
 // passes the id back, so it is redeclared rather than widened here.
@@ -71,6 +72,51 @@ const extractMentionedPersona = (message: string | null): keyof typeof AI_PERSON
   return match ? match[1].toLowerCase() as keyof typeof AI_PERSONAS : null;
 };
 
+interface MarkdownRuntime {
+  cleanContent: string;
+  isStreamingActive: boolean;
+}
+
+const MarkdownRuntimeContext = React.createContext<MarkdownRuntime>({
+  cleanContent: '',
+  isStreamingActive: false,
+});
+
+function MarkdownPre({
+  children,
+  themeText,
+}: {
+  children?: React.ReactNode;
+  themeText: string;
+}) {
+  const { cleanContent, isStreamingActive } = React.useContext(MarkdownRuntimeContext);
+  const child = React.Children.toArray(children)[0] as React.ReactElement<{
+    className?: string;
+    children?: React.ReactNode;
+  }> | undefined;
+
+  if (child?.props) {
+    const langMatch = /language-(\w+)/.exec(child.props.className || '');
+    const language = langMatch ? langMatch[1] : undefined;
+    const code = String(child.props.children || '').replace(/\n$/, '');
+
+    return (
+      <CodeBlock
+        language={language}
+        code={code}
+        themeText={themeText}
+        isComplete={isMarkdownCodeComplete(cleanContent, code, isStreamingActive)}
+      />
+    );
+  }
+
+  return (
+    <pre className={`bg-white/10 rounded-lg p-4 mb-4 overflow-x-auto font-mono text-sm ${themeText}`}>
+      {children}
+    </pre>
+  );
+}
+
 // Helper to process memory tags and marker from content
 const processMemoryContent = (content: string): { cleanContent: string; hasSavedMemory: boolean } => {
   // Check for memory saved marker
@@ -116,16 +162,18 @@ function AIMessageComponent({
 
   // Auto-expand reasoning when it starts streaming, and auto-collapse when it finishes
   useEffect(() => {
-    if (isStreamingActive && reasoning) {
+    if (!isStreamingActive || !reasoning) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
       if (!isThinkingFinished) {
-        // Keep reasoning visible while it is streaming
         setShowReasoning(true);
       } else if (!hasAutoCollapsedRef.current) {
-        // Automatically hide it the moment the reasoning concludes
         setShowReasoning(false);
         hasAutoCollapsedRef.current = true;
       }
-    }
+    });
+    return () => { cancelled = true; };
   }, [isStreamingActive, reasoning, isThinkingFinished]);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const mentionedPersona = extractMentionedPersona(previousMessage);
@@ -181,11 +229,14 @@ function AIMessageComponent({
       const legacyMatches = content.match(legacyImageRegex);
 
       if (proxyMatches || legacyMatches) {
-        // Complete image markdown found, show generating state briefly
-        setIsGeneratingImage(true);
-        setTimeout(() => {
+        const startTimer = setTimeout(() => setIsGeneratingImage(true), 0);
+        const finishTimer = setTimeout(() => {
           setIsGeneratingImage(false);
         }, 1500);
+        return () => {
+          clearTimeout(startTimer);
+          clearTimeout(finishTimer);
+        };
       }
     }
   }, [content]);
@@ -193,23 +244,25 @@ function AIMessageComponent({
   // Handle audio URL detection and loading
   useEffect(() => {
     if (audioUrl && !content) {
-      setIsRecordingVoice(true);
-      // The audio will load automatically in AudioPlayerBubble
-      // We can remove the recording state once content is available or after a timeout
+      const startTimer = setTimeout(() => setIsRecordingVoice(true), 0);
       const timeout = setTimeout(() => {
         setIsRecordingVoice(false);
       }, 3000);
 
-      return () => clearTimeout(timeout);
+      return () => {
+        clearTimeout(startTimer);
+        clearTimeout(timeout);
+      };
     } else if (audioUrl && content) {
-      setIsRecordingVoice(false);
+      const timer = setTimeout(() => setIsRecordingVoice(false), 0);
+      return () => clearTimeout(timer);
     }
   }, [audioUrl, content]);
 
-  const cleanContentRef = useRef(cleanContent);
-  cleanContentRef.current = cleanContent;
-  const isStreamingActiveRef = useRef(isStreamingActive);
-  isStreamingActiveRef.current = isStreamingActive;
+  const markdownRuntime = useMemo(
+    () => ({ cleanContent, isStreamingActive }),
+    [cleanContent, isStreamingActive],
+  );
 
   // Memoize MarkdownComponents to prevent re-creating on every render
   // This is critical to prevent GeneratedImage from re-mounting on parent re-renders
@@ -250,46 +303,14 @@ function AIMessageComponent({
       // Inline code only — block code is handled by the pre component
       if (className) return <code className={className}>{children}</code>;
       return (
-        <code className={`bg-white/10 rounded px-1.5 py-0.5 text-sm font-mono ${theme.text}`}>
+        <code className={`bg-white/10 rounded-sm px-1.5 py-0.5 text-sm font-mono ${theme.text}`}>
           {children}
         </code>
       );
     },
-    pre: ({ children }: { children?: React.ReactNode }) => {
-      // Extract language and code from the child <code> element
-      const child = React.Children.toArray(children)[0] as React.ReactElement<{
-        className?: string;
-        children?: React.ReactNode;
-      }> | undefined;
-      if (child && child.props) {
-        const langMatch = /language-(\w+)/.exec(child.props.className || '');
-        const language = langMatch ? langMatch[1] : undefined;
-        const code = String(child.props.children || '').replace(/\n$/, '');
-
-        // Determine if this code block has finished streaming
-        const isComplete = !isStreamingActiveRef.current || (() => {
-          const index = cleanContentRef.current.lastIndexOf(code);
-          if (index === -1) return false;
-          const afterCode = cleanContentRef.current.substring(index + code.length);
-          return afterCode.includes('```');
-        })();
-
-        return (
-          <CodeBlock
-            language={language}
-            code={code}
-            themeText={theme.text}
-            isComplete={isComplete}
-          />
-        );
-      }
-      // Fallback for non-code children
-      return (
-        <pre className={`bg-white/10 rounded-lg p-4 mb-4 overflow-x-auto font-mono text-sm ${theme.text}`}>
-          {children}
-        </pre>
-      );
-    },
+    pre: ({ children }: { children?: React.ReactNode }) => (
+      <MarkdownPre themeText={theme.text}>{children}</MarkdownPre>
+    ),
     img: ({ src, alt }: { src?: string; alt?: string }) => {
       // Check if this is a generated image:
       // 1. Alt text is "Generated Image" (preserved after URL replacement to Supabase)
@@ -355,7 +376,7 @@ function AIMessageComponent({
     ),
     code: ({ children }: { className?: string; children?: React.ReactNode }) => {
       return (
-        <code className="bg-white/10 rounded px-1.5 py-0.5 text-xs font-mono text-zinc-300">
+        <code className="bg-white/10 rounded-sm px-1.5 py-0.5 text-xs font-mono text-zinc-300">
           {children}
         </code>
       );
@@ -379,7 +400,7 @@ function AIMessageComponent({
           <motion.button
             onClick={() => setShowReasoning(!showReasoning)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full
-              bg-gradient-to-r ${reasoningColors.gradient.replace('/90', '/20')}
+              bg-linear-to-r ${reasoningColors.gradient.replace('/90', '/20')}
               backdrop-blur-xl border ${reasoningColors.border}
               ${reasoningColors.shadow}
               hover:${reasoningColors.shadow.replace('0.2', '0.4')}
@@ -403,7 +424,7 @@ function AIMessageComponent({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 className={`mt-2 p-4 relative
-                  bg-gradient-to-r ${reasoningColors.gradient}
+                  bg-linear-to-r ${reasoningColors.gradient}
                   backdrop-blur-xl rounded-lg border ${reasoningColors.border}
                   ${reasoningColors.shadow}`}
               >
@@ -414,14 +435,15 @@ function AIMessageComponent({
                 >
                   <X className="w-4 h-4 text-white/80" />
                 </button>
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
-                  components={ReasoningMarkdownComponents}
-                  className="text-sm text-zinc-400"
-                >
-                  {reasoning}
-                </ReactMarkdown>
+                <div className="text-sm text-zinc-400">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                    components={ReasoningMarkdownComponents}
+                  >
+                    {reasoning}
+                  </ReactMarkdown>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -431,7 +453,7 @@ function AIMessageComponent({
       {/* Generating image state */}
       {isGeneratingImage && (
         <div className="w-full max-w-2xl mx-auto my-4">
-          <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
+          <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
             <AnimatedShinyText
               text="Generating Image"
               useShimmer={true}
@@ -452,7 +474,7 @@ function AIMessageComponent({
       {/* Recording voice state */}
       {isRecordingVoice && (
         <div className="w-full max-w-2xl mx-auto my-4">
-          <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
+          <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
             <AnimatedShinyText
               text="Recording voice"
               useShimmer={true}
@@ -473,7 +495,7 @@ function AIMessageComponent({
       {/* Special mode thinking state — replaces the normal "Initiating" spinner */}
       {isStreamingActive && !cleanContent && specialMode && SPECIAL_MODE_SHIMMER_TEXT[specialMode] && (
         <div className="w-full max-w-2xl mx-auto my-4">
-          <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
+          <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
             <AnimatedShinyText
               text={SPECIAL_MODE_SHIMMER_TEXT[specialMode]}
               useShimmer={true}
@@ -531,17 +553,20 @@ function AIMessageComponent({
                     />
                   ) : (
                   <>
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-                      rehypePlugins={[rehypeKatex]}
-                      components={MarkdownComponents}
-                      className="prose prose-invert prose-sm max-w-none"
-                    >
-                      {cleanContent}
-                    </ReactMarkdown>
+                    <div className="prose prose-invert prose-sm max-w-none">
+                      <MarkdownRuntimeContext.Provider value={markdownRuntime}>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                          rehypePlugins={[rehypeKatex]}
+                          components={MarkdownComponents}
+                        >
+                          {cleanContent}
+                        </ReactMarkdown>
+                      </MarkdownRuntimeContext.Provider>
+                    </div>
                     {isSpecialLoadingPhase && (
                       <div className="w-full max-w-2xl my-2">
-                        <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-sm w-fit">
+                        <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-xs w-fit">
                           <AnimatedShinyText
                             text={loadingPhase as string}
                             useShimmer={true}
@@ -573,7 +598,7 @@ function AIMessageComponent({
                 ) : isStreamingActive ? (
                   isSpecialLoadingPhase ? (
                     <div className="w-full max-w-2xl my-2">
-                      <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-sm w-fit">
+                      <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-xs w-fit">
                         <AnimatedShinyText
                           text={loadingPhase as string}
                           useShimmer={true}
@@ -619,17 +644,20 @@ function AIMessageComponent({
                   />
                 ) : (
                 <>
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
-                    components={MarkdownComponents}
-                    className="prose prose-invert max-w-none"
-                  >
-                    {cleanContent}
-                  </ReactMarkdown>
+                  <div className="prose prose-invert max-w-none">
+                    <MarkdownRuntimeContext.Provider value={markdownRuntime}>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                        rehypePlugins={[rehypeKatex]}
+                        components={MarkdownComponents}
+                      >
+                        {cleanContent}
+                      </ReactMarkdown>
+                    </MarkdownRuntimeContext.Provider>
+                  </div>
                   {isSpecialLoadingPhase && (
                     <div className="w-full max-w-2xl mx-auto my-4">
-                      <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
+                      <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
                         <AnimatedShinyText
                           text={loadingPhase as string}
                           useShimmer={true}
@@ -661,7 +689,7 @@ function AIMessageComponent({
               ) : isStreamingActive ? (
                 isSpecialLoadingPhase ? (
                   <div className="w-full max-w-2xl mx-auto my-4">
-                    <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-sm">
+                    <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
                       <AnimatedShinyText
                         text={loadingPhase as string}
                         useShimmer={true}

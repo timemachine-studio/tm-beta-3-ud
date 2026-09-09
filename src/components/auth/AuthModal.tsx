@@ -35,11 +35,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const { signIn, signUp, signUpWithOtp, verifyOtp, updatePassword } = useAuth();
 
   useEffect(() => {
-    setMode(initialMode);
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) setMode(initialMode); });
+    return () => { cancelled = true; };
   }, [initialMode]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
       setError('');
       setSuccess('');
       setEmail('');
@@ -49,7 +54,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setConfirmNewPassword('');
       setOtpCode('');
       setStep('credentials');
-    }
+    });
+    return () => { cancelled = true; };
   }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -283,7 +289,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             placeholder="Enter 6-digit code"
                             required
                             maxLength={6}
-                            className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-none transition-all text-[15px] text-center tracking-[0.5em] font-mono"
+                            className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px] text-center tracking-[0.5em] font-mono"
                             style={{
                               background: 'rgba(255, 255, 255, 0.05)',
                               backdropFilter: 'blur(20px)',
@@ -307,7 +313,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="Email"
                             required
-                            className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-none transition-all text-[15px]"
+                            className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
                             style={{
                               background: 'rgba(255, 255, 255, 0.05)',
                               backdropFilter: 'blur(20px)',
@@ -331,7 +337,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Password"
                             required
-                            className="w-full pl-12 pr-12 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-none transition-all text-[15px]"
+                            className="w-full pl-12 pr-12 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
                             style={{
                               background: 'rgba(255, 255, 255, 0.05)',
                               backdropFilter: 'blur(20px)',
@@ -362,7 +368,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="Confirm password"
                             required
-                            className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-none transition-all text-[15px]"
+                            className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
                             style={{
                               background: 'rgba(255, 255, 255, 0.05)',
                               backdropFilter: 'blur(20px)',
@@ -387,7 +393,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               onChange={(e) => setNewPassword(e.target.value)}
                               placeholder="New password"
                               required
-                              className="w-full pl-12 pr-12 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-none transition-all text-[15px]"
+                              className="w-full pl-12 pr-12 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
                               style={{
                                 background: 'rgba(255, 255, 255, 0.05)',
                                 backdropFilter: 'blur(20px)',
@@ -414,7 +420,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               onChange={(e) => setConfirmNewPassword(e.target.value)}
                               placeholder="Confirm new password"
                               required
-                              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-none transition-all text-[15px]"
+                              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
                               style={{
                                 background: 'rgba(255, 255, 255, 0.05)',
                                 backdropFilter: 'blur(20px)',

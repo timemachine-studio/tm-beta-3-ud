@@ -1,9 +1,145 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Universal Glass Kit */
+@import 'tailwindcss' source(none);
 @import './stylesheet/UniversalGlassKit.css';
+@source '../index.html';
+@source './**/*.{js,ts,jsx,tsx}';
+@plugin '@tailwindcss/typography';
+
+@theme {
+  --font-sans: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Montserrat', sans-serif;
+
+  --color-glass-white: rgba(255, 255, 255, 0.05);
+  --color-glass-light: rgba(255, 255, 255, 0.08);
+  --color-glass: rgba(255, 255, 255, 0.1);
+  --color-glass-dark: rgba(255, 255, 255, 0.15);
+
+  --blur-2xs: 2px;
+
+  --shadow-glass: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-glass-hover: 0 8px 16px -4px rgba(0, 0, 0, 0.1), 0 4px 8px -2px rgba(0, 0, 0, 0.06);
+  --shadow-glass-active: 0 1px 2px rgba(0, 0, 0, 0.1);
+
+  --animate-gradient: gradient var(--animation-duration, 8s) linear infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    100% {
+      background-position: 200% 50%;
+    }
+  }
+}
+
+/* Preserve the Tailwind 3 defaults that affect existing controls and borders. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Preserve the project's Tailwind Typography theme in CSS-first configuration. */
+.prose {
+  color: rgba(255, 255, 255, 0.7);
+  max-width: none;
+}
+
+.prose :where(hr):not(:where([class~='not-prose'], [class~='not-prose'] *)) {
+  border-color: rgba(255, 255, 255, 0.1);
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
+
+.prose :where(h1, h2, h3, h4):not(:where([class~='not-prose'], [class~='not-prose'] *)) {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.prose :where(strong):not(:where([class~='not-prose'], [class~='not-prose'] *)) {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+}
+
+.prose :where(a):not(:where([class~='not-prose'], [class~='not-prose'] *)) {
+  color: #a855f7;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.prose :where(a):not(:where([class~='not-prose'], [class~='not-prose'] *)):hover {
+  color: #9333ea;
+}
+
+.prose :where(code):not(:where([class~='not-prose'], [class~='not-prose'] *)) {
+  color: rgba(255, 255, 255, 0.9);
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 0.875em;
+}
+
+.prose :where(pre):not(:where([class~='not-prose'], [class~='not-prose'] *)) {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.prose :where(pre code):not(:where([class~='not-prose'], [class~='not-prose'] *)) {
+  color: rgba(255, 255, 255, 0.9);
+  background-color: transparent;
+  padding: 0;
+}
+
+.prose :where(blockquote):not(:where([class~='not-prose'], [class~='not-prose'] *)) {
+  color: rgba(255, 255, 255, 0.8);
+  border-left-color: rgba(168, 85, 247, 0.4);
+  font-style: normal;
+  padding-left: 1.5rem;
+}
+
+.prose :where(ul > li):not(:where([class~='not-prose'], [class~='not-prose'] *))::before {
+  background-color: rgba(255, 255, 255, 0.5);
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+}
+
+.prose :where(ol > li):not(:where([class~='not-prose'], [class~='not-prose'] *))::before {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
 
 /* Prevent white borders on iOS */
 html,

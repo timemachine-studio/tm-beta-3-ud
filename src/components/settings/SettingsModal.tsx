@@ -49,7 +49,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                 ${season === key ? 'ring-2 ring-purple-400/60 ring-offset-2 ring-offset-transparent scale-110' : 'hover:scale-105'}`}
               style={{
                 background: seasonTheme.background.includes('gradient')
-                  ? seasonTheme.background.replace('bg-gradient-to-br', 'linear-gradient(to bottom right,').replace(/-/g, ' ').replace('from ', '').replace('to ', ', ') + ')'
+                  ? seasonTheme.background.replace('bg-linear-to-br', 'linear-gradient(to bottom right,').replace(/-/g, ' ').replace('from ', '').replace('to ', ', ') + ')'
                   : 'rgba(255, 255, 255, 0.1)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
@@ -80,7 +80,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50"
               />
             </Dialog.Overlay>
 

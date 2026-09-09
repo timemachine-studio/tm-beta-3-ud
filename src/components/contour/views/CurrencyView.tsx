@@ -49,58 +49,50 @@ export function CurrencyView({ module, accent, onCopyValue }: { module: ModuleDa
 }
 
 function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyResult; accent: AccentTheme; onCopyValue?: (value: string) => void }) {
-  const [fromCode, setFromCode] = useState('USD');
-  const [toCode, setToCode] = useState('EUR');
-  const [amount, setAmount] = useState('1');
-  const [result, setResult] = useState<CurrencyResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [localFromCode, setFromCode] = useState('USD');
+  const [localToCode, setToCode] = useState('EUR');
+  const [localAmount, setAmount] = useState('1');
+  const [resolvedResult, setResolvedResult] = useState<CurrencyResult | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
   const genRef = useRef(0);
 
+  const useDetection = !hasInteracted && curr && !curr.isPartial;
+  const fromCode = useDetection ? curr.fromCurrency : localFromCode;
+  const toCode = useDetection && curr.toCurrency ? curr.toCurrency : localToCode;
+  const amount = useDetection ? String(curr.fromValue) : localAmount;
+  const numericAmount = parseFloat(amount);
+  const hasValidAmount = amount !== '' && !isNaN(numericAmount);
+
   // Resolve conversion whenever inputs change
   useEffect(() => {
-    const num = parseFloat(amount);
-    if (isNaN(num) || amount === '') {
-      setResult(null);
-      setIsLoading(false);
-      return;
-    }
-
-    if (fromCode === toCode) {
-      setResult({
-        fromValue: num, fromCurrency: fromCode, toCurrency: toCode,
-        toValue: num, rate: 1,
-        display: `${formatCurrency(num, fromCode)} = ${formatCurrency(num, toCode)}`,
-        isPartial: false, isLoading: false,
-      });
-      setIsLoading(false);
-      return;
-    }
+    if (!hasValidAmount || fromCode === toCode || useDetection) return;
 
     const gen = ++genRef.current;
-    setIsLoading(true);
-
     resolveCurrency({
-      fromValue: num, fromCurrency: fromCode, toCurrency: toCode,
+      fromValue: numericAmount, fromCurrency: fromCode, toCurrency: toCode,
       toValue: null, rate: null, display: '', isPartial: false, isLoading: true,
     }).then(resolved => {
       if (genRef.current !== gen) return;
-      setResult(resolved);
-      setIsLoading(false);
+      setResolvedResult(resolved);
     });
-  }, [amount, fromCode, toCode]);
+  }, [fromCode, hasValidAmount, numericAmount, toCode, useDetection]);
 
-  // Sync from textbox detection (until user interacts with card)
-  const detectedFrom = curr?.fromCurrency;
-  const detectedTo = curr?.toCurrency;
-  const detectedValue = curr?.fromValue;
-  const detectedPartial = curr?.isPartial;
-  useEffect(() => {
-    if (hasInteracted || !detectedFrom || detectedPartial) return;
-    setFromCode(detectedFrom);
-    if (detectedTo) setToCode(detectedTo);
-    setAmount(String(detectedValue));
-  }, [detectedFrom, detectedTo, detectedValue, detectedPartial, hasInteracted]);
+  const result = !hasValidAmount
+    ? null
+    : fromCode === toCode
+      ? {
+          fromValue: numericAmount, fromCurrency: fromCode, toCurrency: toCode,
+          toValue: numericAmount, rate: 1,
+          display: `${formatCurrency(numericAmount, fromCode)} = ${formatCurrency(numericAmount, toCode)}`,
+          isPartial: false, isLoading: false,
+        } satisfies CurrencyResult
+      : useDetection
+        ? curr
+        : resolvedResult?.fromValue === numericAmount &&
+            resolvedResult.fromCurrency === fromCode && resolvedResult.toCurrency === toCode
+          ? resolvedResult
+          : null;
+  const isLoading = hasValidAmount && fromCode !== toCode && (!result || result.isLoading);
 
   const handleSwap = () => {
     setHasInteracted(true);
@@ -160,7 +152,7 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
           type="number"
           value={amount}
           onChange={e => { setHasInteracted(true); setAmount(e.target.value); }}
-          className="w-[80px] bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm font-mono text-center focus:outline-none focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="w-[80px] bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           placeholder="0"
         />
 
@@ -168,7 +160,7 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
         <select
           value={fromCode}
           onChange={e => { setHasInteracted(true); setFromCode(e.target.value); }}
-          className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-none focus:border-white/25 transition-colors appearance-none cursor-pointer pr-7"
+          className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-hidden focus:border-white/25 transition-colors appearance-none cursor-pointer pr-7"
           style={selectStyle}
         >
           <optgroup label="Popular" style={optionStyle}>
@@ -187,7 +179,7 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
         {/* Swap */}
         <button
           onClick={handleSwap}
-          className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors flex-shrink-0"
+          className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors shrink-0"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
         >
           <Shuffle className="w-3.5 h-3.5" />
@@ -197,7 +189,7 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
         <select
           value={toCode}
           onChange={e => { setHasInteracted(true); setToCode(e.target.value); }}
-          className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-none focus:border-white/25 transition-colors appearance-none cursor-pointer pr-7"
+          className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-hidden focus:border-white/25 transition-colors appearance-none cursor-pointer pr-7"
           style={selectStyle}
         >
           <optgroup label="Popular" style={optionStyle}>
@@ -262,7 +254,7 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
             )}
           </div>
           {isLoading && (
-            <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin flex-shrink-0" />
+            <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin shrink-0" />
           )}
         </motion.div>
       )}

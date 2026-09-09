@@ -114,7 +114,7 @@ function DrugCard({
         </div>
 
         {/* Price + arrow */}
-        <div className="flex-shrink-0 flex flex-col items-end gap-2">
+        <div className="shrink-0 flex flex-col items-end gap-2">
           {drug.price && (
             <span className="text-emerald-400 font-mono text-sm">
               ৳{drug.price}
@@ -224,13 +224,13 @@ function AlternativeBrandsSection({
             <div className="space-y-3 pt-1">
               {/* Search/filter bar */}
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/6 border border-white/10">
-                <Search className="w-4 h-4 text-white/30 flex-shrink-0" />
+                <Search className="w-4 h-4 text-white/30 shrink-0" />
                 <input
                   type="text"
                   value={filter}
                   onChange={(e) => handleFilter(e.target.value)}
                   placeholder="Filter alternative brands..."
-                  className="flex-1 bg-transparent text-white text-sm placeholder-white/25 outline-none"
+                  className="flex-1 bg-transparent text-white text-sm placeholder-white/25 outline-hidden"
                   autoComplete="off"
                 />
                 {filter && (
@@ -281,7 +281,7 @@ function AlternativeBrandsSection({
                           </p>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         {alt.price && (
                           <span className="text-emerald-400/60 font-mono text-xs">৳{alt.price}</span>
                         )}
@@ -424,7 +424,7 @@ function DrugDetailPanel({
 
         {/* Disclaimer */}
         <div className="p-4 rounded-xl bg-amber-500/8 border border-amber-500/20 flex gap-3">
-          <Info className="w-4 h-4 text-amber-400/70 flex-shrink-0 mt-0.5" />
+          <Info className="w-4 h-4 text-amber-400/70 shrink-0 mt-0.5" />
           <p className="text-amber-200/60 text-xs leading-relaxed">
             For reference only. Always consult a qualified healthcare professional
             before taking any medication. Do not self-medicate.
@@ -463,7 +463,7 @@ export function HealthcarePage() {
   };
 
   return (
-    <div className={`h-screen overflow-y-auto bg-gradient-to-t from-green-950 to-black to-50% ${theme.text} relative`}>
+    <div className={`h-screen overflow-y-auto bg-linear-to-t from-green-950 to-black to-50% ${theme.text} relative`}>
       {/* Ambient blobs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full bg-emerald-500/6 blur-3xl" />
@@ -661,7 +661,7 @@ export function HealthcarePage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedDrug(null)}
-              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs"
             />
             <DrugDetailPanel
               drug={selectedDrug}

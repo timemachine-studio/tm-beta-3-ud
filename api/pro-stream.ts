@@ -1,5 +1,5 @@
 import { proContentExpired } from './_lib/retention/policy.js';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_lib/vercelTypes.js';
 import { runs } from '@trigger.dev/sdk';
 import { proOutputStream } from '../trigger/streams.js';
 import { getAuthenticatedRequestUser } from './_lib/auth.js';

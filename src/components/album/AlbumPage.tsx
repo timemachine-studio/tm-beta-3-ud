@@ -14,6 +14,30 @@ interface ImageItem {
   created_at: string;
 }
 
+function AlbumCard({ title, icon, count, gradient, onClick, preview }: {
+  title: string;
+  icon: React.ReactNode;
+  count: number;
+  gradient: string;
+  onClick: () => void;
+  preview?: string;
+}) {
+  return (
+    <motion.button whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} onClick={onClick} className="relative overflow-hidden rounded-3xl aspect-square group">
+      {preview ? <img src={preview} alt="" className="absolute inset-0 w-full h-full object-cover" /> : <div className={`absolute inset-0 bg-linear-to-br ${gradient}`} />}
+      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors" />
+      <div className="absolute inset-[1px] rounded-3xl border border-white/[0.1]" />
+      <div className="relative h-full flex flex-col items-center justify-center gap-4 p-6">
+        <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/10">{icon}</div>
+        <div className="text-center">
+          <p className="text-white font-bold text-xl">{title}</p>
+          <p className="text-white/60 text-sm mt-1">{count} {count === 1 ? 'image' : 'images'}</p>
+        </div>
+      </div>
+    </motion.button>
+  );
+}
+
 export function AlbumPage() {
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -43,9 +67,10 @@ export function AlbumPage() {
   }, [user]);
 
   useEffect(() => {
-    if (user) {
-      loadImages();
-    }
+    if (!user) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void loadImages(); });
+    return () => { cancelled = true; };
   }, [user, loadImages]);
 
   const handleDownload = async (imageUrl: string, e?: React.MouseEvent) => {
@@ -56,7 +81,7 @@ export function AlbumPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `timemachine_image_${Date.now()}.png`;
+      link.download = `timemachine_image_${crypto.randomUUID()}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -107,39 +132,6 @@ export function AlbumPage() {
       </div>
     );
   }
-
-  const AlbumCard: React.FC<{
-    title: string;
-    icon: React.ReactNode;
-    count: number;
-    gradient: string;
-    onClick: () => void;
-    preview?: string;
-  }> = ({ title, icon, count, gradient, onClick, preview }) => (
-    <motion.button
-      whileHover={{ scale: 1.02, y: -4 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className="relative overflow-hidden rounded-3xl aspect-square group"
-    >
-      {preview ? (
-        <img src={preview} alt="" className="absolute inset-0 w-full h-full object-cover" />
-      ) : (
-        <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
-      )}
-      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors" />
-      <div className="absolute inset-[1px] rounded-3xl border border-white/[0.1]" />
-      <div className="relative h-full flex flex-col items-center justify-center gap-4 p-6">
-        <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
-          {icon}
-        </div>
-        <div className="text-center">
-          <p className="text-white font-bold text-xl">{title}</p>
-          <p className="text-white/60 text-sm mt-1">{count} {count === 1 ? 'image' : 'images'}</p>
-        </div>
-      </div>
-    </motion.button>
-  );
 
   return (
     <div className={`min-h-screen ${theme.background} ${theme.text} relative overflow-hidden`}>
@@ -236,7 +228,7 @@ export function AlbumPage() {
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={(e) => handleDownload(image.url, e)}
-                        className="p-3 rounded-full bg-white/20 backdrop-blur-sm"
+                        className="p-3 rounded-full bg-white/20 backdrop-blur-xs"
                       >
                         <Download className="w-5 h-5 text-white" />
                       </motion.button>
@@ -245,7 +237,7 @@ export function AlbumPage() {
                         whileTap={{ scale: 0.9 }}
                         onClick={(e) => handleDelete(image.path, currentView === 'generated', e)}
                         disabled={deletingPath === image.path}
-                        className="p-3 rounded-full bg-red-500/20 backdrop-blur-sm"
+                        className="p-3 rounded-full bg-red-500/20 backdrop-blur-xs"
                       >
                         {deletingPath === image.path ? (
                           <div className="w-5 h-5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
@@ -286,7 +278,7 @@ export function AlbumPage() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => handleDownload(selectedImage.url)}
-                className="p-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20"
+                className="p-3 rounded-full bg-white/10 backdrop-blur-xs border border-white/20"
               >
                 <Download className="w-5 h-5 text-white" />
               </motion.button>
@@ -294,7 +286,7 @@ export function AlbumPage() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setSelectedImage(null)}
-                className="p-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20"
+                className="p-3 rounded-full bg-white/10 backdrop-blur-xs border border-white/20"
               >
                 <X className="w-5 h-5 text-white" />
               </motion.button>

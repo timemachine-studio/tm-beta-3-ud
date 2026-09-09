@@ -1,6 +1,6 @@
 # TimeMachine Chat — Production Readiness Plan
 
-> 2026-09-07 verification update: the owner-requested lint cleanup passes with **0 errors and 0 warnings**, without rule suppressions. Typecheck, 90 tests and build pass; existing CSS import-order and bundle-size build warnings remain. TM-02 live retention/deletion checks remain open; see `status.md` and `docs/agent/data-lifecycle.md`. Historical counts below describe earlier checkpoints.
+> 2026-09-09 final dependency-integration update: a clean `npm ci` on Node 24.20.0 passes typecheck, lint (**0 errors, 0 warnings**), 22 test files / 145 tests, and the Vite 8 production build. The CSS import-order warning is resolved. Route/PDF splitting reduced the entry JavaScript to 1,498.38 kB raw / 423.71 kB gzip, but the remaining entry chunk still exceeds Vite's 500 kB warning threshold. `npm query ':invalid'` is empty. `npm audit` reports two high findings in one Trigger build-only `@prisma/config -> deepmerge-ts` chain; Trigger 4.5.16 is the current registry release. Credential-dependent live integration and deployment checks were not run in this pass. Historical counts below remain dated snapshots.
 
 **Audit date:** 2026-08-26 · **Commit:** `1bb2d6c` · **Target:** soft launch
 **Scope:** full codebase read (45k LOC, 210 TS/TSX files) + live app driven in a browser + direct API probing.
@@ -9,7 +9,7 @@
 
 ## ✅ Remaining work — the running tracker
 
-**Last updated:** 2026-08-27 · **Gate 0:** code complete, pending one manual step. · **Gate 1:** complete.
+**Last updated:** 2026-09-09 · **Gate 0:** code complete, pending one manual step. · **Gate 1:** complete.
 
 Keep this table current. When a task closes, strike it here *and* mark its section below.
 
@@ -55,8 +55,8 @@ These are not code. They block launch and none of them can be handed to an agent
 | 1.8 | Validate and bound API input with zod | ✅ 5 MB payload rejected 413 in 15ms |
 
 **Carried out of this gate:**
-- The fallback chain (1.11) needs an environment with Groq/Cerebras keys to verify.
-- Lint still reports 141 problems, 132 of them pre-existing `no-explicit-any`. Triage is 1.1's step 4 and is not a correctness blocker.
+- The live provider fallback chain (1.11) still needs an authorized environment with Groq/Cerebras keys. Its mocked regression coverage passes.
+- Lint now reports 0 errors and 0 warnings under ESLint 10 and Hooks 7 `recommended-latest`.
 
 ### Gate LS — Local-first message storage
 
@@ -76,7 +76,7 @@ These are not code. They block launch and none of them can be handed to an agent
 | 2.2 | Get the DB schema into the repo | L | **First in this gate** — unblocks staging and 1.2. |
 | 2.1 | Error tracking and uptime monitoring | M | Before public traffic. You currently find out about outages from users. |
 | 2.3 | CI pipeline | M | Once 1.1 is close enough that a typecheck gate can pass. |
-| 2.4 | Broaden the test suite | L | After behaviour stops moving. One suite exists today (`renderInline`). |
+| 2.4 | Broaden the test suite | L | 🟡 Now 145 tests in 22 files; continue adding product-level and live integration coverage. |
 | 2.5 | Security headers | M | Before public launch. |
 | 2.6 | Staging environment and deploy discipline | M | Before the first real release. |
 
@@ -84,8 +84,8 @@ These are not code. They block launch and none of them can be handed to an agent
 
 | # | Task | Effort | When |
 |---|---|---|---|
-| 3.2 | Fix the CSS import order | S | Any time — it warns on every dev boot today. |
-| 3.1 | Code-split the bundle | M | Before launch. Main chunk is ~2.1 MB. |
+| 3.2 | Fix the CSS import order | S | ✅ Completed 2026-09-09 during the Tailwind 4 migration. |
+| 3.1 | Code-split the bundle | M | 🟡 Route and PDF splitting completed; entry is 1,498.38 kB raw and still needs real-load profiling. |
 | 3.3 | Accessibility pass | M | Before launch. |
 | 3.4 | Mobile layout issues | M | Before launch. |
 | 3.5 | Repository hygiene | S | Any time. |
@@ -106,11 +106,11 @@ These are not code. They block launch and none of them can be handed to an agent
 |---|---|---|---|
 | `npx tsc --noEmit` | 176 errors | **0** ✅ | 0 (1.1) |
 | `npm run build` | did not typecheck | **fails on type errors** ✅ | gated |
-| `npm run lint` | 305 problems | **141** (136 `no-explicit-any`) | trending down |
+| `npm run lint` | 305 problems | **0 errors, 0 warnings** ✅ | 0 |
 | `react-hooks/exhaustive-deps` | 24 warnings, not enforced | **error, 0 violations** ✅ | enforced |
-| `npm test` | no runner | **24 passing** | real coverage (2.4) |
-| `npm audit` (production deps) | 2 critical, 34 high | **0 at any severity** (clean install, 2026-08-27) | hold at 0 |
-| `npm audit` (all deps) | 64 total | **6** — all dev-only, via `@vercel/node`'s `undici@5.x` and trigger.dev's tooling | monitor |
+| `npm test` | no runner | **145 passing in 22 files** | broaden further with product work (2.4) |
+| `npm audit` (production deps) | 2 critical, 34 high | **0 at any severity** (clean install, 2026-09-09) | hold at 0 |
+| `npm audit` (all deps) | 64 total | **2 high** — Trigger build tooling via `@prisma/config -> deepmerge-ts` (2026-09-09) | monitor upstream |
 
 **Realistic remaining timeline:** Gate 1 + Gate LS is the bulk of a responsible soft launch — roughly 3–4 weeks from here. Gates 2–4 can overlap.
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, Copy, Check } from 'lucide-react';
 import { ModuleData, MODULE_META } from '../moduleRegistry';
 import { UrlEncodeResult, processUrl } from '../modules/urlEncoder';
@@ -8,23 +8,15 @@ function UrlEncodeView({ module, accent, onCopyValue }: { module: ModuleData; ac
   const url = module.urlEncode;
   const [mode, setMode] = useState<'encode' | 'decode'>(url?.mode || 'encode');
   const [inputText, setInputText] = useState('');
-  const [result, setResult] = useState<UrlEncodeResult | null>(url && !url.isPartial ? url : null);
   const [copied, setCopied] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
 
-  useEffect(() => {
-    if (!hasInteracted && url && !url.isPartial) {
-      setResult(url);
-      setMode(url.mode);
-    }
-  }, [url, hasInteracted]);
+  const activeMode = hasInteracted ? mode : url?.mode ?? mode;
+  const result: UrlEncodeResult | null = hasInteracted
+    ? (inputText.trim() ? processUrl(inputText, activeMode) : null)
+    : (url && !url.isPartial ? url : null);
 
-  useEffect(() => {
-    if (!hasInteracted || !inputText.trim()) { if (hasInteracted) setResult(null); return; }
-    setResult(processUrl(inputText, mode));
-  }, [inputText, mode, hasInteracted]);
-
-  const output = result ? (mode === 'encode' ? result.encoded : result.decoded) : '';
+  const output = result ? (activeMode === 'encode' ? result.encoded : result.decoded) : '';
 
   const handleCopy = () => {
     if (output) {
@@ -43,20 +35,20 @@ function UrlEncodeView({ module, accent, onCopyValue }: { module: ModuleData; ac
         </div>
         <div className="flex gap-1.5 mb-3">
           <button onClick={() => { setHasInteracted(true); setMode('encode'); }}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${mode === 'encode' ? 'text-white' : 'text-white/40'}`}
-            style={mode === 'encode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${activeMode === 'encode' ? 'text-white' : 'text-white/40'}`}
+            style={activeMode === 'encode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
           >Encode</button>
           <button onClick={() => { setHasInteracted(true); setMode('decode'); }}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${mode === 'decode' ? 'text-white' : 'text-white/40'}`}
-            style={mode === 'decode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${activeMode === 'decode' ? 'text-white' : 'text-white/40'}`}
+            style={activeMode === 'decode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
           >Decode</button>
         </div>
         <input
           type="text"
           value={inputText}
           onChange={e => { setHasInteracted(true); setInputText(e.target.value); }}
-          placeholder={mode === 'encode' ? 'Type text to encode...' : 'Paste URL-encoded text to decode...'}
-          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm font-mono placeholder:text-white/20 focus:outline-none focus:border-white/25 transition-colors"
+          placeholder={activeMode === 'encode' ? 'Type text to encode...' : 'Paste URL-encoded text to decode...'}
+          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm font-mono placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors"
         />
       </div>
     );
@@ -68,27 +60,27 @@ function UrlEncodeView({ module, accent, onCopyValue }: { module: ModuleData; ac
         <>
           <div className="flex gap-1.5 mb-3">
             <button onClick={() => { setHasInteracted(true); setMode('encode'); }}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${mode === 'encode' ? 'text-white' : 'text-white/40'}`}
-              style={mode === 'encode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${activeMode === 'encode' ? 'text-white' : 'text-white/40'}`}
+              style={activeMode === 'encode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
             >Encode</button>
             <button onClick={() => { setHasInteracted(true); setMode('decode'); }}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${mode === 'decode' ? 'text-white' : 'text-white/40'}`}
-              style={mode === 'decode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${activeMode === 'decode' ? 'text-white' : 'text-white/40'}`}
+              style={activeMode === 'decode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
             >Decode</button>
           </div>
           <input
             type="text"
             value={inputText}
             onChange={e => { setHasInteracted(true); setInputText(e.target.value); }}
-            placeholder={mode === 'encode' ? 'Type text to encode...' : 'Paste URL-encoded text to decode...'}
-            className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm font-mono placeholder:text-white/20 focus:outline-none focus:border-white/25 transition-colors mb-3"
+            placeholder={activeMode === 'encode' ? 'Type text to encode...' : 'Paste URL-encoded text to decode...'}
+            className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm font-mono placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors mb-3"
           />
         </>
       )}
       <div className="flex items-center gap-3">
         <IconBadge icon={Link} accent={accent} />
         <div className="flex-1 min-w-0">
-          <div className="text-white/40 text-xs mb-1">{mode === 'encode' ? 'Encoded' : 'Decoded'}</div>
+          <div className="text-white/40 text-xs mb-1">{activeMode === 'encode' ? 'Encoded' : 'Decoded'}</div>
           <div className="text-sm font-mono text-white break-all">{output}</div>
           {result?.error && <div className="text-red-400/60 text-xs mt-1">{result.error}</div>}
         </div>

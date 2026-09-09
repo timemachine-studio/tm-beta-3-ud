@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './vercelTypes.js';
 
 // Comma-separated allowlist, e.g.
 //   ALLOWED_ORIGINS=https://timemachinechat.com,https://www.timemachinechat.com

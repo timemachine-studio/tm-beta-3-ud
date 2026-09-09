@@ -12,7 +12,7 @@ export const errorSchema = z.object({
 }).strict();
 export const sourceRefSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('chat'), chatId: idSchema, messageIds: z.array(idSchema).min(1).max(100), workspaceId: idSchema, storage: storageSchema }).strict(),
-  z.object({ type: z.literal('web'), url: z.string().url().max(2048).regex(/^https?:\/\//), title: z.string().max(256), retrievedAt: timestampSchema }).strict(),
+  z.object({ type: z.literal('web'), url: z.url().max(2048).regex(/^https?:\/\//), title: z.string().max(256), retrievedAt: timestampSchema }).strict(),
   z.object({ type: z.literal('app'), appId: idSchema, objectId: idSchema, version: revisionSchema, storage: storageSchema }).strict(),
 ]);
 export const artifactRefSchema = z.object({

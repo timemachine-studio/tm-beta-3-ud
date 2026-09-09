@@ -1,6 +1,6 @@
 import type { ModelConfig, SpecialModeConfig, VisionCapability } from './_lib/providerTypes.js';
 import type { ProviderMessage, ProviderTool } from './_lib/providerTypes.js';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_lib/vercelTypes.js';
 import { tasks } from '@trigger.dev/sdk';
 import {
   AI_PERSONAS,

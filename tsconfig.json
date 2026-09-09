@@ -4,6 +4,7 @@
     "useDefineForClassFields": true,
     "lib": [
       "ES2020",
+      "ES2022.Error",
       "DOM",
       "DOM.Iterable"
     ],
@@ -13,6 +14,7 @@
     "allowSyntheticDefaultImports": true,
     /* Bundler mode */
     "moduleResolution": "bundler",
+    "noUncheckedSideEffectImports": true,
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
@@ -29,10 +31,9 @@
       "node"
     ],
     /* Path mapping */
-    "baseUrl": ".",
     "paths": {
       "@/*": [
-        "src/*"
+        "./src/*"
       ]
     },
     "allowJs": true,

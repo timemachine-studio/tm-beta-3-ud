@@ -72,38 +72,36 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText, saved
   const generationImageUrl = useRef<string | null>(null);
 
   useEffect(() => {
-    // If we have saved Supabase URLs, use those directly (loaded from history)
-    if (savedAudioUrl && savedImageUrl) {
-      setAudioUrl(savedAudioUrl);
-      setImageUrl(savedImageUrl);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (savedAudioUrl && savedImageUrl) {
+        setAudioUrl(savedAudioUrl);
+        setImageUrl(savedImageUrl);
+        setAudioLoading(true);
+        setImageLoading(true);
+        setIsSaved(true);
+        setCurrentTime(0);
+        setIsPlaying(false);
+        generationAudioUrl.current = null;
+        generationImageUrl.current = null;
+        return;
+      }
+
+      const promptAudio = `Style: ${parsedData.style}. Lyrics: ${parsedData.lyrics}`;
+      const audio = `/api/music?prompt=${encodeURIComponent(promptAudio)}&seed=${seed}`;
+      const image = `/api/musicCover?prompt=${encodeURIComponent(parsedData.coverPrompt)}&width=1024&height=1024&seed=${seed}`;
+      generationAudioUrl.current = audio;
+      generationImageUrl.current = image;
+      setAudioUrl(audio);
+      setImageUrl(image);
       setAudioLoading(true);
       setImageLoading(true);
-      setIsSaved(true); // already saved
+      setIsSaved(false);
       setCurrentTime(0);
       setIsPlaying(false);
-      generationAudioUrl.current = null;
-      generationImageUrl.current = null;
-      return;
-    }
-
-    // Otherwise, generate on-the-fly via Pollinations proxy
-    const promptAudio = `Style: ${parsedData.style}. Lyrics: ${parsedData.lyrics}`;
-    const encodedAudioPrompt = encodeURIComponent(promptAudio);
-    const audio = `/api/music?prompt=${encodedAudioPrompt}&seed=${seed}`;
-
-    const encodedImagePrompt = encodeURIComponent(parsedData.coverPrompt);
-    const image = `/api/musicCover?prompt=${encodedImagePrompt}&width=1024&height=1024&seed=${seed}`;
-
-    generationAudioUrl.current = audio;
-    generationImageUrl.current = image;
-
-    setAudioUrl(audio);
-    setImageUrl(image);
-    setAudioLoading(true);
-    setImageLoading(true);
-    setIsSaved(false);
-    setCurrentTime(0);
-    setIsPlaying(false);
+    });
+    return () => { cancelled = true; };
   }, [parsedData, seed, savedAudioUrl, savedImageUrl]);
 
   useEffect(() => {
@@ -248,7 +246,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText, saved
   return (
     <div className={`p-4 md:p-6 rounded-3xl bg-black/5 backdrop-blur-md border border-white/10 shadow-xl flex flex-col md:flex-row gap-6 items-center`}>
       {/* Cover Art */}
-      <div className="relative w-48 h-48 rounded-2xl overflow-hidden shadow-2xl group flex-shrink-0">
+      <div className="relative w-48 h-48 rounded-2xl overflow-hidden shadow-2xl group shrink-0">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -263,7 +261,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText, saved
         )}
 
         {imageLoading && imageUrl && (
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center">
             <Loader2 className={`w-8 h-8 animate-spin ${personaColor}`} />
           </div>
         )}
@@ -331,7 +329,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText, saved
           <button
             onClick={togglePlay}
             disabled={audioLoading && !!audioUrl}
-            className={`w-14 h-14 rounded-full bg-gradient-to-tr ${personaColor.includes('pink') ? 'from-pink-600 to-pink-400' : personaColor.includes('cyan') ? 'from-cyan-600 to-cyan-400' : 'from-purple-600 to-purple-400'} shadow-lg shadow-${personaColor.split('-')[1]}-500/30 flex items-center justify-center text-white hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100`}
+            className={`w-14 h-14 rounded-full bg-linear-to-tr ${personaColor.includes('pink') ? 'from-pink-600 to-pink-400' : personaColor.includes('cyan') ? 'from-cyan-600 to-cyan-400' : 'from-purple-600 to-purple-400'} shadow-lg shadow-${personaColor.split('-')[1]}-500/30 flex items-center justify-center text-white hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100`}
           >
             {audioLoading && audioUrl ? (
               <Loader2 className="w-6 h-6 animate-spin" />
@@ -386,8 +384,11 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, onV
       for (const v of savedVariations) {
         restoredMap.set(v.seed, { audioUrl: v.audioUrl, imageUrl: v.imageUrl });
       }
-      setSeeds(restoredSeeds);
-      setSavedUrlMap(restoredMap);
+      const timer = setTimeout(() => {
+        setSeeds(restoredSeeds);
+        setSavedUrlMap(restoredMap);
+      }, 0);
+      return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedVariations]);
@@ -419,13 +420,14 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, onV
       }
 
       if (data.songName && data.style && data.lyrics && data.coverPrompt) {
-        setParsedData(data as ParsedMusicData);
-        // Only set initial seed if we didn't already restore from savedVariations
-        if (!initialSeedSet.current) {
-          initialSeedSet.current = true;
-          // Use deterministic seed based on content hash so reload gives the same result
-          setSeeds([hashContent(content)]);
-        }
+        const parsed = data as ParsedMusicData;
+        const shouldSeed = !initialSeedSet.current;
+        if (shouldSeed) initialSeedSet.current = true;
+        const timer = setTimeout(() => {
+          setParsedData(parsed);
+          if (shouldSeed) setSeeds([hashContent(content)]);
+        }, 0);
+        return () => clearTimeout(timer);
       }
     } catch (e) {
       console.error('Failed to parse music data', e);
@@ -534,7 +536,7 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, onV
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className={`p-6 rounded-2xl bg-black/5 backdrop-blur-sm border border-white/5 ${theme.text}`}>
+            <div className={`p-6 rounded-2xl bg-black/5 backdrop-blur-xs border border-white/5 ${theme.text}`}>
               <pre className="font-sans whitespace-pre-wrap text-center leading-relaxed">
                 {parsedData.lyrics}
               </pre>

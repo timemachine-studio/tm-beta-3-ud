@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { FileSearch, Copy, Check } from 'lucide-react';
 import { ModuleData, MODULE_META } from '../moduleRegistry';
 import { RegexResult, testRegex, REGEX_FLAGS, REGEX_PRESETS } from '../modules/regexTester';
@@ -11,28 +11,19 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
   const [pattern, setPattern] = useState('');
   const [testStr, setTestStr] = useState('');
   const [flags, setFlags] = useState('gi');
-  const [result, setResult] = useState<RegexResult | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (!hasInteracted && rx && !rx.isPartial) {
-      setResult(rx);
-      setPattern(rx.pattern);
-      setTestStr(rx.testString);
-      setFlags(rx.flags);
-    }
-  }, [rx, hasInteracted]);
-
-  useEffect(() => {
-    if (!hasInteracted) return;
-    if (!pattern.trim()) { setResult(null); return; }
-    setResult(testRegex(pattern, testStr, flags));
-  }, [pattern, testStr, flags, hasInteracted]);
+  const activePattern = hasInteracted ? pattern : rx?.pattern ?? pattern;
+  const activeTestStr = hasInteracted ? testStr : rx?.testString ?? testStr;
+  const activeFlags = hasInteracted ? flags : rx?.flags ?? flags;
+  const result: RegexResult | null = hasInteracted
+    ? (activePattern.trim() ? testRegex(activePattern, activeTestStr, activeFlags) : null)
+    : (rx && !rx.isPartial ? rx : null);
 
   const toggleFlag = (flag: string) => {
     setHasInteracted(true);
-    setFlags(prev => prev.includes(flag) ? prev.replace(flag, '') : prev + flag);
+    setFlags(activeFlags.includes(flag) ? activeFlags.replace(flag, '') : activeFlags + flag);
   };
 
   const handlePreset = (preset: typeof REGEX_PRESETS[number]) => {
@@ -70,10 +61,10 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
         </div>
         <input
           type="text"
-          value={pattern}
+          value={activePattern}
           onChange={e => { setHasInteracted(true); setPattern(e.target.value); }}
           placeholder="Enter regex pattern..."
-          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm font-mono placeholder:text-white/20 focus:outline-none focus:border-white/25 transition-colors"
+          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm font-mono placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors"
         />
       </div>
     );
@@ -99,10 +90,10 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
             <span className="text-white/20 text-xs font-mono">/</span>
             <input
               type="text"
-              value={pattern}
+              value={activePattern}
               onChange={e => { setHasInteracted(true); setPattern(e.target.value); }}
               placeholder="pattern"
-              className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs font-mono placeholder:text-white/20 focus:outline-none focus:border-white/25 transition-colors"
+              className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs font-mono placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors"
             />
             <span className="text-white/20 text-xs font-mono">/</span>
             <div className="flex gap-0.5">
@@ -110,8 +101,8 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
                 <button
                   key={f.flag}
                   onClick={() => toggleFlag(f.flag)}
-                  className={`w-6 h-6 rounded text-[11px] font-mono font-medium transition-all ${flags.includes(f.flag) ? 'text-white' : 'text-white/25'}`}
-                  style={flags.includes(f.flag) ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                  className={`w-6 h-6 rounded-sm text-[11px] font-mono font-medium transition-all ${activeFlags.includes(f.flag) ? 'text-white' : 'text-white/25'}`}
+                  style={activeFlags.includes(f.flag) ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
                   title={f.description}
                 >
                   {f.flag}
@@ -121,10 +112,10 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
           </div>
           <input
             type="text"
-            value={testStr}
+            value={activeTestStr}
             onChange={e => { setHasInteracted(true); setTestStr(e.target.value); }}
             placeholder="Test string..."
-            className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/25 transition-colors mb-3"
+            className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors mb-3"
           />
         </>
       )}
@@ -150,7 +141,7 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
           {result.matches.slice(0, 10).map((m, i) => (
             <div key={i} className="flex items-center gap-2 text-xs">
               <span className="text-white/20 font-mono w-4 text-right">{i + 1}</span>
-              <span className={`font-mono px-1.5 py-0.5 rounded ${accent.text}`}
+              <span className={`font-mono px-1.5 py-0.5 rounded-sm ${accent.text}`}
                 style={{ background: accent.bg, border: `1px solid ${accent.border}` }}
               >
                 {m.match}

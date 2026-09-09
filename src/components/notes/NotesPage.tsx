@@ -44,47 +44,15 @@ import SendIcon from '../icons/SendIcon';
 import { useTheme } from '../../context/ThemeContext';
 import { sendNotesAIRequest } from '../../services/ai/notesAiService';
 import { renderInline } from './renderInline';
+import {
+  createInitialNotesState,
+  type Block,
+  type BlockType,
+  type Note,
+  type NoteTheme,
+} from './notesState';
 
 // ─── types ──────────────────────────────────────────────────────────
-
-type BlockType =
-  | 'text'
-  | 'heading1'
-  | 'heading2'
-  | 'heading3'
-  | 'bullet-list'
-  | 'numbered-list'
-  | 'todo'
-  | 'quote'
-  | 'code'
-  | 'divider'
-  | 'callout'
-  | 'doodle'
-  | 'image'
-  | 'graph'
-  | 'table';
-
-interface Block {
-  id: string;
-  type: BlockType;
-  content: string;
-  checked?: boolean;
-  width?: number;
-  height?: number;
-}
-
-type NoteTheme = 'purple' | 'blue' | 'green' | 'pink' | 'orange' | 'red' | 'cyan' | 'yellow';
-
-interface Note {
-  id: string;
-  title: string;
-  blocks: Block[];
-  createdAt: string;
-  updatedAt: string;
-  starred: boolean;
-  emoji?: string;
-  noteTheme?: NoteTheme;
-}
 
 // ─── AI co-pilot types ──────────────────────────────────────────────
 
@@ -413,7 +381,7 @@ function DoodleBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCon
         <div ref={menuRef} className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
+            className="p-1 rounded-sm hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
           >
             <MoreHorizontal className="w-3.5 h-3.5" />
           </button>
@@ -435,7 +403,7 @@ function DoodleBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCon
           )}
         </div>
         <button
-          className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors cursor-grab active:cursor-grabbing"
+          className="p-1 rounded-sm hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors cursor-grab active:cursor-grabbing"
           onPointerDown={(e) => dragControls.start(e)}
         >
           <GripVertical className="w-3.5 h-3.5" />
@@ -658,7 +626,7 @@ function ImageBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCont
         <div ref={menuRef} className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
+            className="p-1 rounded-sm hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
           >
             <MoreHorizontal className="w-3.5 h-3.5" />
           </button>
@@ -680,7 +648,7 @@ function ImageBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCont
           )}
         </div>
         <button
-          className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors cursor-grab active:cursor-grabbing"
+          className="p-1 rounded-sm hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors cursor-grab active:cursor-grabbing"
           onPointerDown={(e) => dragControls.start(e)}
         >
           <GripVertical className="w-3.5 h-3.5" />
@@ -836,9 +804,6 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
 
   const [eq1, setEq1] = useState<string>(parsed.eq1 ?? 'sin(x)');
   const [eq2, setEq2] = useState<string>(parsed.eq2 ?? '');
-  const [err1, setErr1] = useState(false);
-  const [err2, setErr2] = useState(false);
-
   // View: cx/cy = math coords at SVG center, scale = pixels per math unit
   const [view, setView] = useState({ cx: 0, cy: 0, scale: 50 });
   const panRef = useRef<{ mx: number; my: number; cx: number; cy: number } | null>(null);
@@ -918,14 +883,14 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
   }, [view, toMathX, toMathY, toSvgX, toSvgY]);
 
   // Paths recomputed when equations or view change
-  const { path1, path2 } = useMemo(() => {
+  const { path1, path2, err1, err2 } = useMemo(() => {
     const fn1 = buildEval(eq1);
-    setErr1(eq1.trim() !== '' && fn1 === null);
     const fn2 = eq2.trim() ? buildEval(eq2) : null;
-    setErr2(eq2.trim() !== '' && fn2 === null);
     return {
       path1: fn1 ? genPath(fn1) : '',
       path2: fn2 ? genPath(fn2) : '',
+      err1: eq1.trim() !== '' && fn1 === null,
+      err2: eq2.trim() !== '' && fn2 === null,
     };
   }, [eq1, eq2, buildEval, genPath]);
 
@@ -989,7 +954,7 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
       {/* Drag / context controls */}
       <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -left-14 top-2 flex items-center gap-0.5">
         <div ref={menuRef} className="relative">
-          <button onClick={() => setShowMenu(!showMenu)} className="p-1 rounded hover:bg-white/10 text-white/30">
+          <button onClick={() => setShowMenu(!showMenu)} className="p-1 rounded-sm hover:bg-white/10 text-white/30">
             <MoreHorizontal className="w-3.5 h-3.5" />
           </button>
           {showMenu && (
@@ -1003,7 +968,7 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
             </div>
           )}
         </div>
-        <button className="p-1 rounded hover:bg-white/10 text-white/30 cursor-grab active:cursor-grabbing" onPointerDown={(e) => dragControls.start(e)}>
+        <button className="p-1 rounded-sm hover:bg-white/10 text-white/30 cursor-grab active:cursor-grabbing" onPointerDown={(e) => dragControls.start(e)}>
           <GripVertical className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -1021,7 +986,7 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
               onChange={(e) => { setEq1(e.target.value); commit(e.target.value, eq2); }}
               placeholder="sin(x)"
               spellCheck={false}
-              className={`flex-1 bg-transparent outline-none text-sm font-mono ${err1 ? 'text-red-300' : 'text-white/85'} placeholder-white/20`}
+              className={`flex-1 bg-transparent outline-hidden text-sm font-mono ${err1 ? 'text-red-300' : 'text-white/85'} placeholder-white/20`}
             />
             {err1 && <span className="text-[10px] text-red-400 shrink-0">invalid</span>}
           </div>
@@ -1035,7 +1000,7 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
               onChange={(e) => { setEq2(e.target.value); commit(eq1, e.target.value); }}
               placeholder="optional 2nd equation"
               spellCheck={false}
-              className={`flex-1 bg-transparent outline-none text-sm font-mono ${err2 ? 'text-red-300' : 'text-white/40'} placeholder-white/20`}
+              className={`flex-1 bg-transparent outline-hidden text-sm font-mono ${err2 ? 'text-red-300' : 'text-white/40'} placeholder-white/20`}
             />
             {err2 && <span className="text-[10px] text-red-400 shrink-0">invalid</span>}
           </div>
@@ -1193,7 +1158,7 @@ function TableBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Ta
     <div className="group relative py-2">
       <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -left-14 top-2 flex items-center gap-0.5">
         <div ref={menuRef} className="relative">
-          <button onClick={() => setShowMenu(!showMenu)} className="p-1 rounded hover:bg-white/10 text-white/30">
+          <button onClick={() => setShowMenu(!showMenu)} className="p-1 rounded-sm hover:bg-white/10 text-white/30">
             <MoreHorizontal className="w-3.5 h-3.5" />
           </button>
           {showMenu && (
@@ -1207,7 +1172,7 @@ function TableBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Ta
             </div>
           )}
         </div>
-        <button className="p-1 rounded hover:bg-white/10 text-white/30 cursor-grab active:cursor-grabbing" onPointerDown={(e) => dragControls.start(e)}>
+        <button className="p-1 rounded-sm hover:bg-white/10 text-white/30 cursor-grab active:cursor-grabbing" onPointerDown={(e) => dragControls.start(e)}>
           <GripVertical className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -1223,12 +1188,12 @@ function TableBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Ta
                       value={cell}
                       onChange={(e) => updateCell(0, c, e.target.value)}
                       placeholder={`Col ${c + 1}`}
-                      className="w-full bg-transparent outline-none px-3 py-2.5 text-sm font-semibold text-white/90 placeholder-white/20 min-w-[90px]"
+                      className="w-full bg-transparent outline-hidden px-3 py-2.5 text-sm font-semibold text-white/90 placeholder-white/20 min-w-[90px]"
                     />
                     {colCount > 1 && (
                       <button
                         onClick={() => removeCol(c)}
-                        className="absolute top-0.5 right-0.5 opacity-0 group-hover/col:opacity-100 w-4 h-4 rounded flex items-center justify-center bg-red-500/20 text-red-400 text-[10px] hover:bg-red-500/40 transition-all z-10 leading-none"
+                        className="absolute top-0.5 right-0.5 opacity-0 group-hover/col:opacity-100 w-4 h-4 rounded-sm flex items-center justify-center bg-red-500/20 text-red-400 text-[10px] hover:bg-red-500/40 transition-all z-10 leading-none"
                       >×</button>
                     )}
                   </th>
@@ -1251,7 +1216,7 @@ function TableBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Ta
                           value={cell}
                           onChange={(e) => updateCell(r, c, e.target.value)}
                           placeholder="—"
-                          className="w-full bg-transparent outline-none px-3 py-2 text-sm text-white/70 placeholder-white/10 min-w-[90px] hover:bg-white/[0.02] focus:bg-white/[0.03] transition-colors"
+                          className="w-full bg-transparent outline-hidden px-3 py-2 text-sm text-white/70 placeholder-white/10 min-w-[90px] hover:bg-white/[0.02] focus:bg-white/[0.03] transition-colors"
                         />
                       </td>
                     ))}
@@ -1473,7 +1438,7 @@ function BlockEditor({ block, index, focused, noteTheme, dragControls, onFocus, 
     return (
       <div className="group relative flex items-center py-2" onClick={onFocus}>
         <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -left-10 flex items-center gap-1">
-          <button onClick={() => setShowMenu(!showMenu)} className="p-1 rounded hover:bg-white/10 text-white/30">
+          <button onClick={() => setShowMenu(!showMenu)} className="p-1 rounded-sm hover:bg-white/10 text-white/30">
             <MoreHorizontal className="w-4 h-4" />
           </button>
         </div>
@@ -1589,12 +1554,12 @@ function BlockEditor({ block, index, focused, noteTheme, dragControls, onFocus, 
       <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -left-14 top-0 flex items-center gap-0.5 pt-1">
         <button
           onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-          className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
+          className="p-1 rounded-sm hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
         >
           <MoreHorizontal className="w-3.5 h-3.5" />
         </button>
         <button
-          className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors cursor-grab active:cursor-grabbing"
+          className="p-1 rounded-sm hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors cursor-grab active:cursor-grabbing"
           onPointerDown={(e) => dragControls.start(e)}
         >
           <GripVertical className="w-3.5 h-3.5" />
@@ -1612,7 +1577,7 @@ function BlockEditor({ block, index, focused, noteTheme, dragControls, onFocus, 
         {block.type === 'todo' && (
           <button
             onClick={onToggleCheck}
-            className={`mt-1.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-all ${
+            className={`mt-1.5 w-4 h-4 rounded-sm border shrink-0 flex items-center justify-center transition-all ${
               block.checked
                 ? `${themeColors.checkBg} ${themeColors.checkBorder}`
                 : 'border-white/20 hover:border-white/40'
@@ -1637,7 +1602,7 @@ function BlockEditor({ block, index, focused, noteTheme, dragControls, onFocus, 
             onMouseUp={handleTextareaMouseUp}
             placeholder={placeholders[block.type]}
             rows={1}
-            className={`flex-1 bg-transparent outline-none resize-none overflow-hidden placeholder-white/20 ${textSizeClass[block.type]} ${
+            className={`flex-1 bg-transparent outline-hidden resize-none overflow-hidden placeholder-white/20 ${textSizeClass[block.type]} ${
               block.type === 'todo' && block.checked ? 'line-through text-white/40' : ''
             }`}
             style={{ minHeight: '1.5em' }}
@@ -1708,7 +1673,7 @@ function BlockEditor({ block, index, focused, noteTheme, dragControls, onFocus, 
               {selToolbar.showColors === 'bg' && (
                 <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 flex gap-1 p-1.5 rounded-xl" style={glassCard}>
                   {['rgba(168,85,247,0.35)','rgba(248,113,113,0.35)','rgba(251,191,36,0.35)','rgba(74,222,128,0.35)','rgba(56,189,248,0.35)','rgba(255,255,255,0.15)'].map((c, i) => (
-                    <button key={i} onClick={() => applyFormat('bg', c)} className="w-5 h-5 rounded border border-white/20 hover:scale-110 transition-transform" style={{ background: c }} />
+                    <button key={i} onClick={() => applyFormat('bg', c)} className="w-5 h-5 rounded-sm border border-white/20 hover:scale-110 transition-transform" style={{ background: c }} />
                   ))}
                 </div>
               )}
@@ -1851,7 +1816,7 @@ function DraggableBlock(props: DraggableBlockProps) {
 
 // ─── sidebar note list ──────────────────────────────────────────────
 
-function NoteSidebar({ notes, activeId, onSelect, onNew, onDelete, onToggleStar, searchQuery, onSearchChange }: NoteSidebarProps) {
+export function NoteSidebar({ notes, activeId, onSelect, onNew, onDelete, onToggleStar, searchQuery, onSearchChange }: NoteSidebarProps) {
   const filtered = notes.filter((n) =>
     n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     n.blocks.some((b) => !['doodle', 'image', 'graph', 'table'].includes(b.type) && b.content.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -1861,15 +1826,19 @@ function NoteSidebar({ notes, activeId, onSelect, onNew, onDelete, onToggleStar,
   const unstarred = filtered.filter((n) => !n.starred);
 
   const renderItem = (note: Note) => (
-    <motion.button
+    <motion.div
       key={note.id}
-      whileTap={{ scale: 0.98 }}
-      onClick={() => onSelect(note.id)}
-      className={`w-full text-left px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+      className={`relative w-full rounded-xl transition-all duration-200 group ${
         activeId === note.id ? 'bg-white/[0.08]' : 'hover:bg-white/[0.04]'
       }`}
     >
-      <div className="flex items-start gap-2">
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.98 }}
+        onClick={() => onSelect(note.id)}
+        aria-current={activeId === note.id ? 'page' : undefined}
+        className="flex w-full items-start gap-2 rounded-xl px-3 py-2.5 pr-16 text-left focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-purple-400/70"
+      >
         <span className="text-lg mt-0.5 shrink-0">{note.emoji || '📝'}</span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white/80 truncate">{note.title || 'Untitled'}</p>
@@ -1879,22 +1848,26 @@ function NoteSidebar({ notes, activeId, onSelect, onNew, onDelete, onToggleStar,
             {note.blocks.filter((b) => b.content).length} blocks
           </p>
         </div>
-        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
-          <button
-            onClick={(e) => { e.stopPropagation(); onToggleStar(note.id); }}
-            className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-yellow-400 transition-colors"
-          >
-            {note.starred ? <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" /> : <StarOff className="w-3 h-3" />}
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(note.id); }}
-            className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-red-400 transition-colors"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
-        </div>
+      </motion.button>
+      <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        <button
+          type="button"
+          onClick={() => onToggleStar(note.id)}
+          aria-label={note.starred ? `Unstar ${note.title || 'Untitled'}` : `Star ${note.title || 'Untitled'}`}
+          className="p-1 rounded-sm hover:bg-white/10 text-white/30 hover:text-yellow-400 transition-colors"
+        >
+          {note.starred ? <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" /> : <StarOff className="w-3 h-3" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(note.id)}
+          aria-label={`Delete ${note.title || 'Untitled'}`}
+          className="p-1 rounded-sm hover:bg-white/10 text-white/30 hover:text-red-400 transition-colors"
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
       </div>
-    </motion.button>
+    </motion.div>
   );
 
   return (
@@ -1907,7 +1880,7 @@ function NoteSidebar({ notes, activeId, onSelect, onNew, onDelete, onToggleStar,
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search notes..."
-            className="w-full pl-8 pr-3 py-2 rounded-xl text-sm text-white/70 placeholder-white/20 outline-none transition-colors"
+            className="w-full pl-8 pr-3 py-2 rounded-xl text-sm text-white/70 placeholder-white/20 outline-hidden transition-colors"
             style={{
               background: 'rgba(255, 255, 255, 0.04)',
               border: '1px solid rgba(255, 255, 255, 0.06)',
@@ -1965,10 +1938,15 @@ function NoteSidebar({ notes, activeId, onSelect, onNew, onDelete, onToggleStar,
 export function NotesPage() {
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const [notes, setNotes] = useState<Note[]>(loadNotes);
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+  const [initialState] = useState(() => {
+    const draft = localStorage.getItem('tm-notes-draft');
+    if (draft) localStorage.removeItem('tm-notes-draft');
+    return createInitialNotesState(loadNotes(), draft, new Date().toISOString(), uid);
+  });
+  const [notes, setNotes] = useState<Note[]>(initialState.notes);
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(initialState.activeNoteId);
   const [searchQuery, setSearchQuery] = useState('');
-  const [focusedBlockIndex, setFocusedBlockIndex] = useState<number | null>(null);
+  const [focusedBlockIndex, setFocusedBlockIndex] = useState<number | null>(initialState.focusedBlockIndex);
   const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showThemeDropdown, setShowThemeDropdown] = useState(false);
@@ -1994,18 +1972,6 @@ export function NotesPage() {
 
   // Persist notes
   useEffect(() => { saveNotes(notes); }, [notes]);
-
-  // Auto-select first or create one. Mount-only on purpose: with the real
-  // dependencies this would re-run on every notes change and keep creating
-  // notes.
-  useEffect(() => {
-    if (notes.length === 0) {
-      handleNewNote();
-    } else if (!activeNoteId) {
-      setActiveNoteId(notes[0].id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const handleNewNote = useCallback(() => {
     const note: Note = {
@@ -2296,36 +2262,6 @@ export function NotesPage() {
 
   const hasPendingAI = pendingEdits.length > 0 || pendingNewBlocks.length > 0;
 
-  // Load initial note from localStorage if coming from home page. Mount-only:
-  // the handoff is consumed once, and re-running it would resurrect a note the
-  // user has since edited or deleted.
-  useEffect(() => {
-    const draft = localStorage.getItem('tm-notes-draft');
-    if (draft) {
-      localStorage.removeItem('tm-notes-draft');
-      const existingNote = notes.find((n) => n.id === activeNoteId);
-      if (existingNote) {
-        updateNote(existingNote.id, (n) => ({
-          ...n,
-          blocks: [{ id: uid(), type: 'text' as BlockType, content: draft }, ...n.blocks.filter(b => b.content)],
-        }));
-      } else {
-        const note: Note = {
-          id: uid(),
-          title: '',
-          blocks: [{ id: uid(), type: 'text', content: draft }],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          starred: false,
-          emoji: '📝',
-        };
-        setNotes((prev) => [note, ...prev]);
-        setActiveNoteId(note.id);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
     <div
       className={`fixed inset-0 overflow-hidden select-none ${theme.text}`}
@@ -2547,7 +2483,7 @@ export function NotesPage() {
                       value={activeNote.title}
                       onChange={(e) => updateNote(activeNote.id, (n) => ({ ...n, title: e.target.value }))}
                       placeholder="Untitled"
-                      className="w-full text-4xl font-bold text-white placeholder-white/15 bg-transparent outline-none"
+                      className="w-full text-4xl font-bold text-white placeholder-white/15 bg-transparent outline-hidden"
                     />
                     <p className="text-white/20 text-sm mt-2">
                       <Clock className="w-3.5 h-3.5 inline mr-1.5 -mt-0.5" />
@@ -2696,7 +2632,7 @@ export function NotesPage() {
                     type="text"
                     placeholder={aiLoading ? 'Thinking...' : 'Ask to edit, enhance or add to notes'}
                     disabled={aiLoading || !activeNoteId}
-                    className="w-full pl-5 pr-16 rounded-[28px] text-white placeholder-gray-400 outline-none disabled:opacity-50 transition-all duration-300 text-base"
+                    className="w-full pl-5 pr-16 rounded-[28px] text-white placeholder-gray-400 outline-hidden disabled:opacity-50 transition-all duration-300 text-base"
                     style={{
                       background: 'rgba(255, 255, 255, 0.05)',
                       backdropFilter: 'blur(20px)',

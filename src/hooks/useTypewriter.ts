@@ -5,13 +5,12 @@ import { ANIMATION_CONFIG } from '../utils/constants';
 export function useTypewriter(text: string, speed: number = ANIMATION_CONFIG.TYPING_SPEED, startTyping: boolean = false) {
   const [displayedText, setDisplayedText] = useState('');
   const containerRef = useRef<HTMLParagraphElement>(null);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout>(undefined);
 
   useEffect(() => {
     if (!startTyping) return;
 
     let currentIndex = 0;
-    setDisplayedText('');
 
     const typeNextCharacter = () => {
       if (currentIndex < text.length) {
@@ -43,7 +42,10 @@ export function useTypewriter(text: string, speed: number = ANIMATION_CONFIG.TYP
       }
     };
 
-    typeNextCharacter();
+    timeoutRef.current = setTimeout(() => {
+      setDisplayedText('');
+      typeNextCharacter();
+    }, 0);
 
     return () => {
       if (timeoutRef.current) {

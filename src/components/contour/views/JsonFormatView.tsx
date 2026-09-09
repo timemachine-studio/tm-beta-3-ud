@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Braces, Copy, Check } from 'lucide-react';
 import { ModuleData, MODULE_META } from '../moduleRegistry';
 import { JsonFormatResult, formatJson } from '../modules/jsonFormatter';
@@ -11,17 +11,11 @@ export function JsonFormatView({ module, accent, onCopyValue }: { module: Module
   const [showMinified, setShowMinified] = useState(false);
   const [copied, setCopied] = useState(false);
   const [inputText, setInputText] = useState('');
-  const [result, setResult] = useState<JsonFormatResult | null>(json && !json.isPartial ? json : null);
   const [hasInteracted, setHasInteracted] = useState(false);
 
-  useEffect(() => {
-    if (!hasInteracted && json && !json.isPartial) setResult(json);
-  }, [json, hasInteracted]);
-
-  useEffect(() => {
-    if (!hasInteracted || !inputText.trim()) { if (hasInteracted) setResult(null); return; }
-    setResult(formatJson(inputText));
-  }, [inputText, hasInteracted]);
+  const result: JsonFormatResult | null = hasInteracted
+    ? (inputText.trim() ? formatJson(inputText) : null)
+    : (json && !json.isPartial ? json : null);
 
   const handleCopy = () => {
     if (result && result.isValid) {
@@ -47,7 +41,7 @@ export function JsonFormatView({ module, accent, onCopyValue }: { module: Module
           value={inputText}
           onChange={e => { setHasInteracted(true); setInputText(e.target.value); }}
           placeholder="Paste JSON here..."
-          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-xs font-mono placeholder:text-white/20 focus:outline-none focus:border-white/25 transition-colors mb-3 resize-none"
+          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-xs font-mono placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors mb-3 resize-none"
           rows={3}
         />
       )}

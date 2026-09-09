@@ -26,6 +26,21 @@ const personaVisualizerColors = {
   pro: '#06b6d4' // Cyan
 } as const;
 
+function StaticWaveform({ isUserMessage, isPlaying, themeText }: { isUserMessage: boolean; isPlaying: boolean; themeText: string }) {
+  return (
+    <div className="flex items-center gap-[2px] h-6 px-2">
+      {[...Array(12)].map((_, i) => (
+        <motion.div
+          key={i}
+          className={`w-[2px] bg-current rounded-full opacity-60 ${isUserMessage ? 'text-white' : themeText}`}
+          animate={isPlaying ? { height: ['8px', i % 3 === 0 ? '20px' : i % 2 === 0 ? '16px' : '12px', '8px'], opacity: [0.6, 1, 0.6] } : { height: '8px', opacity: 0.6 }}
+          transition={{ duration: 1.2, repeat: isPlaying ? Infinity : 0, delay: i * 0.1, ease: [0.4, 0, 0.6, 1] }}
+        />
+      ))}
+    </div>
+  );
+}
+
 const DynamicWaveformVisualizer: React.FC<DynamicWaveformVisualizerProps> = ({ 
   analyser, 
   isUserMessage, 
@@ -33,7 +48,7 @@ const DynamicWaveformVisualizer: React.FC<DynamicWaveformVisualizerProps> = ({
   currentPersona = 'default'
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number>(undefined);
 
   useEffect(() => {
     if (!analyser || !canvasRef.current || !isPlaying) {
@@ -252,36 +267,6 @@ export function AudioPlayerBubble({
 
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  // Static waveform for when not playing or no analyser
-  const StaticWaveform = () => (
-    <div className="flex items-center gap-[2px] h-6 px-2">
-      {[...Array(12)].map((_, i) => (
-        <motion.div
-          key={i}
-          className={`w-[2px] bg-current rounded-full opacity-60
-            ${isUserMessage ? 'text-white' : theme.text}`}
-          animate={isPlaying ? {
-            height: [
-              '8px',
-              i % 3 === 0 ? '20px' : i % 2 === 0 ? '16px' : '12px',
-              '8px'
-            ],
-            opacity: [0.6, 1, 0.6]
-          } : {
-            height: '8px',
-            opacity: 0.6
-          }}
-          transition={{
-            duration: 1.2,
-            repeat: isPlaying ? Infinity : 0,
-            delay: i * 0.1,
-            ease: [0.4, 0, 0.6, 1],
-          }}
-        />
-      ))}
-    </div>
-  );
-
   if (isLoading) {
     return (
       <div className={`flex items-center gap-3 p-3 rounded-2xl
@@ -382,7 +367,7 @@ export function AudioPlayerBubble({
               currentPersona={currentPersona}
             />
           ) : (
-            <StaticWaveform />
+            <StaticWaveform isUserMessage={isUserMessage} isPlaying={isPlaying} themeText={theme.text} />
           )}
           
           {/* Progress Bar Overlay */}

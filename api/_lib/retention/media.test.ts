@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '../vercelTypes.js';
 vi.mock('../auth.js', () => ({ getAuthenticatedRequestUser: async () => ({ id: 'synthetic-owner' }) }));
 vi.mock('../cors.js', () => ({ applyCors: vi.fn(), hasAcceptableOrigin: () => true, isSameOriginSubresource: () => true }));
 import image from '../../image';

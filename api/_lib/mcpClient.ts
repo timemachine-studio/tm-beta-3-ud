@@ -1,8 +1,6 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { Client, SSEClientTransport, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import type { ServerFlightControl } from './flightControls.js';
 
 export interface DiscoveredMcpTool {
@@ -77,7 +75,10 @@ async function connect(server: ServerFlightControl): Promise<Client> {
   if (!server.mcp_server_url) throw new Error('MCP server URL is missing');
   const url = await validateServerUrl(server.mcp_server_url);
   const headers = requestHeaders(server);
-  const createClient = () => new Client({ name: 'timemachine-chat', version: '0.3.0' });
+  const createClient = () => new Client(
+    { name: 'timemachine-chat', version: '0.3.0' },
+    { versionNegotiation: { mode: 'auto', probe: { maxRetries: 0 } } },
+  );
 
   const modern = createClient();
   try {
@@ -104,7 +105,10 @@ async function connect(server: ServerFlightControl): Promise<Client> {
       return legacy;
     } catch (legacyError) {
       await legacy.close().catch(() => undefined);
-      throw new Error(`${server.name} is unavailable: ${legacyError instanceof Error ? legacyError.message : String(modernError)}`);
+      throw new Error(
+        `${server.name} is unavailable: ${legacyError instanceof Error ? legacyError.message : String(modernError)}`,
+        { cause: legacyError },
+      );
     }
   }
 }

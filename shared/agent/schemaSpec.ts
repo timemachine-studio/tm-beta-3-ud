@@ -18,7 +18,7 @@ export interface SchemaSpec {
   minItems?: number;
   maxItems?: number;
 }
-const node: z.ZodType<SchemaSpec> = z.lazy(() => z.object({
+const node: z.ZodType<SchemaSpec, JsonValue> = z.lazy(() => z.object({
   type: z.enum(['object', 'array', 'string', 'number', 'integer', 'boolean', 'null']),
   description: z.string().max(2048).optional(),
   properties: z.record(z.string().min(1).max(128), node).optional(),

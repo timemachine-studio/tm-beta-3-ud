@@ -328,7 +328,7 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
             {/* Header */}
             <div className="flex items-start gap-3 mb-3">
               {/* Thumbnail or Music Icon */}
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center shrink-0">
                 {musicData.thumbnail ? (
                   <img
                     src={musicData.thumbnail}
@@ -375,7 +375,7 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
             <div className="mb-3">
               <div className="h-1 bg-white/10 rounded-full overflow-hidden">
                 <motion.div
-                  className={`h-full bg-gradient-to-r ${colors.primary.replace('/20', '')}`}
+                  className={`h-full bg-linear-to-r ${colors.primary.replace('/20', '')}`}
                   style={{ width: `${progress}%` }}
                   initial={false}
                   animate={{ width: `${progress}%` }}

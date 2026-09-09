@@ -4,7 +4,7 @@ import { idSchema, MAX_JSON_BYTES, revisionSchema, timestampSchema } from './pri
 
 const envelope = { schemaVersion: z.literal(1), runId: idSchema, sequence: revisionSchema, timestamp: timestampSchema };
 const artifacts = z.array(artifactRefSchema).max(100);
-function event<T extends string, P extends z.ZodTypeAny>(type: T, payload: P) {
+function event<T extends string, P extends z.ZodType>(type: T, payload: P) {
   return z.object({ ...envelope, type: z.literal(type), payload }).strict();
 }
 export const agentEventSchema = z.discriminatedUnion('type', [

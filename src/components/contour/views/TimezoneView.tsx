@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Globe, Shuffle, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ModuleData } from '../moduleRegistry';
@@ -42,35 +42,27 @@ function TimezoneView({ module, accent, onCopyValue }: { module: ModuleData; acc
 }
 
 function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult; accent: AccentTheme; onCopyValue?: (value: string) => void }) {
-  const now = new Date();
-  const initH = now.getHours();
-  const [hours, setHours] = useState(initH > 12 ? initH - 12 : initH === 0 ? 12 : initH);
-  const [minutes, setMinutes] = useState(now.getMinutes());
-  const [isPm, setIsPm] = useState(initH >= 12);
+  const [initialTime] = useState(() => {
+    const now = new Date();
+    const hours = now.getHours();
+    return { hours: hours > 12 ? hours - 12 : hours === 0 ? 12 : hours, minutes: now.getMinutes(), isPm: hours >= 12 };
+  });
+  const [hours, setHours] = useState(initialTime.hours);
+  const [minutes, setMinutes] = useState(initialTime.minutes);
+  const [isPm, setIsPm] = useState(initialTime.isPm);
   const [fromIana, setFromIana] = useState('America/New_York');
   const [toIana, setToIana] = useState('Asia/Kolkata');
-  const [result, setResult] = useState<TimezoneResult | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
-
-  // Compute result
-  useEffect(() => {
+  const detectedFrom = !hasInteracted && !tz?.isPartial ? TZ_LIST.find(t => t.label === tz?.fromLabel)?.iana : undefined;
+  const detectedTo = !hasInteracted && !tz?.isPartial ? TZ_LIST.find(t => t.label === tz?.toLabel)?.iana : undefined;
+  const activeFromIana = detectedFrom ?? fromIana;
+  const activeToIana = detectedTo ?? toIana;
+  const result = (() => {
     let h24 = hours;
     if (isPm && hours !== 12) h24 += 12;
     if (!isPm && hours === 12) h24 = 0;
-    setResult(convertTimezoneDirect(h24, minutes, fromIana, toIana));
-  }, [hours, minutes, isPm, fromIana, toIana]);
-
-  // Sync from textbox
-  const detectedFromLabel = tz?.fromLabel;
-  const detectedToLabel = tz?.toLabel;
-  const detectedPartial = tz?.isPartial;
-  useEffect(() => {
-    if (hasInteracted || !detectedFromLabel || detectedPartial) return;
-    const fromEntry = TZ_LIST.find(t => t.label === detectedFromLabel);
-    const toEntry = TZ_LIST.find(t => t.label === detectedToLabel);
-    if (fromEntry) setFromIana(fromEntry.iana);
-    if (toEntry) setToIana(toEntry.iana);
-  }, [detectedFromLabel, detectedToLabel, detectedPartial, hasInteracted]);
+    return convertTimezoneDirect(h24, minutes, activeFromIana, activeToIana);
+  })();
 
   const handleNow = () => {
     setHasInteracted(true);
@@ -83,8 +75,8 @@ function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult;
 
   const handleSwap = () => {
     setHasInteracted(true);
-    setFromIana(toIana);
-    setToIana(fromIana);
+    setFromIana(activeToIana);
+    setToIana(activeFromIana);
   };
 
   const handleHourChange = (val: string) => {
@@ -121,7 +113,7 @@ function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult;
         {POPULAR_TIMEZONES.map(label => {
           const entry = TZ_LIST.find(t => t.label === label);
           if (!entry) return null;
-          const isActive = toIana === entry.iana;
+          const isActive = activeToIana === entry.iana;
           return (
             <button
               key={label}
@@ -150,7 +142,7 @@ function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult;
           value={hours}
           min={1} max={12}
           onChange={e => handleHourChange(e.target.value)}
-          className="w-[44px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-2 text-white text-sm font-mono text-center focus:outline-none focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="w-[44px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-2 text-white text-sm font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
         <span className="text-white/30 font-mono text-sm">:</span>
         <input
@@ -158,10 +150,10 @@ function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult;
           value={String(minutes).padStart(2, '0')}
           onChange={e => handleMinuteChange(e.target.value)}
           maxLength={2}
-          className="w-[44px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-2 text-white text-sm font-mono text-center focus:outline-none focus:border-white/25 transition-colors"
+          className="w-[44px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-2 text-white text-sm font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors"
         />
         {/* AM/PM toggle */}
-        <div className="flex rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
+        <div className="flex rounded-lg overflow-hidden border border-white/10 shrink-0">
           <button
             onClick={() => { setHasInteracted(true); setIsPm(false); }}
             className={`px-2 py-2 text-[11px] font-medium transition-colors ${!isPm ? 'text-white' : 'text-white/30'}`}
@@ -176,7 +168,7 @@ function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult;
         {/* Now button */}
         <button
           onClick={handleNow}
-          className="px-2.5 py-2 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 transition-colors flex-shrink-0"
+          className="px-2.5 py-2 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 transition-colors shrink-0"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
         >
           <Clock className="w-3.5 h-3.5" />
@@ -186,9 +178,9 @@ function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult;
       {/* From / To timezone row */}
       <div className="flex items-center gap-2">
         <select
-          value={fromIana}
+          value={activeFromIana}
           onChange={e => { setHasInteracted(true); setFromIana(e.target.value); }}
-          className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-none focus:border-white/25 transition-colors appearance-none cursor-pointer pr-7"
+          className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-hidden focus:border-white/25 transition-colors appearance-none cursor-pointer pr-7"
           style={selectStyle}
         >
           {TZ_REGIONS.map(([region, zones]) => (
@@ -202,16 +194,16 @@ function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult;
 
         <button
           onClick={handleSwap}
-          className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors flex-shrink-0"
+          className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors shrink-0"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
         >
           <Shuffle className="w-3.5 h-3.5" />
         </button>
 
         <select
-          value={toIana}
+          value={activeToIana}
           onChange={e => { setHasInteracted(true); setToIana(e.target.value); }}
-          className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-none focus:border-white/25 transition-colors appearance-none cursor-pointer pr-7"
+          className="flex-1 min-w-0 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-hidden focus:border-white/25 transition-colors appearance-none cursor-pointer pr-7"
           style={selectStyle}
         >
           {TZ_REGIONS.map(([region, zones]) => (

@@ -1,5 +1,5 @@
 import { ICON_MAP } from './viewIcons';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Shuffle, RefreshCw, Copy, Check } from 'lucide-react';
 import { ModuleData, MODULE_META } from '../moduleRegistry';
 import { RandomResult, regenerate as regenerateRandom, QUICK_ACTIONS } from '../modules/randomGenerator';
@@ -9,17 +9,14 @@ import { AccentTheme, IconBadge } from './shared';
 
 export function RandomView({ module, accent, onCopyValue }: { module: ModuleData; accent: AccentTheme; onCopyValue?: (value: string) => void }) {
   const random = module.random;
-  const [current, setCurrent] = useState<RandomResult | null>(random || null);
+  const [generated, setGenerated] = useState<{ source: RandomResult | undefined; value: RandomResult } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Sync from textbox detection
-  useEffect(() => {
-    if (random) setCurrent(random);
-  }, [random]);
+  const current = generated && generated.source === random ? generated.value : random ?? null;
 
   const handleRegenerate = () => {
     if (current) {
-      setCurrent(regenerateRandom(current));
+      setGenerated({ source: random, value: regenerateRandom(current) });
       setCopied(false);
     }
   };
@@ -46,7 +43,7 @@ export function RandomView({ module, accent, onCopyValue }: { module: ModuleData
             return (
               <button
                 key={action.id}
-                onClick={() => { setCurrent(action.generate()); setCopied(false); }}
+                onClick={() => { setGenerated({ source: random, value: action.generate() }); setCopied(false); }}
                 className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-white/[0.06] transition-colors border border-transparent hover:border-white/10"
               >
                 <ActionIcon className={`w-4 h-4 ${accent.text}`} />
@@ -72,7 +69,7 @@ export function RandomView({ module, accent, onCopyValue }: { module: ModuleData
           <div className="text-white/40 text-xs font-mono mb-1">{current.label}</div>
           <div className="flex items-center gap-2">
             {isHex && (
-              <div className="w-6 h-6 rounded-md flex-shrink-0 border border-white/10" style={{ background: current.value }} />
+              <div className="w-6 h-6 rounded-md shrink-0 border border-white/10" style={{ background: current.value }} />
             )}
             <div className={`text-xl font-semibold tracking-tight text-white ${current.type === 'password' ? 'font-mono text-base break-all' : ''}`}>
               {current.value}

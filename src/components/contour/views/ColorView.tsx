@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ModuleData } from '../moduleRegistry';
 import {
@@ -8,79 +8,53 @@ import {
 import { AccentTheme, FooterHint } from './shared';
 
 function ColorInteractive({ color, accent: _accent, onCopyValue }: { color?: ColorResult; accent: AccentTheme; onCopyValue?: (value: string) => void }) {
-  const [r, setR] = useState(255);
-  const [g, setG] = useState(87);
-  const [b, setB] = useState(51);
-  const [hexInput, setHexInput] = useState('#FF5733');
+  const [rgb, setRgb] = useState({ r: 255, g: 87, b: 51 });
+  const [hexDraft, setHexDraft] = useState<string | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
-  const hexSourceRef = useRef<'hex' | 'rgb'>('rgb');
+
+  const activeRgb = !hasInteracted && color?.rgb ? color.rgb : rgb;
+  const { r, g, b } = activeRgb;
 
   // Derived values
   const hex = rgbToHex(r, g, b).toUpperCase();
   const hsl = rgbToHsl(r, g, b);
   const cssColor = rgbToHex(r, g, b);
 
-  // Sync hexInput from RGB (when changed from non-hex source)
-  useEffect(() => {
-    if (hexSourceRef.current === 'rgb') {
-      setHexInput(hex);
-    }
-  }, [hex]);
-
-  // Sync from textbox detection
-  const detectedRgb = color?.rgb;
-  const detectedHex = color?.hex;
-  useEffect(() => {
-    if (hasInteracted || !detectedRgb) return;
-    hexSourceRef.current = 'rgb';
-    setR(detectedRgb.r);
-    setG(detectedRgb.g);
-    setB(detectedRgb.b);
-    // detectedHex keys the sync: a new hex is a new detection.
-  }, [detectedHex, detectedRgb, hasInteracted]);
+  const hexInput = hexDraft ?? hex;
 
   const handleRgb = (which: 'r' | 'g' | 'b', val: string) => {
     setHasInteracted(true);
-    hexSourceRef.current = 'rgb';
+    setHexDraft(null);
     const n = parseInt(val);
     if (isNaN(n)) return;
     const clamped = Math.max(0, Math.min(255, n));
-    if (which === 'r') setR(clamped);
-    else if (which === 'g') setG(clamped);
-    else setB(clamped);
+    setRgb({ ...activeRgb, [which]: clamped });
   };
 
   const handleHexChange = (val: string) => {
     setHasInteracted(true);
-    hexSourceRef.current = 'hex';
-    setHexInput(val);
+    setHexDraft(val);
     const parsed = hexToRgb(val);
     if (parsed) {
-      setR(parsed.r);
-      setG(parsed.g);
-      setB(parsed.b);
+      setRgb(parsed);
     }
   };
 
   const handlePickerChange = (val: string) => {
     setHasInteracted(true);
-    hexSourceRef.current = 'rgb';
+    setHexDraft(null);
     const parsed = hexToRgb(val);
     if (parsed) {
-      setR(parsed.r);
-      setG(parsed.g);
-      setB(parsed.b);
+      setRgb(parsed);
     }
   };
 
   const handlePreset = (presetHex: string) => {
     setHasInteracted(true);
-    hexSourceRef.current = 'rgb';
+    setHexDraft(null);
     const parsed = hexToRgb(presetHex);
     if (parsed) {
-      setR(parsed.r);
-      setG(parsed.g);
-      setB(parsed.b);
+      setRgb(parsed);
     }
   };
 
@@ -99,7 +73,7 @@ function ColorInteractive({ color, accent: _accent, onCopyValue }: { color?: Col
           <button
             key={p.name}
             onClick={() => handlePreset(p.hex)}
-            className="w-6 h-6 rounded-lg flex-shrink-0 border transition-all hover:scale-110"
+            className="w-6 h-6 rounded-lg shrink-0 border transition-all hover:scale-110"
             style={{
               background: p.hex,
               borderColor: hex === p.hex.toUpperCase() ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.15)',
@@ -113,7 +87,7 @@ function ColorInteractive({ color, accent: _accent, onCopyValue }: { color?: Col
       {/* Picker + HEX input row */}
       <div className="flex items-center gap-2.5">
         {/* Native color picker */}
-        <div className="relative flex-shrink-0">
+        <div className="relative shrink-0">
           <input
             type="color"
             value={cssColor}
@@ -129,7 +103,7 @@ function ColorInteractive({ color, accent: _accent, onCopyValue }: { color?: Col
           value={hexInput}
           onChange={e => handleHexChange(e.target.value)}
           maxLength={9}
-          className="w-[100px] bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm font-mono focus:outline-none focus:border-white/25 transition-colors"
+          className="w-[100px] bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm font-mono focus:outline-hidden focus:border-white/25 transition-colors"
           placeholder="#000000"
         />
 
@@ -150,12 +124,12 @@ function ColorInteractive({ color, accent: _accent, onCopyValue }: { color?: Col
               min={0} max={255}
               value={ch === 'r' ? r : ch === 'g' ? g : b}
               onChange={e => handleRgb(ch, e.target.value)}
-              className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-2 py-1.5 text-white text-xs font-mono text-center focus:outline-none focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-2 py-1.5 text-white text-xs font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
         ))}
         {/* HSL display */}
-        <div className="flex-shrink-0 text-[10px] text-white/25 font-mono">
+        <div className="shrink-0 text-[10px] text-white/25 font-mono">
           hsl({hsl.h},{hsl.s}%,{hsl.l}%)
         </div>
       </div>
@@ -168,7 +142,7 @@ function ColorInteractive({ color, accent: _accent, onCopyValue }: { color?: Col
         className="flex items-center gap-3 pt-1"
       >
         <div
-          className="w-10 h-10 rounded-xl border border-white/20 flex-shrink-0"
+          className="w-10 h-10 rounded-xl border border-white/20 shrink-0"
           style={{ background: cssColor }}
         />
         <div className="flex-1 min-w-0">
@@ -193,7 +167,7 @@ export function ColorView({ module, accent, onCopyValue }: { module: ModuleData;
     return (
       <div className="p-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl border border-white/20 flex-shrink-0" style={{ background: color.cssColor }} />
+          <div className="w-10 h-10 rounded-xl border border-white/20 shrink-0" style={{ background: color.cssColor }} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-white font-semibold text-lg font-mono">{color.hex}</span>

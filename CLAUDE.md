@@ -11,22 +11,23 @@ Currently pre-launch (soft launch in preparation). **Read `production-check.md` 
 ## Commands
 
 ```bash
-npm install          # install dependencies
+nvm use              # use the version pinned in .nvmrc (Node 24.20.0)
+npm ci               # reproduce the lockfile exactly
 npm run dev          # Vite dev server on :5173 (also serves api/*.ts via middleware)
-npm run build        # vite build — NOTE: does not typecheck (see production-check.md 1.1)
-npx tsc --noEmit     # the real typecheck — currently 155 errors
-npm run lint         # eslint — currently 299 problems
-npm test             # vitest run — currently one suite (notes renderInline)
+npm run typecheck    # TypeScript 6 strict typecheck; currently clean
+npm run lint         # ESLint 10 + Hooks recommended-latest; currently clean
+npm test             # Vitest 5; currently 22 files / 145 tests
+npm run build        # typechecks first, then builds with Vite 8
 npm run preview      # preview the production build
 ```
 
-Test coverage is one file so far (`src/components/notes/renderInline.test.ts`); broadening it is `production-check.md` 2.4.
+Tests and builds require `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; dummy values are sufficient for automated checks. Real integration flows require the authorized service/provider variables described below.
 
 ## Architecture
 
 ```
 src/
-  App.tsx                  ~1200 lines. All routing. Imports every route eagerly.
+  App.tsx                  ~1200 lines. All routing. Secondary routes are lazy-loaded.
   main.tsx                 Entry: BrowserRouter + HelmetProvider + App
   hooks/useChat.ts         ~1300 lines. Core chat state machine.
   services/                Client-side API wrappers
@@ -37,7 +38,7 @@ src/
     contour/               Command palette — 25 modules + 25 views
     notes/                 Block-based Notion-like editor
     <feature>/             One directory per feature area
-  types/database.ts        Supabase generated types (STALE — 10 of 18 tables)
+  types/database.ts        Supabase generated types for the current 22-table schema
   config/constants.ts      Client config, persona display data, feature flags
 
 api/                       Vercel serverless functions
@@ -52,7 +53,7 @@ api/                       Vercel serverless functions
   pro-generation.ts        Trigger.dev-backed long-running PRO jobs
   pro-stream.ts            Streaming for PRO jobs
 
-supabase/migrations/       INCOMPLETE — only 4 of 18 tables
+supabase/migrations/       INCOMPLETE — five files do not recreate the full schema
 trigger/                   Trigger.dev task definitions
 ```
 
@@ -77,7 +78,7 @@ ChatInput → useChat → aiProxyService → POST /api/ai-proxy
 - `[STATUS:...]` and `[IMAGE_ANALYZING]` inline markers
 - ``-prefixed JSON control frames terminated by `\n` (used for MCP approval requests)
 
-`createStreamChunkParser` in `src/services/ai/aiProxyService.ts` is the only decoder. It is intricate and untested — **change it carefully** and add tests if you touch it.
+`createStreamChunkParser` in `src/services/ai/aiProxyService.ts` is the only decoder. It is intricate; preserve the `[STATUS_END]` failure contract and extend the existing streaming/fallback tests if you touch it.
 
 ### Providers
 
@@ -118,29 +119,29 @@ Server (never `VITE_`-prefixed):
 ## Conventions
 
 - **TypeScript strict mode** is on. Don't add `any` to silence an error — the codebase already has too many.
-- **Tailwind** for styling. Glass-morphism aesthetic; theme tokens live in `src/themes/`.
+- **Tailwind CSS 4** for styling. The CSS-first theme, glass tokens, keyframes, and Typography setup live in `src/index.css`; runtime theme data lives in `src/themes/`.
 - **Framer Motion** for animation, GSAP for a few loading effects.
-- Components are function components with hooks. No class components except (soon) the error boundary.
+- Components are function components with hooks. `ErrorBoundary` is the intentional class-component exception.
 - Comments in this codebase explain *why*, not *what*. Match that — several existing comments document non-obvious decisions and are worth reading.
 - Import with the `@/` alias where it's already used; relative paths elsewhere. Both are in play.
 
 ## Things that will bite you
 
-1. **`npm run build` does not typecheck.** It passes while `tsc --noEmit` reports 155 errors. Always run `npx tsc --noEmit` yourself — and note that `incremental: true` caches results in `tsconfig.tsbuildinfo`, and that a *parse* error in one file makes tsc bail out and report only that file. A sudden drop in the error count means a syntax error, not progress. `rm -f tsconfig.tsbuildinfo` before trusting a count.
-2. **`src/types/database.ts` is stale.** Nine tables the code queries aren't declared, so those query results are typed `never` and every field access on them is unchecked. Regenerate before trusting DB types.
-3. **The dev API middleware is hand-rolled.** `vite.config.ts` reimplements Vercel's request/response shim to run `api/*.ts` locally. It is not a faithful reproduction — no body limits, different error handling, different streaming behaviour. If something works in dev but not on Vercel, suspect this first.
+1. **Use Node 24.** The project pins 24.20.0 in `.nvmrc`; the default interactive shell may still resolve Node 22. `npm ci`, gates, and Trigger checks should run after `nvm use` or with `/opt/homebrew/opt/node@24/bin` first in `PATH`.
+2. **The database migrations are incomplete.** The generated database types cover the current schema, but only five migration files are present. The repository still cannot recreate all production tables from scratch.
+3. **The dev API middleware is repository-owned compatibility code.** `api/_lib/nodeHttpAdapter.ts` mirrors the documented Vercel Node handler helpers, including query arrays, cookies, body parsing, the 4.5 MB limit, response helpers, binary data, and native streaming. Keep `api/_lib/httpContract.test.ts` and `api/pro-stream.test.ts` aligned whenever that contract changes.
 4. **`api/ai-proxy.ts` is ~3100 lines**, roughly half of it inline prompt strings. Use `grep -n` to navigate; don't read it top to bottom.
 5. **Identity comes from the verified JWT, and only from there.** Fixed in 0.1/0.2: `userId` is no longer read from `req.body` anywhere, and user-scoped reads go through `createUserScopedClient(accessToken)` so RLS applies instead of the service-role bypass. Never reintroduce a body-supplied id — `assertOwnUserId()` exists to make that fail loudly if you do.
 6. **Rate limiting fails CLOSED.** A limiter backend error returns `503`, not a free generation (0.4). Quota is charged only after a generation succeeds, so don't add an optimistic increment — the client reads its remaining count from `GET /api/ai-proxy?quota=<persona>`, and `useAnonymousRateLimit`'s localStorage counter is display-only.
-7. **There is no error boundary.** An uncaught render error blanks the entire app.
-8. **No 404 route.** Unknown URLs render a blank black page.
+7. **Error boundaries exist at the root and transcript scope.** Preserve both when changing routing or the chat shell.
+8. **The wildcard 404 route is last.** Keep it after all concrete routes when editing `App.tsx`.
 9. **Two `ChatInput.tsx` files exist** — `src/components/ChatInput.tsx` and `src/components/chat/ChatInput.tsx`. The `chat/` one is the live one.
-10. **A truncated stream reads as success.** `aiProxyService.ts` breaks its read loop on `done` and calls `onComplete` without ever checking that the `[STATUS_END]` sentinel arrived. A provider that dies mid-stream produces an empty AI bubble and no error. Fixing this is `production-check.md` 1.9 — until then, don't trust "it completed" to mean "it worked."
-11. **`res.status(500)` after streaming has started is a no-op.** the streaming error path has no `res.headersSent` guard, so the error text gets appended to the AI's message instead. Guard every post-header write.
-12. **Message IDs are `Date.now()`** (and `Date.now() + 1` for AI placeholders). They collide. `key={message.id}` means colliding IDs make messages merge or vanish. Being replaced with `crypto.randomUUID()` in 1.12.
-13. **`useChat.ts` has 8 `exhaustive-deps` violations.** The send handler captures a stale `currentSessionId`, so a completion can save into the previously-open session. There's a comment in `completeStreamingMessage` patching the symptom — don't add more of those, fix the closure.
-14. **The whole app blocks on auth.** `App.tsx` returns a bare spinner until `getSession()` *and* `fetchProfile()` both resolve (the latter with an 8s timeout). Being made progressive in 1.14 — don't add anything else to that gate.
-15. **The Trigger.dev task deploys separately from Vercel.** Merging to `main` redeploys `api/` and `src/` only. `trigger/proGeneration.ts` — where PRO's model call actually happens — stays on whatever was last shipped with `npm run trigger:deploy` (or the Trigger.dev GitHub integration, if it has been connected). A change to the task that looks live because the PR merged is not live. The task also runs on Trigger's own infrastructure with its own environment variables: a provider key set in Vercel is not visible to it. And `trigger.config.ts` pins `runtime: "node-22"` — the default `"node"` is Node 21, which has no global `WebSocket`, and the Supabase client the task imports fails the build without one.
+10. **The stream completion sentinel is mandatory.** The client treats a missing `[STATUS_END]` as a retryable truncated response. Keep the sentinel as the final successful frame and keep failure paths from emitting it.
+11. **Streaming error paths must respect `res.headersSent`.** The current handler guards post-header failures; preserve that guard so error text is not appended to an AI message.
+12. **Message IDs are UUIDs.** Keep the migration shim for historical timestamp IDs and use the shared ID helper for new messages.
+13. **Hooks lint is deliberately strict.** Hooks 7 `recommended-latest`, including `exhaustive-deps`, is enabled at error severity with zero findings. Do not suppress it or regress the session-at-start safeguards in `useChat`.
+14. **The app shell renders progressively.** Do not reintroduce a whole-app auth/profile loading gate; secondary routes use accessible Suspense loading UI.
+15. **The Trigger.dev task deploys separately from Vercel.** Merging to `main` redeploys `api/` and `src/` only. `trigger/proGeneration.ts` — where PRO's model call actually happens — stays on whatever was last shipped with `npm run trigger:deploy` (or the Trigger.dev GitHub integration, if it has been connected). A change to the task that looks live because the PR merged is not live. The task also runs on Trigger's own infrastructure with its own environment variables: a provider key set in Vercel is not visible to it. `trigger.config.ts` now pins `runtime: "node-24"`.
 16. **`saveLocalSession` swallows `QuotaExceededError`.** All sessions are one `localStorage` JSON blob, and messages carry base64 images and full PDF text. It silently stops saving at ~5 MB. Moving to IndexedDB in LS.2.
 
 ## Storage direction (important)
@@ -176,5 +177,5 @@ Non-negotiable when writing code here:
 
 - Prefer small, reviewable changes tied to a `production-check.md` task ID.
 - If you fix an issue listed there, update its status in that file.
-- Run `npx tsc --noEmit` and `npm run lint` before declaring a change done, and say honestly whether the counts went up or down.
+- Run `npm run typecheck`, `npm run lint`, and the relevant tests before declaring a change done. Run `npm run build` for integration or dependency changes.
 - Don't commit or push unless asked.
