@@ -574,7 +574,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   const backgroundClass = customBackgroundClass
     ? customBackgroundClass
     : isHealthcareActive
-      ? 'bg-linear-to-t from-green-950 to-black to-50%'
+      ? 'bg-linear-to-t/srgb from-green-950 to-black to-50%'
       : theme.background;
 
   return (
@@ -684,7 +684,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                             }}
                             className={`w-full px-4 py-3 text-left transition-all duration-300
                               ${currentProHeatLevel === parseInt(level) ? 'text-cyan-400' : theme.text}
-                              ${currentProHeatLevel === parseInt(level) ? 'bg-linear-to-r from-cyan-500/20 to-black/10' : 'bg-transparent'}
+                              ${currentProHeatLevel === parseInt(level) ? 'bg-linear-to-r/srgb from-cyan-500/20 to-black/10' : 'bg-transparent'}
                               flex flex-col gap-1 border-b border-white/5 last:border-b-0`}
                             style={{
                               background: currentProHeatLevel === parseInt(level) ?
@@ -925,8 +925,8 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                 className="w-full max-w-md"
               >
                 <div className="relative overflow-hidden rounded-3xl">
-                  <div className="absolute inset-0 bg-linear-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
-                  <div className="absolute inset-0 bg-linear-to-br from-purple-500 to-violet-500 opacity-20" />
+                  <div className="absolute inset-0 bg-linear-to-br/srgb from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
+                  <div className="absolute inset-0 bg-linear-to-br/srgb from-purple-500 to-violet-500 opacity-20" />
                   <div className="absolute inset-[1px] rounded-3xl border border-white/[0.08]" />
 
                   <div className="relative p-8 text-center">
@@ -952,7 +952,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                         whileTap={{ scale: 0.98 }}
                         onClick={handleJoinGroupChat}
                         disabled={isJoiningGroup}
-                        className="w-full py-4 rounded-xl bg-linear-to-r from-purple-500 to-violet-500 text-white font-semibold flex items-center justify-center gap-2"
+                        className="w-full py-4 rounded-xl bg-linear-to-r/srgb from-purple-500 to-violet-500 text-white font-semibold flex items-center justify-center gap-2"
                       >
                         {isJoiningGroup ? (
                           <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -965,7 +965,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleOpenAuth}
-                        className="w-full py-4 rounded-xl bg-linear-to-r from-purple-500 to-violet-500 text-white font-semibold"
+                        className="w-full py-4 rounded-xl bg-linear-to-r/srgb from-purple-500 to-violet-500 text-white font-semibold"
                       >
                         Sign In to Join
                       </motion.button>

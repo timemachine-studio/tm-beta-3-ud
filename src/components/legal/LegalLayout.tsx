@@ -22,7 +22,7 @@ export function LegalLayout({ eyebrow, title, lastUpdated, children }: LegalLayo
   return (
     <div className="min-h-screen relative overflow-auto bg-black">
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-linear-to-b from-black via-black to-purple-950/30" />
+        <div className="absolute inset-0 bg-linear-to-b/srgb from-black via-black to-purple-950/30" />
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-purple-500/8 rounded-full blur-[150px]" />
       </div>
 

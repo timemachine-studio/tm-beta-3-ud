@@ -21,7 +21,7 @@ These results were rechecked on 2026-09-09.
 | `npm ci` | Pass | Isolated temporary-copy lockfile install with Node 24.20.0 and npm 11.19.0; 669 packages installed |
 | `npm run typecheck` | Pass | TypeScript 6.0.3 |
 | `npm run lint` | Pass | 0 errors, 0 warnings with Hooks 7 `recommended-latest` enabled |
-| `npm test` | Pass | Vitest 5.0.0; 24 files, 152 tests |
+| `npm test` | Pass | Vitest 5.0.0; 24 files, 153 tests |
 | `npm run build` | Pass | Vite 8.2.2 with Tailwind CSS 4.3.3; no CSS import-order warning; one non-fatal chunk-size warning remains after the entry chunk reduction |
 | `npx trigger.dev --help` | Pass | Trigger CLI loads on Node 24 |
 | Standalone `trigger.config.ts` compile | Pass | TypeScript 6 uses `--ignoreConfig`, NodeNext/ES2022, explicit Node types, and `--skipLibCheck` for optional Trigger declarations |
@@ -427,6 +427,53 @@ Not the cause, but worth recording: the build log carries a repeated warning
 that `engines: { node: "24.x" }` overrides the Project Settings value of 22.x.
 That is informational — the `engines` field wins and the build ran on Node 24 —
 but the Vercel project setting should be moved to 24.x so the two agree.
+
+### 10.6 Every gradient changed shade and falloff, and the theme swatches went grey
+
+Reported from before/after screenshots of the chat background: the purple was
+dimmer, compressed toward the bottom, and ramped differently. Two separate
+Tailwind 4 behaviours, both introduced by the utility rename in Task 7.
+
+**Gradient interpolation.** Tailwind 3's `bg-gradient-to-*` interpolated in sRGB.
+Tailwind 4's `bg-linear-to-*` emits `--tw-gradient-position: <direction> in oklab`
+inside an `@supports (background-image: linear-gradient(in lab, red, red))` block,
+so every modern browser silently switched to perceptual interpolation. For the app
+background — `from-purple-950 to-black to-50%` — the two ramps diverge sharply in
+the middle:
+
+| position | Tailwind 3 (sRGB) | Tailwind 4 (oklab) |
+|---|---|---|
+| 20% | `rgb(35,4,60)` | `rgb(25,2,46)` |
+| 30% | `rgb(24,3,40)` | `rgb(9,0,22)` |
+| 40% | `rgb(12,1,20)` | `rgb(1,0,3)` |
+| 45% | `rgb(6,1,10)` | `rgb(0,0,0)` |
+
+Tailwind 4 reaches pure black around 45% where Tailwind 3 still showed purple at
+50% — which is exactly the reported "less purple, dimmer, different falloff".
+Pinned all 107 gradient utilities to `bg-linear-to-*/srgb`, Tailwind 4's supported
+opt-out, which emits `in srgb` and restores the Tailwind 3 ramp exactly. Verified:
+the rebuilt CSS carries `in srgb` for every direction, and the rendered page at
+412x892 matches the pre-upgrade screenshot again.
+
+The palette was investigated and cleared: Tailwind 4 defines `purple-950` as
+`oklch(29.1% .149 302.717)`, which resolves to `#3c0366` against Tailwind 3's
+`#3b0764` and sits inside the sRGB gamut, so it neither shifts perceptibly nor
+over-saturates on a P3 display. Interpolation was the whole effect.
+
+**Theme swatches.** `SettingsModal` picked its season swatch colour with
+`seasonTheme.background.includes('gradient')`. After the rename the class reads
+`bg-linear-to-br …`, which contains no "gradient", so the guard went false for
+every theme and all eight swatches fell back to flat `rgba(255,255,255,0.1)`. The
+truthy branch was never sound either: it rebuilt CSS by string surgery, and its
+global dash replacement also broke the word `linear-gradient` itself, so Tailwind
+3 emitted `linear gradient(, bottom right, pink 100 to rose 200)` — invalid, hence
+a transparent swatch. Replaced the whole construction by applying
+`seasonTheme.background` as the className it already is, and added `relative` so
+the selected-theme icon centres on the swatch it belongs to.
+
+`tailwind-merge` was checked against the modified utilities before rolling them
+out: `cn('bg-linear-to-r/srgb', 'bg-linear-to-b/srgb')` and both mixed forms still
+collapse to the last class, and `src/utils/cn.test.ts` now pins that.
 
 ### Live verification with real credentials (2026-09-10)
 
@@ -841,7 +888,7 @@ Recorded 2026-09-09 and carried forward on 2026-09-10. The dependency migration 
 - Complete the Supabase migration history. The generated types cover the current database, but the repository's five migration files are insufficient to recreate the full production schema.
 - Confirm production configuration in both Vercel and Trigger: provider credentials, `SUPABASE_SERVICE_ROLE_KEY`, `ALLOWED_ORIGINS`, `ANON_TRIAL_SECRET`, and a meaningful nonzero `PROVIDER_DAILY_CEILING`. Trigger has its own environment and must not be assumed to inherit Vercel variables.
 - Add or finish CI, staging discipline, error/uptime monitoring, deployment smoke checks, and a launch/rollback runbook.
-- Continue product-level and live integration coverage beyond the current 152 tests in 24 files, especially across provider failures, external services, browser file flows, and deployment boundaries.
+- Continue product-level and live integration coverage beyond the current 153 tests in 24 files, especially across provider failures, external services, browser file flows, and deployment boundaries.
 - Replace the anonymous chat-history `localStorage` blob with the planned IndexedDB/local-first store. The current design can hit browser quota and silently stop persisting history; signed-in storage behavior must be reconciled with the product's privacy direction.
 
 ### Owner and launch decisions

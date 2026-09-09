@@ -50,7 +50,7 @@ export function ContactPage() {
   return (
     <div className="min-h-screen relative overflow-auto">
       {/* Purple to black gradient background */}
-      <div className="fixed inset-0 bg-linear-to-t from-purple-900/40 via-black to-black -z-10" />
+      <div className="fixed inset-0 bg-linear-to-t/srgb from-purple-900/40 via-black to-black -z-10" />
 
       {/* Ambient effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">

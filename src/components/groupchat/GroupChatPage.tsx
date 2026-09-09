@@ -429,8 +429,8 @@ export function GroupChatPage() {
           className="w-full max-w-md"
         >
           <div className="relative overflow-hidden rounded-3xl">
-            <div className="absolute inset-0 bg-linear-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
-            <div className={`absolute inset-0 bg-linear-to-br ${personaColors[inviteInfo.persona] || personaColors.default} opacity-20`} />
+            <div className="absolute inset-0 bg-linear-to-br/srgb from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
+            <div className={`absolute inset-0 bg-linear-to-br/srgb ${personaColors[inviteInfo.persona] || personaColors.default} opacity-20`} />
             <div className="absolute inset-[1px] rounded-3xl border border-white/[0.08]" />
 
             <div className="relative p-8 text-center">
@@ -461,7 +461,7 @@ export function GroupChatPage() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => navigate('/')}
-                className={`w-full py-4 rounded-xl bg-linear-to-r ${personaColors[inviteInfo.persona] || personaColors.default} text-white font-semibold`}
+                className={`w-full py-4 rounded-xl bg-linear-to-r/srgb ${personaColors[inviteInfo.persona] || personaColors.default} text-white font-semibold`}
               >
                 Sign In to Join
               </motion.button>
@@ -482,8 +482,8 @@ export function GroupChatPage() {
           className="w-full max-w-md"
         >
           <div className="relative overflow-hidden rounded-3xl">
-            <div className="absolute inset-0 bg-linear-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
-            <div className={`absolute inset-0 bg-linear-to-br ${personaColors[inviteInfo.persona] || personaColors.default} opacity-20`} />
+            <div className="absolute inset-0 bg-linear-to-br/srgb from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
+            <div className={`absolute inset-0 bg-linear-to-br/srgb ${personaColors[inviteInfo.persona] || personaColors.default} opacity-20`} />
             <div className="absolute inset-[1px] rounded-3xl border border-white/[0.08]" />
 
             <div className="relative p-8 text-center">
@@ -516,7 +516,7 @@ export function GroupChatPage() {
                 whileTap={{ scale: 0.98 }}
                 onClick={handleJoin}
                 disabled={isJoining}
-                className={`w-full py-4 rounded-xl bg-linear-to-r ${personaColors[inviteInfo.persona] || personaColors.default} text-white font-semibold flex items-center justify-center gap-2`}
+                className={`w-full py-4 rounded-xl bg-linear-to-r/srgb ${personaColors[inviteInfo.persona] || personaColors.default} text-white font-semibold flex items-center justify-center gap-2`}
               >
                 {isJoining ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -610,7 +610,7 @@ export function GroupChatPage() {
               animate={{ opacity: 1, y: 0 }}
               className="flex justify-start"
             >
-              <div className={`max-w-[80%] p-4 rounded-2xl bg-linear-to-r ${personaColors[groupChat?.persona || 'default']} border border-white/10`}>
+              <div className={`max-w-[80%] p-4 rounded-2xl bg-linear-to-r/srgb ${personaColors[groupChat?.persona || 'default']} border border-white/10`}>
                 <p className="text-purple-400 text-xs font-medium mb-2">
                   {AI_PERSONAS[groupChat?.persona || 'default'].name}
                 </p>
@@ -673,8 +673,8 @@ export function GroupChatPage() {
                         >
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                             suggestion.type === 'ai'
-                              ? 'bg-linear-to-br from-purple-500 to-pink-500'
-                              : 'bg-linear-to-br from-blue-500 to-cyan-500'
+                              ? 'bg-linear-to-br/srgb from-purple-500 to-pink-500'
+                              : 'bg-linear-to-br/srgb from-blue-500 to-cyan-500'
                           }`}>
                             <span className="text-white text-sm font-medium">
                               {suggestion.nickname.charAt(0).toUpperCase()}
@@ -714,7 +714,7 @@ export function GroupChatPage() {
                 whileTap={{ scale: 0.95 }}
                 onClick={handleSend}
                 disabled={!message.trim() || isSending}
-                className={`p-3 rounded-xl bg-linear-to-r ${personaColors[groupChat?.persona || 'default']} text-white disabled:opacity-50`}
+                className={`p-3 rounded-xl bg-linear-to-r/srgb ${personaColors[groupChat?.persona || 'default']} text-white disabled:opacity-50`}
               >
                 {isSending ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -764,7 +764,7 @@ export function GroupChatPage() {
                       key={participant.id}
                       className="flex items-center gap-3 p-3 rounded-xl bg-white/5"
                     >
-                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center overflow-hidden">
+                      <div className="w-10 h-10 rounded-full bg-linear-to-br/srgb from-purple-500 to-pink-500 flex items-center justify-center overflow-hidden">
                         {participant.avatar_url ? (
                           <img src={participant.avatar_url} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -838,7 +838,7 @@ function GroupMessage({ message, isOwnMessage, persona, onReply }: GroupMessageP
         onMouseLeave={() => setShowActions(false)}
       >
         <div className="relative">
-          <div className={`max-w-[80%] p-4 rounded-2xl bg-linear-to-r ${personaColors[persona] || personaColors.default} border`}>
+          <div className={`max-w-[80%] p-4 rounded-2xl bg-linear-to-r/srgb ${personaColors[persona] || personaColors.default} border`}>
             <p className="text-purple-400 text-xs font-medium mb-2">
               {AI_PERSONAS[persona].name}
             </p>
@@ -919,7 +919,7 @@ function GroupMessage({ message, isOwnMessage, persona, onReply }: GroupMessageP
           </span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-linear-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30">
+        <div className="p-4 rounded-2xl bg-linear-to-r/srgb from-blue-500/20 to-cyan-500/20 border border-blue-500/30">
           <div className="text-white/90">
             {message.content}
           </div>

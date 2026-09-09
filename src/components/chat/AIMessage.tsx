@@ -400,7 +400,7 @@ function AIMessageComponent({
           <motion.button
             onClick={() => setShowReasoning(!showReasoning)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full
-              bg-linear-to-r ${reasoningColors.gradient.replace('/90', '/20')}
+              bg-linear-to-r/srgb ${reasoningColors.gradient.replace('/90', '/20')}
               backdrop-blur-xl border ${reasoningColors.border}
               ${reasoningColors.shadow}
               hover:${reasoningColors.shadow.replace('0.2', '0.4')}
@@ -424,7 +424,7 @@ function AIMessageComponent({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 className={`mt-2 p-4 relative
-                  bg-linear-to-r ${reasoningColors.gradient}
+                  bg-linear-to-r/srgb ${reasoningColors.gradient}
                   backdrop-blur-xl rounded-lg border ${reasoningColors.border}
                   ${reasoningColors.shadow}`}
               >

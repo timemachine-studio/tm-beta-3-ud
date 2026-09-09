@@ -24,7 +24,7 @@ function AlbumCard({ title, icon, count, gradient, onClick, preview }: {
 }) {
   return (
     <motion.button whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} onClick={onClick} className="relative overflow-hidden rounded-3xl aspect-square group">
-      {preview ? <img src={preview} alt="" className="absolute inset-0 w-full h-full object-cover" /> : <div className={`absolute inset-0 bg-linear-to-br ${gradient}`} />}
+      {preview ? <img src={preview} alt="" className="absolute inset-0 w-full h-full object-cover" /> : <div className={`absolute inset-0 bg-linear-to-br/srgb ${gradient}`} />}
       <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors" />
       <div className="absolute inset-[1px] rounded-3xl border border-white/[0.1]" />
       <div className="relative h-full flex flex-col items-center justify-center gap-4 p-6">

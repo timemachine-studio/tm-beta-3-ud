@@ -103,13 +103,13 @@ export function GroupChatModal({
                   }}
                 >
                   {/* Persona gradient overlay */}
-                  <div className={`absolute inset-0 bg-linear-to-br ${personaColors[persona]} opacity-10 rounded-3xl`} />
+                  <div className={`absolute inset-0 bg-linear-to-br/srgb ${personaColors[persona]} opacity-10 rounded-3xl`} />
 
                   <div className="relative p-6">
                     {/* Header */}
                     <div className="flex items-center justify-between mb-6">
                       <div className="flex items-center gap-3">
-                        <div className={`p-2.5 rounded-2xl bg-linear-to-br ${personaColors[persona]}`}>
+                        <div className={`p-2.5 rounded-2xl bg-linear-to-br/srgb ${personaColors[persona]}`}>
                           <Users className="w-5 h-5 text-white" />
                         </div>
                         <Dialog.Title className="text-xl font-semibold text-white">
@@ -175,7 +175,7 @@ export function GroupChatModal({
                           whileTap={{ scale: 0.98 }}
                           onClick={handleCreateGroupChat}
                           disabled={isCreating || !user}
-                          className={`w-full py-4 rounded-xl bg-linear-to-r ${personaColors[persona]} text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50`}
+                          className={`w-full py-4 rounded-xl bg-linear-to-r/srgb ${personaColors[persona]} text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50`}
                           style={{
                             backdropFilter: 'blur(20px)',
                             WebkitBackdropFilter: 'blur(20px)',
@@ -263,7 +263,7 @@ export function GroupChatModal({
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={handleContinue}
-                            className={`flex-1 py-3 rounded-xl bg-linear-to-r ${personaColors[persona] || personaColors.default} text-white font-medium flex items-center justify-center gap-2`}
+                            className={`flex-1 py-3 rounded-xl bg-linear-to-r/srgb ${personaColors[persona] || personaColors.default} text-white font-medium flex items-center justify-center gap-2`}
                             style={{
                               backdropFilter: 'blur(20px)',
                               WebkitBackdropFilter: 'blur(20px)',

@@ -102,8 +102,8 @@ export function SettingsPage() {
           className="relative overflow-hidden rounded-3xl"
         >
           {/* Glass background */}
-          <div className="absolute inset-0 bg-linear-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
-          <div className="absolute inset-0 bg-linear-to-br from-purple-500/10 via-transparent to-pink-500/5" />
+          <div className="absolute inset-0 bg-linear-to-br/srgb from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
+          <div className="absolute inset-0 bg-linear-to-br/srgb from-purple-500/10 via-transparent to-pink-500/5" />
           <div className="absolute inset-[1px] rounded-3xl border border-white/[0.08]" />
 
           <div className="relative p-6 space-y-8">

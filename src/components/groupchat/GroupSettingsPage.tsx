@@ -200,11 +200,11 @@ export function GroupSettingsPage() {
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
           }}
         >
-          <div className={`absolute inset-0 bg-linear-to-br ${personaColors[groupChat.persona]} opacity-10 rounded-2xl`} />
+          <div className={`absolute inset-0 bg-linear-to-br/srgb ${personaColors[groupChat.persona]} opacity-10 rounded-2xl`} />
 
           <div className="relative p-6">
             <div className="flex items-center gap-4 mb-4">
-              <div className={`p-3 rounded-xl bg-linear-to-br ${personaColors[groupChat.persona]}`}>
+              <div className={`p-3 rounded-xl bg-linear-to-br/srgb ${personaColors[groupChat.persona]}`}>
                 <Settings className="w-6 h-6 text-white" />
               </div>
 
@@ -464,7 +464,7 @@ function ParticipantRow({
       }}
     >
       {/* Avatar */}
-      <div className="w-12 h-12 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center overflow-hidden shrink-0">
+      <div className="w-12 h-12 rounded-full bg-linear-to-br/srgb from-purple-500 to-pink-500 flex items-center justify-center overflow-hidden shrink-0">
         {participant.avatar_url ? (
           <img
             src={participant.avatar_url}

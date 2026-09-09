@@ -111,7 +111,7 @@ export function CookBookPage() {
                                     alt={featuredRecipe.title}
                                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
                                 />
-                                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent" />
+                                <div className="absolute inset-0 bg-linear-to-t/srgb from-black/80 via-black/30 to-transparent" />
 
                                 <div className="absolute top-6 left-6 px-3 py-1.5 rounded-full bg-orange-500/90 text-white text-xs font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-1.5">
                                     <Flame className="w-3.5 h-3.5" /> Featured Recipe
@@ -187,7 +187,7 @@ export function CookBookPage() {
                                                     alt={recipe.title}
                                                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                                 />
-                                                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
+                                                <div className="absolute inset-0 bg-linear-to-t/srgb from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
                                                 <button className="absolute top-4 right-4 p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-pink-500 hover:bg-white transition-all border border-white/10" onClick={(e) => e.stopPropagation()}>
                                                     <Heart className="w-4 h-4" />
                                                 </button>
@@ -243,7 +243,7 @@ export function CookBookPage() {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => setIsKitchenMode(true)}
-                            className="fixed bottom-10 inset-x-0 mx-auto w-fit px-8 py-4 rounded-full bg-linear-to-r from-orange-600/90 to-pink-600/90 backdrop-blur-xl border border-white/20 shadow-[0_0_40px_rgba(234,88,12,0.4)] text-white font-bold flex items-center justify-center gap-3 group z-40 hover:from-orange-500/90 hover:to-pink-500/90 transition-all"
+                            className="fixed bottom-10 inset-x-0 mx-auto w-fit px-8 py-4 rounded-full bg-linear-to-r/srgb from-orange-600/90 to-pink-600/90 backdrop-blur-xl border border-white/20 shadow-[0_0_40px_rgba(234,88,12,0.4)] text-white font-bold flex items-center justify-center gap-3 group z-40 hover:from-orange-500/90 hover:to-pink-500/90 transition-all"
                         >
                             <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
                                 <Sparkles className="w-3.5 h-3.5 text-white" />
@@ -277,7 +277,7 @@ export function CookBookPage() {
                                     alt={selectedRecipe.title}
                                     className="w-full h-full object-cover"
                                 />
-                                <div className="absolute inset-0 bg-linear-to-t from-[#111] via-black/40 to-transparent" />
+                                <div className="absolute inset-0 bg-linear-to-t/srgb from-[#111] via-black/40 to-transparent" />
                                 <button
                                     onClick={() => setSelectedRecipe(null)}
                                     className="absolute top-6 right-6 p-2 rounded-full bg-black/50 backdrop-blur-md text-white/70 hover:text-white hover:bg-white/20 transition-all border border-white/10"

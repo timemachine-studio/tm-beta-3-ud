@@ -36,7 +36,7 @@ export function ShiftMode({ isChatMode, onToggle, currentPersona = 'default' }: 
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       className={`p-3 rounded-full
-        bg-linear-to-r ${personaBorderColors[currentPersona]}
+        bg-linear-to-r/srgb ${personaBorderColors[currentPersona]}
         backdrop-blur-xl text-white
         border border-white/10
         shadow-[0_0_15px_${personaGlowColors[currentPersona]}]

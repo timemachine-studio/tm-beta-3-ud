@@ -45,12 +45,16 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
           <div key={key} className="flex flex-col items-center">
             <button
               onClick={() => setSeason(key as keyof typeof seasonThemes)}
-              className={`w-12 h-12 rounded-full transition-all duration-200
+              // The swatch shows the theme's own gradient. It used to rebuild one
+              // by string-surgery on the utility classes, which never produced
+              // valid CSS (the global dash replacement also broke the word
+              // "linear-gradient"), and after the Tailwind 4 rename the
+              // includes('gradient') guard stopped matching "bg-linear-*" at
+              // all, so every swatch fell back to flat grey. The value is
+              // already a set of Tailwind classes — apply it as one.
+              className={`relative w-12 h-12 rounded-full transition-all duration-200 ${seasonTheme.background}
                 ${season === key ? 'ring-2 ring-purple-400/60 ring-offset-2 ring-offset-transparent scale-110' : 'hover:scale-105'}`}
               style={{
-                background: seasonTheme.background.includes('gradient')
-                  ? seasonTheme.background.replace('bg-linear-to-br', 'linear-gradient(to bottom right,').replace(/-/g, ' ').replace('from ', '').replace('to ', ', ') + ')'
-                  : 'rgba(255, 255, 255, 0.1)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
                 border: season === key ? '2px solid rgba(168, 85, 247, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',

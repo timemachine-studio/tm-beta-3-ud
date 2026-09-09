@@ -282,10 +282,10 @@ The JSON must perfectly match this structure:
                                             whileHover={{ scale: 1.02 }}
                                             whileTap={{ scale: 0.98 }}
                                             onClick={handleCook}
-                                            className="w-full py-5 rounded-2xl bg-linear-to-r from-orange-500 via-pink-500 to-purple-500 text-white font-black text-lg uppercase tracking-widest shadow-[0_0_40px_rgba(236,72,153,0.4)] hover:shadow-[0_0_60px_rgba(236,72,153,0.6)] transition-all flex items-center justify-center gap-3 group relative overflow-hidden"
+                                            className="w-full py-5 rounded-2xl bg-linear-to-r/srgb from-orange-500 via-pink-500 to-purple-500 text-white font-black text-lg uppercase tracking-widest shadow-[0_0_40px_rgba(236,72,153,0.4)] hover:shadow-[0_0_60px_rgba(236,72,153,0.6)] transition-all flex items-center justify-center gap-3 group relative overflow-hidden"
                                         >
                                             {/* Shine effect */}
-                                            <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-linear-to-r from-transparent via-white/20 to-transparent skew-x-12" />
+                                            <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-linear-to-r/srgb from-transparent via-white/20 to-transparent skew-x-12" />
                                             <ChefHat className="w-6 h-6" /> Begin Cooking
                                         </motion.button>
                                     </div>
@@ -322,7 +322,7 @@ The JSON must perfectly match this structure:
                                 />
 
                                 {/* Core orb */}
-                                <div className="absolute inset-10 rounded-full bg-linear-to-tr from-orange-500 via-pink-500 to-purple-500 blur-[20px] animate-pulse opacity-70" />
+                                <div className="absolute inset-10 rounded-full bg-linear-to-tr/srgb from-orange-500 via-pink-500 to-purple-500 blur-[20px] animate-pulse opacity-70" />
 
                                 <ChefHat className="w-12 h-12 text-white relative z-10 animate-bounce" />
                             </div>
@@ -359,7 +359,7 @@ The JSON must perfectly match this structure:
                                     alt={result.title}
                                     className="w-full h-full object-cover"
                                 />
-                                <div className="absolute inset-0 bg-linear-to-t from-[#111] via-black/40 to-transparent" />
+                                <div className="absolute inset-0 bg-linear-to-t/srgb from-[#111] via-black/40 to-transparent" />
 
                                 <div className="absolute top-6 left-6 px-4 py-2 rounded-full bg-white/10 backdrop-blur-xl text-white text-xs font-bold uppercase tracking-widest border border-white/20 flex items-center gap-2 shadow-xl">
                                     <Sparkles className="w-4 h-4 text-pink-400" /> AI Generated

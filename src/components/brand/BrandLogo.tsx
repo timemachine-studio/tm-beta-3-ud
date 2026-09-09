@@ -218,7 +218,7 @@ export function BrandLogo({
                   onClick={() => handlePersonaSelect(key as keyof typeof AI_PERSONAS)}
                   className={`w-full px-4 py-3 text-left transition-all duration-300
                   ${currentPersona === key ? personaColors[key as keyof typeof personaColors] : theme.text}
-                  ${currentPersona === key ? `bg-linear-to-r from-[${personaGlowColors[key as keyof typeof personaGlowColors]}] to-black/10` : 'bg-transparent'}
+                  ${currentPersona === key ? `bg-linear-to-r/srgb from-[${personaGlowColors[key as keyof typeof personaGlowColors]}] to-black/10` : 'bg-transparent'}
                   flex flex-col gap-1 border-b border-white/5 last:border-b-0`}
                   style={{
                     background: currentPersona === key ?

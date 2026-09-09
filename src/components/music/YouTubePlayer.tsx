@@ -375,7 +375,7 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
             <div className="mb-3">
               <div className="h-1 bg-white/10 rounded-full overflow-hidden">
                 <motion.div
-                  className={`h-full bg-linear-to-r ${colors.primary.replace('/20', '')}`}
+                  className={`h-full bg-linear-to-r/srgb ${colors.primary.replace('/20', '')}`}
                   style={{ width: `${progress}%` }}
                   initial={false}
                   animate={{ width: `${progress}%` }}

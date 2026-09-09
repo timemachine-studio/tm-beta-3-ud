@@ -38,7 +38,7 @@ export function LoadingEffects() {
         {Array.from({ length: 10 }).map((_, i) => (
           <motion.div
             key={`circuit-${i}`}
-            className="absolute h-px bg-linear-to-r from-transparent via-purple-500/20 to-transparent"
+            className="absolute h-px bg-linear-to-r/srgb from-transparent via-purple-500/20 to-transparent"
             style={{
               top: `${8 + i * 10}%`,
               left: '0',
@@ -105,7 +105,7 @@ export function LoadingEffects() {
 
       {/* Scanning Lines */}
       <motion.div
-        className="absolute inset-0 bg-linear-to-b from-transparent via-purple-500/3 to-transparent"
+        className="absolute inset-0 bg-linear-to-b/srgb from-transparent via-purple-500/3 to-transparent"
         style={{ height: '200%' }}
         animate={{
           y: ['-50%', '0%'],

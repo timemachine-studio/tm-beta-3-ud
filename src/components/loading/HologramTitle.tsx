@@ -10,7 +10,7 @@ export function HologramTitle() {
     >
       {/* Main title */}
       <motion.h1
-        className="text-4xl font-bold text-transparent bg-clip-text bg-linear-to-b from-purple-300 to-purple-600"
+        className="text-4xl font-bold text-transparent bg-clip-text bg-linear-to-b/srgb from-purple-300 to-purple-600"
         style={{
           fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
           WebkitTextStroke: '1px rgba(255, 255, 255, 0.1)'
@@ -67,7 +67,7 @@ export function HologramTitle() {
 
       {/* Hologram scan effect */}
       <motion.div
-        className="absolute inset-0 bg-linear-to-b from-transparent via-purple-500/10 to-transparent"
+        className="absolute inset-0 bg-linear-to-b/srgb from-transparent via-purple-500/10 to-transparent"
         animate={{
           y: [-20, 20],
           opacity: [0, 0.5, 0],

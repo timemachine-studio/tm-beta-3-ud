@@ -201,7 +201,7 @@ export function PremiumCalendarPage() {
                     className="flex items-center gap-3 px-6 py-4 rounded-full bg-white text-black font-bold text-sm tracking-wide shadow-[0_4px_24px_rgba(255,255,255,0.15)] hover:scale-[1.02] hover:shadow-[0_8px_32px_rgba(255,255,255,0.25)] transition-all"
                 >
                     <div className="relative">
-                        <div className="absolute inset-0 rounded-full bg-linear-to-r from-purple-500 to-blue-500 blur-xs opacity-50"></div>
+                        <div className="absolute inset-0 rounded-full bg-linear-to-r/srgb from-purple-500 to-blue-500 blur-xs opacity-50"></div>
                         <Plus className="w-6 h-6 relative z-10" />
                     </div>
                     Create Event
@@ -272,7 +272,7 @@ export function PremiumCalendarPage() {
 
             {/* Main Calendar View */}
             <div className="flex-1 flex flex-col min-w-0 bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-[32px] overflow-hidden shadow-2xl relative">
-                <div className="absolute inset-0 bg-linear-to-br from-white/[0.02] to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-linear-to-br/srgb from-white/[0.02] to-transparent pointer-events-none" />
 
                 {/* Main Header */}
                 <div className="flex items-center justify-between px-6 md:px-8 py-5 md:py-6 border-b border-white/5 relative z-10 shrink-0">
@@ -383,7 +383,7 @@ export function PremiumCalendarPage() {
                             className="relative w-full max-w-[500px] rounded-[32px] bg-zinc-900 border border-white/10 shadow-2xl overflow-hidden"
                             style={{ background: 'linear-gradient(180deg, rgba(30,30,35,1) 0%, rgba(20,20,20,1) 100%)' }}
                         >
-                            <div className="absolute top-0 left-0 right-0 h-32 bg-linear-to-b from-purple-500/20 to-transparent pointer-events-none" />
+                            <div className="absolute top-0 left-0 right-0 h-32 bg-linear-to-b/srgb from-purple-500/20 to-transparent pointer-events-none" />
 
                             <div className="flex items-center justify-between p-6 border-b border-white/5 relative z-10">
                                 <h3 className="text-xl font-bold text-white">{editingEvent ? 'Edit Event' : 'New Event'}</h3>

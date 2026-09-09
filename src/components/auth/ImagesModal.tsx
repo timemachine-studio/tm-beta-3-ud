@@ -21,7 +21,7 @@ interface ImageItem {
 function AlbumCard({ title, icon, count, gradient, onClick, preview }: { title: string; icon: React.ReactNode; count: number; gradient: string; onClick: () => void; preview?: string }) {
   return (
     <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={onClick} className="relative overflow-hidden rounded-2xl aspect-square group">
-      {preview ? <img src={preview} alt="" className="absolute inset-0 w-full h-full object-cover" /> : <div className={`absolute inset-0 bg-linear-to-br ${gradient}`} />}
+      {preview ? <img src={preview} alt="" className="absolute inset-0 w-full h-full object-cover" /> : <div className={`absolute inset-0 bg-linear-to-br/srgb ${gradient}`} />}
       <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors" />
       <div className="absolute inset-[1px] rounded-2xl border border-white/[0.1]" />
       <div className="relative h-full flex flex-col items-center justify-center gap-3 p-4">
@@ -159,8 +159,8 @@ export const ImagesModal: React.FC<ImagesModalProps> = ({ isOpen, onClose }) => 
               >
                 <div className="relative w-full max-w-md max-h-[85vh] overflow-hidden rounded-3xl">
                   {/* Glass background */}
-                  <div className="absolute inset-0 bg-linear-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
-                  <div className="absolute inset-0 bg-linear-to-br from-cyan-500/10 via-transparent to-purple-500/10" />
+                  <div className="absolute inset-0 bg-linear-to-br/srgb from-white/[0.08] to-white/[0.02] backdrop-blur-2xl" />
+                  <div className="absolute inset-0 bg-linear-to-br/srgb from-cyan-500/10 via-transparent to-purple-500/10" />
                   <div className="absolute inset-[1px] rounded-3xl border border-white/[0.08]" />
 
                   <div className="relative p-6 flex flex-col max-h-[85vh]">
@@ -180,7 +180,7 @@ export const ImagesModal: React.FC<ImagesModalProps> = ({ isOpen, onClose }) => 
                             <ChevronLeft className="w-5 h-5 text-white/70" />
                           </motion.button>
                         )}
-                        <div className="p-2.5 rounded-2xl bg-linear-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/20">
+                        <div className="p-2.5 rounded-2xl bg-linear-to-br/srgb from-cyan-500/20 to-purple-500/20 border border-cyan-500/20">
                           <ImageIcon className="w-5 h-5 text-cyan-400" />
                         </div>
                         <Dialog.Title className="text-xl font-semibold text-white">

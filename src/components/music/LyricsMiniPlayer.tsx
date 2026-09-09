@@ -115,7 +115,7 @@ export function LyricsMiniPlayer({
           }}
         >
           {/* Subtle background glow */}
-          <div className="absolute inset-0 bg-linear-to-r from-purple-500/10 to-pink-500/10 pointer-events-none" />
+          <div className="absolute inset-0 bg-linear-to-r/srgb from-purple-500/10 to-pink-500/10 pointer-events-none" />
 
           {!isOpen ? (
             // Minimized View - Shows only Cover Art

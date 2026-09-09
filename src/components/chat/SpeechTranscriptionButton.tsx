@@ -180,7 +180,7 @@ export function SpeechTranscriptionButton({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-linear-to-r from-red-900/90 to-pink-900/90 backdrop-blur-xl text-white text-sm px-4 py-2 rounded-lg whitespace-nowrap border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-linear-to-r/srgb from-red-900/90 to-pink-900/90 backdrop-blur-xl text-white text-sm px-4 py-2 rounded-lg whitespace-nowrap border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
           >
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />

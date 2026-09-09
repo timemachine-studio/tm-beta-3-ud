@@ -329,7 +329,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText, saved
           <button
             onClick={togglePlay}
             disabled={audioLoading && !!audioUrl}
-            className={`w-14 h-14 rounded-full bg-linear-to-tr ${personaColor.includes('pink') ? 'from-pink-600 to-pink-400' : personaColor.includes('cyan') ? 'from-cyan-600 to-cyan-400' : 'from-purple-600 to-purple-400'} shadow-lg shadow-${personaColor.split('-')[1]}-500/30 flex items-center justify-center text-white hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100`}
+            className={`w-14 h-14 rounded-full bg-linear-to-tr/srgb ${personaColor.includes('pink') ? 'from-pink-600 to-pink-400' : personaColor.includes('cyan') ? 'from-cyan-600 to-cyan-400' : 'from-purple-600 to-purple-400'} shadow-lg shadow-${personaColor.split('-')[1]}-500/30 flex items-center justify-center text-white hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100`}
           >
             {audioLoading && audioUrl ? (
               <Loader2 className="w-6 h-6 animate-spin" />

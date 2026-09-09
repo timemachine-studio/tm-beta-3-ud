@@ -5,7 +5,7 @@ export function PremiumLoadingBar() {
   return (
     <div className="relative w-full h-1 bg-purple-900/30 rounded-full overflow-hidden backdrop-blur-xs">
       {/* Glow effect */}
-      <div className="absolute inset-0 bg-linear-to-r from-purple-500/20 to-fuchsia-500/20 blur-xl" />
+      <div className="absolute inset-0 bg-linear-to-r/srgb from-purple-500/20 to-fuchsia-500/20 blur-xl" />
       
       {/* Main loading bar */}
       <motion.div
@@ -16,7 +16,7 @@ export function PremiumLoadingBar() {
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="absolute inset-0 bg-linear-to-r from-purple-600 via-purple-400 to-purple-600"
+        className="absolute inset-0 bg-linear-to-r/srgb from-purple-600 via-purple-400 to-purple-600"
         style={{
           transformOrigin: 'left',
           boxShadow: `
@@ -35,7 +35,7 @@ export function PremiumLoadingBar() {
           repeat: Infinity,
           ease: "linear",
         }}
-        className="absolute inset-0 bg-linear-to-r from-transparent via-white/30 to-transparent"
+        className="absolute inset-0 bg-linear-to-r/srgb from-transparent via-white/30 to-transparent"
         style={{ width: '50%' }}
       />
     </div>

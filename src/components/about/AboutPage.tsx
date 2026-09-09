@@ -15,7 +15,7 @@ export function AboutPage() {
     <div className="min-h-screen relative overflow-auto bg-black">
       {/* Background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-linear-to-b from-black via-black to-purple-950/30" />
+        <div className="absolute inset-0 bg-linear-to-b/srgb from-black via-black to-purple-950/30" />
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-purple-500/8 rounded-full blur-[150px]" />
       </div>
 
@@ -56,7 +56,7 @@ export function AboutPage() {
           <p className="text-purple-400/70 text-sm font-medium uppercase tracking-widest mb-4">About TimeMachine</p>
           <h1 className="text-5xl sm:text-7xl font-bold text-white mb-6 tracking-tight">
             AI for the betterment<br />
-            <span className="bg-linear-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">of humanity.</span>
+            <span className="bg-linear-to-r/srgb from-purple-400 to-violet-400 bg-clip-text text-transparent">of humanity.</span>
           </h1>
           <p className="text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
             TimeMachine is the super app that brings your tech essentials into an intelligent, safe and secured chat interface. We're building the future of how people interact with technology.

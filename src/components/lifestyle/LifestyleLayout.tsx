@@ -20,10 +20,10 @@ export function LifestyleLayout() {
 
   const getDynamicBackground = () => {
     if (currentTab.name === 'Kitchen') {
-      return 'bg-linear-to-t from-orange-950 to-black to-50%';
+      return 'bg-linear-to-t/srgb from-orange-950 to-black to-50%';
     }
     if (currentTab.name === 'Fashion') {
-      return 'bg-linear-to-t from-sky-950 to-black to-50%';
+      return 'bg-linear-to-t/srgb from-sky-950 to-black to-50%';
     }
     return theme.background;
   };
