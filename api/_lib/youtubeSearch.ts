@@ -54,18 +54,28 @@ function extractAssignedJson(html: string, variable: string): unknown {
   throw new Error(`YouTube response contained incomplete ${variable} JSON`);
 }
 
+// Document order is the ranking: YouTube returns its best matches first and
+// the caller keeps only the first `limit`. A stack walk that pushes children
+// in natural order pops them last-first, which silently returns the *worst*
+// results in reverse — so children are pushed reversed to pop in order.
+// Pushing one at a time also keeps a very large renderer array from blowing
+// the argument limit that a spread would hit.
+function pushReversed(stack: unknown[], values: unknown[]): void {
+  for (let index = values.length - 1; index >= 0; index -= 1) stack.push(values[index]);
+}
+
 function findVideoRenderers(root: unknown): JsonObject[] {
   const found: JsonObject[] = [];
   const stack: unknown[] = [root];
   while (stack.length > 0) {
     const value = stack.pop();
     if (Array.isArray(value)) {
-      stack.push(...value);
+      pushReversed(stack, value);
       continue;
     }
     if (!isObject(value)) continue;
     if (isObject(value.videoRenderer)) found.push(value.videoRenderer);
-    stack.push(...Object.values(value));
+    pushReversed(stack, Object.values(value));
   }
   return found;
 }

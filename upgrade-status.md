@@ -1,6 +1,6 @@
 # Dependency upgrade status
 
-Last updated: 2026-09-09  
+Last updated: 2026-09-10  
 Branch: `main`  
 Workspace: `/Users/tanziminfinity/tm-beta-3-updating-packages`
 
@@ -21,7 +21,7 @@ These results were rechecked on 2026-09-09.
 | `npm ci` | Pass | Isolated temporary-copy lockfile install with Node 24.20.0 and npm 11.19.0; 669 packages installed |
 | `npm run typecheck` | Pass | TypeScript 6.0.3 |
 | `npm run lint` | Pass | 0 errors, 0 warnings with Hooks 7 `recommended-latest` enabled |
-| `npm test` | Pass | Vitest 5.0.0; 22 files, 145 tests |
+| `npm test` | Pass | Vitest 5.0.0; 23 files, 150 tests |
 | `npm run build` | Pass | Vite 8.2.2 with Tailwind CSS 4.3.3; no CSS import-order warning; one non-fatal chunk-size warning remains after the entry chunk reduction |
 | `npx trigger.dev --help` | Pass | Trigger CLI loads on Node 24 |
 | Standalone `trigger.config.ts` compile | Pass | TypeScript 6 uses `--ignoreConfig`, NodeNext/ES2022, explicit Node types, and `--skipLibCheck` for optional Trigger declarations |
@@ -314,6 +314,165 @@ Task 8 bundle comparison against the Task 7 result:
 - Updated `CLAUDE.md` with the Node 24 workflow, current commands/counts, TypeScript/build behavior, Tailwind 4 configuration, lazy routes, tested local Vercel adapter, error/404/stream/UUID/Hooks status, and Trigger's Node 24 runtime. Updated `production-check.md` with a dated final integration snapshot while preserving its historical audit figures.
 - No credential-bearing environment variables or local `.env` were available. Real authentication, anonymous/signed-in provider chat, live MCP modern/SSE servers, tool approval, Supabase reads/writes, provider-backed file/media generation, and Trigger job execution were therefore not run. Their unit/contract coverage is green, but these remain explicit deployment-environment smoke checks.
 - No commit, Vercel deployment, or Trigger deployment was performed because the task did not authorize those actions. There is consequently no new deployment URL, version, or commit rollback point; the existing pre-upgrade deployment remains the operational rollback target until this working tree is reviewed and checkpointed.
+
+## Task 10: Independent review of Tasks 1-9 (2026-09-10)
+
+The cumulative working tree was re-reviewed before checkpointing. Every automated
+gate was re-run on Node 24.20.0 and passes. Three defects introduced by the
+upgrade work were found and fixed; all three were behavioural, none were caught
+by the gates, and each now has coverage or a recorded verification.
+
+### 10.1 YouTube search returned results in reverse ranking order
+
+`findVideoRenderers` in `api/_lib/youtubeSearch.ts` walked `ytInitialData` with a
+stack that pushed each node's children in natural order. `Array.pop()` then
+visited them last-first, so the whole walk ran in reverse document order. Because
+`parseYouTubeSearchHtml` stops at the first `limit` renderers, `/api/search`
+returned roughly the *bottom* ten results of the page, reversed — the top hit was
+never in the response. `yt-search`, which Task 1 replaced, returned ranked order,
+so this was a silent regression in music search and in "play <song>".
+
+Fixed by pushing children reversed so the stack pops in document order. Children
+are now pushed one at a time rather than spread, which also removes the argument
+limit a very large renderer array could hit. Two regression tests pin the
+ordering (`preserves YouTube's ranking order across nesting levels`, and the
+limit test now asserts *which* result survives). Verified against the live
+YouTube page: the top-ranked official video is now the first result.
+
+### 10.2 The Notes quick-note draft was destroyed on arrival
+
+Task 6 moved the home-to-Notes draft handoff into a `useState` initializer that
+both read and `removeItem`-ed `tm-notes-draft`. That made the initializer impure.
+React re-runs an initializer for any render it discards — StrictMode always, and
+`NotesPage` is additionally a `React.lazy` route inside a Suspense boundary — and
+the second read found the key already gone, so the state React kept was the one
+*without* the draft. Reproduced in the browser: the key was consumed and the text
+never appeared. Before Task 6 the handoff ran in a mount-only effect, where the
+first run's state update survives, so this was a regression.
+
+Fixed by reading the draft in the initializer (a pure read, idempotent across
+re-runs) and clearing it in a mount effect. Verified in the browser: the draft
+now renders, persists into stored notes, and the key is cleared.
+
+### 10.3 A cancelled timer could permanently drop PRO generation resume
+
+The PRO resume effect in `useChat` deferred `tryResumeProGeneration` by a
+`setTimeout(..., 0)` while setting its once-only `proResumeStartedRef` guard
+immediately, and returned a cleanup that cleared the timer. Any cleanup before
+the timer fired therefore consumed the guard without doing the work: StrictMode's
+remount in development always, and in production any change to
+`tryResumeProGeneration`'s identity — it depends on `userId` and `userProfile`,
+which arrive when auth resolves — during that one task. The result is a PRO chat
+reopened with a background generation still running that never reattaches.
+
+Fixed by releasing the once-guard in the cleanup when the timer had not yet
+fired, so a re-run reschedules instead of dropping the resume.
+
+### 10.4 ThemeProvider could brick the app from a corrupt stored value
+
+Not introduced by the upgrade, but fixed in the same pass because Task 6 moved
+more reads into render. `ThemeProvider` parsed `localStorage.getItem('defaultTheme')`
+with a bare `JSON.parse` inside a `useState` initializer, and read `themeMode` /
+`seasonTheme` the same way. Three separate failure modes, all fatal at the root
+error boundary and all unrecoverable because the bad state is re-read on every
+reload: a corrupt stored value throws `SyntaxError` during render; a browser with
+site data blocked (Safari private mode, and any origin over quota) makes the
+`localStorage` accessor itself throw; and a stored season name from an older
+build passed the old truthiness check and silently selected the light theme.
+
+Added `src/utils/safeStorage.ts` — guarded read/write/remove helpers where reads
+degrade to `null` and writes report success rather than swallowing it, so the
+distinction the Gate LS storage rule cares about is preserved. `ThemeProvider`
+now goes through it and validates both halves of a stored or server-supplied
+default theme against the modes and seasons this build actually knows. The same
+validation now guards the value coming back from `profiles.default_theme`.
+
+Covered by `src/utils/safeStorage.test.ts` (4 tests: working storage, a throwing
+accessor, corrupt and wrong-shaped JSON, unserialisable input). Verified in the
+browser against the real Supabase project: with `defaultTheme`, `themeMode` and
+`seasonTheme` all deliberately poisoned, the app mounts, rejects the bad values
+and rewrites storage to `dark` / `autumnDark` instead of crashing.
+
+### Live verification with real credentials (2026-09-10)
+
+Re-run against the project's real `.env` and Supabase project once
+`SUPABASE_SERVICE_ROLE_KEY` was supplied.
+
+- Anonymous chat end to end: quota `GET` returns `{"remaining":3,"limit":3,"anonymous":true}`,
+  a message streams to completion through the live provider, and the quota
+  decrements one per successful generation (3 -> 2 -> 1), confirming quota is
+  still charged only after success.
+- The refactored markdown runtime renders correctly on real streamed output:
+  fenced Python code with its language label, real KaTeX (`E=mc^2`), the reasoning
+  disclosure, and the `prose` wrapper.
+- `isMarkdownCodeComplete` resolves true after streaming ends: an HTML answer
+  showed its Code/Preview tabs and the preview rendered. The preview iframe's
+  sandbox is `allow-scripts allow-modals allow-forms` — no `allow-same-origin`,
+  so rule 0.6 still holds on a live response.
+- Every endpoint rejects an unauthenticated request (`/api/search`, `/api/image`,
+  `/api/music` all 401), and the dev adapter returns 400 for malformed JSON and
+  413 for an oversized declared payload. CORS returns
+  `Access-Control-Allow-Origin` for the allowlisted origin and omits it entirely
+  for a foreign one.
+- `searchYouTubeVideos` against live YouTube returns the correct top-ranked
+  result first with correct duration, author and title, confirming the 10.1 fix
+  on real page data rather than a fixture.
+- The **production build** was served with `vite preview` and swept separately
+  from the dev server: entry and every lazy route chunk load with zero console
+  errors. This matters because Vite 8 bundles with Rolldown, so the dev-server
+  runs prove nothing about the artefact that actually deploys.
+
+Configuration gaps found in the local `.env` — none are upgrade defects, but each
+would degrade the deployed app:
+
+| Variable | State | Effect |
+|---|---|---|
+| `TAVILY_API_KEY` / `SEARXNG_URL` / `EXA_API_KEY` | all absent | `/api/search?web=` has no provider and returns 503 even for a signed-in user |
+| `ANON_TRIAL_SECRET` | empty | the anonymous-trial device cookie is unsigned, so the trial is counted by IP alone |
+| `PROVIDER_DAILY_CEILING` | `0` | the spend ceiling is disabled |
+
+Still unexercised, because they need a signed-in session: signed-in chat, chat
+history writes to Supabase, PRO generation and its Trigger task, MCP discovery
+and tool approval, provider-backed image/music generation, and `/api/search`.
+
+### Also confirmed during the review
+
+- Tailwind 4 utility migration is complete and correct. No removed v3 utility
+  (`bg-gradient-to-*`, opacity utilities, `flex-shrink-*`, `outline-none`,
+  `overflow-ellipsis`) remains, and every renamed scale utility maps to the value
+  it had in v3: bare `shadow`/`backdrop-blur` became `shadow-sm`/`backdrop-blur-sm`
+  while v3's `shadow-sm`/`backdrop-blur-sm` became `-xs`. A source-to-CSS audit of
+  983 static utility classes found no utility the app uses that Tailwind 4 fails
+  to generate.
+- The project's custom `.prose` rules land in the `utilities` layer ahead of the
+  app's own utilities in the built CSS, so utility classes still win on ties — the
+  Tailwind 3 cascade order is preserved. The `UniversalGlassKit.css` class names
+  are unused by any component, so the entry-point reordering is inert.
+- `@modelcontextprotocol/client` 2.0.0 is the real Anthropic-published package
+  from the `modelcontextprotocol/typescript-sdk` repository, and the
+  `versionNegotiation` / `probe.maxRetries` options used in `connect()` exist in
+  its published types. `node-24` is a valid `ConfigRuntime` value in the installed
+  Trigger core schema.
+- Zod 4: no single-argument `z.record`, deprecated string-format chain, or
+  `ZodTypeAny` constraint remains, and the one `ZodError` consumer already reads
+  `.issues`.
+- The dev API adapter's stricter body parsing (content-type driven, `undefined`
+  for unknown types) is safe for this app: every client POST to an `api/*`
+  endpoint that reads a body sends `Content-Type: application/json`.
+- Browser verification on the running dev server: chat shell, Home, Notes
+  (creation, selection, row actions — no nested-interactive-control warning),
+  Contour (Base64 decode, unit conversion, calculator), and all 22 lazy routes
+  render with no React warnings. The chat send path degrades correctly to the
+  retry UI when the fail-closed limiter returns 503.
+- `npm audit --omit=dev` reports zero findings; the two high findings are
+  build-only. `@prisma/config` 6.19.3 pins `deepmerge-ts` at exactly `7.1.5`, so
+  clearing them would mean overriding an exact pin across a major version in the
+  Trigger deploy path. Not worth it: this repository does not use Prisma, so the
+  recursive-merge advisory has no reachable call site here. Keep waiting for
+  upstream.
+
+Still not covered by anything automated, and unchanged from Task 9: every
+credential-backed flow, both deployments, and the live MCP paths.
 
 ## Issues still open
 
@@ -647,7 +806,7 @@ Recorded 2026-09-09 and carried forward on 2026-09-10. The dependency migration 
 - Complete the Supabase migration history. The generated types cover the current database, but the repository's five migration files are insufficient to recreate the full production schema.
 - Confirm production configuration in both Vercel and Trigger: provider credentials, `SUPABASE_SERVICE_ROLE_KEY`, `ALLOWED_ORIGINS`, `ANON_TRIAL_SECRET`, and a meaningful nonzero `PROVIDER_DAILY_CEILING`. Trigger has its own environment and must not be assumed to inherit Vercel variables.
 - Add or finish CI, staging discipline, error/uptime monitoring, deployment smoke checks, and a launch/rollback runbook.
-- Continue product-level and live integration coverage beyond the current 145 tests in 22 files, especially across provider failures, external services, browser file flows, and deployment boundaries.
+- Continue product-level and live integration coverage beyond the current 150 tests in 23 files, especially across provider failures, external services, browser file flows, and deployment boundaries.
 - Replace the anonymous chat-history `localStorage` blob with the planned IndexedDB/local-first store. The current design can hit browser quota and silently stop persisting history; signed-in storage behavior must be reconciled with the product's privacy direction.
 
 ### Owner and launch decisions

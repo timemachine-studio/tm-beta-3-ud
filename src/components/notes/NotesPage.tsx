@@ -1938,11 +1938,21 @@ export function NoteSidebar({ notes, activeId, onSelect, onNew, onDelete, onTogg
 export function NotesPage() {
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const [initialState] = useState(() => {
-    const draft = localStorage.getItem('tm-notes-draft');
-    if (draft) localStorage.removeItem('tm-notes-draft');
-    return createInitialNotesState(loadNotes(), draft, new Date().toISOString(), uid);
-  });
+  const [initialState] = useState(() =>
+    createInitialNotesState(
+      loadNotes(),
+      localStorage.getItem('tm-notes-draft'),
+      new Date().toISOString(),
+      uid,
+    ),
+  );
+  // The draft is a one-shot handoff from the home composer, but consuming it
+  // *inside* the initializer made the initializer impure: React runs it again
+  // for a discarded render — StrictMode, and any render of this lazy page that
+  // a Suspense boundary throws away — and the second read found the draft gone,
+  // so the state React kept was the one without it. Read in the initializer,
+  // clear after commit; both are idempotent.
+  useEffect(() => { localStorage.removeItem('tm-notes-draft'); }, []);
   const [notes, setNotes] = useState<Note[]>(initialState.notes);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(initialState.activeNoteId);
   const [searchQuery, setSearchQuery] = useState('');

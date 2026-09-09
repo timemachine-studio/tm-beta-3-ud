@@ -672,8 +672,20 @@ export function useChat(
     if (proResumeStartedRef.current) return;
     if (initialSession?.id && initialPersona === 'pro') {
       proResumeStartedRef.current = true;
-      const timer = setTimeout(() => void tryResumeProGeneration(initialSession.id, 'pro'), 0);
-      return () => clearTimeout(timer);
+      let fired = false;
+      const timer = setTimeout(() => {
+        fired = true;
+        void tryResumeProGeneration(initialSession.id, 'pro');
+      }, 0);
+      return () => {
+        clearTimeout(timer);
+        // The resume is deferred by a task, so a StrictMode remount or a new
+        // tryResumeProGeneration identity (it depends on userId/userProfile,
+        // which land after auth resolves) can cancel it before it ever runs.
+        // Releasing the once-guard lets the re-run schedule it again instead
+        // of silently dropping the resume for the whole session.
+        if (!fired) proResumeStartedRef.current = false;
+      };
     }
   }, [initialSession?.id, initialPersona, tryResumeProGeneration]);
 
