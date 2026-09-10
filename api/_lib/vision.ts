@@ -62,7 +62,7 @@ export const MODEL_VISION: Record<string, VisionCapability> = {
   // The OCR transcriber itself, listed so a run that happens to route to it
   // does not transcribe an image in order to hand it to a model that could
   // have looked at it directly.
-  'qwen-vision': { vision: 'native' },
+  'deepseek/deepseek-v4-flash-vision-exp': { vision: 'native' },
 
   // ─ Text-only: these need OCR ─
   'glm-5.2-extended': { vision: 'ocr' },
@@ -74,13 +74,25 @@ export const MODEL_VISION: Record<string, VisionCapability> = {
   // flip an entry to 'native' once the pair has been tried with a real image.
   'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning': { vision: 'ocr' },
   'deepseek-ai/deepseek-v4-flash-0731': { vision: 'ocr' },
+  // AMD Radeon Cloud. Text generation and tool calling were verified against
+  // the live endpoint; an image was not sent, so it gets OCR per the rule
+  // above. Flip it once the pair has actually been tried with one.
+  'DeepSeek-V4-Flash': { vision: 'ocr' },
+  // LLM7's own model catalog reports minimax-m2.7 as `modalities.input:
+  // ["text"]` and `capabilities.vision: false`, so this one is the provider's
+  // own statement rather than an untested guess.
+  'minimax-m2.7': { vision: 'ocr' },
+  // `default` is a routing selector, so which upstream serves it can change.
+  // OCR is the safe reading: an image sent to a text-only upstream is a hard
+  // 400, an unnecessary transcription is only a worse answer.
+  'llm7:default': { vision: 'ocr' },
 };
 
 /** The upstream that transcribes images for OCR-mode hops. */
 export const OCR_MODEL = {
-  model: 'qwen-vision',
+  model: 'deepseek/deepseek-v4-flash-vision-exp',
   maxTokens: 4000,
-  temperature: 0.1,
+  temperature: 0.3,
 } as const;
 
 /** Placeholder the client sends when a turn is images with no words. */

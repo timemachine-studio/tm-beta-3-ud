@@ -124,3 +124,74 @@ describe('runDeviceTool', () => {
     expect(deviceToolStatus('chats_read')).toBe('Reading an earlier conversation');
   });
 });
+
+describe('run_python through the device bridge', () => {
+  const outcome = (overrides = {}) => ({
+    ok: true,
+    durationMs: 300,
+    stdout: '391\n',
+    stderr: '',
+    freshSession: false,
+    outputs: [],
+    files: [],
+    ...overrides,
+  });
+
+  const saveFile = async () => 'stored-1';
+
+  it('runs the code and hands back both halves: text for the model, a card for the user', async () => {
+    const runPython = vi.fn(async () => outcome({
+      outputs: [{ kind: 'image' as const, bytes: new Uint8Array([1, 2]) }],
+    }));
+
+    const result = await runDeviceTool(call('run_python', { code: 'print(17 * 23)' }), { runPython, saveFile });
+
+    expect(runPython).toHaveBeenCalledWith('print(17 * 23)', expect.anything());
+    expect(result.content).toContain('391');
+    expect(result.pythonRun?.code).toBe('print(17 * 23)');
+    expect(result.pythonRun?.artifacts[0]).toMatchObject({ kind: 'image' });
+  });
+
+  it('still shows a chart the code drew before it threw', async () => {
+    // Half a result is worth more than none, and a turn where the card simply
+    // never appears reads as the feature being broken.
+    const runPython = vi.fn(async () => outcome({
+      ok: false,
+      error: 'ValueError: bad axis',
+      outputs: [{ kind: 'image' as const, bytes: new Uint8Array([1, 2]) }],
+    }));
+
+    const result = await runDeviceTool(call('run_python', { code: 'plot()' }), { runPython, saveFile });
+    expect(result.content).toContain('ValueError: bad axis');
+    expect(result.pythonRun?.ok).toBe(false);
+    expect(result.pythonRun?.artifacts).toHaveLength(1);
+  });
+
+  it('refuses an empty call rather than starting an interpreter for nothing', async () => {
+    const runPython = vi.fn();
+    const result = await runDeviceTool(call('run_python', { code: '   ' }), { runPython });
+    expect(runPython).not.toHaveBeenCalled();
+    expect(result.content).toContain('no code');
+  });
+
+  it('says which stage the sandbox is at, since the first run downloads a runtime', async () => {
+    const onStatus = vi.fn();
+    const runPython = vi.fn(async (_code: string, options?: { onPhase?: (phase: 'starting' | 'installing' | 'running') => void }) => {
+      options?.onPhase?.('installing');
+      return outcome();
+    });
+
+    await runDeviceTool(call('run_python', { code: 'import pandas' }), { onStatus, runPython });
+    expect(onStatus).toHaveBeenCalledWith('Loading Python packages');
+  });
+
+  it('warns that the very first run is the slow one', async () => {
+    const onStatus = vi.fn();
+    const runPython = vi.fn(async (_code: string, options?: { onPhase?: (phase: 'starting' | 'installing' | 'running') => void }) => {
+      options?.onPhase?.('starting');
+      return outcome();
+    });
+    await runDeviceTool(call('run_python', { code: '1 + 1' }), { onStatus, runPython });
+    expect(onStatus).toHaveBeenCalledWith('Starting Python (first run takes a moment)');
+  });
+});

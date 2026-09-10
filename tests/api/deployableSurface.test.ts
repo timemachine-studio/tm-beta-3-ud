@@ -37,6 +37,7 @@ describe('deployable api/ surface', () => {
       'delete-account.ts',
       'image.ts',
       'mcp-approval.ts',
+      'mcp-servers.ts',
       'music.ts',
       'musicCover.ts',
       'notes-ai.ts',

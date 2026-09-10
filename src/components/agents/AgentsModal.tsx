@@ -16,6 +16,10 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { getFlightControls, setFlightControlEnabled } from '../../services/flightControls/flightControlsService';
 import type { EffectiveFlightControl, FlightControlKind } from '../../types/flightControls';
+import { UserServersPanel } from './UserServersPanel';
+
+/** The catalog's two kinds, plus the user's own servers. */
+type FlightControlTab = FlightControlKind | 'mine';
 
 interface AgentsModalProps {
   isOpen: boolean;
@@ -34,7 +38,7 @@ const iconMap = {
 export function AgentsModal({ isOpen, onClose, onSignIn }: AgentsModalProps) {
   const { theme } = useTheme();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<FlightControlKind>('skill');
+  const [activeTab, setActiveTab] = useState<FlightControlTab>('skill');
   const [items, setItems] = useState<EffectiveFlightControl[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,11 +125,11 @@ export function AgentsModal({ isOpen, onClose, onSignIn }: AgentsModalProps) {
                       Flight Controls
                     </Dialog.Title>
                     <Dialog.Description className={`mt-1 text-sm ${theme.text} opacity-55`}>
-                      Choose which specialized skills and external tools TimeMachine PRO may use.
+                      Choose which specialized skills and external tools TimeMachine may use, or connect your own.
                     </Dialog.Description>
 
                     <div className="mt-5 flex gap-2" role="tablist" aria-label="Flight Control categories">
-                      {(['skill', 'mcp'] as const).map(tab => (
+                      {(['skill', 'mcp', 'mine'] as const).map(tab => (
                         <button
                           key={tab}
                           role="tab"
@@ -133,14 +137,16 @@ export function AgentsModal({ isOpen, onClose, onSignIn }: AgentsModalProps) {
                           onClick={() => setActiveTab(tab)}
                           className={`rounded-full px-4 py-2 text-sm transition ${activeTab === tab ? 'bg-cyan-400/15 text-cyan-200 ring-1 ring-cyan-300/25' : 'bg-white/5 text-white/50 hover:text-white/80'}`}
                         >
-                          {tab === 'skill' ? 'Skills' : 'MCP servers'}
+                          {tab === 'skill' ? 'Skills' : tab === 'mcp' ? 'MCP servers' : 'Your servers'}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   <div className="min-h-[280px] overflow-y-auto px-6 py-5 sm:px-8">
-                    {loading ? (
+                    {activeTab === 'mine' ? (
+                      <UserServersPanel signedIn={!!user} />
+                    ) : loading ? (
                       <div className="space-y-3" aria-label="Loading Flight Controls">
                         {[0, 1, 2].map(index => <div key={index} className="h-24 animate-pulse rounded-2xl bg-white/5" />)}
                       </div>
@@ -194,7 +200,9 @@ export function AgentsModal({ isOpen, onClose, onSignIn }: AgentsModalProps) {
                         })}
                       </div>
                     )}
-                    {error && items.length > 0 && <p className="mt-4 text-center text-xs text-rose-300/80">{error}</p>}
+                    {activeTab !== 'mine' && error && items.length > 0 && (
+                      <p className="mt-4 text-center text-xs text-rose-300/80">{error}</p>
+                    )}
                   </div>
 
                   {!user && (

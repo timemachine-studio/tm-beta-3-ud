@@ -93,6 +93,62 @@ export interface Message {
   // Real app objects this turn created or changed — today a TM Notes note.
   // Rendered as a card with a link that opens that exact object.
   appObjects?: AppObjectRef[];
+  // Python this turn ran on the device, with whatever it put in front of the
+  // user: charts, tables, generated files.
+  pythonRuns?: PythonRun[];
+  // Files the user attached to this message, by reference into the device file
+  // store. The bytes are not here; only what is needed to find them again.
+  attachments?: AttachedFile[];
+}
+
+/**
+ * Something a Python run put in front of the user.
+ *
+ * Anything with bytes behind it — a chart, a generated document — carries a
+ * `fileId` into the device file store rather than the bytes themselves, so a
+ * spreadsheet does not travel inside the conversation. `dataUrl` is the older
+ * form and is still read, because messages saved before the store existed have
+ * it; nothing writes it any more. `dropped` marks a payload that is gone: left
+ * out by the old size budget, or stored on a device this is not.
+ */
+export type PythonArtifact =
+  | { kind: 'image'; caption?: string; fileId?: string; dataUrl?: string; dropped?: boolean }
+  | {
+      kind: 'table';
+      caption?: string;
+      columns: string[];
+      index?: string[];
+      rows: string[][];
+      totalRows: number;
+      totalColumns: number;
+    }
+  | { kind: 'text'; caption?: string; text: string }
+  | { kind: 'file'; name: string; size: number; mime: string; fileId?: string; dataUrl?: string; dropped?: boolean };
+
+/** One `run_python` call, as the chat shows it. */
+export interface PythonRun {
+  id: string;
+  code: string;
+  ok: boolean;
+  durationMs: number;
+  stdout?: string;
+  error?: string;
+  timedOut?: boolean;
+  artifacts: PythonArtifact[];
+}
+
+/**
+ * A file the user attached, kept in the device file store.
+ *
+ * The message records the reference so the attachment survives a reload and so
+ * every later turn in the conversation can still reach it — a spreadsheet
+ * attached five messages ago is still openable from `run_python`.
+ */
+export interface AttachedFile {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
 }
 
 /** A note the AI saved or edited from chat. */
@@ -117,12 +173,12 @@ export interface ReplyToData {
 }
 
 export interface ChatActions {
-  handleSendMessage: (message: string, imageData?: string | string[], inputImageUrls?: string[], imageDimensions?: ImageDimensions, replyTo?: ReplyToData, specialMode?: string, pdfData?: string, pdfFileName?: string) => Promise<void>;
+  handleSendMessage: (message: string, imageData?: string | string[], inputImageUrls?: string[], imageDimensions?: ImageDimensions, replyTo?: ReplyToData, specialMode?: string, pdfData?: string, pdfFileName?: string, attachments?: AttachedFile[]) => Promise<void>;
   setChatMode: (isChatMode: boolean) => void;
 }
 
 export interface ChatInputProps {
-  onSendMessage: (message: string, imageData?: string | string[], inputImageUrls?: string[], imageDimensions?: ImageDimensions, replyTo?: ReplyToData, specialMode?: string, pdfData?: string, pdfFileName?: string) => Promise<void>;
+  onSendMessage: (message: string, imageData?: string | string[], inputImageUrls?: string[], imageDimensions?: ImageDimensions, replyTo?: ReplyToData, specialMode?: string, pdfData?: string, pdfFileName?: string, attachments?: AttachedFile[]) => Promise<void>;
   isLoading?: boolean;
 }
 

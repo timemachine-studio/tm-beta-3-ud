@@ -27,7 +27,10 @@ describe('selectTools with device apps', () => {
     // A user with no notes cannot search them — but notes_create is exactly
     // how they stop having no notes, so it must survive.
     const offered = names(selectTools({ deviceApps: ['notes', 'chats'], deviceDataPresent: [] }));
-    expect(offered).toEqual(['healthcare_search', 'notes_create']);
+    // find_tools rides along whenever the catalogue still holds something —
+    // it is the catalogue's entry point, not an app tool. See toolCatalog.test.
+    expect(offered.filter(name => name !== 'find_tools'))
+      .toEqual(['healthcare_search', 'notes_create']);
   });
 
   it('brings the readers back as soon as there is something to read', () => {

@@ -1,7 +1,6 @@
-import { lookup } from 'node:dns/promises';
-import { isIP } from 'node:net';
 import { Client, SSEClientTransport, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import type { ServerFlightControl } from './flightControls.js';
+import { assertPublicUrl } from './safeUrl.js';
 
 export interface DiscoveredMcpTool {
   modelName: string;
@@ -30,35 +29,6 @@ function timeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Prom
   ]);
 }
 
-function isPrivateAddress(address: string): boolean {
-  if (address === '::1' || address.startsWith('fe80:') || address.startsWith('fc') || address.startsWith('fd')) return true;
-  const parts = address.split('.').map(Number);
-  if (parts.length !== 4 || parts.some(Number.isNaN)) return false;
-  return parts[0] === 10
-    || parts[0] === 127
-    || (parts[0] === 169 && parts[1] === 254)
-    || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31)
-    || (parts[0] === 192 && parts[1] === 168)
-    || parts[0] === 0;
-}
-
-async function validateServerUrl(rawUrl: string): Promise<URL> {
-  const url = new URL(rawUrl);
-  if (url.protocol !== 'https:') throw new Error('MCP server must use HTTPS');
-  const hostname = url.hostname.toLowerCase();
-  if (hostname === 'localhost' || hostname.endsWith('.local') || hostname.endsWith('.internal')) {
-    throw new Error('Private MCP hosts are not allowed');
-  }
-  if (isIP(hostname) && isPrivateAddress(hostname)) throw new Error('Private MCP addresses are not allowed');
-  if (!isIP(hostname)) {
-    const addresses = await lookup(hostname, { all: true, verbatim: true });
-    if (!addresses.length || addresses.some(entry => isPrivateAddress(entry.address))) {
-      throw new Error('MCP host resolves to a private address');
-    }
-  }
-  return url;
-}
-
 function requestHeaders(server: ServerFlightControl): HeadersInit {
   const headers: Record<string, string> = {};
   if (server.mcp_auth_mode === 'bearer_env') {
@@ -68,12 +38,23 @@ function requestHeaders(server: ServerFlightControl): HeadersInit {
     if (!token) throw new Error('MCP server credential is not configured');
     headers.Authorization = `Bearer ${token}`;
   }
+  if (server.mcp_auth_mode === 'bearer_user') {
+    // Decrypted upstream by loadUserMcpServers. Absent means the credential
+    // could not be read, and an unauthenticated call to a private endpoint is
+    // worse than no call — so this refuses rather than dialling without it.
+    if (!server.bearer_token) throw new Error('MCP server credential is unavailable');
+    headers.Authorization = `Bearer ${server.bearer_token}`;
+  }
   return headers;
 }
 
 async function connect(server: ServerFlightControl): Promise<Client> {
   if (!server.mcp_server_url) throw new Error('MCP server URL is missing');
-  const url = await validateServerUrl(server.mcp_server_url);
+  // Same validation as web_fetch, from the same module — see safeUrl.ts.
+  const url = await assertPublicUrl(server.mcp_server_url, { protocols: ['https:'] })
+    .catch((error: unknown) => {
+      throw new Error(`MCP server URL rejected: ${error instanceof Error ? error.message : String(error)}`);
+    });
   const headers = requestHeaders(server);
   const createClient = () => new Client(
     { name: 'timemachine-chat', version: '0.3.0' },
@@ -118,7 +99,22 @@ function modelToolName(serverSlug: string, toolName: string): string {
   return sanitized.slice(0, 64);
 }
 
-export async function discoverMcpTools(servers: ServerFlightControl[]): Promise<DiscoveredMcpTool[]> {
+export interface DiscoverOptions {
+  /**
+   * Return everything the server advertises, ignoring the allow-list.
+   *
+   * Only for probing a server the user is adding: the allow-list is built
+   * *from* that probe, so filtering against an empty one would find nothing.
+   * Never use this on a chat request — the allow-list is what keeps a server
+   * from adding tools after the user approved it.
+   */
+  allowAllTools?: boolean;
+}
+
+export async function discoverMcpTools(
+  servers: ServerFlightControl[],
+  options: DiscoverOptions = {},
+): Promise<DiscoveredMcpTool[]> {
   const discovered: DiscoveredMcpTool[] = [];
   await Promise.all(servers.map(async server => {
     let client: Client | null = null;
@@ -127,7 +123,7 @@ export async function discoverMcpTools(servers: ServerFlightControl[]): Promise<
       const response = await timeout(client.listTools(), server.mcp_connect_timeout_ms, `${server.name} tool discovery`);
       const allowed = new Set(server.mcp_allowed_tools || []);
       for (const tool of response.tools) {
-        if (!allowed.has(tool.name)) continue;
+        if (!options.allowAllTools && !allowed.has(tool.name)) continue;
         const modelName = modelToolName(server.slug, tool.name);
         discovered.push({
           modelName,
@@ -189,4 +185,74 @@ export async function executeMcpTool(tool: DiscoveredMcpTool, args: Record<strin
   } finally {
     await client.close().catch(() => undefined);
   }
+}
+
+// ─── Discovery cache ────────────────────────────────────────────────────────
+
+/**
+ * How long a server's tool list is reused within one warm instance.
+ *
+ * Discovery is a full connect + `tools/list` round trip per server, on the hot
+ * path of a chat message. A server's tool list changes when its operator ships
+ * a new version, which is rare; paying for that round trip on every message is
+ * not. Five minutes keeps a changed list from lingering long while removing
+ * discovery from almost every request.
+ *
+ * Keyed by server id *and* the catalog row's `updated_at`, so an operator
+ * editing the allow-list in Supabase invalidates it immediately rather than
+ * waiting out the TTL.
+ */
+const DISCOVERY_TTL_MS = 5 * 60_000;
+const DISCOVERY_CACHE_MAX = 200;
+
+const discoveryCache = new Map<string, { expires: number; tools: DiscoveredMcpTool[] }>();
+
+function discoveryKey(server: ServerFlightControl): string {
+  const revision = (server as ServerFlightControl & { updated_at?: string }).updated_at || '';
+  return `${server.id}:${revision}:${(server.mcp_allowed_tools || []).join(',')}`;
+}
+
+/**
+ * Discover tools for these servers, reusing recent results.
+ *
+ * A server that fails discovery is cached as an empty list for a shorter
+ * window than a success would be — long enough to stop a dead host being
+ * dialled on every message, short enough that it comes back quickly.
+ */
+export async function discoverMcpToolsCached(servers: ServerFlightControl[]): Promise<DiscoveredMcpTool[]> {
+  if (servers.length === 0) return [];
+
+  const now = Date.now();
+  const fresh: DiscoveredMcpTool[] = [];
+  const stale: ServerFlightControl[] = [];
+
+  for (const server of servers) {
+    const cached = discoveryCache.get(discoveryKey(server));
+    if (cached && cached.expires > now) fresh.push(...cached.tools);
+    else stale.push(server);
+  }
+
+  if (stale.length > 0) {
+    const discovered = await discoverMcpTools(stale);
+    for (const server of stale) {
+      const tools = discovered.filter(tool => tool.server.id === server.id);
+      if (discoveryCache.size >= DISCOVERY_CACHE_MAX) {
+        const oldest = discoveryCache.keys().next().value;
+        if (oldest !== undefined) discoveryCache.delete(oldest);
+      }
+      discoveryCache.set(discoveryKey(server), {
+        // A failed discovery yields no tools; re-dial sooner than a success.
+        expires: now + (tools.length > 0 ? DISCOVERY_TTL_MS : 60_000),
+        tools,
+      });
+    }
+    fresh.push(...discovered);
+  }
+
+  return fresh;
+}
+
+/** Drop every cached tool list. Exported for tests. */
+export function clearMcpDiscoveryCache(): void {
+  discoveryCache.clear();
 }

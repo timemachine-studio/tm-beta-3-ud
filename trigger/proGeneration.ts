@@ -18,7 +18,8 @@ import {
   resolveVisionMode,
   type VisionHop,
 } from "../api/_lib/vision.js";
-import { createToolPolicy } from "../api/_lib/tools.js";
+import { createToolPolicy, type UserSkill } from "../api/_lib/tools.js";
+import type { ToolDescriptor } from "../shared/toolCatalog.js";
 import { runAgentLoop } from "../api/_lib/agentLoop.js";
 import { completeProJob, failProJob } from "../api/_lib/proJobs.js";
 import { proOutputStream } from "./streams.js";
@@ -61,6 +62,17 @@ export interface ProGenerationPayload {
   visionImageIndex?: number;
   /** Results of the intent gates, decided in /api/pro-generation. */
   imageAllowed?: boolean;
+  /**
+   * Names of the tools the route actually offered, and the catalogue behind
+   * them. Absent on a job queued by a route older than the tool catalogue, in
+   * which case the two booleans above still carry the gates.
+   */
+  offeredTools?: string[];
+  findableTools?: ToolDescriptor[];
+  /** Flight Controls skills the user enabled, resolved by the route. */
+  userSkills?: UserSkill[];
+  /** Skill slugs the catalog owns, so a disabled built-in stays disabled. */
+  governedSkillSlugs?: string[];
   searchAllowed?: boolean;
   /**
    * The client can execute device tools, so the loop may suspend for them.
@@ -124,6 +136,7 @@ export const proGeneration = task({
       const toolPolicy = createToolPolicy({
         imageAllowed: payload.imageAllowed !== false,
         searchAllowed: payload.searchAllowed !== false,
+        offered: payload.offeredTools ?? [],
       });
 
       // Opening a provider stream is the only retryable moment; once tokens are
@@ -170,6 +183,9 @@ export const proGeneration = task({
           imageDimensions: payload.imageDimensions,
           policy: toolPolicy,
           healthcareSearch: fetchHealthcareRAGContext,
+          findable: payload.findableTools ?? [],
+          userSkills: payload.userSkills ?? [],
+          governedSkillSlugs: payload.governedSkillSlugs ?? [],
         },
         deviceBridge: payload.deviceBridge === true,
         emit: {

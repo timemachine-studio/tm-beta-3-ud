@@ -460,7 +460,8 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     replyToData?: import('./types/chat').ReplyToData,
     specialMode?: string,
     pdfData?: string,
-    pdfFileName?: string
+    pdfFileName?: string,
+    attachments?: import('./types/chat').AttachedFile[]
   ) => {
     // Intercept trigger word "play " case-insensitively
     if (message.trim().toLowerCase().startsWith('play ')) {
@@ -494,7 +495,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     // No optimistic increment: the count is re-read from the server when the
     // turn finishes (see useAnonymousRateLimit's falling-edge effect), so a
     // failed generation leaves it unchanged — production-check.md 0.4.
-    await handleSendMessage(message, imageUrl, imageUrls, imageDimensions, replyToData || replyTo || undefined, specialMode, pdfData, pdfFileName);
+    await handleSendMessage(message, imageUrl, imageUrls, imageDimensions, replyToData || replyTo || undefined, specialMode, pdfData, pdfFileName, attachments);
 
     // Clear reply after sending
     setReplyTo(null);

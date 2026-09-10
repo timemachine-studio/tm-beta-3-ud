@@ -4,7 +4,7 @@ import { Square, Plus, X, CornerDownRight, ImagePlus, Code, Music, HeartPulse, F
 import SendIcon from '../icons/SendIcon';
 import { useNavigate } from 'react-router-dom';
 import { SpeechTranscriptionButton } from './SpeechTranscriptionButton';
-import { ChatInputProps, ImageDimensions } from '../../types/chat';
+import { ChatInputProps, ImageDimensions, type AttachedFile } from '../../types/chat';
 import { LoadingSpinner } from '../loading/LoadingSpinner';
 import { ImagePreview } from './ImagePreview';
 import { FilePreview } from './FilePreview';
@@ -100,6 +100,58 @@ interface ExtendedChatInputProps extends ChatInputProps {
   onStop?: () => void;
 }
 
+/**
+ * Files worth attaching that have no text to extract.
+ *
+ * These exist for run_python: a spreadsheet read as text is line noise, and
+ * reading it with pandas is the whole point. Before the sandbox existed there
+ * was nothing that could open one, which is why they were rejected outright.
+ */
+const DATA_EXTENSIONS = [
+  'xlsx', 'xls', 'xlsm', 'docx', 'pptx', 'ods', 'odt', 'parquet', 'db',
+  'sqlite', 'zip', 'tsv', 'numbers', 'rtf',
+];
+
+const TEXT_EXTENSIONS = [
+  'md', 'txt', 'js', 'jsx', 'ts', 'tsx', 'json', 'csv', 'xml', 'yaml', 'yml',
+  'ini', 'cfg', 'log', 'toml', 'env', 'sh', 'py', 'java', 'c', 'cpp', 'h',
+  'hpp', 'cs', 'go', 'rs', 'rb', 'php', 'sql',
+];
+
+function isTextFile(file: File): boolean {
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  return file.type.startsWith('text/') || TEXT_EXTENSIONS.includes(ext) || file.type === '';
+}
+
+/** Matches the file store's own per-file limit. */
+const MAX_ATTACHMENT_BYTES = 25_000_000;
+
+/**
+ * Put the raw bytes in the device file store so run_python can open them.
+ *
+ * Additional to the text extraction, not instead of it: the model still gets
+ * the text of a PDF in its prompt, and now the PDF itself is on disk, which is
+ * what makes "change this document" possible rather than only "read it".
+ *
+ * Returns null if the store refuses. The attachment still sends — losing the
+ * ability to open it in Python is worth much less than losing the message.
+ */
+async function keepAttachment(file: File): Promise<AttachedFile | null> {
+  try {
+    const { putFile } = await import('../../services/files/fileStore');
+    const stored = await putFile({
+      name: file.name,
+      mime: file.type || 'application/octet-stream',
+      bytes: file,
+      source: 'upload',
+    });
+    return { id: stored.id, name: stored.name, mime: stored.mime, size: stored.size };
+  } catch (error: unknown) {
+    console.error('Could not keep an attachment on this device:', error);
+    return null;
+  }
+}
+
 export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default' as Persona, isGroupMode, participants, replyTo, onClearReply, initialMode, onModeChange, onStop }: ExtendedChatInputProps) {
   const [message, setMessage] = useState('');
   // While a generation is running the send button becomes Stop — until now
@@ -110,6 +162,8 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileExtractedText, setFileExtractedText] = useState<string | null>(null);
+  /** The same file in the device store, so run_python can open it. */
+  const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
   const [isFileReading, setIsFileReading] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [showMentionCall, setShowMentionCall] = useState(false);
@@ -271,6 +325,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
       const outgoingImages = selectedImages;
       const outgoingFile = selectedFile;
       const outgoingFileText = fileExtractedText;
+      const outgoingAttachment = attachedFile;
       const restoreComposer = () => {
         setMessage(outgoingMessage);
         setSelectedImages(outgoingImages);
@@ -279,6 +334,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
         setImagePreviewUrls(outgoingImages.map(file => URL.createObjectURL(file)));
         setSelectedFile(outgoingFile);
         setFileExtractedText(outgoingFileText);
+        setAttachedFile(outgoingAttachment);
       };
 
       setMessage('');
@@ -320,14 +376,22 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           alert('Failed to process images. Please try again.');
           console.error('Error processing images:', error);
         }
-      } else if (outgoingFile && outgoingFileText) {
+      } else if (outgoingFile) {
         setSelectedFile(null);
         setFileExtractedText(null);
+        setAttachedFile(null);
         if (docInputRef.current) docInputRef.current.value = '';
         setIsUploading(true);
         try {
           setIsUploading(false);
-          await onSendMessage(outgoingMessage, undefined, undefined, undefined, undefined, activeMode, outgoingFileText, outgoingFile.name);
+          // A spreadsheet has no text worth extracting, and used not to be
+          // sendable at all for that reason. It goes now: the model reaches it
+          // through run_python instead of through the prompt.
+          await onSendMessage(
+            outgoingMessage, undefined, undefined, undefined, undefined, activeMode,
+            outgoingFileText || undefined, outgoingFile.name,
+            outgoingAttachment ? [outgoingAttachment] : undefined,
+          );
         } catch (error) {
           setIsUploading(false);
           restoreComposer();
@@ -590,26 +654,30 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const isPdf = file.type === 'application/pdf' || ext === 'pdf';
-    
-    // Check if it's text-based
-    const knownTextExtensions = ['md', 'txt', 'js', 'jsx', 'ts', 'tsx', 'json', 'csv', 'xml', 'yaml', 'yml', 'ini', 'cfg', 'log', 'toml', 'env', 'sh', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'go', 'rs', 'rb', 'php', 'sql'];
-    const isText = file.type.startsWith('text/') || knownTextExtensions.includes(ext) || file.type === '';
+    const isText = isTextFile(file);
+    const isData = DATA_EXTENSIONS.includes(ext);
 
-    if (!isPdf && !isText) {
-      alert('Unsupported file format. Please upload a PDF, markdown, plain text, or source code file.');
+    if (!isPdf && !isText && !isData) {
+      alert('Unsupported file format. Please upload a PDF, spreadsheet, document, data file, or text file.');
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be under 10 MB.');
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      alert('File size must be under 25 MB.');
       return;
     }
 
     setSelectedFile(file);
     setIsFileReading(true);
     try {
+      // Kept whatever else happens: the extracted text is for the prompt, and
+      // the bytes are for run_python. A spreadsheet has no useful text at all
+      // and is entirely the second.
+      setAttachedFile(await keepAttachment(file));
       let extractedText = '';
-      if (isPdf) {
+      if (isData) {
+        extractedText = '';
+      } else if (isPdf) {
         const { extractPdfText } = await import('../../services/pdf/pdfService');
         const result = await extractPdfText(file);
         extractedText = result.text;
@@ -638,6 +706,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const removeFile = () => {
     setSelectedFile(null);
     setFileExtractedText(null);
+    setAttachedFile(null);
     if (docInputRef.current) docInputRef.current.value = '';
   };
 
@@ -655,27 +724,28 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     // Check if any dropped file is a PDF or text file
     const docFile = files.find(f => {
       const ext = f.name.split('.').pop()?.toLowerCase() || '';
-      const isPdf = f.type === 'application/pdf' || ext === 'pdf';
-      const knownTextExtensions = ['md', 'txt', 'js', 'jsx', 'ts', 'tsx', 'json', 'csv', 'xml', 'yaml', 'yml', 'ini', 'cfg', 'log', 'toml', 'env', 'sh', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'go', 'rs', 'rb', 'php', 'sql'];
-      const isText = f.type.startsWith('text/') || knownTextExtensions.includes(ext) || f.type === '';
-      return isPdf || isText;
+      return f.type === 'application/pdf' || ext === 'pdf' || isTextFile(f) || DATA_EXTENSIONS.includes(ext);
     });
 
     if (docFile) {
-      if (docFile.size > 10 * 1024 * 1024) {
-        alert('File size must be under 10 MB.');
+      if (docFile.size > MAX_ATTACHMENT_BYTES) {
+        alert('File size must be under 25 MB.');
         return;
       }
-      
+
       const ext = docFile.name.split('.').pop()?.toLowerCase() || '';
       const isPdf = docFile.type === 'application/pdf' || ext === 'pdf';
+      const isData = DATA_EXTENSIONS.includes(ext);
 
       setSelectedFile(docFile);
       setSelectedPlusOption('upload-file');
       setIsFileReading(true);
       try {
+        setAttachedFile(await keepAttachment(docFile));
         let extractedText = '';
-        if (isPdf) {
+        if (isData) {
+          extractedText = '';
+        } else if (isPdf) {
           const { extractPdfText } = await import('../../services/pdf/pdfService');
           const result = await extractPdfText(docFile);
           extractedText = result.text;
@@ -806,7 +876,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           />
           <input
             type="file"
-            accept="application/pdf,text/*,application/json,application/javascript,application/typescript,.md,.txt,.js,.jsx,.ts,.tsx,.json,.html,.css,.csv,.xml,.yaml,.yml,.ini,.cfg,.log"
+            accept="application/pdf,text/*,application/json,application/javascript,application/typescript,.md,.txt,.js,.jsx,.ts,.tsx,.json,.html,.css,.csv,.xml,.yaml,.yml,.ini,.cfg,.log,.xlsx,.xls,.xlsm,.docx,.pptx,.ods,.odt,.tsv,.parquet,.zip,.rtf,.sqlite,.db"
             className="hidden"
             onChange={handleFileSelect}
             ref={docInputRef}

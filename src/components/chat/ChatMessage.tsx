@@ -9,6 +9,7 @@ import { BrandOverride } from '../brand/BrandLogo';
 import type { SavedVariation } from './MusicComposeCard';
 import { McpApprovalCard } from './McpApprovalCard';
 import { AppObjectCard } from './AppObjectCard';
+import { PythonRunCard } from './PythonRunCard';
 import type { McpApprovalDecision } from '../../types/flightControls';
 import { FailedTurn } from './FailedTurn';
 
@@ -68,6 +69,7 @@ export function ChatMessage({
   mcpApproval,
   onMcpApprovalDecision,
   appObjects,
+  pythonRuns,
   status,
   errorCode,
   partialContent,
@@ -293,6 +295,7 @@ export function ChatMessage({
           musicVariations={musicVariations}
           onMusicVariationsChange={onMusicVariationsChange}
         />
+        {pythonRuns && pythonRuns.length > 0 && <PythonRunCard runs={pythonRuns} />}
         {appObjects && appObjects.length > 0 && <AppObjectCard objects={appObjects} />}
         </>}
         {renderReactions()}

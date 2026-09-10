@@ -17,7 +17,10 @@ describe('Air provider chain', () => {
   it('runs the primary first, then each configured fallback in order', () => {
     const chain = buildProviderChain(air.provider, air.model, personaFallbacks(air));
 
-    expect(chain).toHaveLength(3);
+    // Derived, not a magic number: the chain grows whenever a provider is
+    // added, and the invariant is "primary first, then every fallback in
+    // order" — not "exactly three hops".
+    expect(chain).toHaveLength(1 + personaFallbacks(air).length);
     expect(chain[0]).toEqual({ provider: air.provider, model: air.model });
     expect(chain.slice(1)).toEqual(personaFallbacks(air));
   });

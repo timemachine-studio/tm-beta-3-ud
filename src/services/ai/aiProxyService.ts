@@ -1,4 +1,4 @@
-import { Message, ImageDimensions, type AppObjectRef } from '../../types/chat';
+import { Message, ImageDimensions, type AppObjectRef, type AttachedFile, type PythonRun } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { supabase } from '../../lib/supabase';
 import type { McpApprovalRequest } from '../../types/flightControls';
@@ -45,6 +45,44 @@ class RateLimitError extends Error {
   }
 }
 
+/** Attachments one turn may carry into the sandbox. */
+const MAX_ATTACHED_FILES = 8;
+
+/**
+ * Every file attached anywhere in this conversation, newest first.
+ *
+ * Read off the messages rather than tracked separately, which is what makes an
+ * attachment stay usable: a spreadsheet sent five turns ago is still in the
+ * transcript, so it is still openable. It also survives a reload for free,
+ * because the reference was saved with the message.
+ *
+ * Names are made unique here, once, because the same string has to be the path
+ * the model is told about *and* the path the file is written to.
+ */
+export function attachedFilesFor(messages: readonly Message[]): AttachedFile[] {
+  const seen = new Set<string>();
+  const names = new Set<string>();
+  const found: AttachedFile[] = [];
+
+  for (let index = messages.length - 1; index >= 0; index--) {
+    for (const file of messages[index].attachments ?? []) {
+      if (seen.has(file.id) || found.length >= MAX_ATTACHED_FILES) continue;
+      seen.add(file.id);
+
+      let name = file.name.replace(/[/\\]/g, '_') || 'file';
+      if (names.has(name)) {
+        const dot = name.lastIndexOf('.');
+        const stem = dot > 0 ? name.slice(0, dot) : name;
+        const extension = dot > 0 ? name.slice(dot) : '';
+        for (let suffix = 2; names.has(name); suffix++) name = `${stem}-${suffix}${extension}`;
+      }
+      names.add(name);
+      found.push({ ...file, name });
+    }
+  }
+  return found;
+}
+
 /**
  * Device tool bridge (shared/deviceTools.ts).
  *
@@ -60,6 +98,8 @@ export interface DeviceBridgeOptions {
   currentChatSessionId?: string;
   /** A note the turn created or changed, for the chat to render as a card. */
   onAppObject?: (object: AppObjectRef) => void;
+  /** Python this turn ran, with its charts, tables and generated files. */
+  onPythonRun?: (run: PythonRun) => void;
 }
 
 // User profile info for memory context
@@ -513,6 +553,7 @@ export async function generateAIResponseStreaming(
   // the next leg with the results appended. Text streams into the same message
   // throughout, so the user sees one answer being written, not several.
   const deviceApps = deviceBridge?.deviceApps ?? [];
+  const attachedFiles = attachedFilesFor(messages);
   const toolTranscript: ToolTranscriptMessage[] = [];
   let deviceRounds = 0;
   /** Which apps hold anything. Null until the first leg resolves it. */
@@ -552,8 +593,10 @@ export async function generateAIResponseStreaming(
       const outcome = await runDeviceTool(call, {
         currentChatSessionId: deviceBridge?.currentChatSessionId,
         onStatus: onStatusChange,
+        attachedFiles,
       });
       if (outcome.appObject) deviceBridge?.onAppObject?.(outcome.appObject);
+      if (outcome.pythonRun) deviceBridge?.onPythonRun?.(outcome.pythonRun);
 
       toolTranscript.push({
         role: 'tool',
@@ -596,6 +639,15 @@ export async function generateAIResponseStreaming(
             deviceApps,
             deviceDataPresent: dataPresent ?? [],
             deviceRounds,
+            // Metadata only. The bytes stay on the device; this is what lets
+            // the server tell the model which paths exist.
+            ...(attachedFiles.length > 0
+              ? {
+                  deviceFiles: attachedFiles.map(file => ({
+                    name: file.name, mime: file.mime, size: file.size,
+                  })),
+                }
+              : {}),
             ...(toolTranscript.length > 0 ? { toolTranscript } : {}),
           }
         : {};

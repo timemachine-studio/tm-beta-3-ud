@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
+import { escapeCurrencyAmounts } from './currencyMarkdown';
 import rehypeKatex from 'rehype-katex';
 import { X } from 'lucide-react';
 import { MessageProps } from '../../types/chat';
@@ -130,7 +131,8 @@ const processMemoryContent = (content: string): { cleanContent: string; hasSaved
     .replace(/!\[Generated Image\]\([^)]*$/, '') // Hide incomplete image markdown during streaming
     .trim();
 
-  return { cleanContent, hasSavedMemory };
+  // "$45 … $220" is a price and a price, not a maths span. See currencyMarkdown.
+  return { cleanContent: escapeCurrencyAmounts(cleanContent), hasSavedMemory };
 };
 
 function AIMessageComponent({

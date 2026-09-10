@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Message, ImageDimensions, MusicVariation, ChatErrorCode, RetryContext } from '../types/chat';
+import { Message, ImageDimensions, MusicVariation, ChatErrorCode, RetryContext, type AttachedFile } from '../types/chat';
 import { generateAIResponse, generateAIResponseStreaming, resolveMcpApproval, getActiveProRun, streamProRun, YouTubeMusicData, UserMemoryContext } from '../services/ai/aiProxyService';
 import type { McpApprovalDecision, McpApprovalRequest } from '../types/flightControls';
 import { ChatError } from '../services/ai/chatErrors';
@@ -952,9 +952,13 @@ export function useChat(
         controller.signal,
         {
           // Main chat can reach TM Notes and the user's own chat history
-          // without them opening either app first. The tools run here, in the
-          // browser, because that is where both stores live.
-          deviceApps: ['notes', 'chats'],
+          // without them opening either app first, and can run Python. All
+          // three execute here, in the browser: the first two because that is
+          // where the data lives, the third because that is where the sandbox
+          // is. Declaring 'python' is also the version check — an older cached
+          // bundle sends the first two and is never offered a tool it cannot
+          // run.
+          deviceApps: ['notes', 'chats', 'python'],
           currentChatSessionId: !collaborative ? sessionId : undefined,
           onAppObject: (object) => {
             if (wasStopped()) return;
@@ -968,6 +972,15 @@ export function useChat(
                 !(candidate.kind === object.kind && candidate.id === object.id));
               return { ...messageItem, appObjects: [...others, object] };
             }));
+          },
+          onPythonRun: (run) => {
+            if (wasStopped()) return;
+            isDirtyRef.current = true;
+            setMessages(previous => previous.map(messageItem => messageItem.id === aiMessageId
+              // Appended, not replaced: a turn that ran code, saw the error and
+              // ran it again should show both, in the order they happened.
+              ? { ...messageItem, pythonRuns: [...(messageItem.pythonRuns ?? []), run] }
+              : messageItem));
           },
         },
       );
@@ -1051,7 +1064,8 @@ export function useChat(
     replyTo?: { id: string; content: string; sender_nickname?: string; isAI: boolean },
     specialMode?: string,
     pdfData?: string,
-    pdfFileName?: string
+    pdfFileName?: string,
+    attachments?: AttachedFile[]
   ) => {
     const {
       messages: currentMessages,
@@ -1079,7 +1093,7 @@ export function useChat(
     let finalContent = messageContent;
     if ((imageData || (inputImageUrls && inputImageUrls.length > 0)) && !messageContent.trim()) {
       finalContent = '[Image message]'; // Placeholder text for UI
-    } else if (pdfData && !messageContent.trim()) {
+    } else if ((pdfData || attachments?.length) && !messageContent.trim()) {
       const isPdf = pdfFileName?.toLowerCase().endsWith('.pdf');
       finalContent = isPdf ? `[PDF: ${pdfFileName || 'document.pdf'}]` : `[File: ${pdfFileName || 'document.txt'}]`; // Placeholder text for UI
     }
@@ -1097,6 +1111,10 @@ export function useChat(
       pdfData,
       pdfFileName,
     };
+    // Attachments are deliberately not in here. A retry rebuilds the request
+    // from the message list, and the reference lives on the message itself —
+    // duplicating it would give a retry a second way to disagree with the
+    // conversation about what is attached.
 
     // Create user message with content for display
     // Use finalContent for attachment-only placeholders, otherwise keep the original content.
@@ -1112,6 +1130,9 @@ export function useChat(
       imageDimensions: imageDimensions,
       pdfData: pdfData ? 'attached' : undefined, // Don't store full base64 in message state, just flag it
       pdfFileName: pdfFileName,
+      // A reference, not the bytes. This is what keeps the file reachable from
+      // run_python for the rest of the conversation, and after a reload.
+      attachments,
       retryContext,
       // Add sender info for collaborative mode
       sender_id: collaborative ? uid || undefined : undefined,
@@ -1129,7 +1150,11 @@ export function useChat(
       hasAnimated: false,
       imageData: imageData,
       inputImageUrls: inputImageUrls,
-      imageDimensions: imageDimensions
+      imageDimensions: imageDimensions,
+      // Without this the file is attached to the message on screen and to
+      // nothing the request can see, so the first turn after an upload cannot
+      // reach it — which is the only turn that usually wants to.
+      attachments,
     };
 
     isDirtyRef.current = true; // Mark as dirty on user message send

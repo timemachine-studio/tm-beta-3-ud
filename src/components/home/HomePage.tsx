@@ -19,7 +19,7 @@ import { useChat } from '../../hooks/useChat';
 import { useAnonymousRateLimit } from '../../hooks/useAnonymousRateLimit';
 import { ChatInput } from '../chat/ChatInput';
 import { ChatMode } from '../chat/ChatMode';
-import { ImageDimensions, ReplyToData } from '../../types/chat';
+import { ImageDimensions, ReplyToData, type AttachedFile } from '../../types/chat';
 
 // ─── helpers ─────────────────────────────────────────────────────────
 
@@ -138,6 +138,7 @@ export function HomePage() {
     specialMode?: string,
     pdfData?: string,
     pdfFileName?: string,
+    attachments?: AttachedFile[],
   ) => {
     // Intercept trigger word "play " case-insensitively
     if (message.trim().toLowerCase().startsWith('play ')) {
@@ -159,7 +160,7 @@ export function HomePage() {
 
     // The count is re-read from the server when the turn finishes; see
     // useAnonymousRateLimit (production-check.md 0.4).
-    await handleSendMessage(message, imageUrl, imageUrls, imageDimensions, replyToData, specialMode, pdfData, pdfFileName);
+    await handleSendMessage(message, imageUrl, imageUrls, imageDimensions, replyToData, specialMode, pdfData, pdfFileName, attachments);
   }, [currentPersona, isAnonymous, isRateLimited, handleSendMessage, navigate]);
 
   // Open in Chat UI — navigates to / and passes the current session so MainChatPage

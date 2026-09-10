@@ -12,6 +12,7 @@ import { supabase } from '../../lib/supabase';
 import { Message } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { newId } from '../../utils/id';
+import { pythonRunsForStorage } from '../python/pythonResult';
 import type { Json, ChatSession as SessionRow, ChatMessage as MessageRow } from '../../types/database';
 
 export interface ChatSession {
@@ -30,6 +31,19 @@ export interface ChatSession {
 // Everything else is a streaming placeholder.
 function isPersistable(message: Message): boolean {
   return Boolean((message.content && message.content.trim() !== '') || message.status === 'error');
+}
+
+/**
+ * One message, bounded for storage.
+ *
+ * Python artifacts used to carry base64 bytes, which meant a chart travelled
+ * inside the conversation — into a localStorage blob that stops saving silently
+ * at about five megabytes (LS.2), and into a Supabase JSON column. They carry a
+ * file-store id now, so this bounds the shape rather than the size.
+ */
+function messageForStorage(message: Message): Message {
+  if (!message.pythonRuns?.length) return message;
+  return { ...message, pythonRuns: pythonRunsForStorage(message.pythonRuns) };
 }
 
 // Convert database row to ChatSession
@@ -69,6 +83,8 @@ function messageToDbRow(message: Message, sessionId: string, userId: string) {
       errorCode: message.errorCode || null,
       partialContent: message.partialContent || null,
       appObjects: message.appObjects || null,
+      pythonRuns: messageForStorage(message).pythonRuns || null,
+      attachments: message.attachments || null,
     } as unknown as Json,
     // Ordering is by created_at, and ids are no longer timestamps (1.12),
     // so the message has to carry its own clock.
@@ -96,6 +112,8 @@ function dbRowToMessage(row: MessageRow): Message {
     errorCode: saved.errorCode || undefined,
     partialContent: saved.partialContent || undefined,
     appObjects: saved.appObjects || undefined,
+    pythonRuns: saved.pythonRuns || undefined,
+    attachments: saved.attachments || undefined,
   };
 }
 
@@ -137,7 +155,7 @@ export function saveLocalSession(session: ChatSession): void {
 
     const sessionToSave: ChatSession = {
       ...session,
-      messages: session.messages.filter(isPersistable)
+      messages: session.messages.filter(isPersistable).map(messageForStorage)
     };
 
     // Don't save sessions with no valid messages
