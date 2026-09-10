@@ -3,10 +3,12 @@ import { task, logger } from "@trigger.dev/sdk";
 import {
   dispatchStreamingProvider,
   extractImageContent,
+  fetchHealthcareRAGContext,
   normalizeStreamingProvider,
   incrementRateLimit,
   processMemoryTags,
 } from "../api/ai-proxy.js";
+import type { DeviceToolRequestFrame } from "../shared/deviceTools.js";
 import { runWithProviderFallback, type ProviderHop } from "../api/_lib/providerResilience.js";
 import {
   attachmentsFrom,
@@ -60,6 +62,14 @@ export interface ProGenerationPayload {
   /** Results of the intent gates, decided in /api/pro-generation. */
   imageAllowed?: boolean;
   searchAllowed?: boolean;
+  /**
+   * The client can execute device tools, so the loop may suspend for them.
+   * A suspended run ends as a completed job carrying the partial answer; the
+   * client runs the calls and starts a new run with a longer transcript.
+   */
+  deviceBridge?: boolean;
+  /** Device round trips this user turn has already spent. */
+  deviceRounds?: number;
 }
 
 const MAX_ITERATIONS = 5;
@@ -159,7 +169,9 @@ export const proGeneration = task({
           inputImageUrls: payload.inputImageUrls,
           imageDimensions: payload.imageDimensions,
           policy: toolPolicy,
+          healthcareSearch: fetchHealthcareRAGContext,
         },
+        deviceBridge: payload.deviceBridge === true,
         emit: {
           emitContent: async (text) => { hasStreamedContent = true; await emitText(text); },
           emitToolText: async (text) => { hasStreamedContent = true; await emitText(`\n\n${text}\n\n`); },
@@ -203,6 +215,33 @@ export const proGeneration = task({
         maxIterations: MAX_ITERATIONS,
         log: (message) => logger.log(message),
       });
+
+      // The model asked for something only the browser can do. This job is
+      // finished — nothing failed — and the client starts the next leg with
+      // the device results in hand. Quota and memory are deliberately skipped:
+      // one user turn is charged once, on whichever leg produces the answer.
+      if (loopResult.deviceSuspension) {
+        const frame: DeviceToolRequestFrame = {
+          type: "device_tool_request",
+          payload: {
+            assistantContent: loopResult.deviceSuspension.assistantContent,
+            toolCalls: loopResult.deviceSuspension.allToolCalls.map(call => ({
+              id: call.id,
+              name: call.function.name,
+              arguments: call.function.arguments || "{}",
+            })),
+            resolvedResults: loopResult.deviceSuspension.resolvedResults,
+            deviceRounds: (payload.deviceRounds ?? 0) + 1,
+          },
+        };
+        await emitMarker(`\u001e${JSON.stringify(frame)}\n`);
+        await emitMarker("[STATUS_END]");
+        await flush(true);
+        await completeProJob(payload.jobId, loopResult.content);
+        await emitMarker(`\u001e{"type":"pro_done"}\n`);
+        logger.log("PRO generation suspended for device tools", { jobId: payload.jobId });
+        return { ok: true, contentLength: loopResult.content.length };
+      }
 
       let fullContent = loopResult.content;
 

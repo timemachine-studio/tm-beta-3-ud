@@ -12,12 +12,19 @@ const approval = z.object({
   error: z.string().optional(),
 });
 const musicVariations = z.array(z.object({ seed: z.number(), audioUrl: z.string(), imageUrl: z.string() }));
+// Notes the AI saved during a turn. Reopening the chat has to bring the card
+// back with it, or the "Open in Notes" link only exists until a refresh.
+const appObjects = z.array(z.object({
+  kind: z.literal('note'), id: z.string(), title: z.string(),
+  action: z.enum(['created', 'updated']),
+})).max(10);
 export const storedMetadataSchema = z.object({
   hasAnimated: z.boolean().nullish(), imageDimensions: dimensions.nullish(),
   specialMode: z.string().nullish(),
   musicVariations: musicVariations.nullish(),
   mcpApproval: approval.nullish(), status: z.enum(['streaming', 'complete', 'error']).nullish(),
   errorCode: errorCode.nullish(), partialContent: z.string().nullish(),
+  appObjects: appObjects.nullish(),
 });
 
 /** A malformed optional field must not discard another field's retry state. */
@@ -37,6 +44,7 @@ const messageSchema = storedMetadataSchema.extend({
   specialMode: z.string().optional(), musicVariations: musicVariations.optional(),
   mcpApproval: approval.optional(), status: z.enum(['streaming', 'complete', 'error']).optional(),
   errorCode: errorCode.optional(), partialContent: z.string().optional(),
+  appObjects: appObjects.optional(),
   thinking: z.string().optional(), rawContent: z.string().optional(),
   imageData: z.union([z.string(), z.array(z.string())]).optional(),
   audioUrl: z.string().optional(), inputImageUrls: z.array(z.string()).optional(),

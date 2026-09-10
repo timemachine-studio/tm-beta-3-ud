@@ -950,6 +950,26 @@ export function useChat(
           });
         },
         controller.signal,
+        {
+          // Main chat can reach TM Notes and the user's own chat history
+          // without them opening either app first. The tools run here, in the
+          // browser, because that is where both stores live.
+          deviceApps: ['notes', 'chats'],
+          currentChatSessionId: !collaborative ? sessionId : undefined,
+          onAppObject: (object) => {
+            if (wasStopped()) return;
+            isDirtyRef.current = true;
+            setMessages(previous => previous.map(messageItem => {
+              if (messageItem.id !== aiMessageId) return messageItem;
+              const existing = messageItem.appObjects ?? [];
+              // An edit to a note already on this turn replaces its card
+              // rather than stacking a second one for the same object.
+              const others = existing.filter(candidate =>
+                !(candidate.kind === object.kind && candidate.id === object.id));
+              return { ...messageItem, appObjects: [...others, object] };
+            }));
+          },
+        },
       );
       return;
     }

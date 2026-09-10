@@ -90,6 +90,17 @@ export interface Message {
   // Saved music variations with permanent Supabase URLs (for music-compose history)
   musicVariations?: MusicVariation[];
   mcpApproval?: import('./flightControls').McpApprovalRequest;
+  // Real app objects this turn created or changed — today a TM Notes note.
+  // Rendered as a card with a link that opens that exact object.
+  appObjects?: AppObjectRef[];
+}
+
+/** A note the AI saved or edited from chat. */
+export interface AppObjectRef {
+  kind: 'note';
+  id: string;
+  title: string;
+  action: 'created' | 'updated';
 }
 
 export interface ChatState {

@@ -7,6 +7,7 @@ import type { ProviderMessage, ProviderTool, ProviderToolCall } from './provider
 // runtime backstop impossible to enforce for Air — a refusal needs a next
 // iteration to land in.
 
+import { isDeviceToolName, type DeviceToolCall } from '../../shared/deviceTools.js';
 import {
   applyPolicy,
   executeTool,
@@ -31,6 +32,27 @@ export interface AgentLoopOptions {
   callModel: (messages: ProviderMessage[], activeTools: ProviderTool[]) => Promise<ReadableStream>;
   maxIterations?: number;
   log?: (message: string) => void;
+  /**
+   * The caller can suspend this run and hand device tool calls to the browser.
+   * Without it a device tool call falls through to executeTool's refusal, so
+   * the model is told plainly rather than left waiting on a result that will
+   * never come.
+   */
+  deviceBridge?: boolean;
+}
+
+/**
+ * A run stopped mid-flight because the model called a tool only the user's
+ * device can execute. The caller streams this to the client, which runs the
+ * calls locally and starts the next leg with the transcript extended.
+ */
+export interface DeviceToolSuspension {
+  assistantContent: string | null;
+  /** Every call the model made this iteration, device and server alike. */
+  allToolCalls: ProviderToolCall[];
+  /** Server-executable calls from the same batch, already run. */
+  resolvedResults: Array<{ id: string; name: string; content: string }>;
+  pendingCalls: DeviceToolCall[];
 }
 
 export interface AgentLoopResult {
@@ -39,6 +61,8 @@ export interface AgentLoopResult {
   iterations: number;
   /** The run was cut off with tool calls still pending. */
   hitMaxIterations: boolean;
+  /** Set when the run is waiting on the device. Not a failure. */
+  deviceSuspension?: DeviceToolSuspension;
 }
 
 export const DEFAULT_MAX_ITERATIONS = 5;
@@ -52,6 +76,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
     callModel,
     maxIterations = DEFAULT_MAX_ITERATIONS,
     log,
+    deviceBridge = false,
   } = opts;
 
   const currentMessages = [...messages];
@@ -139,24 +164,54 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
       if (toolCalls.length > 0) {
         endedWithPendingToolCalls = true;
 
+        const pendingCalls = deviceBridge
+          ? toolCalls.filter(call => isDeviceToolName(call.function.name))
+          : [];
+
         currentMessages.push({
           role: 'assistant',
           content: assistantContent || null,
           tool_calls: toolCalls
         });
 
+        // Server-side calls run either way. A batch that mixes the two — say
+        // web_search alongside notes_search — must not lose the half we can
+        // answer here, so those results travel with the suspension.
+        const resolvedResults: Array<{ id: string; name: string; content: string }> = [];
         for (const toolCall of toolCalls) {
+          if (pendingCalls.includes(toolCall)) continue;
+
           const result = await executeTool(toolCall, toolContext, {
             emitText: emit.emitToolText,
             emitMarker: emit.emitMarker,
           });
 
+          resolvedResults.push({ id: toolCall.id, name: toolCall.function.name, content: result });
           currentMessages.push({
             role: 'tool',
             tool_call_id: toolCall.id,
             name: toolCall.function.name,
             content: result
           });
+        }
+
+        if (pendingCalls.length > 0) {
+          log?.(`Agent loop: suspending for ${pendingCalls.length} device tool call(s)`);
+          return {
+            content: fullContent,
+            iterations: iteration,
+            hitMaxIterations: false,
+            deviceSuspension: {
+              assistantContent: assistantContent || null,
+              allToolCalls: toolCalls,
+              resolvedResults,
+              pendingCalls: pendingCalls.map(call => ({
+                id: call.id,
+                name: call.function.name,
+                arguments: call.function.arguments || '{}',
+              })),
+            },
+          };
         }
 
         // Go around again so the model can use the tool results.

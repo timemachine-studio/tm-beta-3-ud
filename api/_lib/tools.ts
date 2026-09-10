@@ -8,6 +8,26 @@ import type { ProviderTool } from './providerTypes.js';
 // Everything tool-related now lives here; call sites supply an emitter.
 
 import { SKILLS_DATA } from '../../shared/skills.js';
+import {
+  DEVICE_APPS,
+  DEVICE_ROUND_HARD_STOP,
+  MAX_DEVICE_ROUNDS,
+  deviceToolsFor,
+  isDeviceToolName,
+} from '../../shared/deviceTools.js';
+
+/**
+ * How many device round trips a turn gets, for this deployment.
+ *
+ * Server-side because it reads the environment, and because the server is
+ * what enforces it: past the budget the tools simply are not offered. Zero is
+ * a legitimate value — it turns the device bridge off without a code change.
+ */
+export function resolveDeviceRoundBudget(): number {
+  const configured = Number(process.env.DEVICE_ROUND_BUDGET);
+  if (!Number.isFinite(configured)) return MAX_DEVICE_ROUNDS;
+  return Math.min(Math.max(Math.trunc(configured), 0), DEVICE_ROUND_HARD_STOP);
+}
 import { runWebSearch, formatResultsForModel } from './webSearch.js';
 
 // ─── Tool definitions ───────────────────────────────────────────────────────
@@ -118,11 +138,82 @@ export const readSkillTool = {
   }
 };
 
+export const healthcareSearchTool = {
+  type: "function" as const,
+  function: {
+    name: "healthcare_search",
+    strict: true,
+    description: "Look a medicine up in the TM Healthcare database: brands, generics, form, strength, price, manufacturer, indications, dosing, precautions, side effects. Use it for any specific drug rather than answering from memory.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Brand name, generic name, or the condition treated." }
+      },
+      required: ["query"],
+      additionalProperties: false
+    }
+  }
+};
+
+/**
+ * What the model is told about the user's own apps, for the tools it has.
+ *
+ * Built from the actual tool list rather than written once, for two reasons.
+ * Promising capabilities that were not offered contradicts the tool policy
+ * directly above it ("the tools listed are the only ones available"), and
+ * every line of this travels on every main-chat request — so a user who can
+ * only save a note should not pay for two paragraphs about searching history
+ * they do not have.
+ */
+export function buildAppToolDirective(opts: {
+  /** Names of the tools actually going into this request. */
+  toolNames: readonly string[];
+  /** The client can run device tools, but this turn has spent its rounds. */
+  deviceRoundsSpent: boolean;
+}): string {
+  const has = (name: string) => opts.toolNames.includes(name);
+  const readers = ['notes_search', 'notes_read', 'chats_search', 'chats_read'].filter(has);
+
+  if (opts.deviceRoundsSpent && readers.length === 0) {
+    return `
+## The user's own apps
+You have used every Notes and past-chat lookup this turn allows, which is why those tools are no longer listed. They will not come back before you answer — answer now, from what they already returned.
+If something you needed never arrived, say plainly what you could not check. Do not imply you checked it, and do not invent it. The user gets a fresh set of lookups on their next message.
+`;
+  }
+
+  const lines: string[] = [];
+  const surfaces = [
+    has('notes_create') || has('notes_search') ? 'Notes' : null,
+    has('healthcare_search') ? 'Healthcare' : null,
+    has('chats_search') ? 'History' : null,
+  ].filter(Boolean);
+
+  lines.push(`You can reach the user's own TimeMachine data from this conversation; they do not need to open ${surfaces.join(', ')} first.`);
+
+  if (readers.length > 0) {
+    lines.push('Use an app tool whenever the answer depends on something only their own data holds. Look it up before saying you cannot — "I don\'t have access to that" is wrong here.');
+  }
+  if (has('chats_search')) {
+    lines.push('If they refer to an earlier conversation, find it and read it. Never answer from a memory of it you have not checked. What you read is a record of what was said, not verified fact.');
+  }
+  if (has('notes_create') && !has('notes_edit')) {
+    lines.push('They have no notes yet, so there is nothing to search — but you can still save them one.');
+  }
+  // Only worth the tokens once there are enough tools to batch.
+  if (readers.length >= 2) {
+    lines.push('Calling several app tools in one go costs one lookup, not several. Ask for everything you know you need at once.');
+  }
+
+  return `\n## The user's own apps\n${lines.map((line, index) => `${index + 1}. ${line}`).join('\n')}\n`;
+}
+
 export const TOOL_MAP: Record<string, ProviderTool> = {
   imageGeneration: imageGenerationTool,
   webSearch: webSearchTool,
   listSkills: listSkillsTool,
-  readSkill: readSkillTool
+  readSkill: readSkillTool,
+  healthcareSearch: healthcareSearchTool
 };
 
 // ─── Image + search primitives ──────────────────────────────────────────────
@@ -285,6 +376,16 @@ export interface SelectToolsOptions {
   /** Pre-computed gate results. Supply them when the caller also needs the values. */
   imageAllowed?: boolean;
   searchAllowed?: boolean;
+  /**
+   * Device apps this client declared it can execute for ('notes', 'chats').
+   * Empty — an older bundle, or a surface with no device storage — means the
+   * device tools are not offered at all, rather than offered and stranded.
+   */
+  deviceApps?: readonly string[];
+  /** Of those, the ones that actually hold something worth searching. */
+  deviceDataPresent?: readonly string[];
+  /** Device round trips this turn has already spent. */
+  deviceRoundsUsed?: number;
 }
 
 /**
@@ -300,6 +401,9 @@ export function selectTools(opts: SelectToolsOptions): ProviderTool[] {
     includeSkills = false,
     messages = [],
     hasAttachedImage = false,
+    deviceApps = [],
+    deviceDataPresent = DEVICE_APPS,
+    deviceRoundsUsed = 0,
   } = opts;
 
   let tools: ProviderTool[] = specialModeConfig && Array.isArray(specialModeConfig.tools)
@@ -321,6 +425,18 @@ export function selectTools(opts: SelectToolsOptions): ProviderTool[] {
 
   if (includeSkills) {
     tools.push(listSkillsTool, readSkillTool);
+  }
+
+  // App tools are not intent-gated. Gating them on keywords is the same
+  // mistake as making the user open a specialist mode first — it just moves
+  // the door. A special mode with an explicit `tools` list still opts out.
+  if (!specialModeConfig || !Array.isArray(specialModeConfig.tools)) {
+    tools.push(healthcareSearchTool);
+    // Past the round budget the device tools come off the list entirely, so a
+    // model that keeps calling them cannot spend another request finding out.
+    if (deviceRoundsUsed < resolveDeviceRoundBudget()) {
+      tools.push(...deviceToolsFor(deviceApps, deviceDataPresent));
+    }
   }
 
   return tools;
@@ -427,6 +543,12 @@ export interface ToolExecutionContext {
   imageDimensions?: { width?: number; height?: number };
   /** Omitted for call sites that have no loop to enforce a refusal in. */
   policy?: ToolPolicy | null;
+  /**
+   * Injected rather than imported: the healthcare lookup lives in
+   * api/ai-proxy.ts alongside its Supabase client, and importing it here
+   * would close an import cycle (ai-proxy already imports this module).
+   */
+  healthcareSearch?: (query: string) => Promise<string>;
 }
 
 export interface ToolCallLike {
@@ -448,6 +570,33 @@ export async function executeTool(
 ): Promise<string> {
   const name = toolCall.function?.name;
   const argsStr = toolCall.function?.arguments || '{}';
+
+  // A device tool has no server implementation by design. The agent loop is
+  // supposed to suspend the run before it gets here; reaching this line means
+  // a caller ran the loop without device support, so say so in a way the model
+  // can act on instead of silently answering "unknown tool".
+  if (isDeviceToolName(name)) {
+    return `${name} cannot run in this context. Tell the user this capability is unavailable right now, and answer from what you already have.`;
+  }
+
+  if (name === 'healthcare_search') {
+    if (!ctx.healthcareSearch) {
+      return 'healthcare_search is not available for this request. Answer the user directly, and be clear that you could not check the medicine database.';
+    }
+    try {
+      const params = JSON.parse(argsStr) as { query?: string };
+      const query = typeof params.query === 'string' ? params.query.trim() : '';
+      if (!query) return 'Error: healthcare_search needs a non-empty query.';
+      await emit.emitMarker(`[STATUS:Checking the medicine database for "${query}"]`);
+      const context = await ctx.healthcareSearch(query);
+      if (!context.trim()) {
+        return `No medicine matching "${query}" was found in the TM Healthcare database. Say so plainly rather than inventing an entry, and answer from general knowledge with that caveat.`;
+      }
+      return context.trim();
+    } catch (err: unknown) {
+      return `Error: ${err instanceof Error ? err.message : String(err)}`;
+    }
+  }
 
   if (name === 'web_search') {
     if (ctx.policy && !ctx.policy.searchAllowed) {

@@ -16,7 +16,7 @@ npm ci               # reproduce the lockfile exactly
 npm run dev          # Vite dev server on :5173 (also serves api/*.ts via middleware)
 npm run typecheck    # TypeScript 6 strict typecheck; currently clean
 npm run lint         # ESLint 10 + Hooks recommended-latest; currently clean
-npm test             # Vitest 5; currently 24 files / 153 tests
+npm test             # Vitest 5; currently 29 files / 208 tests
 npm run build        # typechecks first, then builds with Vite 8
 npm run preview      # preview the production build
 ```
@@ -79,6 +79,44 @@ ChatInput → useChat → aiProxyService → POST /api/ai-proxy
 - ``-prefixed JSON control frames terminated by `\n` (used for MCP approval requests)
 
 `createStreamChunkParser` in `src/services/ai/aiProxyService.ts` is the only decoder. It is intricate; preserve the `[STATUS_END]` failure contract and extend the existing streaming/fallback tests if you touch it.
+
+### Device tools — how the AI reaches Notes and chat history
+
+The model runs on a server. TM Notes lives in `localStorage`, and chat history
+is device-first (see Storage direction). A server-side tool cannot read either,
+so those tools are declared on the server and **executed in the browser**.
+
+```
+model calls notes_search
+  → runAgentLoop sees a device tool name and returns { deviceSuspension }
+  → the route writes a `device_tool_request` control frame + [STATUS_END], ends
+  → aiProxyService runs the call via src/services/agent/deviceToolRunner.ts
+  → it re-POSTs the same request with `toolTranscript` grown and `deviceRounds`+1
+  → the loop resumes; text keeps streaming into the same chat message
+```
+
+- The contract — tool schemas, names, round budget — is `shared/deviceTools.ts`,
+  imported by both `api/` and `src/`. Add a device tool there, add an executor
+  case in `deviceToolRunner.ts`, and it is reachable from both Air and PRO.
+- **The server stays stateless.** There is no suspended run to resume; the
+  client replays the transcript, exactly as it already replays `messages`.
+- The client declares `deviceApps` per request. An older cached bundle declares
+  nothing and is never offered tools it cannot run — do not default this on.
+- `MAX_DEVICE_ROUNDS` (6) bounds the round trips, overridable per deployment
+  with `DEVICE_ROUND_BUDGET` (0 turns the bridge off). Past it `selectTools`
+  stops offering the tools *and* the directive says so — tools that silently
+  vanish make the model answer as though it had never had them.
+- These schemas travel on every main-chat request, so they are a per-message
+  tax on the cheapest tier. `deviceToolsFor` leaves readers out when the store
+  is empty (`deviceDataPresent`), and `buildAppToolDirective` only describes
+  the tools actually offered. Keep both true of anything you add.
+- Quota and memory processing run only on the leg that produces the answer. A
+  suspended leg charges nothing — don't add an increment to that path.
+- PRO does the same thing through Trigger: a suspended run completes its job and
+  the client starts a **new** run. That is one Trigger job per device round.
+- Group chat deliberately opts out: one member's notes are not group context.
+- Server-executable app tools (`healthcare_search`) are ordinary tools in
+  `api/_lib/tools.ts`. The split is about where the data is, not which app it is.
 
 ### Providers
 

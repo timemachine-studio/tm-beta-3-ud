@@ -1,9 +1,16 @@
-import { Message, ImageDimensions } from '../../types/chat';
+import { Message, ImageDimensions, type AppObjectRef } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { supabase } from '../../lib/supabase';
 import type { McpApprovalRequest } from '../../types/flightControls';
 import type { McpApprovalDecision } from '../../types/flightControls';
 import { ChatError, chatErrorFromResponse, isRetryableCode, toChatErrorCode } from './chatErrors';
+import {
+  DEVICE_ROUND_HARD_STOP,
+  type DeviceApp,
+  type DeviceToolRequestFrame,
+  type ToolTranscriptMessage,
+} from '../../../shared/deviceTools';
+import { resolveDeviceDataPresent, runDeviceTool } from '../agent/deviceToolRunner';
 
 export interface YouTubeMusicData {
   videoId: string;
@@ -38,6 +45,23 @@ class RateLimitError extends Error {
   }
 }
 
+/**
+ * Device tool bridge (shared/deviceTools.ts).
+ *
+ * The server suspends a run when the model reaches for a tool only this
+ * browser can execute; these options are how a caller opts in. Without them
+ * the device tools are never offered, so an older surface simply keeps the
+ * behaviour it had.
+ */
+export interface DeviceBridgeOptions {
+  /** Which device apps this caller can execute for. Omit to opt out entirely. */
+  deviceApps?: readonly DeviceApp[];
+  /** Excluded from history search: this conversation is already in context. */
+  currentChatSessionId?: string;
+  /** A note the turn created or changed, for the chat to render as a card. */
+  onAppObject?: (object: AppObjectRef) => void;
+}
+
 // User profile info for memory context
 export interface UserMemoryContext {
   nickname?: string;
@@ -53,6 +77,7 @@ interface StreamChunkParserCallbacks {
   onStatusChange?: (status: string) => void;
   onYoutubeMusic?: (music: YouTubeMusicData) => void;
   onMcpApproval?: (approval: McpApprovalRequest) => void;
+  onDeviceToolRequest?: (request: DeviceToolRequestFrame['payload']) => void;
   onControlEvent?: (event: { type?: string; message?: unknown; code?: unknown }) => void;
 }
 
@@ -73,6 +98,8 @@ function createStreamChunkParser(callbacks: StreamChunkParserCallbacks) {
             const event = JSON.parse(controlFrame);
             if (event.type === 'mcp_approval' && event.payload && callbacks.onMcpApproval) {
               callbacks.onMcpApproval(event.payload as McpApprovalRequest);
+            } else if (event.type === 'device_tool_request' && event.payload && callbacks.onDeviceToolRequest) {
+              callbacks.onDeviceToolRequest(event.payload as DeviceToolRequestFrame['payload']);
             } else if (callbacks.onControlEvent) {
               callbacks.onControlEvent(event);
             }
@@ -265,7 +292,16 @@ export interface ProRunCallbacks {
   onStatusChange?: (status: string) => void;
   onComplete?: (response: AIResponse) => void;
   onError?: (error: Error) => void;
-  /** Cancels the read loop. Without it, Stop could not reach a PRO run. */
+  /**
+   * The run finished early because the model called a device tool. Callers
+   * that pass this are expected to run the calls and start the next leg; a
+   * caller that does not — reattaching to a run it did not start, for
+   * instance — falls through to onComplete with whatever text did arrive.
+   */
+  onDeviceToolRequest?: (
+    request: DeviceToolRequestFrame['payload'],
+    partial: { content: string; thinking?: string },
+  ) => void;
   signal?: AbortSignal;
 }
 
@@ -298,14 +334,18 @@ async function getProRunStatus(runId: string): Promise<{ status: string; error?:
 // whenever the stream proxy ends its (platform-capped) response. Chunk
 // indexes are absolute, so reconnects resume exactly where they left off.
 export async function streamProRun(runId: string, callbacks: ProRunCallbacks): Promise<void> {
-  const { onChunk, onStatusChange, onComplete, onError, signal } = callbacks;
+  const { onChunk, onStatusChange, onComplete, onError, onDeviceToolRequest, signal } = callbacks;
 
   let sawTerminal = false;
   let terminalError: string | null = null;
+  let deviceRequest: DeviceToolRequestFrame['payload'] | null = null;
 
   const parser = createStreamChunkParser({
     onChunk,
     onStatusChange,
+    onDeviceToolRequest: onDeviceToolRequest
+      ? (request) => { deviceRequest = request; }
+      : undefined,
     onControlEvent: (event) => {
       if (event?.type === 'pro_done') {
         sawTerminal = true;
@@ -409,6 +449,14 @@ export async function streamProRun(runId: string, callbacks: ProRunCallbacks): P
   }
 
   const { content, thinking } = extractReasoningFromContent(parser.getFullContent());
+
+  // A suspended run is not a finished answer: handing it to onComplete would
+  // end the turn on a half-written sentence.
+  if (deviceRequest && onDeviceToolRequest) {
+    onDeviceToolRequest(deviceRequest, { content, thinking });
+    return;
+  }
+
   if (onComplete) {
     onComplete({ content, thinking });
   }
@@ -455,156 +503,284 @@ export async function generateAIResponseStreaming(
   chatSessionId?: string,
   onMcpApproval?: (approval: McpApprovalRequest) => void,
   signal?: AbortSignal,
+  // An options bag rather than a twenty-third positional parameter. Everything
+  // above it is load-bearing for existing call sites; this is not.
+  deviceBridge?: DeviceBridgeOptions,
 ): Promise<void> {
-  try {
-    // TimeMachine PRO runs in the background (Trigger.dev) so long generations
-    // are not bound by Vercel's serverless time limit.
-    if (currentPersona === 'pro') {
-      const runId = await startProRun({
-        messages: messages.map(msg => ({
-          content: msg.content,
-          isAI: msg.isAI
-        })),
-        persona: currentPersona,
-        imageData,
-        heatLevel,
-        inputImageUrls,
-        imageDimensions,
-        stream: true,
-        userMemories,
-        specialMode,
-        pdfData,
-        pdfFileName,
-        pdfExtractedText,
-        chatSessionId,
-      });
+  // ─── Device tool bridge ───────────────────────────────────────────────────
+  // One user turn can take several legs: the model calls a tool only this
+  // browser can run, the server ends the leg, we run the calls here and start
+  // the next leg with the results appended. Text streams into the same message
+  // throughout, so the user sees one answer being written, not several.
+  const deviceApps = deviceBridge?.deviceApps ?? [];
+  const toolTranscript: ToolTranscriptMessage[] = [];
+  let deviceRounds = 0;
+  /** Which apps hold anything. Null until the first leg resolves it. */
+  let dataPresent: readonly DeviceApp[] | null = null;
+  let combinedContent = '';
+  const thinkingParts: string[] = [];
+  let youtubeMusic: YouTubeMusicData | undefined;
 
-      await streamProRun(runId, { onChunk, onStatusChange, onComplete, onError, signal });
-      return;
-    }
+  /** Run the device calls and grow the transcript. Returns false if we must stop. */
+  const resolveDeviceRequest = async (request: DeviceToolRequestFrame['payload']): Promise<boolean> => {
+    if (signal?.aborted) return false;
 
-    const requestBody = JSON.stringify({
-      messages: messages.map(msg => ({
-        content: msg.content,
-        isAI: msg.isAI
+    toolTranscript.push({
+      role: 'assistant',
+      content: request.assistantContent,
+      tool_calls: request.toolCalls.map(call => ({
+        id: call.id,
+        type: 'function',
+        function: { name: call.name, arguments: call.arguments },
       })),
-      persona: currentPersona,
-      imageData,
-      heatLevel,
-      inputImageUrls,
-      imageDimensions,
-      stream: true,
-      flowState,
-      userMemories,
-      specialMode,
-      pdfData,
-      pdfFileName,
-      pdfExtractedText,
-      chatSessionId,
     });
 
-    const headers = await requestHeaders();
-    let youtubeMusic: YouTubeMusicData | undefined;
+    // Server-side calls from the same batch already ran; replay their results
+    // so every tool_call_id in the assistant turn is answered.
+    for (const resolved of request.resolvedResults) {
+      toolTranscript.push({
+        role: 'tool',
+        tool_call_id: resolved.id,
+        name: resolved.name,
+        content: resolved.content,
+      });
+    }
 
-    // One attempt at the streaming endpoint. Throws ChatError on every failure
-    // path so the caller has a code to act on.
-    const attempt = async (): Promise<{ content: string; thinking?: string }> => {
-      const budget = createStreamBudget(signal);
-      // True once the first byte of the model's answer has been delivered to
-      // the UI. A request that has already streamed can never be retried —
-      // there is no resume, and re-running would duplicate the output.
-      let streamedAnything = false;
+    for (const call of request.toolCalls) {
+      if (request.resolvedResults.some(resolved => resolved.id === call.id)) continue;
 
-      try {
-        const response = await fetch('/api/ai-proxy', {
-          method: 'POST',
-          headers,
-          body: requestBody,
-          signal: budget.signal,
+      const outcome = await runDeviceTool(call, {
+        currentChatSessionId: deviceBridge?.currentChatSessionId,
+        onStatus: onStatusChange,
+      });
+      if (outcome.appObject) deviceBridge?.onAppObject?.(outcome.appObject);
+
+      toolTranscript.push({
+        role: 'tool',
+        tool_call_id: call.id,
+        name: call.name,
+        content: outcome.content,
+      });
+    }
+
+    deviceRounds = request.deviceRounds;
+    // A safety valve, not the budget. The server decides when to stop offering
+    // the tools; this only catches a server that never does.
+    return deviceRounds < DEVICE_ROUND_HARD_STOP;
+  };
+
+  try {
+    for (;;) {
+      // What the model asked this browser to do, if this leg suspended.
+      let deviceRequest: DeviceToolRequestFrame['payload'] | null = null;
+      let legContent = '';
+      let legThinking: string | undefined;
+
+      // Separate the previous leg's prose from this one's — and do it through
+      // onChunk, so the message on screen and the content saved at the end are
+      // built from exactly the same text. The agent loop puts the same gap
+      // between its own iterations.
+      if (combinedContent && !combinedContent.endsWith('\n\n')) {
+        combinedContent += '\n\n';
+        onChunk?.('\n\n');
+      }
+
+      // Resolved once per turn, not once per leg: what the user has does not
+      // change between legs, and the cloud check is a round trip of its own.
+      if (deviceApps.length > 0 && dataPresent === null) {
+        dataPresent = await resolveDeviceDataPresent(deviceBridge?.currentChatSessionId);
+      }
+
+      const bridgeFields = deviceApps.length > 0
+        ? {
+            deviceApps,
+            deviceDataPresent: dataPresent ?? [],
+            deviceRounds,
+            ...(toolTranscript.length > 0 ? { toolTranscript } : {}),
+          }
+        : {};
+
+      // TimeMachine PRO runs in the background (Trigger.dev) so long generations
+      // are not bound by Vercel's serverless time limit.
+      if (currentPersona === 'pro') {
+        const runId = await startProRun({
+          messages: messages.map(msg => ({
+            content: msg.content,
+            isAI: msg.isAI
+          })),
+          persona: currentPersona,
+          imageData,
+          heatLevel,
+          inputImageUrls,
+          imageDimensions,
+          stream: true,
+          userMemories,
+          specialMode,
+          pdfData,
+          pdfFileName,
+          pdfExtractedText,
+          chatSessionId,
+          ...bridgeFields,
         });
 
-        if (!response.ok) throw await chatErrorFromResponse(response);
-        if (!response.body) throw new ChatError('PROVIDER_DOWN', 'No response body received');
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        // An error control frame beats the missing-sentinel check: it carries
-        // the real reason the generation stopped.
-        let frameError: ChatError | null = null;
-
-        const parser = createStreamChunkParser({
-          onChunk: (chunk) => {
-            streamedAnything = true;
-            budget.firstTokenArrived();
-            if (onChunk) onChunk(chunk);
-          },
+        // streamProRun reports failures through onError rather than throwing,
+        // so a leg's error has to be carried out and rethrown here — otherwise
+        // the loop would go round again on a dead run.
+        let legError: Error | null = null;
+        await streamProRun(runId, {
+          onChunk,
           onStatusChange,
-          onYoutubeMusic: (music) => { youtubeMusic = music; },
-          onMcpApproval: onMcpApproval
-            ? (approval) => { streamedAnything = true; onMcpApproval(approval); }
-            : undefined,
-          onControlEvent: (event) => {
-            if (event?.type === 'error') {
-              frameError = new ChatError(
-                toChatErrorCode(event.code),
-                typeof event.message === 'string' ? event.message : 'The model provider failed mid-response.',
+          onComplete: (response) => {
+            legContent = response.content;
+            legThinking = response.thinking;
+          },
+          onError: (error) => { legError = error; },
+          onDeviceToolRequest: (request, partial) => {
+            deviceRequest = request;
+            legContent = partial.content;
+            legThinking = partial.thinking;
+          },
+          signal,
+        });
+        if (legError) throw legError;
+      } else {
+        const requestBody = JSON.stringify({
+          messages: messages.map(msg => ({
+            content: msg.content,
+            isAI: msg.isAI
+          })),
+          persona: currentPersona,
+          imageData,
+          heatLevel,
+          inputImageUrls,
+          imageDimensions,
+          stream: true,
+          flowState,
+          userMemories,
+          specialMode,
+          pdfData,
+          pdfFileName,
+          pdfExtractedText,
+          chatSessionId,
+          ...bridgeFields,
+        });
+
+        const headers = await requestHeaders();
+
+        // One attempt at the streaming endpoint. Throws ChatError on every failure
+        // path so the caller has a code to act on.
+        const attempt = async (): Promise<{ content: string; thinking?: string }> => {
+          const budget = createStreamBudget(signal);
+          // True once the first byte of the model's answer has been delivered to
+          // the UI. A request that has already streamed can never be retried —
+          // there is no resume, and re-running would duplicate the output.
+          let streamedAnything = false;
+          // A retry starts a fresh leg, so anything the previous attempt learned
+          // about a suspension is stale.
+          deviceRequest = null;
+
+          try {
+            const response = await fetch('/api/ai-proxy', {
+              method: 'POST',
+              headers,
+              body: requestBody,
+              signal: budget.signal,
+            });
+
+            if (!response.ok) throw await chatErrorFromResponse(response);
+            if (!response.body) throw new ChatError('PROVIDER_DOWN', 'No response body received');
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            // An error control frame beats the missing-sentinel check: it carries
+            // the real reason the generation stopped.
+            let frameError: ChatError | null = null;
+
+            const parser = createStreamChunkParser({
+              onChunk: (chunk) => {
+                streamedAnything = true;
+                budget.firstTokenArrived();
+                if (onChunk) onChunk(chunk);
+              },
+              onStatusChange,
+              onYoutubeMusic: (music) => { youtubeMusic = music; },
+              onMcpApproval: onMcpApproval
+                ? (approval) => { streamedAnything = true; onMcpApproval(approval); }
+                : undefined,
+              onDeviceToolRequest: (request) => { deviceRequest = request; },
+              onControlEvent: (event) => {
+                if (event?.type === 'error') {
+                  frameError = new ChatError(
+                    toChatErrorCode(event.code),
+                    typeof event.message === 'string' ? event.message : 'The model provider failed mid-response.',
+                    parser.getFullContent(),
+                  );
+                }
+              },
+            });
+
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                parser.push(decoder.decode(value, { stream: true }));
+              }
+            } finally {
+              try { await reader.cancel(); } catch { /* already closed */ }
+            }
+
+            if (frameError) throw frameError;
+
+            // A cancelled request is not a provider failure. Check this before the
+            // sentinel test: aborting can end the stream cleanly rather than
+            // rejecting the read, which would otherwise read as a truncation.
+            if (budget.signal.aborted) {
+              const kind = budget.timedOut();
+              throw kind
+                ? new ChatError('TIMEOUT', kind === 'first_token'
+                  ? 'The model did not start responding in time.'
+                  : 'The response took too long and was stopped.',
+                  parser.getFullContent())
+                : new ChatError('ABORTED', 'Generation stopped.', parser.getFullContent());
+            }
+
+            // `done` is true for a clean finish AND for a stream that died
+            // mid-flight. Only the sentinel distinguishes them; without this check
+            // a truncated generation ran straight into onComplete and painted an
+            // empty bubble with no error and no spinner (1.9).
+            if (!parser.sawStatusEnd()) {
+              throw new ChatError(
+                'TRUNCATED',
+                'The response was cut off before it finished.',
                 parser.getFullContent(),
               );
             }
-          },
-        });
 
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            parser.push(decoder.decode(value, { stream: true }));
+            return extractReasoningFromContent(parser.getFullContent());
+          } catch (attemptError) {
+            throw annotateStreamError(attemptError, budget, streamedAnything);
+          } finally {
+            budget.dispose();
           }
-        } finally {
-          try { await reader.cancel(); } catch { /* already closed */ }
-        }
+        };
 
-        if (frameError) throw frameError;
-
-        // A cancelled request is not a provider failure. Check this before the
-        // sentinel test: aborting can end the stream cleanly rather than
-        // rejecting the read, which would otherwise read as a truncation.
-        if (budget.signal.aborted) {
-          const kind = budget.timedOut();
-          throw kind
-            ? new ChatError('TIMEOUT', kind === 'first_token'
-              ? 'The model did not start responding in time.'
-              : 'The response took too long and was stopped.',
-              parser.getFullContent())
-            : new ChatError('ABORTED', 'Generation stopped.', parser.getFullContent());
-        }
-
-        // `done` is true for a clean finish AND for a stream that died
-        // mid-flight. Only the sentinel distinguishes them; without this check
-        // a truncated generation ran straight into onComplete and painted an
-        // empty bubble with no error and no spinner (1.9).
-        if (!parser.sawStatusEnd()) {
-          throw new ChatError(
-            'TRUNCATED',
-            'The response was cut off before it finished.',
-            parser.getFullContent(),
-          );
-        }
-
-        return extractReasoningFromContent(parser.getFullContent());
-      } catch (attemptError) {
-        throw annotateStreamError(attemptError, budget, streamedAnything);
-      } finally {
-        budget.dispose();
+        const legResult = await runWithRetries(attempt);
+        legContent = legResult.content;
+        legThinking = legResult.thinking;
       }
-    };
 
-    const { content: cleanContent, thinking } = await runWithRetries(attempt);
+      combinedContent += legContent;
+      if (legThinking) thinkingParts.push(legThinking);
+
+      if (!deviceRequest) break;
+      if (!(await resolveDeviceRequest(deviceRequest))) break;
+      if (signal?.aborted) break;
+    }
 
     if (onComplete) {
       onComplete({
-        content: cleanContent,
-        thinking,
+        content: combinedContent,
+        thinking: thinkingParts.length > 0 ? thinkingParts.join('\n\n') : undefined,
         youtubeMusic,
       });
     }
@@ -628,7 +804,6 @@ export async function generateAIResponseStreaming(
     }
   }
 }
-
 // Non-streaming response (existing function, kept for compatibility)
 export async function generateAIResponse(
   messages: Message[],

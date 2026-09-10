@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import {
   ArrowLeft,
@@ -1953,8 +1953,25 @@ export function NotesPage() {
   // so the state React kept was the one without it. Read in the initializer,
   // clear after commit; both are idempotent.
   useEffect(() => { localStorage.removeItem('tm-notes-draft'); }, []);
+  // ?note=<id> targets one note — how "Open in Notes" on a chat card lands on
+  // the note the assistant just wrote rather than on whatever is newest.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedNoteId = searchParams.get('note');
   const [notes, setNotes] = useState<Note[]>(initialState.notes);
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(initialState.activeNoteId);
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(() =>
+    requestedNoteId && initialState.notes.some((note) => note.id === requestedNoteId)
+      ? requestedNoteId
+      : initialState.activeNoteId,
+  );
+  // One-shot, like the draft handoff above: leaving it in the URL would
+  // re-target the note every time this page re-mounts.
+  useEffect(() => {
+    if (!requestedNoteId) return;
+    setSearchParams((params) => {
+      params.delete('note');
+      return params;
+    }, { replace: true });
+  }, [requestedNoteId, setSearchParams]);
   const [searchQuery, setSearchQuery] = useState('');
   const [focusedBlockIndex, setFocusedBlockIndex] = useState<number | null>(initialState.focusedBlockIndex);
   const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);

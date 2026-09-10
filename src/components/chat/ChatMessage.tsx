@@ -8,6 +8,7 @@ import { AI_PERSONAS } from '../../config/constants';
 import { BrandOverride } from '../brand/BrandLogo';
 import type { SavedVariation } from './MusicComposeCard';
 import { McpApprovalCard } from './McpApprovalCard';
+import { AppObjectCard } from './AppObjectCard';
 import type { McpApprovalDecision } from '../../types/flightControls';
 import { FailedTurn } from './FailedTurn';
 
@@ -66,6 +67,7 @@ export function ChatMessage({
   onMusicVariationsChange,
   mcpApproval,
   onMcpApprovalDecision,
+  appObjects,
   status,
   errorCode,
   partialContent,
@@ -272,7 +274,7 @@ export function ChatMessage({
             approval={mcpApproval}
             onDecision={decision => onMcpApprovalDecision?.(id, decision)}
           />
-        ) : <AIMessage
+        ) : <><AIMessage
           content={content}
           thinking={thinking}
           rawContent={rawContent}
@@ -290,7 +292,9 @@ export function ChatMessage({
           brandOverride={brandOverride}
           musicVariations={musicVariations}
           onMusicVariationsChange={onMusicVariationsChange}
-        />}
+        />
+        {appObjects && appObjects.length > 0 && <AppObjectCard objects={appObjects} />}
+        </>}
         {renderReactions()}
         {renderActions()}
       </div>

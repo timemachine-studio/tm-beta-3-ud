@@ -13,7 +13,7 @@ import {
   personaFallbacks,
   runProviderNames,
 } from './ai-proxy.js';
-import { TOOL_GUARDRAIL, THINKING_DIRECTIVE, selectTools, resolveImageAllowed, resolveWebSearchAllowed, toApiMessages } from './_lib/tools.js';
+import { TOOL_GUARDRAIL, THINKING_DIRECTIVE, buildAppToolDirective, selectTools, resolveImageAllowed, resolveWebSearchAllowed, toApiMessages } from './_lib/tools.js';
 import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
 import {
   getAuthenticatedRequestUser,
@@ -79,6 +79,10 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
     pdfFileName,
     pdfExtractedText,
     chatSessionId,
+    deviceApps,
+    deviceDataPresent,
+    deviceRounds,
+    toolTranscript,
   } = body;
 
   // Identify the user from the Supabase access token (falls back to anonymous)
@@ -157,12 +161,23 @@ ${thinkingDirective}`;
   // Decided in code, not asked of the model: see api/_lib/tools.ts.
   const imageAllowed = resolveImageAllowed(messages, !!imageData);
   const searchAllowed = resolveWebSearchAllowed(messages);
+  const deviceAppsEnabled = deviceApps ?? [];
   const toolsToUse: ProviderTool[] = selectTools({
     specialModeConfig,
     includeSkills: true,
     imageAllowed,
     searchAllowed,
+    deviceApps: deviceAppsEnabled,
+    deviceDataPresent,
+    deviceRoundsUsed: deviceRounds,
   });
+  const appToolsOffered = toolsToUse.some(tool => tool.function.name === 'healthcare_search'
+    || tool.function.name.startsWith('notes_') || tool.function.name.startsWith('chats_'));
+  const deviceToolsOffered = toolsToUse.some(tool =>
+    tool.function.name.startsWith('notes_') || tool.function.name.startsWith('chats_'));
+  // The client can run them and simply has none left, as opposed to never
+  // having declared it could run them at all. Only the first is worth saying.
+  const deviceRoundsSpent = deviceAppsEnabled.length > 0 && !deviceToolsOffered;
 
   const temperatureToUse = specialModeConfig?.temperature ?? personaConfig.temperature;
   const maxTokensToUse = specialModeConfig?.maxTokens ?? personaConfig.maxTokens;
@@ -179,6 +194,12 @@ ${thinkingDirective}`;
         systemPromptToUse = systemPromptToUse + ragContext;
       }
     }
+  }
+
+  // Only when the tools are actually in front of the model, and last so it is
+  // the most recently read instruction — same placement as /api/ai-proxy.
+  if (appToolsOffered) {
+    systemPromptToUse = systemPromptToUse + buildAppToolDirective({ toolNames: toolsToUse.map(tool => tool.function.name), deviceRoundsSpent });
   }
 
   // Build apiMessages (pro always uses a system prompt)
@@ -231,7 +252,16 @@ ${thinkingDirective}`;
 
   const attachments = collectAttachments(imageData, inputImageUrls);
   const hasImageInput = hasAttachments(attachments);
+  // The user's own last turn, captured before the device transcript is
+  // appended after it. Images belong to that message, not to whatever a
+  // resumed run happens to end with.
   const imageIndex = apiMessages.length - 1;
+
+  // Resuming a suspended run: the assistant turn that called the device tools,
+  // and their results, replayed so the model sees what it asked for.
+  if (toolTranscript && toolTranscript.length > 0) {
+    apiMessages.push(...(toolTranscript as ProviderMessage[]));
+  }
 
   // Images that travel with the job, for the task to attach or transcribe as
   // whichever hop serves the run requires. Empty means the route already
@@ -296,6 +326,10 @@ ${thinkingDirective}`;
     ...(visionImages.length > 0 ? { visionImages, visionImageIndex: imageIndex } : {}),
     imageAllowed,
     searchAllowed,
+    // The task suspends the run when the model reaches for a device tool; the
+    // client runs the calls and starts a fresh run with the transcript grown.
+    deviceBridge: deviceAppsEnabled.length > 0,
+    deviceRounds,
   };
 
   try {

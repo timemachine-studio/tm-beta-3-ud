@@ -1,4 +1,13 @@
 import { parseStoredMetadata } from './storedChatValidation';
+import {
+  hasArchivedChats,
+  listChatSummaries,
+  readChatTranscript,
+  searchChatArchive,
+  type ChatSearchHit,
+  type ChatSummary,
+  type ChatTranscript,
+} from './chatArchive';
 import { supabase } from '../../lib/supabase';
 import { Message } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
@@ -59,6 +68,7 @@ function messageToDbRow(message: Message, sessionId: string, userId: string) {
       status: message.status || null,
       errorCode: message.errorCode || null,
       partialContent: message.partialContent || null,
+      appObjects: message.appObjects || null,
     } as unknown as Json,
     // Ordering is by created_at, and ids are no longer timestamps (1.12),
     // so the message has to carry its own clock.
@@ -85,6 +95,7 @@ function dbRowToMessage(row: MessageRow): Message {
     status: saved.status || undefined,
     errorCode: saved.errorCode || undefined,
     partialContent: saved.partialContent || undefined,
+    appObjects: saved.appObjects || undefined,
   };
 }
 
@@ -359,8 +370,11 @@ export async function migrateLocalSessionsToSupabase(userId: string): Promise<nu
 
 export class ChatService {
   private userId: string | null = null;
+  /** Memoised hasArchive answer. Cleared when the user or the archive changes. */
+  private archiveKnown: boolean | null = null;
 
   setUserId(userId: string | null) {
+    if (userId !== this.userId) this.archiveKnown = null;
     this.userId = userId;
   }
 
@@ -372,6 +386,8 @@ export class ChatService {
   }
 
   async saveSession(session: ChatSession): Promise<void> {
+    // Saving one is the moment an empty archive stops being empty.
+    this.archiveKnown = null;
     if (this.userId) {
       await saveSupabaseSession(session, this.userId);
     } else {
@@ -400,6 +416,37 @@ export class ChatService {
       return true;
     }
     return false;
+  }
+
+  // ─── Bounded archive reads ────────────────────────────────────────────
+  // The AI reaches history through these, never through getSessions() — that
+  // one loads every message of every chat, which is a history page's job and
+  // nobody else's. Both stores are handled behind the same three calls, so a
+  // caller never has to know which one a given user is on.
+
+  async listChats(options?: { limit?: number; after?: string; before?: string }): Promise<ChatSummary[]> {
+    return listChatSummaries(this.userId, options);
+  }
+
+  async searchChats(
+    query: string,
+    options?: { limit?: number; after?: string; before?: string; excludeChatId?: string },
+  ): Promise<ChatSearchHit[]> {
+    return searchChatArchive(this.userId, query, options);
+  }
+
+  async readChat(chatId: string, options?: { offset?: number; limit?: number }): Promise<ChatTranscript | null> {
+    return readChatTranscript(this.userId, chatId, options);
+  }
+
+  /**
+   * Whether the history tools have anything to work with. Memoised, because it
+   * is asked once per sent message and the answer almost never changes.
+   */
+  async hasArchive(excludeChatId?: string): Promise<boolean> {
+    if (this.archiveKnown !== null) return this.archiveKnown;
+    this.archiveKnown = await hasArchivedChats(this.userId, excludeChatId);
+    return this.archiveKnown;
   }
 
   async migrateOnLogin(): Promise<number> {

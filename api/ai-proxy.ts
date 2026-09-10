@@ -8,6 +8,7 @@ import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
 import {
   TOOL_GUARDRAIL,
   THINKING_DIRECTIVE,
+  buildAppToolDirective,
   toApiMessages,
   selectTools,
   resolveImageAllowed,
@@ -17,6 +18,7 @@ import {
   executeTool,
 } from './_lib/tools.js';
 import { runAgentLoop } from './_lib/agentLoop.js';
+import { type DeviceToolRequestFrame } from '../shared/deviceTools.js';
 import {
   getAuthenticatedRequestUser,
   getRequestAccessToken,
@@ -24,7 +26,7 @@ import {
   assertOwnUserId,
 } from './_lib/auth.js';
 import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
-import { apiErrorBody, sendApiError, STATUS_FOR_CODE } from './_lib/errors.js';
+import { apiErrorBody, sendApiError, CONTROL_FRAME_PREFIX, STATUS_FOR_CODE } from './_lib/errors.js';
 import { providerFetch, runWithProviderFallback, ProviderHttpError, type ProviderHop } from './_lib/providerResilience.js';
 import {
   OCR_MODEL,
@@ -1513,9 +1515,13 @@ export async function callSecretsToAIAPIStreaming(
     requestBody.tool_choice = "auto";
   }
 
+  // Shape, never content. Every provider adapter logs a count here, not the
+  // messages themselves: these run in production logs, and since the device
+  // tools landed the message array carries the user's own notes and past
+  // conversations. See the security rules in CLAUDE.md.
   console.log('Secrets to AI API Request:', {
     model,
-    messages: cleanedMessages,
+    messageCount: cleanedMessages.length,
     url: SECRETSTOAI_API_URL,
     hasTools: !!(tools && tools.length > 0),
     toolCount: tools?.length || 0
@@ -1650,7 +1656,7 @@ export async function callNvidiaAPIStreaming(
 
   console.log('Nvidia API Request:', {
     model,
-    messages: cleanedMessages,
+    messageCount: cleanedMessages.length,
     url: NVIDIA_API_URL,
     hasTools: !!(tools && tools.length > 0),
     toolCount: tools?.length || 0
@@ -1789,7 +1795,7 @@ export async function callEaonAPIStreaming(
 
   console.log('Eaon API Request:', {
     model,
-    messages: cleanedMessages,
+    messageCount: cleanedMessages.length,
     url: EAON_API_URL,
     hasTools: !!(tools && tools.length > 0),
     toolCount: tools?.length || 0
@@ -1929,7 +1935,7 @@ export async function callPollinationsAPIStreaming(
 
   console.log('Pollinations API Request:', {
     model,
-    messages: cleanedMessages,
+    messageCount: cleanedMessages.length,
     url: POLLINATIONS_API_URL,
     hasTools: !!(tools && tools.length > 0),
     toolCount: tools?.length || 0
@@ -2065,7 +2071,7 @@ async function callSecretsToAIAPI(
 
   console.log('Secrets to AI API Request (non-streaming):', {
     model,
-    messages: cleanedMessages,
+    messageCount: cleanedMessages.length,
     url: SECRETSTOAI_API_URL,
     hasTools: !!(tools && tools.length > 0),
     toolCount: tools?.length || 0
@@ -2128,7 +2134,7 @@ async function callNvidiaAPI(
 
   console.log('Nvidia API Request (non-streaming):', {
     model,
-    messages: cleanedMessages,
+    messageCount: cleanedMessages.length,
     url: NVIDIA_API_URL,
     hasTools: !!(tools && tools.length > 0),
     toolCount: tools?.length || 0
@@ -2195,7 +2201,7 @@ async function callEaonAPI(
 
   console.log('Eaon API Request (non-streaming):', {
     model,
-    messages: cleanedMessages,
+    messageCount: cleanedMessages.length,
     url: EAON_API_URL,
     hasTools: !!(tools && tools.length > 0),
     toolCount: tools?.length || 0
@@ -2258,7 +2264,7 @@ async function callPollinationsAPI(
 
   console.log('Pollinations API Request (non-streaming):', {
     model,
-    messages: cleanedMessages,
+    messageCount: cleanedMessages.length,
     url: POLLINATIONS_API_URL,
     hasTools: !!(tools && tools.length > 0),
     toolCount: tools?.length || 0
@@ -2496,7 +2502,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = parseOrReject(res, aiProxyBodySchema, req.body);
     if (!body) return;
 
-    const { messages, persona, imageData, heatLevel, stream, flowState, inputImageUrls, imageDimensions, userMemories, specialMode, pdfData, pdfFileName, pdfExtractedText } = body;
+    const { messages, persona, imageData, heatLevel, stream, flowState, inputImageUrls, imageDimensions, userMemories, specialMode, pdfData, pdfFileName, pdfExtractedText, deviceApps, deviceDataPresent, deviceRounds, toolTranscript } = body;
 
     const personaConfig = AI_PERSONAS[persona as keyof typeof AI_PERSONAS];
 
@@ -2603,12 +2609,26 @@ ${thinkingDirective}`;
     // Decided in code, not asked of the model: see api/_lib/tools.ts.
     const imageAllowed = resolveImageAllowed(messages, !!imageData);
     const searchAllowed = resolveWebSearchAllowed(messages);
+    // The device bridge only exists on the streaming path: it works by ending
+    // the response and letting the client start the next leg, which the
+    // one-shot JSON path has no way to do.
+    const deviceAppsEnabled = stream ? (deviceApps ?? []) : [];
     const toolsToUse: ProviderTool[] = selectTools({
       specialModeConfig,
       includeSkills: persona === 'pro',
       imageAllowed,
       searchAllowed,
+      deviceApps: deviceAppsEnabled,
+      deviceDataPresent,
+      deviceRoundsUsed: deviceRounds,
     });
+    const appToolsOffered = toolsToUse.some(tool => tool.function.name === 'healthcare_search'
+      || tool.function.name.startsWith('notes_') || tool.function.name.startsWith('chats_'));
+    const deviceToolsOffered = toolsToUse.some(tool =>
+      tool.function.name.startsWith('notes_') || tool.function.name.startsWith('chats_'));
+    // The client can run them and simply has none left, as opposed to never
+    // having declared it could run them at all. Only the first is worth saying.
+    const deviceRoundsSpent = deviceAppsEnabled.length > 0 && !deviceToolsOffered;
 
     // Apply temperature, maxTokens, and reasoningEffort overrides from special mode
     const temperatureToUse = specialModeConfig?.temperature ?? personaConfig.temperature;
@@ -2627,6 +2647,12 @@ ${thinkingDirective}`;
           systemPromptToUse = systemPromptToUse + ragContext;
         }
       }
+    }
+
+    // Only when the tools are actually in front of the model — a special mode
+    // that opted out of tools must not be told it can reach the user's apps.
+    if (appToolsOffered) {
+      systemPromptToUse = systemPromptToUse + buildAppToolDirective({ toolNames: toolsToUse.map(tool => tool.function.name), deviceRoundsSpent });
     }
 
     // PDF handling: text extraction is done on the frontend (pdfjs-dist).
@@ -2677,6 +2703,17 @@ ${thinkingDirective}`;
         : `${fileContext}\n\nThe user uploaded ${fileLabel}. Please provide a comprehensive summary of the document above.`;
 
       apiMessages[lastMsgIndex] = { ...lastMsg, content: enrichedContent };
+    }
+
+    // Where the user's own last turn sits, captured before the device
+    // transcript is appended after it. Images belong to that message, not to
+    // whatever a resumed run happens to end with.
+    const lastUserMessageIndex = apiMessages.length - 1;
+
+    // Resuming a suspended run: the assistant turn that called the device
+    // tools, and their results, replayed so the model sees what it asked for.
+    if (toolTranscript && toolTranscript.length > 0) {
+      apiMessages.push(...(toolTranscript as ProviderMessage[]));
     }
 
     // Handle streaming vs non-streaming responses
@@ -2743,11 +2780,11 @@ ${thinkingDirective}`;
         // spent the primary's budget and capped it early.
         let servedProvider = runProvider;
 
-        // The index of the user message carrying the images. Captured now,
-        // before the agent loop starts appending assistant and tool messages
-        // after it — "the last message" stops being the right one on the
-        // second iteration.
-        const imageIndex = apiMessages.length - 1;
+        // The index of the user message carrying the images. Captured before
+        // the loop starts appending assistant and tool messages after it —
+        // "the last message" stops being the right one on the second
+        // iteration, and on a resumed run it was never right to begin with.
+        const imageIndex = lastUserMessageIndex;
 
         // Once any token has reached the client, a status marker written after
         // it would flip the UI back to "Analyzing photo…" mid-answer. The
@@ -2775,7 +2812,14 @@ ${thinkingDirective}`;
         const loopResult = await runAgentLoop({
           messages: apiMessages,
           tools: runTools,
-          toolContext: { persona, inputImageUrls, imageDimensions, policy: toolPolicy },
+          toolContext: {
+            persona,
+            inputImageUrls,
+            imageDimensions,
+            policy: toolPolicy,
+            healthcareSearch: fetchHealthcareRAGContext,
+          },
+          deviceBridge: deviceAppsEnabled.length > 0,
           emit: {
             emitContent: (text) => { hasStreamedContent = true; res.write(text); },
             emitToolText: (text) => { hasStreamedContent = true; res.write(`\n\n${text}\n\n`); },
@@ -2820,6 +2864,31 @@ ${thinkingDirective}`;
           },
           log: (message) => console.log(`[${persona}] ${message}`),
         });
+
+        // The model asked for something only the browser can do. End this leg
+        // cleanly — sentinel and all, because nothing failed — and let the
+        // client run the calls and start the next one. Quota and memory are
+        // deliberately not touched here: one user turn is charged once, on
+        // whichever leg produces the answer.
+        if (loopResult.deviceSuspension) {
+          const frame: DeviceToolRequestFrame = {
+            type: 'device_tool_request',
+            payload: {
+              assistantContent: loopResult.deviceSuspension.assistantContent,
+              toolCalls: loopResult.deviceSuspension.allToolCalls.map(call => ({
+                id: call.id,
+                name: call.function.name,
+                arguments: call.function.arguments || '{}',
+              })),
+              resolvedResults: loopResult.deviceSuspension.resolvedResults,
+              deviceRounds: deviceRounds + 1,
+            },
+          };
+          res.write(CONTROL_FRAME_PREFIX + JSON.stringify(frame) + '\n');
+          res.write('[STATUS_END]');
+          res.end();
+          return;
+        }
 
         let fullContent = loopResult.content;
 
