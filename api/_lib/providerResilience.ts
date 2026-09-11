@@ -48,8 +48,24 @@ export class ProviderHttpError extends Error {
   }
 }
 
+/**
+ * A hop that opened a stream and then produced nothing usable: no text and no
+ * tool call before the stream ended or failed. Retryable, because the same
+ * request routinely succeeds on the next attempt — and because the whole
+ * point of the chain is that a hop which cannot answer hands off.
+ */
+export class EmptyAnswerError extends Error {
+  readonly provider: string;
+  constructor(provider: string, reason: string) {
+    super(`${provider} answered with nothing: ${reason}`);
+    this.name = 'EmptyAnswerError';
+    this.provider = provider;
+  }
+}
+
 export function isRetryableError(error: unknown): boolean {
   if (error instanceof ProviderHttpError) return RETRYABLE_STATUSES.has(error.status);
+  if (error instanceof EmptyAnswerError) return true;
   // AbortError from our own timeout, or a transport-level failure.
   if (error instanceof Error) {
     return error.name === 'AbortError' || error.name === 'TimeoutError' || error.name === 'TypeError';
@@ -184,9 +200,11 @@ export async function runWithProviderFallback<T>(
   let lastError: unknown = new Error('No providers configured');
 
   const usable = hops.filter(hop => !isProviderTripped(hop.provider));
-  // If the breaker has tripped on everything, still try the primary rather
-  // than failing without contacting anyone.
-  const chain = usable.length > 0 ? usable : hops.slice(0, 1);
+  // If the breaker has tripped on everything, try everything anyway. The
+  // breaker exists to stop piling onto a provider while another is ready;
+  // when none is, a tripped hop is still a better bet than no attempt, and
+  // the chain is the only way to find out which one has recovered.
+  const chain = usable.length > 0 ? usable : hops;
 
   for (const [hopIndex, hop] of chain.entries()) {
     // The last hop has nowhere to hand off to, so it is the only one that
@@ -204,7 +222,15 @@ export async function runWithProviderFallback<T>(
         recordProviderOutcome(hop.provider, false);
 
         const retryable = isRetryableError(error);
-        log(`${hop.provider} attempt ${attemptIndex + 1} failed${retryable ? '' : ' (not retryable)'}`);
+        // The provider's own explanation rides along, bounded. A 4xx from a
+        // provider is almost always a request shaped badly — a tool schema a
+        // model wrote and a stricter validator refused, say — and the status
+        // alone cannot say which. This is the provider's response, never the
+        // request that caused it.
+        const detail = error instanceof ProviderHttpError
+          ? ` — ${error.message.replace(/\s+/g, ' ').slice(0, 300)}`
+          : '';
+        log(`${hop.provider} attempt ${attemptIndex + 1} failed${retryable ? '' : ' (not retryable)'}${detail}`);
 
         if (!retryable || attemptIndex === maxRetries) break;
 
@@ -220,4 +246,80 @@ export async function runWithProviderFallback<T>(
   }
 
   throw lastError;
+}
+
+// ─── Stream start guard ─────────────────────────────────────────────────────
+
+/**
+ * Hold a provider stream until it has said something, so the fallback chain
+ * can judge it.
+ *
+ * `runWithProviderFallback` can only retry work that has not reached the
+ * client, so it wraps *opening* the stream — and a provider that opens a 200
+ * and then sends nothing, or hangs before its first token, was counted as a
+ * success and ended the turn with "the model came back with nothing". Seen
+ * live, repeatedly, on a fallback hop while two more providers sat unused.
+ *
+ * This reads the first frames of this codebase's newline-delimited stream and
+ * resolves only once a real one has arrived — non-blank text or a tool call.
+ * Everything read is replayed ahead of the rest, byte for byte, so the caller
+ * sees exactly the stream it would have. If the stream ends or fails first,
+ * it rejects with a retryable EmptyAnswerError and the chain moves on.
+ * Nothing has been sent to the user at that point, so there is nothing to
+ * duplicate.
+ */
+export async function guardStreamStart(stream: ReadableStream, provider: string): Promise<ReadableStream> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  const prefix: Uint8Array[] = [];
+  let pending = '';
+  let answered = false;
+
+  const framesOf = (text: string): void => {
+    pending += text;
+    const lines = pending.split('\n');
+    pending = lines.pop() || '';
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const frame = JSON.parse(line) as { type?: string; content?: string; tool_calls?: unknown[] };
+        if (frame.type === 'tool_calls' && Array.isArray(frame.tool_calls) && frame.tool_calls.length > 0) answered = true;
+        else if (frame.type === 'content' && typeof frame.content === 'string' && frame.content.trim()) answered = true;
+      } catch {
+        // A malformed frame is the provider's problem, not evidence of an answer.
+      }
+    }
+  };
+
+  try {
+    while (!answered) {
+      const { done, value } = await reader.read();
+      if (done) {
+        throw new EmptyAnswerError(provider, 'the stream ended before any text or tool call');
+      }
+      prefix.push(value);
+      framesOf(decoder.decode(value, { stream: true }));
+    }
+  } catch (error) {
+    reader.releaseLock();
+    if (error instanceof EmptyAnswerError) throw error;
+    throw new EmptyAnswerError(provider, error instanceof Error ? error.message : String(error));
+  }
+
+  return new ReadableStream({
+    start(controller) {
+      for (const chunk of prefix) controller.enqueue(chunk);
+    },
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(value);
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
 }

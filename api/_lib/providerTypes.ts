@@ -47,7 +47,7 @@ export interface ModelConfig extends VisionCapability {
   provider?: string;
   // A vision annotation sits next to the model it describes: Flow State names
   // its own model, so it declares its own capability too.
-  flowState?: VisionCapability & { provider?: string; model: string; temperature: number; maxTokens: number };
+  flowState?: VisionCapability & { provider?: string; model: string; temperature: number; maxTokens: number; reasoningEffort?: string };
 }
 export interface SpecialModeConfig extends ModelConfig {
   systemPrompt: string;

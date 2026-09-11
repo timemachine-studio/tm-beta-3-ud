@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { AI_PERSONAS, buildProviderChain, personaFallbacks, runProviderNames } from '../../api/ai-proxy';
 import {
+  EmptyAnswerError,
   ProviderHttpError,
+  guardStreamStart,
+  recordProviderOutcome,
   runWithProviderFallback,
   type ProviderHop,
 } from '../../api/_lib/providerResilience';
@@ -53,8 +56,26 @@ describe('Air provider chain', () => {
   });
 
   it('reads no fallbacks off a persona that declares none', () => {
-    expect(personaFallbacks(AI_PERSONAS.girlie)).toEqual([]);
+    expect(personaFallbacks({ model: 'x' })).toEqual([]);
     expect(personaFallbacks(undefined)).toEqual([]);
+  });
+});
+
+describe('Girlie provider chain', () => {
+  const girlie = AI_PERSONAS.girlie;
+
+  it('runs on a model groq actually serves, with thinking off', () => {
+    // llama-4-scout returned 404 model_not_found from groq, and Girlie had no
+    // fallbacks — every message failed on its first hop.
+    expect(girlie.model).not.toMatch(/llama-4-scout/);
+    expect(girlie.provider).toBe('groq');
+    expect(girlie.reasoningEffort).toBe('none');
+  });
+
+  it('has a chain of distinct providers behind it, like Air', () => {
+    const chain = buildProviderChain(girlie.provider, girlie.model, personaFallbacks(girlie));
+    expect(chain.length).toBe(1 + girlie.fallbacks.length);
+    expect(new Set(chain.map(hop => hop.provider)).size).toBe(chain.length);
   });
 });
 
@@ -98,7 +119,7 @@ describe('runProviderNames', () => {
   });
 
   it('is just the primary for a persona with no fallbacks', () => {
-    expect(runProviderNames('groq', AI_PERSONAS.girlie)).toEqual(['groq']);
+    expect(runProviderNames('groq', { model: 'x' })).toEqual(['groq']);
   });
 
   it('drops unknown names and repeats', () => {
@@ -176,5 +197,101 @@ describe('runWithProviderFallback', () => {
     })).rejects.toThrow('503');
 
     expect(new Set(tried)).toEqual(new Set(['m1', 'm2', 'm3']));
+  });
+});
+
+/** This codebase's stream: newline-delimited JSON frames, as bytes. */
+function frames(items: Array<object | string>, { fail = false } = {}): ReadableStream {
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    start(controller) {
+      for (const item of items) {
+        controller.enqueue(encoder.encode(typeof item === 'string' ? item : `${JSON.stringify(item)}\n`));
+      }
+      if (fail) controller.error(new Error('socket hung up'));
+      else controller.close();
+    },
+  });
+}
+
+async function readAll(stream: ReadableStream): Promise<string> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return text;
+    text += decoder.decode(value, { stream: true });
+  }
+}
+
+describe('guardStreamStart', () => {
+  it('replays the bytes it read, then the rest, once the provider has said something', async () => {
+    const guarded = await guardStreamStart(frames([
+      { type: 'content', content: '' },
+      { type: 'content', content: 'Hel' },
+      { type: 'content', content: 'lo' },
+      { type: 'finish' },
+    ]), 'p');
+    expect(await readAll(guarded)).toBe(
+      '{"type":"content","content":""}\n{"type":"content","content":"Hel"}\n{"type":"content","content":"lo"}\n{"type":"finish"}\n',
+    );
+  });
+
+  it('counts a tool call as an answer', async () => {
+    const guarded = await guardStreamStart(frames([
+      { type: 'tool_calls', tool_calls: [{ index: 0, id: 'c1', function: { name: 'web_search', arguments: '{}' } }] },
+    ]), 'p');
+    expect(await readAll(guarded)).toContain('web_search');
+  });
+
+  it('rejects a stream that ends with only blank text, so the chain can move on', async () => {
+    // Exactly what the empty 200s looked like: a frame or two of nothing,
+    // then done.
+    await expect(guardStreamStart(frames([{ type: 'content', content: '\n' }, { type: 'finish' }]), 'nvidia'))
+      .rejects.toBeInstanceOf(EmptyAnswerError);
+  });
+
+  it('rejects a stream that fails before its first frame', async () => {
+    await expect(guardStreamStart(frames([], { fail: true }), 'nvidia'))
+      .rejects.toThrow(/socket hung up/);
+  });
+
+  it('survives a frame split across two chunks', async () => {
+    const guarded = await guardStreamStart(frames(['{"type":"content","con', 'tent":"hi"}\n']), 'p');
+    expect(await readAll(guarded)).toBe('{"type":"content","content":"hi"}\n');
+  });
+});
+
+describe('runWithProviderFallback, continued', () => {
+  it('walks past a hop that answered with nothing', async () => {
+    const hops: ProviderHop[] = [
+      { provider: uniq('silent'), model: 'm1' },
+      { provider: uniq('talks'), model: 'm2' },
+    ];
+    const tried: string[] = [];
+    const run = await runWithProviderFallback(hops, async (hop) => {
+      tried.push(hop.model);
+      if (hop.model === 'm1') throw new EmptyAnswerError(hop.provider, 'nothing');
+      return 'stream';
+    });
+    expect(run.model).toBe('m2');
+    // One quick retry of the silent hop — the same request often works the
+    // second time — then on to the next.
+    expect(tried).toEqual(['m1', 'm1', 'm2']);
+  });
+
+  it('tries every hop when every breaker is open, not just the primary', async () => {
+    const hops: ProviderHop[] = [
+      { provider: uniq('tripped-a'), model: 'm1' },
+      { provider: uniq('tripped-b'), model: 'm2' },
+    ];
+    for (const hop of hops) for (let i = 0; i < 3; i++) recordProviderOutcome(hop.provider, false);
+
+    const run = await runWithProviderFallback(hops, async (hop) => {
+      if (hop.model === 'm1') throw new ProviderHttpError(hop.provider, 503, 'still down');
+      return 'stream';
+    });
+    expect(run.model).toBe('m2');
   });
 });
