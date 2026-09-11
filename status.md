@@ -855,9 +855,8 @@ tool — see below.
 5. **Girlie's primary was dead.** `meta-llama/llama-4-scout-17b-16e-instruct`
    returns **404 `model_not_found`** on groq — it is simply not in the list
    groq serves any more — and Girlie declared no fallbacks, so every Girlie
-   message died on its first hop. Now `qwen/qwen3.8-27b` (image input,
-   streaming tool calls and `reasoning_effort: 'none'` each verified against
-   the live endpoint) with Air's fallback chain behind it.
+   message died on its first hop. Now `openai/gpt-oss-120b` (see below)
+   with Air's fallback chain behind it.
 
 ### The chain, made to mean it
 
@@ -878,6 +877,28 @@ the same spirit: an all-tripped breaker now tries every hop rather than
 only the primary, and the `nvidia` block forwards a persona's
 `reasoning_effort` (the `-reasoning` nemotron could not be told to stop
 thinking; `nemotron-3.5-lightning-30b-a3b` can, and does).
+
+**The chain, as shipped** (Air and Girlie alike): `groq` → `nvidia`
+(`nemotron-3.5-lightning-30b-a3b`) → `amd` (`DeepSeek-V4-Flash`) →
+`pollinations` (`nvidia/nemotron-3.5-lightning`). Pollinations replaced LLM7
+as the last line on the owner's call: it is paid and has been the most
+dependable host in the file, so it is reached only once three free providers
+are down. Its model is text-only per Pollinations' own metadata (`ocr`) and
+reasoning-capable, so the pollinations block was bulletproofed for it: the
+three reasoning switches (`thinking_budget: 0`, `reasoning_effort: 'none'`,
+`thinking: null`) go out as before, a `reasoning_content` delta is dropped
+rather than forwarded if a model thinks anyway, and — because Pollinations
+is a gateway and a strict upstream can 400 on an unknown switch, which is
+exactly what LLM7 did — a 400 is retried once with none of the switches
+rather than failing the hop. The local `.env` Pollinations key is rejected
+by the endpoint (401 on both header styles), so this hop is unit-tested
+against a recorded stream shape, not driven live from here.
+
+Girlie is `openai/gpt-oss-120b` on groq, the owner's choice. Verified
+against the live endpoint: streaming tool calls work, an image part is a 400
+("messages[0].content must be a string", so `ocr`), and `reasoning_effort`
+must be `low`/`medium`/`high` — `'none'` is a 400 — so it runs at `low`,
+with its reasoning arriving in a field the groq block never forwards.
 
 **Verified live** with groq forced to fail (a bad key in the gitignored
 `.env.local`, dev server only, removed after): a 401 is non-retryable, so
@@ -914,7 +935,7 @@ grow within a turn), `src/hooks/useChat.ts`, `src/types/chat.ts`,
 retry), `api/_lib/providerResilience.ts` (error detail in the log).
 
 `npm run typecheck`, `npm run lint`, `npm run build`, `npm test`: **44 files /
-435 tests**, up from 43/389.
+438 tests**, up from 43/389.
 
 ## What is rough
 
@@ -937,6 +958,11 @@ retry), `api/_lib/providerResilience.ts` (error detail in the log).
    hundreds, so the 1,000/minute limit is reached by tool-writing turns rather
    than by every turn — and when it is, the chain now genuinely carries the
    turn to nvidia. What it cannot fix is nvidia's queue: 19–40 s per leg.
+3a. **The Pollinations hop has not been driven live.** The key in the local
+   `.env` is refused by the endpoint. The request shape and the 400 fail-open
+   are unit-tested; the first real fall-through to it in production is the
+   first live test. If the Vercel key is also stale, the last line is dead —
+   worth one look at the Vercel env.
 3b. **A hop that dies *after* its first token is still the end of the turn.**
    By design — the text is already on the user's screen — but it means a
    provider that streams three words and hangs is not covered. The 45 s fetch

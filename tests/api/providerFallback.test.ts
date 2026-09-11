@@ -67,15 +67,19 @@ describe('Girlie provider chain', () => {
   it('runs on a model groq actually serves, with thinking off', () => {
     // llama-4-scout returned 404 model_not_found from groq, and Girlie had no
     // fallbacks — every message failed on its first hop.
-    expect(girlie.model).not.toMatch(/llama-4-scout/);
+    expect(girlie.model).toBe('openai/gpt-oss-120b');
     expect(girlie.provider).toBe('groq');
-    expect(girlie.reasoningEffort).toBe('none');
+    // gpt-oss rejects 'none' with a 400 (low/medium/high only, verified), and
+    // refuses image parts, so it is text-only with reasoning at its lowest.
+    expect(girlie.reasoningEffort).toBe('low');
+    expect(girlie.vision).toBe('ocr');
   });
 
-  it('has a chain of distinct providers behind it, like Air', () => {
+  it('has a chain of distinct providers behind it, like Air, ending on pollinations', () => {
     const chain = buildProviderChain(girlie.provider, girlie.model, personaFallbacks(girlie));
     expect(chain.length).toBe(1 + girlie.fallbacks.length);
     expect(new Set(chain.map(hop => hop.provider)).size).toBe(chain.length);
+    expect(chain[chain.length - 1].provider).toBe('pollinations');
   });
 });
 

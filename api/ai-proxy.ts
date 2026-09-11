@@ -111,19 +111,14 @@ export const AI_PERSONAS = {
       // 400, "Model DeepSeek-V4-Flash does not support image input." Verified
       // against the live API, per the rule above about unverified guesses.
       { provider: 'amd', model: 'DeepSeek-V4-Flash', vision: 'ocr' as const },
-      // `default` is LLM7's free-tier routing selector, not a model id.
-      //
-      // minimax-m2.7 was the requested model and is a one-line change back —
-      // but it is priced ($0.03/$0.05 per 1M) and this key has no balance, so
-      // it never answers: ten consecutive attempts timed out at 45s, while
-      // priced models that fail cleanly return `insufficient_balance`. A hop
-      // that cannot succeed is worse than no hop, because the chain still
-      // waits out the timeout before moving on. `default` was verified end to
-      // end through this dispatch path: a real tool call in 5.0s.
-      //
-      // The free tier allows 100 requests an hour, which is thin for a primary
-      // but fine here — this hop is only reached when three providers are down.
-      { provider: 'llm7', model: 'default', vision: 'ocr' as const },
+      // Last line, on purpose: Pollinations is paid and has been the most
+      // dependable host in this file, so it is reached only once three free
+      // providers are down. Text-only per its own model metadata
+      // (`input_modalities: ["text"]`), so `ocr`; tool calling is declared.
+      // It is also a reasoning model, which the pollinations block switches
+      // off and — because a strict upstream can 400 on the switches — retries
+      // without them rather than failing the hop.
+      { provider: 'pollinations', model: 'nvidia/nemotron-3.5-lightning', vision: 'ocr' as const },
     ],
     temperature: 0.8,
     maxTokens: 9304,
@@ -261,19 +256,23 @@ You are one of the 3 resonators. The other two are "TimeMachine Air" and "TimeMa
     initialMessage: "Hiee✨ I'm TimeMachine Girlie!",
     // llama-4-scout is gone from groq — the endpoint returns 404
     // model_not_found for it, and with no fallbacks declared every Girlie
-    // message died on its first hop. qwen3.8-27b is what groq serves now:
-    // image input, streaming tool calls and reasoning_effort 'none' were each
-    // verified against the live endpoint before this line changed.
+    // message died on its first hop. gpt-oss-120b is the owner's choice from
+    // what groq serves now.
     provider: 'groq',
-    model: 'qwen/qwen3.8-27b',
-    vision: 'native' as const,
-    reasoningEffort: 'none',
+    model: 'openai/gpt-oss-120b',
+    // OCR, not native: groq answers an image part on gpt-oss with 400
+    // "messages[0].content must be a string" (verified). Streaming tool
+    // calls work. It rejects reasoning_effort 'none' — low/medium/high only,
+    // also verified — so 'low' is as quiet as it goes, and its reasoning
+    // arrives in a separate field the groq block never forwards.
+    vision: 'ocr' as const,
+    reasoningEffort: 'low',
     // The same chain Air runs, for the same reason: one provider's bad
     // minute must not be a persona's outage. Every hop is text-only.
     fallbacks: [
       { provider: 'nvidia', model: 'nvidia/nemotron-3.5-lightning-30b-a3b', vision: 'ocr' as const },
       { provider: 'amd', model: 'DeepSeek-V4-Flash', vision: 'ocr' as const },
-      { provider: 'llm7', model: 'default', vision: 'ocr' as const },
+      { provider: 'pollinations', model: 'nvidia/nemotron-3.5-lightning', vision: 'ocr' as const },
     ],
     temperature: 0.9,
     maxTokens: 2500
@@ -2303,20 +2302,34 @@ export async function callPollinationsAPIStreaming(
     toolCount: tools?.length || 0
   });
 
-  const response = await providerFetch(POLLINATIONS_API_URL, {
+  const post = (body: ProviderRequest) => providerFetch(POLLINATIONS_API_URL, {
     providerLabel: 'pollinations',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${POLLINATIONS_API_KEY}`
     },
-    body: JSON.stringify(requestBody)
+    body: JSON.stringify(body)
   });
 
-  if (!response.ok) {
-
-    console.error('Pollinations API error:', response.status, response.status);
-    throw new Error(`Pollinations API error: ${response.status}`);
+  let response: Response;
+  try {
+    response = await post(requestBody);
+  } catch (error) {
+    // Pollinations is a gateway in front of many upstreams, and the three
+    // reasoning switches above are three different vendors' spellings — any
+    // upstream that validates its body strictly can answer one of them with
+    // a 400 (LLM7 did exactly that with `thinking_budget`). This is the last
+    // hop in Air's and Girlie's chains, so a refused switch must not be the
+    // reason a turn fails: send the request once more with none of them.
+    // The stream below never forwards a reasoning delta, and the client
+    // strips <think> from text, so a model that thinks anyway is verbose,
+    // not broken.
+    if (!(error instanceof ProviderHttpError) || error.status !== 400) throw error;
+    console.warn('[pollinations] 400 with reasoning switches; retrying without them');
+    const { thinking_budget: _tb, reasoning_effort: _re, thinking: _th, ...plain } = requestBody;
+    void _tb; void _re; void _th;
+    response = await post(plain as ProviderRequest);
   }
 
   if (!response.body) {
@@ -2348,6 +2361,10 @@ export async function callPollinationsAPIStreaming(
                 const jsonStr = trimmedLine.slice(6);
                 const data = JSON.parse(jsonStr);
 
+                // Only `content` and `tool_calls` are forwarded. A
+                // `reasoning_content` delta — what a thinking model emits
+                // when the switches above did not take — is dropped here on
+                // purpose, so it never reaches the user as text.
                 if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
                   controller.enqueue(new TextEncoder().encode(
                     JSON.stringify({

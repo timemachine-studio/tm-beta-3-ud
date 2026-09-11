@@ -264,13 +264,16 @@ describe('LLM7', () => {
 });
 
 describe('Air\'s chain after both providers were added', () => {
-  it('runs groq, then nvidia, then amd, then llm7', () => {
+  it('runs groq, then nvidia, then amd, then pollinations last', () => {
     const chain = buildProviderChain(
       AI_PERSONAS.default.provider,
       AI_PERSONAS.default.model,
       AI_PERSONAS.default.fallbacks,
     );
-    expect(chain.map(hop => hop.provider)).toEqual(['groq', 'nvidia', 'amd', 'llm7']);
+    // Pollinations is paid and the most dependable host in the file, so it
+    // is the last line: reached only once three free providers are down.
+    expect(chain.map(hop => hop.provider)).toEqual(['groq', 'nvidia', 'amd', 'pollinations']);
+    expect(chain[3]).toMatchObject({ model: 'nvidia/nemotron-3.5-lightning', vision: 'ocr' });
   });
 
   it('keeps every hop on a distinct provider', () => {
@@ -364,5 +367,54 @@ describe('the dispatcher guards every stream', () => {
 
     await dispatchStreamingProvider('nvidia', messages, undefined, { model: 'moonshotai/kimi-k3', temperature: 0.8, maxTokens: 100 });
     expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).reasoning_effort).toBeUndefined();
+  });
+});
+
+describe('the pollinations hop', () => {
+  const originalKey = process.env.POLLINATIONS_API_KEY;
+  beforeEach(() => { process.env.POLLINATIONS_API_KEY = 'test-key'; });
+  afterEach(() => { process.env.POLLINATIONS_API_KEY = originalKey; vi.restoreAllMocks(); });
+
+  const answer = () => sseResponse([
+    'data: {"choices":[{"delta":{"reasoning_content":"thinking..."},"finish_reason":null}]}\n\n',
+    'data: {"choices":[{"delta":{"content":"391"},"finish_reason":"stop"}]}\n\n',
+    'data: [DONE]\n\n',
+  ]);
+
+  it('switches reasoning off three ways, and drops a reasoning delta that arrives anyway', async () => {
+    const fetchMock = vi.fn(async () => answer());
+    vi.stubGlobal('fetch', fetchMock);
+    const frames = await drain(await dispatchStreamingProvider('pollinations', messages, undefined, {
+      model: 'nvidia/nemotron-3.5-lightning', temperature: 0.8, maxTokens: 100,
+    }));
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body).toMatchObject({ thinking_budget: 0, reasoning_effort: 'none', thinking: null });
+    expect(frames.filter(f => f.type === 'content').map(f => f.content)).toEqual(['391']);
+  });
+
+  it('retries without the switches when an upstream refuses them, rather than failing the last hop', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('{"error":"Unsupported parameter: thinking_budget"}', { status: 400 }))
+      .mockResolvedValueOnce(answer());
+    vi.stubGlobal('fetch', fetchMock);
+    const frames = await drain(await dispatchStreamingProvider('pollinations', messages, undefined, {
+      model: 'nvidia/nemotron-3.5-lightning', temperature: 0.8, maxTokens: 100,
+    }));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const retried = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    expect(retried.thinking_budget).toBeUndefined();
+    expect(retried.reasoning_effort).toBeUndefined();
+    expect('thinking' in retried).toBe(false);
+    expect(retried.model).toBe('nvidia/nemotron-3.5-lightning');
+    expect(frames.filter(f => f.type === 'content').map(f => f.content)).toEqual(['391']);
+  });
+
+  it('does not retry any other failure', async () => {
+    const fetchMock = vi.fn(async () => new Response('{"error":"unauthorized"}', { status: 401 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(dispatchStreamingProvider('pollinations', messages, undefined, {
+      model: 'nvidia/nemotron-3.5-lightning', temperature: 0.8, maxTokens: 100,
+    })).rejects.toThrow(/401/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
