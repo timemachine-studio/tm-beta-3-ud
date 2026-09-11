@@ -99,8 +99,8 @@ export function buildToolGuardrail(opts: { canFindTools: boolean; canRunPython?:
   // offered run_python for "4177 * 39281 … plot y = x**2", and the model did
   // the multiplication in its head and *offered* to draw the chart later.
   rules.push(opts.canRunPython
-    ? 'Prefer your own knowledge and reasoning over tools, with one exception: exact numbers. Arithmetic, dates, counting and statistics are what run_python is for — run it instead of working them out in your head, and answer from what it returns.'
-    : 'Prefer your own knowledge and reasoning over tools. Reach for a tool only when the user needs something you cannot produce yourself.');
+    ? 'Prefer your own knowledge and reasoning over tools, with two exceptions. Exact numbers: arithmetic, date arithmetic, counting and statistics are what run_python is for — run it instead of working them out in your head, and answer from what it returns. Facts you do not reliably know: a person, place, institution, date or figure you are unsure of is not a calculation — Python cannot look anything up — so use web_search rather than guessing.'
+    : 'Prefer your own knowledge and reasoning over tools, with one exception: a fact you do not reliably know — a person, place, institution, date or figure — is worth a web_search rather than a guess. Otherwise reach for a tool only when the user needs something you cannot produce yourself.');
 
   // Rule 2 is the other half of the same conflict. "Write the code directly in
   // a code block" is right for a website and wrong for a chart: it was written
@@ -170,7 +170,7 @@ export const webSearchTool = {
   function: {
     name: "web_search",
     strict: true,
-    description: "Look up current information on the web: recent events, live data, or anything newer than your training.",
+    description: "Search the web and get snippets with links. Use it for anything current — recent events, live data, anything newer than your training — and for any fact you are not sure of: a person, place, institution, date or figure you do not reliably know. Search rather than guess.",
     parameters: {
       type: "object",
       properties: {
@@ -528,7 +528,22 @@ export const SERVER_TOOL_DESCRIPTORS: ToolDescriptor[] = [
     name: 'web_search',
     definition: webSearchTool,
     runtime: 'server',
-    tier: 'gated',
+    // Core, after the gate was wrong in front of a user: "When was Adamjee
+    // Cantonment College established" has no search term and no recent year,
+    // so the tool was never in the request — and the model, told that dates
+    // are Python's job, ran Python to find out. A keyword list cannot catch
+    // "who / when / where + something the model has never heard of", which is
+    // most of what a search is actually for; every term added would only
+    // close the phrasing that had already failed.
+    //
+    // The reason it was gated no longer holds. web_search was gated because,
+    // once generate_image left a coding turn, it was the lone tool at index 0
+    // and models that grab a tool because one exists went straight for it.
+    // run_python is core now, so it is never alone, and rule 1 of the policy
+    // still says to prefer own knowledge. It costs ~114 tokens per message.
+    // `select` below is the gate it would go back to: change this one word
+    // and the terms take over again.
+    tier: 'core',
     summary: 'Search the web for current information and get snippets with links.',
     origin: 'builtin',
     select: { intent: SEARCH_TERMS, predicates: ['recent_year'] },
@@ -626,10 +641,9 @@ export function wantsImageTool(input: ImageIntentInput): boolean {
 /**
  * Decide whether `web_search` belongs in this request.
  *
- * Gated for the same reason as the image tool. Gating only one of the two just
- * moves the problem: with generate_image removed from a coding turn, web_search
- * became the single remaining tool at index 0, and models that grab a tool
- * because a tool exists went straight for it.
+ * Always, while the descriptor is `core` — see the note on it. Kept as the
+ * single place that answers the question, so the day the gate comes back the
+ * call sites and tests do not have to change.
  */
 export function wantsWebSearchTool(lastUserText: string = ''): boolean {
   return descriptorWantsTurn('web_search', {
@@ -1131,7 +1145,7 @@ export async function executeTool(
           policy.granted.push(creator.definition as ProviderTool);
           policy.grantedTokens += estimateSchemaTokens(creator.definition);
           policy.revoked.delete(creator.name);
-          return `Nothing matched "${query}" — no existing tool does this. create_tool is available now: if Python can do it and the request is likely to come again, write it as a tool and then call it; for a one-off, use run_python; otherwise answer without a tool.${names ? `\n\nTools you could still load instead:\n${names}` : ''}`;
+          return `Nothing matched "${query}" — no existing tool does this. create_tool is available now: if Python can do it and the request is likely to come again, write it as a tool and then call it; for a one-off computation, use run_python; for a fact to look up, web_search; otherwise answer without a tool.${names ? `\n\nTools you could still load instead:\n${names}` : ''}`;
         }
         return `Nothing matched "${query}". These are the tools you could still load:\n${names}\n\nCall find_tools again naming one of them, or answer without a tool.`;
       }
@@ -1178,7 +1192,7 @@ export async function executeTool(
         policy.granted.push(creator.definition as ProviderTool);
         policy.grantedTokens += estimateSchemaTokens(creator.definition);
         policy.revoked.delete(creator.name);
-        creatorNote = `\n\nThat was only a weak match. If none of the above actually does this, create_tool is also loaded: if Python can do it and the request is likely to come again, write it as a tool; for a one-off, use run_python.`;
+        creatorNote = `\n\nThat was only a weak match. If none of the above actually does this, create_tool is also loaded: if Python can do it and the request is likely to come again, write it as a tool; for a one-off computation, use run_python; for a fact to look up, web_search.`;
       }
       return `Loaded ${loaded.length} tool${loaded.length === 1 ? '' : 's'}. ${loaded.length === 1 ? 'It is' : 'They are'} available now — call ${loaded.length === 1 ? 'it' : 'them'} directly.\n${lines}${more}${creatorNote}`;
     } catch (err: unknown) {

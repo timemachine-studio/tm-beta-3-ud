@@ -47,14 +47,18 @@ describe('when run_python is put in front of the model', () => {
     expect(offeredFor('how many days between 3 March and my birthday')).toContain('run_python');
   });
 
-  it('is there for every turn, because it is a capability rather than a guess', () => {
-    // It was gated, and the gate was wrong in front of a user twice. A tool
-    // being present is only dangerous when using it wrongly produces something
-    // — an unwanted picture — and Python that is not needed is not called.
-    // The tier is one word on the descriptor if this stops being worth ~290
-    // tokens a message.
-    expect(offeredFor('write me a haiku about cats')).toContain('run_python');
-    expect(offeredFor('make me a snake game in html')).toContain('run_python');
+  it('stays out of a turn that has no computation in it', () => {
+    // It was core for a while, on the theory that Python offered and not
+    // needed is not called. Live, it was: "When was Adamjee Cantonment College
+    // established" ran Python to find out, because the sandbox was always
+    // there and the policy called dates its job. A standing sandbox is a
+    // standing invitation to treat every question as a calculation.
+    expect(offeredFor('write me a haiku about cats')).not.toContain('run_python');
+    expect(offeredFor('make me a snake game in html')).not.toContain('run_python');
+    expect(offeredFor('When was adamjee cantonment college established')).not.toContain('run_python');
+    // Not lost, though: the model can still ask for it by name.
+    const set = selectToolSet({ ...fullClient, messages: [{ content: 'write me a haiku about cats', isAI: false }] });
+    expect(set.findable.map(descriptor => descriptor.name)).toContain('run_python');
   });
 
   it('still writes code in a code block when that is what was asked for', () => {
@@ -77,10 +81,11 @@ describe('when run_python is put in front of the model', () => {
     expect(set.findable.map(descriptor => descriptor.name)).not.toContain('run_python');
   });
 
-  it('needs no find_tools round trip for a calculation the words would have missed', () => {
-    // This used to be the recovery path, and it cost a whole model call. It is
-    // the case that made the tier worth changing: nothing in "split the bill
-    // four ways" matches a term list, and it is plainly a calculation.
+  it('needs no find_tools round trip for a calculation the words used to miss', () => {
+    // The case that first sent the tool core: nothing in "split the bill four
+    // ways" matched a term list, and it is plainly a calculation. Now that the
+    // gate is back, the phrase is in the list — a miss like this costs the
+    // user one rephrase, which is the deal the gate makes.
     const set = selectToolSet({
       ...fullClient,
       messages: [{ content: 'split the bill four ways and tell me the tip', isAI: false }],
@@ -101,10 +106,8 @@ describe('when run_python is put in front of the model', () => {
   });
 });
 
-describe('the gate that is kept in reserve', () => {
-  // `select` is unused while the tool is core. It is kept so the tier is one
-  // word to change, which is only true if it still means something.
-  it('still recognises the turns it was widened for', () => {
+describe('the gate', () => {
+  it('recognises the turns it was widened for', () => {
     const descriptor = BUILTIN_CATALOG.find(candidate => candidate.name === 'run_python');
     const wants = (text: string) => scoreTool(
       { ...descriptor!, tier: 'gated' },
@@ -196,7 +199,7 @@ describe('the policy the model reads alongside the tool', () => {
 
   it('leaves the policy alone on a turn with no sandbox in it', () => {
     const plain = buildToolGuardrail({ canFindTools: true });
-    expect(plain).toContain('Reach for a tool only when the user needs something you cannot produce yourself');
+    expect(plain).toContain('reach for a tool only when the user needs something you cannot produce yourself');
     expect(plain).not.toContain('run_python');
   });
 

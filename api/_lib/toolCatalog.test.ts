@@ -70,17 +70,30 @@ describe('selection gates, ported from the original regexes', () => {
     })).toBe(true);
   });
 
-  it('offers web_search only for things a live lookup answers', () => {
+  it('offers web_search on every turn, not only ones that spell out a lookup', () => {
     expect(wantsWebSearchTool('what is the latest news on the election')).toBe(true);
     expect(wantsWebSearchTool('look up the weather in Dhaka')).toBe(true);
-    // The year predicate, which used to be an alternation inside the regex.
     expect(wantsWebSearchTool('who won the world cup in 2026')).toBe(true);
-    expect(wantsWebSearchTool('explain how recursion works')).toBe(false);
+    // The case the gate got wrong: a plain factual question with no search
+    // term and no recent year. The model had no way to find out, and was told
+    // dates were Python's job, so it ran Python.
+    expect(wantsWebSearchTool('When was adamjee cantonment college established')).toBe(true);
+    expect(wantsWebSearchTool('explain how recursion works')).toBe(true);
   });
 
-  it('matches phrases that the old regex spelled with an optional space', () => {
-    expect(wantsWebSearchTool('lookup the exchange rate')).toBe(true);
-    expect(wantsWebSearchTool('look up the exchange rate')).toBe(true);
+  it('puts web_search in the request for a plain factual question', () => {
+    const set = selectToolSet({
+      deviceApps: ['python'],
+      messages: userTurn('When was adamjee cantonment college established'),
+    });
+    expect(names(set.tools)).toContain('web_search');
+    expect(set.findable.map(d => d.name)).not.toContain('web_search');
+  });
+
+  it('is not charged against the gated budget', () => {
+    // Core is a capability, not a guess; it must not push a gated tool out.
+    const set = selectToolSet({ messages: userTurn('summarise https://example.com/post for me') });
+    expect(names(set.tools)).toEqual(expect.arrayContaining(['web_search', 'web_fetch']));
   });
 });
 
@@ -178,9 +191,16 @@ describe('find_tools', () => {
   });
 
   it('is offered only when the catalogue still holds something', () => {
-    const withTail = selectToolSet({ messages: userTurn('hello there') });
+    const withTail = selectToolSet({ deviceApps: ['python'], messages: userTurn('hello there') });
     expect(withTail.canFindTools).toBe(true);
     expect(names(withTail.tools)).toContain('find_tools');
+
+    // A client that declared no device apps has web_fetch and nothing else
+    // left behind the gates. Over a catalogue of one, find_tools costs more
+    // than it can return.
+    const bare = selectToolSet({ messages: userTurn('hello there') });
+    expect(bare.findable.map(d => d.name)).toEqual(['web_fetch']);
+    expect(bare.canFindTools).toBe(false);
 
     // A special mode that named its own tools is a closed set.
     const closed = selectToolSet({
@@ -200,7 +220,7 @@ describe('find_tools', () => {
   });
 
   it('loads matching schemas into the run', async () => {
-    const set = selectToolSet({ messages: userTurn('explain quantum tunnelling') });
+    const set = selectToolSet({ deviceApps: ['python'], messages: userTurn('explain quantum tunnelling') });
     const policy = createToolPolicy({ offered: names(set.tools) });
 
     const result = await executeTool(
@@ -316,7 +336,7 @@ describe('find_tools in the agent loop', () => {
   }
 
   it('puts a loaded tool into the very next request', async () => {
-    const set = selectToolSet({ messages: userTurn('explain quantum tunnelling') });
+    const set = selectToolSet({ deviceApps: ['python'], messages: userTurn('explain quantum tunnelling') });
     const policy = createToolPolicy({ offered: names(set.tools) });
     const calls: ProviderTool[][] = [];
 
@@ -418,7 +438,7 @@ describe('catalogue integrity', () => {
   });
 
   it('keeps find_tools cheap, because it rides on almost every request', () => {
-    const set = selectToolSet({ messages: userTurn('hello') });
+    const set = selectToolSet({ deviceApps: ['python'], messages: userTurn('hello') });
     const findTools = set.tools.find(tool => tool.function.name === 'find_tools');
     expect(findTools).toBeDefined();
     expect(estimateSchemaTokens(findTools as never)).toBeLessThan(180);

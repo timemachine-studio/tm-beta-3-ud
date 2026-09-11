@@ -275,7 +275,7 @@ export const runPythonTool = {
   function: {
     name: 'run_python',
     strict: true,
-    description: "Run Python and get its real output. Use it whenever an exact answer matters — arithmetic, physics, dates, counting, parsing, statistics — rather than working it out in your head, and to analyse data the user gave you. numpy, pandas and matplotlib are available, plus python-docx, openpyxl, fpdf2 and pypdf for making and reading Word, Excel and PDF files; imports install themselves. Variables persist between calls. print() what you need to read back; anything passed to show() — a chart, a DataFrame, a string — is displayed to the user, and files written to /outputs become their downloads. Asked to see, draw or visualise something, plot it and show() it: printed numbers are not a drawing.",
+    description: "Run Python and get its real output. Use it whenever an exact answer matters — arithmetic, physics, date arithmetic, counting, parsing, statistics — rather than working it out in your head, and to analyse data the user gave you. It cannot look facts up. numpy, pandas and matplotlib are available, plus python-docx, openpyxl, fpdf2 and pypdf for Word, Excel and PDF files; imports install themselves. Variables persist between calls. print() what you need to read back; anything passed to show() — a chart, a DataFrame, a string — is displayed to the user, and files written to /outputs become their downloads. Asked to see, draw or visualise something, plot it and show() it: printed numbers are not a drawing.",
     parameters: {
       type: 'object',
       properties: {
@@ -293,12 +293,10 @@ export const runPythonTool = {
 /**
  * Turns that want code run rather than written.
  *
- * Unused while `run_python` is `core`, and kept deliberately: it is the whole
- * gate, ready to go back if the always-on cost stops being worth it. Two live
- * rounds of widening it are why the tool is core now — a keyword list could be
- * made to catch "1200 N … 2300 N" and "make me a PDF invoice", but only after
- * each one had already failed in front of a user, and there was always another
- * phrasing behind it.
+ * This is the whole gate. It was widened twice after live misses ("1200 N …
+ * 2300 N", "make me a PDF invoice"), then retired when the tool went core, and
+ * is back because core was worse — see the descriptor. Widen it when a real
+ * phrasing is missed; the predicates below carry the cases no word can.
  *
  * There is deliberately no veto. BUILD_TERMS, which vetoes generate_image,
  * contains 'python', 'chart', 'graph', 'table' and 'code' — the exact words
@@ -310,6 +308,7 @@ export const PYTHON_TERMS = [
   'sum of', 'total of', 'add up', 'average of', 'the mean', 'median',
   'standard deviation', 'variance', 'percentage', 'percent of', 'ratio of',
   'round to', 'decimal places', 'significant figures', 'square root',
+  'split the bill', 'the tip', 'tip on',
   'factorial', 'prime number', 'primes', 'fibonacci', 'compound interest',
   'interest rate', 'amortization', 'amortisation', 'probability of',
   // Dates
@@ -482,21 +481,21 @@ export const DEVICE_TOOL_DESCRIPTORS: ToolDescriptor[] = [
     name: 'run_python',
     definition: runPythonTool,
     runtime: 'device',
-    // Core, after two rounds of the gate being wrong in front of a user: a
-    // resultant-force question answered by hand with the angle off in the
-    // second decimal, and "use python to show it" that printed instead of
-    // drawing. Both were gate misses, and each fix only closed the phrasing
-    // that had already failed.
+    // Gated again, after a round of *core* being wrong in front of a user.
+    // It went core because the gate had missed twice (a resultant-force
+    // question answered by hand, "use python to show it" that printed instead
+    // of drawing), on the theory that Python offered and not needed simply is
+    // not called. That theory failed: asked "When was Adamjee Cantonment
+    // College established", the model — with Python always in front of it and
+    // the policy calling dates its job — ran Python to find out. An
+    // always-present sandbox is a standing invitation to treat every question
+    // as a computation, and the cheap models take it.
     //
-    // Core is the right tier on its own terms, too. It means "a capability the
-    // user has, not a guess about what they meant", and a code sandbox is
-    // exactly that — the same argument that makes their own notes core. The
-    // failure the gating mechanism was built for is an unwanted *picture*;
-    // Python that is offered and not needed simply is not called.
-    //
-    // It costs ~290 tokens on every Air message. `select` below is the gate it
-    // would go back to: change this one word and the terms take over again.
-    tier: 'core',
+    // So the gate below is the deal: a term or a predicate has to ask for it.
+    // A miss costs the user one rephrase ("use python"); a false positive is a
+    // wrong tool on a plain question, which is what happened. It also gives
+    // back ~290 tokens on every Air message that did not need it.
+    tier: 'gated',
     requires: ['python'],
     summary: 'Run Python for exact results, data analysis, charts, tables, and PDF, Word or Excel files the user can download.',
     origin: 'builtin',

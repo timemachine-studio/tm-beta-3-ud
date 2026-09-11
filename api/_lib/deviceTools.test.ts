@@ -29,8 +29,9 @@ describe('selectTools with device apps', () => {
     const offered = names(selectTools({ deviceApps: ['notes', 'chats'], deviceDataPresent: [] }));
     // find_tools rides along whenever the catalogue still holds something —
     // it is the catalogue's entry point, not an app tool. See toolCatalog.test.
+    // web_search is core too — a capability, not a guess about the turn.
     expect(offered.filter(name => name !== 'find_tools'))
-      .toEqual(['healthcare_search', 'notes_create']);
+      .toEqual(['healthcare_search', 'web_search', 'notes_create']);
   });
 
   it('brings the readers back as soon as there is something to read', () => {

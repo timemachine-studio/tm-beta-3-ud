@@ -244,11 +244,12 @@ describe('create_tool', () => {
     const ctx = { persona: 'default', policy, findable: set.findable };
 
     const miss = await executeTool(
-      { id: '1', function: { name: 'find_tools', arguments: JSON.stringify({ query: 'convert bangla calendar dates' }) } },
+      { id: '1', function: { name: 'find_tools', arguments: JSON.stringify({ query: 'bangla calendar day converter' }) } },
       ctx, silentEmitter,
     );
-    // "dates" overlaps a web_search term, so lexically this is a weak match
-    // rather than a miss — and a weak match still hands over create_tool.
+    // "day" is a word in run_python's terms, so lexically this is a weak
+    // match rather than a miss — and a weak match still hands over
+    // create_tool.
     expect(miss).toContain('create_tool is also loaded');
     expect(policy.granted.map(tool => tool.function.name)).toContain(CREATE_TOOL_NAME);
 
