@@ -116,7 +116,7 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
     backgroundPosition: 'right 8px center',
   };
 
-  const optionStyle = { background: '#1a1a1a', color: 'white' };
+  const optionStyle = { background: 'var(--color-surface)', color: 'var(--color-ink)' };
 
   return (
     <div className="p-4 space-y-3" onKeyDown={handleKeyDown}>
@@ -135,8 +135,8 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
                 background: accent.bg,
                 border: `1px solid ${accent.border}`,
               } : {
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'rgb(var(--tm-ink-rgb) / 0.03)',
+                border: '1px solid rgb(var(--tm-ink-rgb) / 0.05)',
               }}
             >
               {code}
@@ -180,7 +180,7 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
         <button
           onClick={handleSwap}
           className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors shrink-0"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+          style={{ background: 'rgb(var(--tm-ink-rgb) / 0.04)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)' }}
         >
           <Shuffle className="w-3.5 h-3.5" />
         </button>
@@ -221,8 +221,8 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
                 background: accent.bg,
                 border: `1px solid ${accent.border}`,
               } : {
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'rgb(var(--tm-ink-rgb) / 0.03)',
+                border: '1px solid rgb(var(--tm-ink-rgb) / 0.05)',
               }}
             >
               {code}

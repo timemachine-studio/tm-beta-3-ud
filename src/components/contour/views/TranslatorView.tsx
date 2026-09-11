@@ -66,8 +66,8 @@ function TranslatorInteractive({ trans, accent, onCopyValue }: { trans?: Transla
   };
 
   const selectStyle = {
-    background: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
+    background: 'rgb(var(--tm-ink-rgb) / 0.06)',
+    border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
     backgroundImage: SELECT_ARROW,
     backgroundRepeat: 'no-repeat',
     backgroundPosition: 'right 8px center',

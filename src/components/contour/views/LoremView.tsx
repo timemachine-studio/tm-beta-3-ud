@@ -51,7 +51,7 @@ export function LoremView({ module, accent, onCopyValue }: { module: ModuleData;
               key={p.label}
               onClick={() => handlePreset(p.type, p.count)}
               className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-white/40 hover:text-white/60 transition-all"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+              style={{ background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
             >
               {p.label}
             </button>
@@ -72,7 +72,7 @@ export function LoremView({ module, accent, onCopyValue }: { module: ModuleData;
         </div>
       </div>
       <div className="max-h-[140px] overflow-y-auto rounded-lg p-3 text-white/70 text-xs leading-relaxed font-mono [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10"
-        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
       >
         {current.text.split('\n\n').map((p, i) => (
           <p key={i} className={i > 0 ? 'mt-2' : ''}>{p}</p>
@@ -85,14 +85,14 @@ export function LoremView({ module, accent, onCopyValue }: { module: ModuleData;
               key={p.label}
               onClick={() => handlePreset(p.type, p.count)}
               className="px-2 py-0.5 rounded-md text-[10px] font-medium text-white/35 hover:text-white/55 transition-all"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+              style={{ background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.05)' }}
             >
               {p.label}
             </button>
           ))}
         </div>
       )}
-      <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
         <button
           onClick={handleCopy}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"

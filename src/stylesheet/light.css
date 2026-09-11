@@ -1,0 +1,479 @@
+/* ════════════════════════════════════════════════════════════
+   Light mode — flat, calm, the lights on
+   ─────────────────────────────────────────────────────────────
+   The app was authored dark-first: black canvas, white ink, glass
+   panes that are white at 5% with a blur behind them, hairlines that
+   are white at 10%, purple glows and gradient fills. Light mode keeps
+   the geometry — every radius, size, font and placement — and drops
+   the atmosphere. Nothing blurs, nothing glows, nothing is a gradient.
+   A calm warm-grey canvas, near-white opaque cards with a hairline and
+   one soft shadow, near-black ink, and a single black control (send).
+
+   Two mechanisms do this:
+
+   1. Token swap. `text-white`, `bg-white/5`, `border-white/10`,
+      `bg-black/50` and the inline `rgb(var(--tm-ink-rgb) / a)` styles
+      all read from variables redefined here, so ink becomes near-black
+      and white-at-5% becomes a flat ink-at-5% tint. The hue palettes
+      are mirrored in light-palette.css (generated).
+
+   2. Atmosphere kill. The dark UI's blur, glow, gradient and glass-edge
+      styles are written as literals across ~500 call sites — many of
+      them inline, which no ordinary stylesheet rule can beat. Rather
+      than an audit of every element, a handful of `!important` rules
+      below switch those *categories* off wholesale in light mode. They
+      are scoped by what the style attribute or className contains, so
+      a new component that follows the dark recipe is calm in light
+      without knowing this file exists.
+   ════════════════════════════════════════════════════════════ */
+
+:root[data-theme="light"] {
+  /* Native selects, scrollbars and form controls draw light. */
+  color-scheme: light;
+
+  /* ---- the two poles ---- */
+  /* Cream beige (#FDF1E1) with deep green ink for accents — the pairing
+     the owner picked. Cards sit a step lighter, still off-white. These are
+     the warmth=100 values; ThemeProvider overrides the surface tokens
+     inline on <html> as the Settings slider moves toward white (see
+     lightWarmthVariables in themes/themeState.ts). Ramps below derive from
+     them so one number moves the whole page. */
+  --color-black: #fdf1e1;
+  --color-white: #1a1a1a;
+
+  /* ---- semantic tokens ---- */
+  --color-canvas: #fdf1e1;
+  --color-surface: #fffaf3;
+  --color-sunken: #f5e7d2;
+  --color-well: #eedfc8;
+  --color-line: #eadcc6;
+  --color-line-strong: #c9b99f;
+  --color-ink: #1a1a1a;
+  --color-ink-muted: #6b6660;
+  --color-ink-faint: #9a9489;
+  --color-pill: #1f1f1f;
+  --color-pill-ink: #fffcf7;
+  --color-focus: #4c57a0;
+
+  /* ---- inline primitives (space-separated so the alpha is supplied at
+     the call site: rgb(var(--tm-ink-rgb) / 0.05)) ---- */
+  --tm-ink-rgb: 26 26 26;
+  --tm-paper-rgb: 253 241 225;
+  /* Warm near-black: a neutral black shadow on warm paper reads as dirt. */
+  --tm-shadow-rgb: 60 45 20;
+  --tm-edge-rgb: 255 255 255;
+
+  /* A card. Opaque, a step lighter than the canvas, one soft shadow. */
+  --tm-pane-bg: #fffaf3;
+  --tm-pane-border: #eadcc6;
+  --tm-pane-shadow:
+    0 1px 2px rgb(var(--tm-shadow-rgb) / 0.04),
+    0 10px 28px -14px rgb(var(--tm-shadow-rgb) / 0.16);
+  --tm-input-shadow: var(--tm-pane-shadow);
+  --tm-popover-bg: #fffcf7;
+  --tm-popover-bg-solid: var(--tm-popover-bg);
+  --tm-menu-bg: var(--tm-pane-bg);
+  --tm-menu-border: var(--tm-pane-border);
+  --tm-menu-shadow: var(--tm-pane-shadow);
+  --tm-select-bg: #ecdfc9;
+
+  /* Page roots that paint their own ground. Flat. */
+  --tm-page-bg: var(--color-canvas);
+  --tm-home-bg: var(--color-canvas);
+
+  /* ---- neutral ramps: warm, mirrored ----
+     gray-900 was the dark modal fill; on this canvas it becomes the card
+     white. gray-950 was the deepest ground; it becomes the canvas.
+     gray-200 was body text; it becomes near-ink. */
+  --color-gray-50: #1a1a1a;
+  --color-gray-100: #232322;
+  --color-gray-200: #2e2e2c;
+  --color-gray-300: #4a4741;
+  --color-gray-400: var(--color-ink-muted);
+  --color-gray-500: var(--color-ink-faint);
+  --color-gray-600: var(--color-line-strong);
+  --color-gray-700: var(--color-line);
+  --color-gray-800: var(--color-sunken);
+  --color-gray-900: var(--color-surface);
+  --color-gray-950: var(--color-canvas);
+  --color-zinc-50: #1a1a1a;
+  --color-zinc-100: #232322;
+  --color-zinc-200: #2e2e2c;
+  --color-zinc-300: #4a4741;
+  --color-zinc-400: var(--color-ink-muted);
+  --color-zinc-500: var(--color-ink-faint);
+  --color-zinc-600: var(--color-line-strong);
+  --color-zinc-700: var(--color-line);
+  --color-zinc-800: var(--color-sunken);
+  --color-zinc-900: var(--color-surface);
+  --color-zinc-950: var(--color-canvas);
+  --color-neutral-50: #1a1a1a;
+  --color-neutral-100: #232322;
+  --color-neutral-200: #2e2e2c;
+  --color-neutral-300: #4a4741;
+  --color-neutral-400: var(--color-ink-muted);
+  --color-neutral-500: var(--color-ink-faint);
+  --color-neutral-600: var(--color-line-strong);
+  --color-neutral-700: var(--color-line);
+  --color-neutral-800: var(--color-sunken);
+  --color-neutral-900: var(--color-surface);
+  --color-neutral-950: var(--color-canvas);
+  --color-slate-50: #1a1a1a;
+  --color-slate-100: #232322;
+  --color-slate-200: #2e2e2c;
+  --color-slate-300: #4a4741;
+  --color-slate-400: var(--color-ink-muted);
+  --color-slate-500: var(--color-ink-faint);
+  --color-slate-600: var(--color-line-strong);
+  --color-slate-700: var(--color-line);
+  --color-slate-800: var(--color-sunken);
+  --color-slate-900: var(--color-surface);
+  --color-slate-950: var(--color-canvas);
+}
+
+/* One accent. Mirrored purple, cyan and pink read as stickers on beige,
+   so in light every brand hue (persona colours, links, selected states,
+   the accent word) is the same deep green ramp; step 400 is #035930. Red, orange,
+   amber, yellow, green and emerald keep their meaning as status colours
+   — those stay on the mirrored, muted ramps from light-palette.css.
+   Steps 200–400 are the text steps; they sit darker than a pure mirror
+   so accent text on the canvas passes AA. */
+:root[data-theme="light"] {
+  --color-purple-50: oklch(20% 0.06 155);
+  --color-purple-100: oklch(26% 0.075 155);
+  --color-purple-200: oklch(31% 0.085 155);
+  --color-purple-300: oklch(35% 0.09 155);
+  --color-purple-400: oklch(38.5% 0.095 155);
+  --color-purple-500: oklch(47% 0.09 155);
+  --color-purple-600: oklch(60% 0.08 155);
+  --color-purple-700: oklch(75% 0.06 155);
+  --color-purple-800: oklch(86% 0.045 155);
+  --color-purple-900: oklch(92.5% 0.03 155);
+  --color-purple-950: oklch(96.5% 0.015 155);
+  --color-violet-50: oklch(20% 0.06 155);
+  --color-violet-100: oklch(26% 0.075 155);
+  --color-violet-200: oklch(31% 0.085 155);
+  --color-violet-300: oklch(35% 0.09 155);
+  --color-violet-400: oklch(38.5% 0.095 155);
+  --color-violet-500: oklch(47% 0.09 155);
+  --color-violet-600: oklch(60% 0.08 155);
+  --color-violet-700: oklch(75% 0.06 155);
+  --color-violet-800: oklch(86% 0.045 155);
+  --color-violet-900: oklch(92.5% 0.03 155);
+  --color-violet-950: oklch(96.5% 0.015 155);
+  --color-indigo-50: oklch(20% 0.06 155);
+  --color-indigo-100: oklch(26% 0.075 155);
+  --color-indigo-200: oklch(31% 0.085 155);
+  --color-indigo-300: oklch(35% 0.09 155);
+  --color-indigo-400: oklch(38.5% 0.095 155);
+  --color-indigo-500: oklch(47% 0.09 155);
+  --color-indigo-600: oklch(60% 0.08 155);
+  --color-indigo-700: oklch(75% 0.06 155);
+  --color-indigo-800: oklch(86% 0.045 155);
+  --color-indigo-900: oklch(92.5% 0.03 155);
+  --color-indigo-950: oklch(96.5% 0.015 155);
+  --color-blue-50: oklch(20% 0.06 155);
+  --color-blue-100: oklch(26% 0.075 155);
+  --color-blue-200: oklch(31% 0.085 155);
+  --color-blue-300: oklch(35% 0.09 155);
+  --color-blue-400: oklch(38.5% 0.095 155);
+  --color-blue-500: oklch(47% 0.09 155);
+  --color-blue-600: oklch(60% 0.08 155);
+  --color-blue-700: oklch(75% 0.06 155);
+  --color-blue-800: oklch(86% 0.045 155);
+  --color-blue-900: oklch(92.5% 0.03 155);
+  --color-blue-950: oklch(96.5% 0.015 155);
+  --color-sky-50: oklch(20% 0.06 155);
+  --color-sky-100: oklch(26% 0.075 155);
+  --color-sky-200: oklch(31% 0.085 155);
+  --color-sky-300: oklch(35% 0.09 155);
+  --color-sky-400: oklch(38.5% 0.095 155);
+  --color-sky-500: oklch(47% 0.09 155);
+  --color-sky-600: oklch(60% 0.08 155);
+  --color-sky-700: oklch(75% 0.06 155);
+  --color-sky-800: oklch(86% 0.045 155);
+  --color-sky-900: oklch(92.5% 0.03 155);
+  --color-sky-950: oklch(96.5% 0.015 155);
+  --color-cyan-50: oklch(20% 0.06 155);
+  --color-cyan-100: oklch(26% 0.075 155);
+  --color-cyan-200: oklch(31% 0.085 155);
+  --color-cyan-300: oklch(35% 0.09 155);
+  --color-cyan-400: oklch(38.5% 0.095 155);
+  --color-cyan-500: oklch(47% 0.09 155);
+  --color-cyan-600: oklch(60% 0.08 155);
+  --color-cyan-700: oklch(75% 0.06 155);
+  --color-cyan-800: oklch(86% 0.045 155);
+  --color-cyan-900: oklch(92.5% 0.03 155);
+  --color-cyan-950: oklch(96.5% 0.015 155);
+  --color-teal-50: oklch(20% 0.06 155);
+  --color-teal-100: oklch(26% 0.075 155);
+  --color-teal-200: oklch(31% 0.085 155);
+  --color-teal-300: oklch(35% 0.09 155);
+  --color-teal-400: oklch(38.5% 0.095 155);
+  --color-teal-500: oklch(47% 0.09 155);
+  --color-teal-600: oklch(60% 0.08 155);
+  --color-teal-700: oklch(75% 0.06 155);
+  --color-teal-800: oklch(86% 0.045 155);
+  --color-teal-900: oklch(92.5% 0.03 155);
+  --color-teal-950: oklch(96.5% 0.015 155);
+  --color-fuchsia-50: oklch(20% 0.06 155);
+  --color-fuchsia-100: oklch(26% 0.075 155);
+  --color-fuchsia-200: oklch(31% 0.085 155);
+  --color-fuchsia-300: oklch(35% 0.09 155);
+  --color-fuchsia-400: oklch(38.5% 0.095 155);
+  --color-fuchsia-500: oklch(47% 0.09 155);
+  --color-fuchsia-600: oklch(60% 0.08 155);
+  --color-fuchsia-700: oklch(75% 0.06 155);
+  --color-fuchsia-800: oklch(86% 0.045 155);
+  --color-fuchsia-900: oklch(92.5% 0.03 155);
+  --color-fuchsia-950: oklch(96.5% 0.015 155);
+  --color-pink-50: oklch(20% 0.06 155);
+  --color-pink-100: oklch(26% 0.075 155);
+  --color-pink-200: oklch(31% 0.085 155);
+  --color-pink-300: oklch(35% 0.09 155);
+  --color-pink-400: oklch(38.5% 0.095 155);
+  --color-pink-500: oklch(47% 0.09 155);
+  --color-pink-600: oklch(60% 0.08 155);
+  --color-pink-700: oklch(75% 0.06 155);
+  --color-pink-800: oklch(86% 0.045 155);
+  --color-pink-900: oklch(92.5% 0.03 155);
+  --color-pink-950: oklch(96.5% 0.015 155);
+  --color-rose-50: oklch(20% 0.06 155);
+  --color-rose-100: oklch(26% 0.075 155);
+  --color-rose-200: oklch(31% 0.085 155);
+  --color-rose-300: oklch(35% 0.09 155);
+  --color-rose-400: oklch(38.5% 0.095 155);
+  --color-rose-500: oklch(47% 0.09 155);
+  --color-rose-600: oklch(60% 0.08 155);
+  --color-rose-700: oklch(75% 0.06 155);
+  --color-rose-800: oklch(86% 0.045 155);
+  --color-rose-900: oklch(92.5% 0.03 155);
+  --color-rose-950: oklch(96.5% 0.015 155);
+}
+
+/* The page root. In dark the seasons paint a gradient; in light the one
+   variant is a flat canvas. */
+.tm-canvas {
+  background-color: var(--color-canvas);
+}
+
+:root[data-theme="light"] body {
+  background: var(--color-canvas);
+}
+
+:root[data-theme="light"] ::selection {
+  background: var(--tm-select-bg);
+  color: #1a1a1a;
+}
+
+:root[data-theme="light"] input,
+:root[data-theme="light"] textarea,
+:root[data-theme="light"] [contenteditable] {
+  caret-color: var(--color-ink);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Atmosphere kill. Categories, not elements — see the header.
+   ───────────────────────────────────────────────────────────── */
+
+/* No glass. Fills are flat tints, so nothing needs a blur behind it. */
+:root[data-theme="light"] *,
+:root[data-theme="light"] *::before,
+:root[data-theme="light"] *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  text-shadow: none !important;
+}
+
+/* No glow, no glass edge. Every inline box-shadow in the app is one of
+   those two (the dark recipe is "0 4px 12px black + inset 0 1px 0
+   white"; accent glows are "0 0 20px purple"). The one shadow light
+   mode keeps is the card shadow, re-applied below by token. */
+:root[data-theme="light"] [style*="box-shadow"],
+:root[data-theme="light"] [class*="shadow-["],
+:root[data-theme="light"] .glow-effect::before {
+  box-shadow: none !important;
+}
+
+:root[data-theme="light"] [style*="--tm-pane-shadow"],
+:root[data-theme="light"] [style*="--tm-input-shadow"],
+:root[data-theme="light"] [style*="--tm-menu-shadow"] {
+  box-shadow: var(--tm-pane-shadow) !important;
+}
+
+/* No gradients. Utility gradients collapse to their `from` colour, so a
+   purple→pink button is a flat purple button and gradient-clipped text
+   is flat coloured text. */
+:root[data-theme="light"] [class*="bg-linear-"],
+:root[data-theme="light"] [class*="bg-radial"],
+:root[data-theme="light"] [class*="bg-conic"] {
+  background-image: none !important;
+  background-color: var(--tw-gradient-from, transparent) !important;
+}
+
+/* Inline gradients are the persona-tinted pill recipe
+   (`linear-gradient(135deg, accent 20%, white 5%)`) and a few page
+   washes. They collapse to the same card every other pill is. */
+:root[data-theme="light"] [style*="-gradient("]:not([style*="background-clip"]):not([style*="mask"]) {
+  background-image: none !important;
+  background-color: var(--tm-pane-bg) !important;
+}
+
+/* Inline literal accents — the persona's cyan/purple/pink written as
+   rgba() into a border or fill (composer buttons, Flow State, Heat
+   Level, the persona pill). Borders go to the hairline, fills to the
+   card; text keeps the one accent. */
+:root[data-theme="light"] [style*="border"][style*="rgba("] {
+  border-color: var(--tm-pane-border) !important;
+}
+
+:root[data-theme="light"] [style*="background: rgba("],
+:root[data-theme="light"] [style*="background-color: rgba("] {
+  background-color: var(--tm-pane-bg) !important;
+}
+
+/* `color:` at the start of the attribute or after a `;` — a bare substring
+   match would also catch `border-color:` and `background-color:`. */
+:root[data-theme="light"] [style^="color: rgba("],
+:root[data-theme="light"] [style*="; color: rgba("] {
+  color: var(--color-purple-400) !important;
+}
+
+/* Gradient-clipped text (the holographic word, shimmer, brand text)
+   becomes flat accent ink. */
+:root[data-theme="light"] [style*="background-clip"] {
+  background-image: none !important;
+  -webkit-text-fill-color: var(--color-purple-400) !important;
+  color: var(--color-purple-400) !important;
+  animation: none !important;
+}
+
+/* Cards sit above the ground. The dark recipe for a card, pill or chip
+   is "white at ≤8%" — a faint lift off black. Swapped to ink that would
+   be a faint recess *into* the paper, so the low-alpha fills become the
+   card colour instead: a step lighter than the canvas, like every other
+   surface here. Stronger tints (10%+: hover, selected) stay tints. */
+:root[data-theme="light"] [style*="background: rgb(var(--tm-ink-rgb) / 0.0"],
+:root[data-theme="light"] [class~="bg-white/5"],
+:root[data-theme="light"] [class~="bg-white/3"],
+:root[data-theme="light"] [class~="bg-white/4"],
+:root[data-theme="light"] [class~="bg-white/6"],
+:root[data-theme="light"] [class~="bg-white/8"],
+:root[data-theme="light"] [class*="bg-white/[0.0"] {
+  background-color: var(--tm-pane-bg) !important;
+}
+
+/* …except the "glass sheen" overlay layers some cards stack on top of
+   their content: with no blur they are just a grey wash. */
+:root[data-theme="light"] .absolute.inset-0[class*="bg-linear-"][class*="from-white/"] {
+  background: none !important;
+}
+
+/* The soft-focus colour blobs every page floats behind its content are
+   glow by another name. */
+:root[data-theme="light"] .absolute.rounded-full[class*="blur-"]:not([class*="backdrop-blur"]) {
+  display: none !important;
+}
+
+/* The empty-state line is muted in dark; on cream it is set in full ink,
+   and the quick-access chips are cards like the composer, with their
+   label in the placeholder grey. */
+:root[data-theme="light"] .tm-welcome-text {
+  color: var(--color-ink);
+}
+
+:root[data-theme="light"] .reveoule-action-pill {
+  color: var(--color-gray-400);
+  box-shadow: var(--tm-pane-shadow) !important;
+}
+
+:root[data-theme="light"] .reveoule-action-pill:hover {
+  color: var(--color-ink);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   The one black control
+   ───────────────────────────────────────────────────────────── */
+
+/* [style][class] only raises specificity above the inline-gradient rule,
+   which would otherwise flatten this button to the neutral tint too. */
+:root[data-theme="light"] button[aria-label="Send message"][style][class]:not(:disabled),
+:root[data-theme="light"] button[aria-label="Stop generating"][style][class] {
+  background: var(--color-pill) !important;
+  color: var(--color-pill-ink) !important;
+  border-color: transparent !important;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Class-based glass helpers and chrome
+   ───────────────────────────────────────────────────────────── */
+
+/* The dark scrollbar is white at 12%; on paper that is invisible. */
+:root[data-theme="light"] .custom-scrollbar {
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+:root[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:root[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--color-line-strong);
+}
+
+:root[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-ink-muted);
+}
+
+:root[data-theme="light"] .glass-morphism,
+:root[data-theme="light"] .glass-button,
+:root[data-theme="light"] .glass,
+:root[data-theme="light"] .glass-card,
+:root[data-theme="light"] .glass-btn {
+  background: rgb(var(--tm-ink-rgb) / 0.05);
+  border-color: rgb(var(--tm-ink-rgb) / 0.1);
+  box-shadow: none;
+}
+
+:root[data-theme="light"] .glass-button:hover,
+:root[data-theme="light"] .glass-btn:hover,
+:root[data-theme="light"] .glass-card:hover,
+:root[data-theme="light"] .glass:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+:root[data-theme="light"] .glass-button svg,
+:root[data-theme="light"] .glass-button i {
+  color: var(--color-ink) !important;
+}
+
+:root[data-theme="light"] .text-gradient {
+  background: none;
+  -webkit-text-fill-color: var(--color-ink);
+  color: var(--color-ink);
+}
+
+/* Assistant answers render with `prose prose-invert`, whose variables are
+   literal near-whites. index.css already re-inks the common elements;
+   this covers what it does not — tables, markers, captions, kbd. */
+:root[data-theme="light"] .prose-invert {
+  --tw-prose-body: #2e2e2c;
+  --tw-prose-headings: #1a1a1a;
+  --tw-prose-lead: #4a4741;
+  --tw-prose-links: var(--color-purple-400);
+  --tw-prose-bold: #1a1a1a;
+  --tw-prose-counters: var(--color-ink-muted);
+  --tw-prose-bullets: var(--color-line-strong);
+  --tw-prose-hr: var(--color-line);
+  --tw-prose-quotes: #1a1a1a;
+  --tw-prose-quote-borders: var(--color-line);
+  --tw-prose-captions: var(--color-ink-muted);
+  --tw-prose-kbd: #1a1a1a;
+  --tw-prose-kbd-shadows: 26 26 26;
+  --tw-prose-code: #1a1a1a;
+  --tw-prose-pre-code: #2e2e2c;
+  --tw-prose-pre-bg: var(--color-sunken);
+  --tw-prose-th-borders: var(--color-line-strong);
+  --tw-prose-td-borders: var(--color-line);
+}

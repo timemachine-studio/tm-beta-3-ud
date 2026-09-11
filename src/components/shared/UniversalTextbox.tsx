@@ -97,11 +97,11 @@ export function UniversalTextbox({
             disabled={disabled}
             className="p-3 rounded-full text-white disabled:opacity-50 relative group transition-all duration-300 shrink-0"
             style={{
-              background: `linear-gradient(135deg, ${personaStyles.tintColors[key]}, rgba(255, 255, 255, 0.05))`,
+              background: `linear-gradient(135deg, ${personaStyles.tintColors[key]}, rgb(var(--tm-ink-rgb) / 0.05))`,
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               border: `1px solid ${personaStyles.borderColors[key]}`,
-              boxShadow: `${personaStyles.glowShadow[key]}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`,
+              boxShadow: `${personaStyles.glowShadow[key]}, inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`,
             }}
           >
             <Plus className="w-5 h-5 relative z-10" />
@@ -119,13 +119,13 @@ export function UniversalTextbox({
               disabled={disabled}
               className="w-full px-6 pr-16 rounded-[28px] text-white placeholder-gray-400 outline-hidden disabled:opacity-50 transition-all duration-300 text-base resize-none overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
+                background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
                 boxShadow: floating
-                  ? '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-                  : 'inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                  ? '0 8px 32px rgb(var(--tm-paper-rgb) / 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.1)'
+                  : 'inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.1)',
                 fontSize: '1rem',
                 minHeight: '56px',
                 maxHeight: '150px',
@@ -144,11 +144,11 @@ export function UniversalTextbox({
                 disabled={disabled || !message.trim()}
                 className="p-3 rounded-full text-white disabled:opacity-50 relative group transition-all duration-300"
                 style={{
-                  background: `linear-gradient(135deg, ${personaStyles.tintColors[key]}, rgba(255, 255, 255, 0.05))`,
+                  background: `linear-gradient(135deg, ${personaStyles.tintColors[key]}, rgb(var(--tm-ink-rgb) / 0.05))`,
                   backdropFilter: 'blur(20px)',
                   WebkitBackdropFilter: 'blur(20px)',
                   border: `1px solid ${personaStyles.borderColors[key]}`,
-                  boxShadow: `${personaStyles.glowShadow[key]}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`,
+                  boxShadow: `${personaStyles.glowShadow[key]}, inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`,
                 }}
               >
                 <SendIcon className="w-5 h-5 relative z-10" />

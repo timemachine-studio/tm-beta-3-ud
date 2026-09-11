@@ -38,7 +38,7 @@ export function WordCountView({ module, accent }: { module: ModuleData; accent: 
             <div
               key={stat.label}
               className="flex flex-col items-center gap-1 p-2 rounded-lg"
-              style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}
+              style={{ background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.05)' }}
             >
               <StatIcon className={`w-3.5 h-3.5 ${accent.text}`} />
               <span className="text-white text-xs font-semibold">{stat.value}</span>

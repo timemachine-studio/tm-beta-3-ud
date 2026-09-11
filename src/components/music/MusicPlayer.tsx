@@ -18,11 +18,11 @@ export function MusicPlayer(_props: MusicPlayerProps) {
   if (location.pathname === '/' || location.pathname === '/reveoule') return null;
 
   const glassStyle = {
-    background: 'rgba(255, 255, 255, 0.05)',
+    background: 'rgb(var(--tm-ink-rgb) / 0.05)',
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+    border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+    boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
   };
 
   return (

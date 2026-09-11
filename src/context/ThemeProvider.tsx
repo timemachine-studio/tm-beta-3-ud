@@ -1,92 +1,68 @@
-import { ThemeContext, type ThemeMode, type SeasonTheme, type DefaultThemeType } from './themeContextValue';
-import React, { useState, useEffect, useCallback } from 'react';
-import { darkTheme } from '../themes/dark';
+import { ThemeContext } from './themeContextValue';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { lightTheme } from '../themes/light';
 import { seasonThemes } from '../themes/seasons';
-import { supabase } from '../lib/supabase';
-import type { Json } from '../types/database';
 import {
-  readStoredJson,
-  readStoredString,
-  removeStored,
-  writeStoredJson,
-  writeStoredString,
-} from '../utils/safeStorage';
-
-const THEME_MODES: readonly ThemeMode[] = ['dark', 'light', 'monochrome'];
-
-function isThemeMode(value: unknown): value is ThemeMode {
-  return typeof value === 'string' && (THEME_MODES as readonly string[]).includes(value);
-}
-
-function isSeasonTheme(value: unknown): value is SeasonTheme {
-  return typeof value === 'string' && value in seasonThemes;
-}
-
-/**
- * Anything claiming to be a stored or server-side default theme has to prove
- * both halves are values this build still knows about. A season name from an
- * older build would otherwise fall through to the light theme on a dark app.
- */
-function isDefaultTheme(value: unknown): value is DefaultThemeType {
-  if (typeof value !== 'object' || value === null) return false;
-  const candidate = value as Partial<DefaultThemeType>;
-  return isThemeMode(candidate.mode) && isSeasonTheme(candidate.season);
-}
+  MODE_KEY,
+  PINNED_KEY,
+  SEASON_KEY,
+  WARMTH_KEY,
+  isSeasonTheme,
+  lightWarmthVariables,
+  readStoredThemeState,
+  readStoredWarmth,
+  type SeasonTheme,
+  type ThemeMode,
+} from '../themes/themeState';
+import { readStoredString, removeStored, writeStoredString } from '../utils/safeStorage';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>(() => {
-    const saved = readStoredString('themeMode');
-    return isThemeMode(saved) ? saved : 'dark';
-  });
-  const [season, setSeason] = useState<SeasonTheme>(() => {
-    const saved = readStoredString('seasonTheme');
-    return isSeasonTheme(saved) ? saved : 'autumnDark';
-  });
-  const [previousSeason, setPreviousSeason] = useState<SeasonTheme>('autumnDark');
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [defaultTheme, setDefaultTheme] = useState<DefaultThemeType | null>(
-    () => readStoredJson('defaultTheme', isDefaultTheme),
-  );
+  const [stored] = useState(() => readStoredThemeState(readStoredString));
+  const [mode, setModeState] = useState<ThemeMode>(stored.mode);
+  const [pinnedSeason, setPinnedSeason] = useState<SeasonTheme | null>(stored.pinnedSeason);
+  const [personaSeason, setPersonaSeason] = useState<SeasonTheme>(stored.personaSeason);
+  const [lightWarmth, setLightWarmthState] = useState<number>(() => readStoredWarmth(readStoredString));
 
-  // Get the current theme based on mode and season
-  const theme = season && season in seasonThemes ? seasonThemes[season] : mode === 'dark' ? darkTheme : lightTheme;
+  const season = pinnedSeason ?? personaSeason;
+  const theme = mode === 'light' ? lightTheme : seasonThemes[season];
 
-  // Load user's default theme from Supabase
-  const loadUserTheme = useCallback(async (userId: string) => {
-    try {
-      setCurrentUserId(userId);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('default_theme')
-        .eq('id', userId)
-        .single();
-
-      if (!error && isDefaultTheme(data?.default_theme)) {
-        const userTheme = data.default_theme;
-        setDefaultTheme(userTheme);
-        setMode(userTheme.mode);
-        setSeason(userTheme.season);
-        writeStoredJson('defaultTheme', userTheme);
-        writeStoredString('themeMode', userTheme.mode);
-        writeStoredString('seasonTheme', userTheme.season);
-      }
-    } catch (err) {
-      console.error('Error loading user theme:', err);
+  // The mode lives on <html> so plain CSS (light.css) can re-theme the
+  // whole document, including portals that render outside the React root.
+  // Layout effect so the first paint after a toggle is already the new
+  // theme rather than one frame of the old one.
+  useLayoutEffect(() => {
+    if (mode === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
     }
-  }, []);
+  }, [mode]);
 
-  // NOTE: Auth listener removed - theme loading from server should be triggered
-  // by the component that needs it (e.g., after profile loads) to avoid race conditions
-  // with multiple onAuthStateChange listeners competing
+  // The warmth slider moves every light surface token as an inline
+  // variable on <html>, which beats light.css. Cleared in dark so the
+  // stylesheet's values are the only ones in play there.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const vars = lightWarmthVariables(lightWarmth);
+    for (const key of Object.keys(vars)) {
+      if (mode === 'light') root.style.setProperty(key, vars[key]);
+      else root.style.removeProperty(key);
+    }
+    // The browser chrome (iOS status bar, Android toolbar) follows this.
+    document.querySelector('meta[name="theme-color"]')?.setAttribute(
+      'content',
+      mode === 'light' ? vars['--color-canvas'] : '#0a0a0a',
+    );
+  }, [mode, lightWarmth]);
 
   useEffect(() => {
-    const handleThemeChange = (event: CustomEvent<SeasonTheme>) => {
-      if (!defaultTheme && event.detail) {
-        setSeason(event.detail);
-        setMode('dark');
-        writeStoredString('seasonTheme', event.detail);
-        writeStoredString('themeMode', 'dark');
+    writeStoredString(WARMTH_KEY, String(lightWarmth));
+  }, [lightWarmth]);
+
+  useEffect(() => {
+    const handleThemeChange = (event: CustomEvent<unknown>) => {
+      if (isSeasonTheme(event.detail)) {
+        setPersonaSeason(event.detail);
       }
     };
 
@@ -95,79 +71,31 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => {
       window.removeEventListener('themeChange', handleThemeChange as EventListener);
     };
-  }, [defaultTheme]);
+  }, []);
 
-  // Save theme preferences to localStorage
   useEffect(() => {
-    writeStoredString('themeMode', mode);
-    writeStoredString('seasonTheme', season);
-  }, [mode, season]);
+    writeStoredString(MODE_KEY, mode);
+  }, [mode]);
 
-  // Save theme preferences to localStorage
-  const handleSetMode = (newMode: ThemeMode) => {
-    setMode(newMode);
-    if (newMode === 'monochrome') {
-      // Save current season before switching to monochrome
-      if (season !== 'monochrome') {
-        setPreviousSeason(season);
-        writeStoredString('previousSeasonTheme', season);
-      }
-      setSeason('monochrome');
-      writeStoredString('seasonTheme', 'monochrome');
+  useEffect(() => {
+    writeStoredString(SEASON_KEY, season);
+    if (pinnedSeason) {
+      writeStoredString(PINNED_KEY, '1');
     } else {
-      // Restore previous season when turning off monochrome
-      const savedPreviousSeason = readStoredString('previousSeasonTheme');
-      const restoredSeason = isSeasonTheme(savedPreviousSeason) ? savedPreviousSeason : previousSeason;
-      setSeason(restoredSeason);
-      writeStoredString('seasonTheme', restoredSeason);
+      removeStored(PINNED_KEY);
     }
-    writeStoredString('themeMode', newMode);
+  }, [season, pinnedSeason]);
+
+  const setMode = (newMode: ThemeMode) => {
+    setModeState(newMode);
   };
 
-  const handleSetSeason = (newSeason: SeasonTheme) => {
-    setSeason(newSeason);
-    writeStoredString('seasonTheme', newSeason);
+  const setSeason = (newSeason: SeasonTheme | 'auto') => {
+    setPinnedSeason(newSeason === 'auto' ? null : newSeason);
   };
 
-  const handleSetDefaultTheme = async (newDefaultTheme: DefaultThemeType) => {
-    setDefaultTheme(newDefaultTheme);
-    setMode(newDefaultTheme.mode);
-    setSeason(newDefaultTheme.season);
-    writeStoredJson('defaultTheme', newDefaultTheme);
-    writeStoredString('themeMode', newDefaultTheme.mode);
-    writeStoredString('seasonTheme', newDefaultTheme.season);
-
-    // Save to Supabase if user is logged in
-    if (currentUserId) {
-      try {
-        await supabase
-          .from('profiles')
-          .update({ default_theme: newDefaultTheme as unknown as Json })
-          .eq('id', currentUserId);
-      } catch (err) {
-        console.error('Error saving default theme to Supabase:', err);
-      }
-    }
-  };
-
-  const handleClearDefaultTheme = async () => {
-    setDefaultTheme(null);
-    removeStored('defaultTheme');
-    // Reset to persona-driven theme
-    setMode('dark');
-    setSeason('autumnDark');
-
-    // Clear from Supabase if user is logged in
-    if (currentUserId) {
-      try {
-        await supabase
-          .from('profiles')
-          .update({ default_theme: null })
-          .eq('id', currentUserId);
-      } catch (err) {
-        console.error('Error clearing default theme from Supabase:', err);
-      }
-    }
+  const setLightWarmth = (value: number) => {
+    setLightWarmthState(Math.min(100, Math.max(0, Math.round(value))));
   };
 
   return (
@@ -176,12 +104,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         theme,
         mode,
         season,
-        defaultTheme,
-        setMode: handleSetMode,
-        setSeason: handleSetSeason,
-        setDefaultTheme: handleSetDefaultTheme,
-        clearDefaultTheme: handleClearDefaultTheme,
-        loadUserTheme,
+        seasonFollowsPersona: pinnedSeason === null,
+        lightWarmth,
+        setMode,
+        setSeason,
+        setLightWarmth,
       }}
     >
       {children}

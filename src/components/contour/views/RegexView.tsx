@@ -53,7 +53,7 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
               key={p.name}
               onClick={() => handlePreset(p)}
               className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-white/40 hover:text-white/60 transition-all"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+              style={{ background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
             >
               {p.name}
             </button>
@@ -80,7 +80,7 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
                 key={p.name}
                 onClick={() => handlePreset(p)}
                 className="px-2 py-0.5 rounded-md text-[10px] font-medium text-white/35 hover:text-white/55 transition-all"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+                style={{ background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.05)' }}
               >
                 {p.name}
               </button>
@@ -102,7 +102,7 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
                   key={f.flag}
                   onClick={() => toggleFlag(f.flag)}
                   className={`w-6 h-6 rounded-sm text-[11px] font-mono font-medium transition-all ${activeFlags.includes(f.flag) ? 'text-white' : 'text-white/25'}`}
-                  style={activeFlags.includes(f.flag) ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                  style={activeFlags.includes(f.flag) ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
                   title={f.description}
                 >
                   {f.flag}
@@ -155,7 +155,7 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
         </div>
       )}
 
-      <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
         <button onClick={handleCopy}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"
         >

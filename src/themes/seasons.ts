@@ -1,134 +1,12 @@
 import { Theme } from '../types/theme';
 
-export const seasonThemes: Record<string, Theme> = {
-  spring: {
-    name: 'Spring Bloom',
-    background: 'bg-linear-to-br/srgb from-pink-100 to-rose-200',
-    text: 'text-black',
-    border: 'border-rose-200/50',
-    input: {
-      background: 'bg-white/70 backdrop-blur-md',
-      text: 'text-black',
-      placeholder: 'placeholder-gray-600',
-      border: 'border-transparent'
-    },
-    button: {
-      primary: 'bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-xs',
-      secondary: 'bg-white/80 hover:bg-white/90 backdrop-blur-md text-black rounded-lg'
-    },
-    modal: {
-      background: 'bg-white/80 backdrop-blur-lg shadow-lg',
-      overlay: 'bg-black/20 backdrop-blur-xs'
-    },
-    dropdown: {
-      background: 'bg-white/80 backdrop-blur-md shadow-xs',
-      hover: 'hover:bg-rose-100/50'
-    },
-    card: {
-      background: 'bg-white/70 backdrop-blur-md shadow-xs',
-      border: 'border-rose-200/30'
-    },
-    glow: {
-      primary: 'shadow-[0_4px_12px_rgba(244,63,94,0.2)]',
-      secondary: 'shadow-[0_4px_12px_rgba(0,0,0,0.05)]'
-    }
-  },
-  summer: {
-    name: 'Summer Peach',
-    background: 'bg-linear-to-br/srgb from-orange-100 to-yellow-100',
-    text: 'text-black',
-    border: 'border-orange-200/50',
-    input: {
-      background: 'bg-white/85 backdrop-blur-lg',
-      text: 'text-black',
-      placeholder: 'placeholder-gray-600',
-      border: 'border-transparent'
-    },
-    button: {
-      primary: 'bg-orange-500 hover:bg-orange-600 text-white rounded-lg shadow-xs',
-      secondary: 'bg-white/80 hover:bg-white/90 backdrop-blur-lg text-black rounded-lg'
-    },
-    modal: {
-      background: 'bg-white/85 backdrop-blur-lg shadow-lg',
-      overlay: 'bg-black/20 backdrop-blur-xs'
-    },
-    dropdown: {
-      background: 'bg-white/85 backdrop-blur-lg shadow-xs',
-      hover: 'hover:bg-orange-100/50'
-    },
-    card: {
-      background: 'bg-white/85 backdrop-blur-lg shadow-xs',
-      border: 'border-orange-200/30'
-    },
-    glow: {
-      primary: 'shadow-[0_4px_16px_rgba(255,165,0,0.2)]',
-      secondary: 'shadow-[0_4px_16px_rgba(0,0,0,0.05)]'
-    }
-  },
-  autumn: {
-    name: 'Autumn Harvest',
-    background: 'bg-linear-to-br/srgb from-purple-200 to-indigo-300',
-    text: 'text-black',
-    border: 'border-purple-200/50',
-    input: {
-      background: 'bg-white/85 backdrop-blur-lg',
-      text: 'text-black',
-      placeholder: 'placeholder-gray-600',
-      border: 'border-transparent'
-    },
-    button: {
-      primary: 'bg-purple-500 hover:bg-purple-600 text-white rounded-lg shadow-xs',
-      secondary: 'bg-white/80 hover:bg-white/90 backdrop-blur-lg text-black rounded-lg'
-    },
-    modal: {
-      background: 'bg-white/85 backdrop-blur-lg shadow-lg',
-      overlay: 'bg-black/20 backdrop-blur-xs'
-    },
-    dropdown: {
-      background: 'bg-white/85 backdrop-blur-lg shadow-xs',
-      hover: 'hover:bg-purple-200/50'
-    },
-    card: {
-      background: 'bg-white/85 backdrop-blur-lg shadow-xs',
-      border: 'border-purple-200/30'
-    },
-    glow: {
-      primary: 'shadow-[0_4px_16px_rgba(147,51,234,0.2)]',
-      secondary: 'shadow-[0_4px_16px_rgba(0,0,0,0.05)]'
-    }
-  },
-  winter: {
-    name: 'Winter Sky',
-    background: 'bg-linear-to-br/srgb from-blue-100 to-cyan-200',
-    text: 'text-black',
-    border: 'border-cyan-200/50',
-    input: {
-      background: 'bg-white/70 backdrop-blur-md',
-      text: 'text-black',
-      placeholder: 'placeholder-gray-600',
-      border: 'border-transparent'
-    },
-    button: {
-      primary: 'bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg shadow-xs',
-      secondary: 'bg-white/80 hover:bg-white/90 backdrop-blur-md text-black rounded-lg'
-    },
-    modal: {
-      background: 'bg-white/80 backdrop-blur-lg shadow-lg',
-      overlay: 'bg-black/20 backdrop-blur-xs'
-    },
-    dropdown: {
-      background: 'bg-white/80 backdrop-blur-md shadow-xs',
-      hover: 'hover:bg-cyan-100/50'
-    },
-    card: {
-      background: 'bg-white/70 backdrop-blur-md shadow-xs',
-      border: 'border-cyan-200/30'
-    },
-    glow: {
-      primary: 'shadow-[0_4px_12px_rgba(6,182,212,0.2)]',
-      secondary: 'shadow-[0_4px_12px_rgba(0,0,0,0.05)]'
-    }
-  },
+/**
+ * Seasons are a dark-mode feature. Each is the black canvas with one hue
+ * rising from the bottom, and the persona picks one by default (Air →
+ * autumn, Girlie → spring, PRO → summer). Light mode has a single variant
+ * — see themes/light.ts — so there are no light seasons here.
+ */
+export const seasonThemes = {
   springDark: {
     name: 'Spring Night',
     background: 'bg-linear-to-t/srgb from-pink-950 to-black to-50%',
@@ -257,36 +135,38 @@ export const seasonThemes: Record<string, Theme> = {
       secondary: 'shadow-[0_4px_16px_rgba(0,0,0,0.1)]'
     }
   },
-  monochrome: {
-    name: 'Monochrome Slate',
-    background: 'bg-linear-to-br/srgb from-gray-900 to-gray-900',
+  /* No hue at all: the black canvas with nothing rising from the bottom.
+     Everything else is Autumn Ember's, so the chrome is unchanged. */
+  pureDark: {
+    name: 'Pure Black',
+    background: 'bg-black',
     text: 'text-gray-200',
-    border: 'border-gray-700/50',
+    border: 'border-gray-800/50',
     input: {
-      background: 'bg-gray-800/80 backdrop-blur-3xl',
+      background: 'bg-gray-900/80 backdrop-blur-3xl',
       text: 'text-gray-200',
       placeholder: 'placeholder-gray-400',
       border: 'border-transparent'
     },
     button: {
-      primary: 'bg-linear-to-r/srgb from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 text-white rounded-lg shadow-xs',
-      secondary: 'bg-gray-800/80 hover:bg-gray-700/80 backdrop-blur-3xl text-gray-200 rounded-lg'
+      primary: 'bg-purple-900 hover:bg-purple-800 text-white rounded-lg shadow-xs',
+      secondary: 'bg-gray-900/80 hover:bg-gray-800/80 backdrop-blur-3xl text-gray-200 rounded-lg'
     },
     modal: {
-      background: 'bg-gray-800/85 backdrop-blur-3xl shadow-lg',
-      overlay: 'bg-gray-900/20 backdrop-blur-md'
+      background: 'bg-gray-900/80 backdrop-blur-3xl shadow-lg',
+      overlay: 'bg-black/20 backdrop-blur-md'
     },
     dropdown: {
-      background: 'bg-gray-800/85 backdrop-blur-3xl shadow-xs',
-      hover: 'hover:bg-blue-500/20'
+      background: 'bg-gray-900/80 backdrop-blur-3xl shadow-xs',
+      hover: 'hover:bg-white/5'
     },
     card: {
-      background: 'bg-gray-800/80 backdrop-blur-3xl shadow-xs',
-      border: 'border-gray-700/30'
+      background: 'bg-gray-900/80 backdrop-blur-3xl shadow-xs',
+      border: 'border-gray-800/30'
     },
     glow: {
-      primary: 'shadow-[0_4px_16px_rgba(59,130,246,0.1)]',
+      primary: 'shadow-[0_4px_16px_rgba(0,0,0,0.3)]',
       secondary: 'shadow-[0_4px_16px_rgba(0,0,0,0.1)]'
     }
   }
-};
+} as const satisfies Record<string, Theme>;

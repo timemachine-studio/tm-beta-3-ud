@@ -32,8 +32,8 @@ export function SesamePanel({ onClose }: SesamePanelProps) {
         className="relative mx-auto h-full min-h-0 w-full max-w-6xl overflow-hidden rounded-[1.4rem] sm:rounded-[1.75rem]"
         style={{
           background: '#f5efe6',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          boxShadow: '0 28px 80px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+          border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)',
+          boxShadow: '0 28px 80px rgb(var(--tm-shadow-rgb) / 0.5), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.08)',
         }}
       >
         <div className="relative h-full min-h-0 bg-[#f5efe6]">

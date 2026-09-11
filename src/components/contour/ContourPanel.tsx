@@ -201,15 +201,15 @@ export function ContourPanel({
           <div
             className="rounded-2xl overflow-hidden"
             style={{
-              background: 'rgba(10, 10, 10, 0.85)',
+              background: 'var(--tm-popover-bg)',
               backdropFilter: 'blur(40px) saturate(180%)',
               WebkitBackdropFilter: 'blur(40px) saturate(180%)',
               border: `1px solid ${accent.border}`,
-              boxShadow: `${accent.glow}, 0 25px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08)`,
+              boxShadow: `${accent.glow}, 0 25px 50px rgb(var(--tm-shadow-rgb) / 0.5), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.08)`,
             }}
           >
             {/* Header */}
-            <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
               <div className="flex items-center gap-2">
                 {isFocused && moduleMeta && (
                   <>
@@ -293,7 +293,7 @@ export function ContourPanel({
                                   border: isSelected ? `1px solid ${accent.border}` : '1px solid transparent',
                                 }}
                               >
-                                <div className="p-1.5 rounded-lg shrink-0" style={{ background: isSelected ? accent.border.replace('0.25', '0.15') : 'rgba(255, 255, 255, 0.04)' }}>
+                                <div className="p-1.5 rounded-lg shrink-0" style={{ background: isSelected ? accent.border.replace('0.25', '0.15') : 'rgb(var(--tm-ink-rgb) / 0.04)' }}>
                                   <IconComponent className={`w-4 h-4 ${isSelected ? accent.text : 'text-white/40'}`} />
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -316,7 +316,7 @@ export function ContourPanel({
 
             {/* Footer */}
             {state.mode === 'commands' && state.commands.length > 0 && (
-              <div className="px-4 py-2 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+              <div className="px-4 py-2 flex items-center justify-between" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
                 <div className="flex items-center gap-3">
                   <span className="text-[10px] text-white/20 flex items-center gap-1">
                     <kbd className="px-1.5 py-0.5 rounded-sm bg-white/5 border border-white/10 text-white/30">↑↓</kbd> navigate
@@ -331,7 +331,7 @@ export function ContourPanel({
               </div>
             )}
             {isFocused && (
-              <div className="px-4 py-2 flex items-center" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+              <div className="px-4 py-2 flex items-center" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
                 {showTouchControls ? (
                   <button
                     type="button"

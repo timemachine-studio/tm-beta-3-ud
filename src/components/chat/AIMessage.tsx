@@ -59,11 +59,11 @@ const getPersonaColor = (persona: keyof typeof AI_PERSONAS = 'default') => {
 const getPersonaShimmerColors = (persona: keyof typeof AI_PERSONAS = 'default') => {
   switch (persona) {
     case 'girlie':
-      return { baseColor: '#ec4899', shimmerColor: '#ffffff' }; // Pink base with white shimmer
+      return { baseColor: '#ec4899', shimmerColor: 'var(--color-ink)' }; // Pink base with white shimmer
     case 'pro':
-      return { baseColor: '#06b6d4', shimmerColor: '#ffffff' }; // Cyan base with white shimmer
+      return { baseColor: '#06b6d4', shimmerColor: 'var(--color-ink)' }; // Cyan base with white shimmer
     default:
-      return { baseColor: '#a855f7', shimmerColor: '#ffffff' }; // Purple base with white shimmer
+      return { baseColor: '#a855f7', shimmerColor: 'var(--color-ink)' }; // Purple base with white shimmer
   }
 };
 

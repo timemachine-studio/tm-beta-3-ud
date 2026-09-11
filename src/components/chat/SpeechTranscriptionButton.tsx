@@ -154,16 +154,16 @@ export function SpeechTranscriptionButton({
         className="p-3 rounded-full transition-all duration-300 relative group disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
           background: isListening
-            ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(255, 255, 255, 0.05))'
-            : `linear-gradient(135deg, ${personaStyles.tintColors[stylePersona]}, rgba(255, 255, 255, 0.05))`,
+            ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgb(var(--tm-ink-rgb) / 0.05))'
+            : `linear-gradient(135deg, ${personaStyles.tintColors[stylePersona]}, rgb(var(--tm-ink-rgb) / 0.05))`,
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           border: isListening
             ? '1px solid rgba(239, 68, 68, 0.4)'
             : `1px solid ${personaStyles.borderColors[stylePersona]}`,
           boxShadow: isListening
-            ? '0 0 12px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
-            : `${personaStyles.glowShadow[stylePersona]}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`
+            ? '0 0 12px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
+            : `${personaStyles.glowShadow[stylePersona]}, inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)`
         }}
         type="button"
         aria-label={isListening ? 'Stop live transcription' : 'Start live transcription'}

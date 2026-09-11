@@ -13,9 +13,9 @@ interface GeneratedImageProps {
 
 // Memoized shimmer colors lookup - defined outside component to avoid recreation
 const PERSONA_SHIMMER_COLORS: Record<string, { baseColor: string; shimmerColor: string }> = {
-  girlie: { baseColor: '#ec4899', shimmerColor: '#ffffff' },
-  pro: { baseColor: '#06b6d4', shimmerColor: '#ffffff' },
-  default: { baseColor: '#a855f7', shimmerColor: '#ffffff' },
+  girlie: { baseColor: '#ec4899', shimmerColor: 'var(--color-ink)' },
+  pro: { baseColor: '#06b6d4', shimmerColor: 'var(--color-ink)' },
+  default: { baseColor: '#a855f7', shimmerColor: 'var(--color-ink)' },
 };
 
 const getPersonaShimmerColors = (persona: keyof typeof AI_PERSONAS = 'default') => {

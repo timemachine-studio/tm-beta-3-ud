@@ -3,11 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Plus, Check, Trash2 } from 'lucide-react';
 
 const glassCard = {
-    background: 'rgba(255, 255, 255, 0.05)',
+    background: 'rgb(var(--tm-ink-rgb) / 0.05)',
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+    border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+    boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)',
 } as const;
 
 const fadeUp = (delay = 0) => ({
@@ -92,8 +92,8 @@ export function ShoppingListPage() {
                     <div
                         className="flex-1 flex items-center gap-3 px-4 py-4 rounded-2xl"
                         style={{
-                            background: 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            background: 'rgb(var(--tm-ink-rgb) / 0.04)',
+                            border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
                         }}
                     >
                         <input

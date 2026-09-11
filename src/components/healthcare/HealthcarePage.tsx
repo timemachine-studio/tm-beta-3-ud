@@ -638,7 +638,7 @@ export function HealthcarePage() {
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               border: '1px solid rgba(16, 185, 129, 0.3)',
-              boxShadow: '0 0 20px rgba(16, 185, 129, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+              boxShadow: '0 0 20px rgba(16, 185, 129, 0.15), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)',
             }}
           >
             <MessageCircle className="w-4.5 h-4.5" />
@@ -685,7 +685,7 @@ export function HealthcarePage() {
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           border: '1px solid rgba(16, 185, 129, 0.35)',
-          boxShadow: '0 4px 24px rgba(16, 185, 129, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 4px 24px rgba(16, 185, 129, 0.25), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)',
         }}
       >
         <MessageCircle className="w-4 h-4" />

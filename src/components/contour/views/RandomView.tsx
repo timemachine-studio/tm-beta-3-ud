@@ -81,7 +81,7 @@ export function RandomView({ module, accent, onCopyValue }: { module: ModuleData
         </div>
       </div>
 
-      <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+      <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
         <div className="flex items-center gap-2">
           <button
             onClick={handleRegenerate}

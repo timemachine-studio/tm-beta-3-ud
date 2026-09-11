@@ -55,11 +55,11 @@ function StatCard({ icon, label, value, onClick }: {
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className="relative overflow-hidden rounded-2xl p-4 text-left w-full group"
-      style={{ background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)' }}
+      style={{ background: 'rgb(var(--tm-ink-rgb) / 0.05)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)', boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)' }}
     >
       <div className="relative flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl" style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>{icon}</div>
+          <div className="p-2.5 rounded-xl" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)' }}>{icon}</div>
           <div><p className="text-2xl font-bold text-white">{value}</p><p className="text-white/50 text-sm font-medium">{label}</p></div>
         </div>
         {onClick && <ChevronRight className="w-5 h-5 text-white/30 group-hover:text-white/60 transition-colors" />}
@@ -274,7 +274,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
     <div
       className="h-screen overflow-hidden flex flex-col"
       style={{
-        background: 'linear-gradient(to top, #581c87 0%, #000000 40%, #000000 100%)'
+        background: 'var(--tm-page-bg)'
       }}
     >
 
@@ -312,11 +312,11 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
             transition={{ delay: 0.1 }}
             className="relative overflow-hidden mb-6 rounded-3xl"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'var(--tm-pane-bg)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+              border: '1px solid var(--tm-pane-border)',
+              boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
             }}
           >
 
@@ -328,14 +328,14 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                   <div
                     className="w-28 h-28 rounded-full p-[2px]"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.15)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)'
+                      background: 'rgb(var(--tm-ink-rgb) / 0.15)',
+                      border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)'
                     }}
                   >
                     <div
                       className="w-full h-full rounded-full flex items-center justify-center overflow-hidden"
                       style={{
-                        background: 'rgba(0, 0, 0, 0.5)',
+                        background: 'rgb(var(--tm-paper-rgb) / 0.5)',
                         backdropFilter: 'blur(20px)',
                         WebkitBackdropFilter: 'blur(20px)'
                       }}
@@ -360,10 +360,10 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                     disabled={uploadingAvatar}
                     className="absolute -bottom-1 -right-1 p-2.5 rounded-full text-white"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.1)',
+                      background: 'rgb(var(--tm-ink-rgb) / 0.1)',
                       backdropFilter: 'blur(20px)',
                       WebkitBackdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)'
+                      border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)'
                     }}
                   >
                     {uploadingAvatar ? (
@@ -492,15 +492,15 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                       </div>
                     ) : (
                       <motion.button
-                        whileHover={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                        whileHover={{ backgroundColor: 'rgb(var(--tm-ink-rgb) / 0.08)' }}
                         onClick={() => setEditingField('gender')}
                         className="w-full px-4 py-3 rounded-xl text-left flex items-center justify-between group"
                         style={{
-                          background: 'rgba(255, 255, 255, 0.03)',
+                          background: 'rgb(var(--tm-ink-rgb) / 0.03)',
                           backdropFilter: 'blur(20px)',
                           WebkitBackdropFilter: 'blur(20px)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                          border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
+                          boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                         }}
                       >
                         <span className={gender ? 'text-white' : 'text-white/30'}>
@@ -551,15 +551,15 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                       </div>
                     ) : (
                       <motion.button
-                        whileHover={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                        whileHover={{ backgroundColor: 'rgb(var(--tm-ink-rgb) / 0.08)' }}
                         onClick={() => setEditingField('birthDate')}
                         className="w-full px-4 py-3 rounded-xl text-left flex items-center justify-between group"
                         style={{
-                          background: 'rgba(255, 255, 255, 0.03)',
+                          background: 'rgb(var(--tm-ink-rgb) / 0.03)',
                           backdropFilter: 'blur(20px)',
                           WebkitBackdropFilter: 'blur(20px)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                          border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
+                          boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                         }}
                       >
                         <div className="flex items-center gap-3">
@@ -582,11 +582,11 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                   <div
                     className="flex items-center gap-3 px-4 py-3 rounded-xl"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.03)',
+                      background: 'rgb(var(--tm-ink-rgb) / 0.03)',
                       backdropFilter: 'blur(20px)',
                       WebkitBackdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                      border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
+                      boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                     }}
                   >
                     <Mail size={16} className="text-white/40" />
@@ -625,11 +625,11 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
             onClick={() => setShowChangePassword(true)}
             className="w-full py-4 rounded-2xl text-white/80 font-medium flex items-center justify-center gap-2 mb-3"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'rgb(var(--tm-ink-rgb) / 0.05)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+              boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
             }}
           >
             <Key size={18} />
@@ -646,11 +646,11 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
             onClick={handleSignOut}
             className="w-full py-4 rounded-2xl text-red-400 font-medium flex items-center justify-center gap-2"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'rgb(var(--tm-ink-rgb) / 0.05)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+              boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
             }}
           >
             <LogOut size={18} />
@@ -725,7 +725,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                     }}
                     disabled={deleteLoading}
                     className="px-5 py-3 rounded-xl text-white/60 hover:text-white transition-colors"
-                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    style={{ background: 'rgb(var(--tm-ink-rgb) / 0.05)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)' }}
                   >
                     Cancel
                   </button>
@@ -802,11 +802,11 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
               <div
                 className="relative w-full max-w-[400px] rounded-3xl p-6"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: 'var(--tm-pane-bg)',
                   backdropFilter: 'blur(20px)',
                   WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                  border: '1px solid var(--tm-pane-border)',
+                  boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                 }}
               >
                 {/* Close button */}
@@ -847,8 +847,8 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                       placeholder="Current password"
                       className="w-full pl-12 pr-12 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
                       style={{
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                        border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
                       }}
                     />
                     <button
@@ -872,8 +872,8 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                       placeholder="New password"
                       className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
                       style={{
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                        border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
                       }}
                     />
                   </div>
@@ -890,8 +890,8 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
                       placeholder="Confirm new password"
                       className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
                       style={{
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                        border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
                       }}
                     />
                   </div>
@@ -1014,15 +1014,15 @@ const EditableField: React.FC<EditableFieldProps> = ({
         </div>
       ) : (
         <motion.button
-          whileHover={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+          whileHover={{ backgroundColor: 'rgb(var(--tm-ink-rgb) / 0.08)' }}
           onClick={onEdit}
           className="w-full px-4 py-3 rounded-xl text-left flex items-center justify-between group"
           style={{
-            background: 'rgba(255, 255, 255, 0.03)',
+            background: 'rgb(var(--tm-ink-rgb) / 0.03)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
+            boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
           }}
         >
           <span className={value ? 'text-white' : 'text-white/30'}>

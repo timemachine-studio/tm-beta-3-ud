@@ -38,7 +38,7 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
           transition={{ duration: 0.2 }}
           onClick={handleBackdropClick}
           className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-4 animate-none"
-          style={{ background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(10px)' }}
+          style={{ background: 'rgb(var(--tm-paper-rgb) / 0.75)', backdropFilter: 'blur(10px)' }}
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -47,16 +47,16 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="relative w-full h-full sm:w-[96vw] sm:h-[92vh] max-w-none rounded-none sm:rounded-2xl overflow-hidden flex flex-col"
             style={{
-              background: 'rgba(25, 25, 25, 0.45)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+              background: 'var(--tm-pane-bg)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)',
+              boxShadow: '0 24px 64px rgb(var(--tm-shadow-rgb) / 0.6), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)',
               backdropFilter: 'blur(20px)',
             }}
           >
             {/* Header bar styled like a browser window */}
             <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{
-              background: 'rgba(255, 255, 255, 0.04)',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              background: 'rgb(var(--tm-ink-rgb) / 0.04)',
+              borderBottom: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
             }}>
               <div className="flex items-center select-none">
                 <span className="text-xs font-semibold text-white/50 tracking-wider font-sans uppercase">
@@ -69,8 +69,8 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
                 onClick={onClose}
                 className="p-1 rounded-lg transition-all duration-200 hover:scale-105 hover:bg-white/10 active:scale-95"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: 'rgb(var(--tm-ink-rgb) / 0.06)',
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
                 }}
                 title="Close Preview"
               >
@@ -89,7 +89,7 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
               srcDoc={htmlCode}
               title="HTML Preview"
               sandbox="allow-scripts allow-modals allow-forms"
-              className="w-full flex-1 border-0 bg-white"
+              className="w-full flex-1 border-0 bg-[#fff]"
             />
           </motion.div>
         </motion.div>

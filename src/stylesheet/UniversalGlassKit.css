@@ -11,15 +11,27 @@
 
    ** ALWAYS USE INLINE STYLES FOR GLASS EFFECTS **
 
-   Example inline style (copy this):
+   Example inline style (copy this). Write colours with the theme
+   primitives, never literal white/black — light mode swaps the poles
+   (see stylesheet/light.css) and a literal rgba(255,255,255,…) would
+   stay white on paper:
 
    style={{
-     background: 'rgba(255, 255, 255, 0.05)',
+     background: 'rgb(var(--tm-ink-rgb) / 0.05)',
      backdropFilter: 'blur(20px)',
      WebkitBackdropFilter: 'blur(20px)',
-     border: '1px solid rgba(255, 255, 255, 0.1)',
-     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+     border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+     boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
    }}
+
+   --tm-ink-rgb     fills, hairlines, text   (white on dark, near-black on light)
+   --tm-paper-rgb   scrims, ground           (black on dark, bone on light)
+   --tm-shadow-rgb  drop shadows             (always dark; warm on light)
+   --tm-edge-rgb    the lit top edge         (always light)
+   --tm-pane-bg / --tm-pane-border / --tm-pane-shadow
+                    a floating pane (modal, popover) — lighter than its
+                    ground in BOTH modes, so not a plain inversion
+   --tm-popover-bg  a near-opaque sheet (Contour, carts)
 
    The "inset 0 1px 0" is the KEY - it creates the glass edge
    reflection like light hitting actual glass.
@@ -27,11 +39,11 @@
    For inputs (lighter background):
 
    style={{
-     background: 'rgba(255, 255, 255, 0.03)',
+     background: 'rgb(var(--tm-ink-rgb) / 0.03)',
      backdropFilter: 'blur(20px)',
      WebkitBackdropFilter: 'blur(20px)',
-     border: '1px solid rgba(255, 255, 255, 0.08)',
-     boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+     border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
+     boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
    }}
 
    ALWAYS add rounded corners via className (e.g., rounded-xl, rounded-2xl)

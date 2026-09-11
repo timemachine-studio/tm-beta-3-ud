@@ -318,11 +318,11 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
           <div
             className="p-4 w-full sm:w-72 md:w-80 rounded-2xl"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'rgb(var(--tm-ink-rgb) / 0.05)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+              boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
             }}
           >
             {/* Header */}
@@ -360,11 +360,11 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
                 onClick={handleClose}
                 className="p-1.5 rounded-full"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                   backdropFilter: 'blur(20px)',
                   WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                  boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                 }}
               >
                 <X className="w-4 h-4 text-white/70 hover:text-white" />
@@ -396,11 +396,11 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
                 onClick={toggleMute}
                 className="w-full mb-2 py-2 px-3 rounded-xl flex items-center justify-center gap-2"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                   backdropFilter: 'blur(20px)',
                   WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                  boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                 }}
               >
                 <VolumeX className={`w-4 h-4 ${colors.accent}`} />
@@ -416,11 +416,11 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
                 onClick={toggleMute}
                 className={`p-2 rounded-full ${autoplayBlocked ? 'animate-pulse' : ''}`}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                   backdropFilter: 'blur(20px)',
                   WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                  boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                 }}
               >
                 {isMuted ? (
@@ -436,11 +436,11 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
                 onClick={seekBackward}
                 className="p-2 rounded-full"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                   backdropFilter: 'blur(20px)',
                   WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                  boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                 }}
               >
                 <SkipBack className="w-4 h-4 text-white" />
@@ -452,11 +452,11 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
                 onClick={togglePlay}
                 className="p-2.5 sm:p-3 rounded-full"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
+                  background: 'rgb(var(--tm-ink-rgb) / 0.1)',
                   backdropFilter: 'blur(20px)',
                   WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.15)',
+                  boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                 }}
                 disabled={!isReady}
               >
@@ -473,11 +473,11 @@ export function YouTubePlayer({ musicData, onClose, currentPersona = 'default' }
                 onClick={seekForward}
                 className="p-2 rounded-full"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                   backdropFilter: 'blur(20px)',
                   WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                  boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                 }}
               >
                 <SkipForward className="w-4 h-4 text-white" />

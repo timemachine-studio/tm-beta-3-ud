@@ -319,7 +319,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText, saved
             disabled={audioLoading}
             className={`w-full h-1.5 appearance-none rounded-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
             style={{
-              background: `linear-gradient(to right, ${personaColor.includes('pink') ? '#ec4899' : personaColor.includes('cyan') ? '#06b6d4' : '#a855f7'} ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.1) ${(currentTime / (duration || 1)) * 100}%)`,
+              background: `linear-gradient(to right, ${personaColor.includes('pink') ? '#ec4899' : personaColor.includes('cyan') ? '#06b6d4' : '#a855f7'} ${(currentTime / (duration || 1)) * 100}%, rgb(var(--tm-ink-rgb) / 0.1) ${(currentTime / (duration || 1)) * 100}%)`,
             }}
           />
         </div>

@@ -49,11 +49,11 @@ function formatTime(): string {
 // ─── brand glass (matches UniversalGlassKit) ─────────────────────────
 
 const glassCard = {
-  background: 'rgba(255, 255, 255, 0.05)',
+  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
   backdropFilter: 'blur(20px)',
   WebkitBackdropFilter: 'blur(20px)',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+  boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)',
 } as const;
 
 // ─── bottom bento card data ──────────────────────────────────────────
@@ -210,7 +210,7 @@ export function HomePage() {
       <div className="absolute inset-0 -z-10">
         <div
           className="absolute inset-0"
-          style={{ background: 'linear-gradient(160deg, #7c3aed 0%, #4c1d95 20%, #1e1b4b 45%, #0a0a0a 75%, #000 100%)' }}
+          style={{ background: 'var(--tm-home-bg)' }}
         />
         <div className="absolute top-[-10%] left-[20%] w-[700px] h-[700px] bg-purple-500/25 rounded-full blur-[200px]" />
         <div className="absolute bottom-[-5%] right-[10%] w-[500px] h-[500px] bg-violet-600/10 rounded-full blur-[160px]" />
@@ -279,9 +279,9 @@ export function HomePage() {
                             onClick={handleOpenInChatUI}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white/50 hover:text-white/80 transition-colors text-xs font-medium"
                             style={{
-                              background: 'rgba(255, 255, 255, 0.05)',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
-                              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                              background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                              border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                              boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)',
                             }}
                           >
                             <ExternalLink className="w-3 h-3" />
@@ -367,7 +367,7 @@ export function HomePage() {
                     style={{
                       background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(168, 85, 247, 0.08))',
                       border: '1px solid rgba(168, 85, 247, 0.3)',
-                      boxShadow: '0 0 12px rgba(168, 85, 247, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                      boxShadow: '0 0 12px rgba(168, 85, 247, 0.15), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)',
                       color: 'rgba(196, 132, 252, 0.9)',
                     }}
                   >
@@ -419,11 +419,11 @@ export function HomePage() {
           transition={{ duration: 0.5, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="flex items-center gap-1.5 px-2 py-2 rounded-full"
           style={{
-            background: 'rgba(255, 255, 255, 0.08)',
+            background: 'rgb(var(--tm-ink-rgb) / 0.08)',
             backdropFilter: 'blur(40px)',
             WebkitBackdropFilter: 'blur(40px)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+            border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)',
+            boxShadow: '0 8px 32px rgb(var(--tm-shadow-rgb) / 0.4), 0 2px 8px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)',
           }}
         >
           {sidebarItems.map((item) => {
@@ -437,10 +437,10 @@ export function HomePage() {
                 style={isActive ? {
                   background: 'rgba(168, 85, 247, 0.25)',
                   border: '1px solid rgba(168, 85, 247, 0.4)',
-                  boxShadow: '0 0 12px rgba(168, 85, 247, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+                  boxShadow: '0 0 12px rgba(168, 85, 247, 0.3), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)',
                 } : {
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  background: 'rgb(var(--tm-ink-rgb) / 0.04)',
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
                 }}
                 title={item.label}
               >

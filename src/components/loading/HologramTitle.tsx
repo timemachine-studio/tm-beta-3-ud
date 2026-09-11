@@ -13,7 +13,7 @@ export function HologramTitle() {
         className="text-4xl font-bold text-transparent bg-clip-text bg-linear-to-b/srgb from-purple-300 to-purple-600"
         style={{
           fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
-          WebkitTextStroke: '1px rgba(255, 255, 255, 0.1)'
+          WebkitTextStroke: '1px rgb(var(--tm-ink-rgb) / 0.1)'
         }}
         animate={{
           textShadow: [

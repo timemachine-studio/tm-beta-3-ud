@@ -667,7 +667,7 @@ export function GroupChatPage() {
                       {getMentionSuggestions().map((suggestion) => (
                         <motion.button
                           key={suggestion.id}
-                          whileHover={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+                          whileHover={{ backgroundColor: 'rgb(var(--tm-ink-rgb) / 0.1)' }}
                           onClick={() => insertMention(suggestion.nickname)}
                           className="w-full px-4 py-3 flex items-center gap-3 text-left"
                         >

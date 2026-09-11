@@ -92,11 +92,11 @@ const BLOCK_MENU_OPTIONS: { type: BlockType; label: string; description: string;
 ];
 
 const glassCard = {
-  background: 'rgba(255, 255, 255, 0.05)',
+  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
   backdropFilter: 'blur(20px)',
   WebkitBackdropFilter: 'blur(20px)',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+  boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)',
 } as const;
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -314,7 +314,7 @@ function DoodleBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCon
     if (tool === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.arc(pos.x, pos.y, (brushSize * 3) / 2, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.fillStyle = 'rgb(var(--tm-paper-rgb) / 1)';
     } else {
       ctx.globalCompositeOperation = 'source-over';
       ctx.arc(pos.x, pos.y, brushSize / 2, 0, Math.PI * 2);
@@ -333,7 +333,7 @@ function DoodleBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCon
     ctx.lineTo(pos.x, pos.y);
     if (tool === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.strokeStyle = 'rgb(var(--tm-paper-rgb) / 1)';
       ctx.lineWidth = brushSize * 6;
     } else {
       ctx.globalCompositeOperation = 'source-over';
@@ -417,11 +417,11 @@ function DoodleBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCon
           width: displaySize.w,
           height: displaySize.h,
           maxWidth: '100%',
-          background: 'rgba(255, 255, 255, 0.05)',
+          background: 'rgb(var(--tm-ink-rgb) / 0.05)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+          border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+          boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)',
         }}
       >
         <canvas
@@ -444,11 +444,11 @@ function DoodleBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCon
             onClick={() => setShowPalette(!showPalette)}
             className="w-9 h-9 rounded-full flex items-center justify-center transition-all"
             style={{
-              background: showPalette ? 'rgba(255,255,255,0.2)' : 'rgba(20,20,20,0.7)',
-              border: '1px solid rgba(255,255,255,0.2)',
+              background: showPalette ? 'rgb(var(--tm-ink-rgb) / 0.2)' : 'var(--tm-popover-bg)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)',
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              boxShadow: '0 2px 8px rgb(var(--tm-shadow-rgb) / 0.4)',
             }}
           >
             {tool === 'eraser'
@@ -465,11 +465,11 @@ function DoodleBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCon
               exit={{ opacity: 0, y: 4, scale: 0.97 }}
               className="absolute bottom-11 left-0 p-3 rounded-2xl z-30"
               style={{
-                background: 'rgba(15,15,15,0.92)',
+                background: 'var(--tm-popover-bg)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)',
+                boxShadow: '0 8px 32px rgb(var(--tm-shadow-rgb) / 0.5)',
                 minWidth: 160,
               }}
             >
@@ -502,7 +502,7 @@ function DoodleBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCon
                     className="w-6 h-6 rounded-full transition-transform hover:scale-110"
                     style={{
                       background: c,
-                      border: `2px solid ${color === c && tool === 'pen' ? 'white' : 'rgba(255,255,255,0.15)'}`,
+                      border: `2px solid ${color === c && tool === 'pen' ? 'white' : 'rgb(var(--tm-ink-rgb) / 0.15)'}`,
                     }}
                   />
                 ))}
@@ -681,9 +681,9 @@ function ImageBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCont
             onClick={() => fileInputRef.current?.click()}
             className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs text-white/70 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
             style={{
-              background: 'rgba(0,0,0,0.6)',
+              background: 'rgb(var(--tm-paper-rgb) / 0.6)',
               backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
             }}
           >
             Replace
@@ -693,7 +693,7 @@ function ImageBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCont
             onMouseDown={onResizeStart}
             className="absolute bottom-1.5 right-1.5 w-5 h-5 flex items-end justify-end cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity"
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" style={{ color: 'rgba(255,255,255,0.6)' }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.6)' }}>
               <line x1="4" y1="12" x2="12" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               <line x1="8" y1="12" x2="12" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
@@ -711,8 +711,8 @@ function ImageBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCont
           }}
           className="w-full flex flex-col items-center justify-center gap-2 py-10 rounded-2xl text-white/30 hover:text-white/50 transition-all"
           style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1.5px dashed rgba(255, 255, 255, 0.1)',
+            background: 'rgb(var(--tm-ink-rgb) / 0.03)',
+            border: '1.5px dashed rgb(var(--tm-ink-rgb) / 0.1)',
           }}
         >
           <ImagePlus className="w-8 h-8" />
@@ -1011,7 +1011,7 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
         </div>
 
         {/* SVG Graph */}
-        <div className="relative select-none" style={{ background: 'rgba(0,0,0,0.18)' }}>
+        <div className="relative select-none" style={{ background: 'rgb(var(--tm-paper-rgb) / 0.18)' }}>
           <svg
             width="100%"
             viewBox={`0 0 ${W} ${H}`}
@@ -1031,23 +1031,23 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
 
             {/* Minor grid */}
             {gridLines.filter((l) => !l.axis).map((l, i) => (
-              <line key={`g${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="rgba(255,255,255,0.045)" strokeWidth="1" />
+              <line key={`g${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="rgb(var(--tm-ink-rgb) / 0.045)" strokeWidth="1" />
             ))}
 
             {/* Axes */}
-            <line x1={0} y1={axisY} x2={W} y2={axisY} stroke="rgba(255,255,255,0.28)" strokeWidth="1.5" />
-            <line x1={axisX} y1={0} x2={axisX} y2={H} stroke="rgba(255,255,255,0.28)" strokeWidth="1.5" />
+            <line x1={0} y1={axisY} x2={W} y2={axisY} stroke="rgb(var(--tm-ink-rgb) / 0.28)" strokeWidth="1.5" />
+            <line x1={axisX} y1={0} x2={axisX} y2={H} stroke="rgb(var(--tm-ink-rgb) / 0.28)" strokeWidth="1.5" />
 
             {/* Tick marks + labels — x axis */}
             {xTicks.map((t, i) => (
               <g key={`xt${i}`}>
-                <line x1={t.sx} y1={axisY - 3} x2={t.sx} y2={axisY + 3} stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+                <line x1={t.sx} y1={axisY - 3} x2={t.sx} y2={axisY + 3} stroke="rgb(var(--tm-ink-rgb) / 0.35)" strokeWidth="1" />
                 <text
                   x={t.sx}
                   y={Math.min(H - 4, Math.max(14, axisY + 14))}
                   textAnchor="middle"
                   fontSize="9"
-                  fill="rgba(255,255,255,0.4)"
+                  fill="rgb(var(--tm-ink-rgb) / 0.4)"
                   fontFamily="monospace"
                 >{formatTick(t.v)}</text>
               </g>
@@ -1056,25 +1056,25 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
             {/* Tick marks + labels — y axis */}
             {yTicks.map((t, i) => (
               <g key={`yt${i}`}>
-                <line x1={axisX - 3} y1={t.sy} x2={axisX + 3} y2={t.sy} stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+                <line x1={axisX - 3} y1={t.sy} x2={axisX + 3} y2={t.sy} stroke="rgb(var(--tm-ink-rgb) / 0.35)" strokeWidth="1" />
                 <text
                   x={Math.max(28, Math.min(W - 8, axisX - 6))}
                   y={t.sy + 3.5}
                   textAnchor="end"
                   fontSize="9"
-                  fill="rgba(255,255,255,0.4)"
+                  fill="rgb(var(--tm-ink-rgb) / 0.4)"
                   fontFamily="monospace"
                 >{formatTick(t.v)}</text>
               </g>
             ))}
 
             {/* Axis labels */}
-            <text x={W - 8} y={Math.min(H - 5, Math.max(14, axisY - 7))} fontSize="12" fill="rgba(255,255,255,0.45)" fontStyle="italic" fontFamily="serif">x</text>
-            <text x={Math.max(8, Math.min(W - 14, axisX + 7))} y={12} fontSize="12" fill="rgba(255,255,255,0.45)" fontStyle="italic" fontFamily="serif">y</text>
+            <text x={W - 8} y={Math.min(H - 5, Math.max(14, axisY - 7))} fontSize="12" fill="rgb(var(--tm-ink-rgb) / 0.45)" fontStyle="italic" fontFamily="serif">x</text>
+            <text x={Math.max(8, Math.min(W - 14, axisX + 7))} y={12} fontSize="12" fill="rgb(var(--tm-ink-rgb) / 0.45)" fontStyle="italic" fontFamily="serif">y</text>
 
             {/* Origin label */}
             {axisX > 10 && axisX < W - 10 && axisY > 10 && axisY < H - 10 && (
-              <text x={axisX - 6} y={axisY + 13} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.25)" fontFamily="monospace">0</text>
+              <text x={axisX - 6} y={axisY + 13} textAnchor="end" fontSize="8" fill="rgb(var(--tm-ink-rgb) / 0.25)" fontFamily="monospace">0</text>
             )}
 
             {/* Equation curves */}
@@ -1096,7 +1096,7 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
 
           {/* Resize handle */}
           <div onMouseDown={onResizeStart} className="absolute bottom-1.5 right-1.5 w-5 h-5 flex items-end justify-end cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity">
-            <svg width="12" height="12" viewBox="0 0 12 12" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.5)' }}>
               <line x1="4" y1="12" x2="12" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               <line x1="8" y1="12" x2="12" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
@@ -1618,7 +1618,7 @@ function BlockEditor({ block, index, focused, noteTheme, dragControls, onFocus, 
             dangerouslySetInnerHTML={{
               __html: block.content
                 ? renderInline(block.content)
-                : `<span style="color:rgba(255,255,255,0.2)">${placeholders[block.type]}</span>`,
+                : `<span style="color:rgb(var(--tm-ink-rgb) / 0.2)">${placeholders[block.type]}</span>`,
             }}
           />
         )}
@@ -1882,8 +1882,8 @@ export function NoteSidebar({ notes, activeId, onSelect, onNew, onDelete, onTogg
             placeholder="Search notes..."
             className="w-full pl-8 pr-3 py-2 rounded-xl text-sm text-white/70 placeholder-white/20 outline-hidden transition-colors"
             style={{
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
+              background: 'rgb(var(--tm-ink-rgb) / 0.04)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
             }}
           />
         </div>
@@ -1897,8 +1897,8 @@ export function NoteSidebar({ notes, activeId, onSelect, onNew, onDelete, onTogg
           onClick={onNew}
           className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white/70 transition-all"
           style={{
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'rgb(var(--tm-ink-rgb) / 0.04)',
+            border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
           }}
         >
           <Plus className="w-4 h-4" /> New Note
@@ -2295,8 +2295,8 @@ export function NotesPage() {
       style={{
         minHeight: 'calc(var(--vh, 1vh) * 100)',
         background: activeNote
-          ? `linear-gradient(to top, rgba(${getNoteTheme(activeNote.noteTheme).rgb}, 0.35) 0%, black 55%)`
-          : '#000',
+          ? `linear-gradient(to top, rgba(${getNoteTheme(activeNote.noteTheme).rgb}, 0.35) 0%, var(--color-canvas) 55%)`
+          : 'var(--color-canvas)',
         transition: 'background 0.5s ease',
       }}
     >
@@ -2382,7 +2382,7 @@ export function NotesPage() {
                 transition={{ type: 'spring', stiffness: 400, damping: 35 }}
                 className="md:hidden fixed left-0 top-0 bottom-0 z-40 w-[280px] border-r border-white/5"
                 style={{
-                  background: 'rgba(0, 0, 0, 0.95)',
+                  background: 'rgb(var(--tm-paper-rgb) / 0.95)',
                   backdropFilter: 'blur(30px)',
                   WebkitBackdropFilter: 'blur(30px)',
                 }}
@@ -2625,11 +2625,11 @@ export function NotesPage() {
                   <div
                     className="px-4 py-3 rounded-2xl pointer-events-auto"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
+                      background: 'rgb(var(--tm-ink-rgb) / 0.08)',
                       backdropFilter: 'blur(20px)',
                       WebkitBackdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                      border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                      boxShadow: '0 8px 32px rgb(var(--tm-shadow-rgb) / 0.3)',
                     }}
                   >
                     <p className="text-xs font-medium text-purple-400 opacity-60 mb-1">TimeMachine Air</p>
@@ -2661,11 +2661,11 @@ export function NotesPage() {
                     disabled={aiLoading || !activeNoteId}
                     className="w-full pl-5 pr-16 rounded-[28px] text-white placeholder-gray-400 outline-hidden disabled:opacity-50 transition-all duration-300 text-base"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.05)',
+                      background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                       backdropFilter: 'blur(20px)',
                       WebkitBackdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                      boxShadow: '0 8px 32px rgb(var(--tm-shadow-rgb) / 0.4), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)',
                       height: '56px',
                       fontSize: '1rem',
                     }}
@@ -2685,11 +2685,11 @@ export function NotesPage() {
                       disabled={aiLoading || !activeNoteId}
                       className="p-3 rounded-full text-white disabled:opacity-50 relative group transition-all duration-300"
                       style={{
-                        background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(255, 255, 255, 0.05))',
+                        background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgb(var(--tm-ink-rgb) / 0.05))',
                         backdropFilter: 'blur(20px)',
                         WebkitBackdropFilter: 'blur(20px)',
                         border: '1px solid rgba(168, 85, 247, 0.4)',
-                        boxShadow: '0 0 15px rgba(168, 85, 247, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+                        boxShadow: '0 0 15px rgba(168, 85, 247, 0.35), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)',
                       }}
                     >
                       {aiLoading ? (

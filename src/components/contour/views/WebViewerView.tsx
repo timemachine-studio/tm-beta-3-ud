@@ -29,7 +29,7 @@ function SearchResults({ query }: { query: string }) {
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center gap-2 h-full text-black/50 px-6 text-center">
+            <div className="flex flex-col items-center justify-center gap-2 h-full text-[#111]/50 px-6 text-center">
                 <AlertCircle className="w-5 h-5" />
                 <span className="text-sm font-medium">{error}</span>
             </div>
@@ -39,15 +39,15 @@ function SearchResults({ query }: { query: string }) {
     if (!results) {
         return (
             <div className="flex flex-col items-center gap-2 opacity-50">
-                <Loader2 className="w-6 h-6 animate-spin text-black" />
-                <span className="text-sm font-medium text-black">Searching...</span>
+                <Loader2 className="w-6 h-6 animate-spin text-[#111]" />
+                <span className="text-sm font-medium text-[#111]">Searching...</span>
             </div>
         );
     }
 
     if (!results.length) {
         return (
-            <div className="flex flex-col items-center justify-center gap-2 h-full text-black/50">
+            <div className="flex flex-col items-center justify-center gap-2 h-full text-[#111]/50">
                 <Search className="w-5 h-5" />
                 <span className="text-sm font-medium">No results for "{query}"</span>
             </div>
@@ -69,7 +69,7 @@ function SearchResults({ query }: { query: string }) {
                     </div>
                     <div className="text-[11px] text-green-800/70 truncate mt-0.5">{result.url}</div>
                     {result.snippet && (
-                        <p className="text-xs text-black/65 mt-1 line-clamp-3">{result.snippet}</p>
+                        <p className="text-xs text-[#111]/65 mt-1 line-clamp-3">{result.snippet}</p>
                     )}
                 </a>
             ))}
@@ -131,7 +131,7 @@ export function WebViewerView({
             </div>
 
             {/* Browser Canvas */}
-            <div className="w-full bg-white relative flex-1 flex items-center justify-center" style={{ minHeight: '350px' }}>
+            <div className="w-full bg-[#fff] relative flex-1 flex items-center justify-center" style={{ minHeight: '350px' }}>
                 {/*
                     The iframe below deliberately omits allow-same-origin. Sites
                     embedded here render fine without it, and keeping it meant any
@@ -152,8 +152,8 @@ export function WebViewerView({
                     />
                 ) : (
                     <div className="flex flex-col items-center gap-2 opacity-50">
-                        <Loader2 className="w-6 h-6 animate-spin text-black" />
-                        <span className="text-sm font-medium text-black">Waiting for input...</span>
+                        <Loader2 className="w-6 h-6 animate-spin text-[#111]" />
+                        <span className="text-sm font-medium text-[#111]">Waiting for input...</span>
                     </div>
                 )}
             </div>

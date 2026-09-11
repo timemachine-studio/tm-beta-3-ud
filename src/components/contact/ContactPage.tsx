@@ -91,11 +91,11 @@ export function ContactPage() {
           <div
             className="relative overflow-hidden rounded-3xl p-8 text-center"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'var(--tm-pane-bg)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+              border: '1px solid var(--tm-pane-border)',
+              boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
             }}
           >
             <h2 className="text-2xl font-bold text-white mb-4">Get in Touch</h2>
@@ -109,11 +109,11 @@ export function ContactPage() {
             <div
               className="rounded-3xl p-6 space-y-4"
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
+                background: 'var(--tm-pane-bg)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                border: '1px solid var(--tm-pane-border)',
+                boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
               }}
             >
               <h3 className="text-lg font-semibold text-white mb-4">Send us a Message</h3>
@@ -129,8 +129,8 @@ export function ContactPage() {
                   required
                   className="w-full px-4 py-3 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                    border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
                   }}
                 />
               </div>
@@ -146,8 +146,8 @@ export function ContactPage() {
                   required
                   className="w-full px-4 py-3 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                    border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
                   }}
                 />
               </div>
@@ -163,8 +163,8 @@ export function ContactPage() {
                   rows={4}
                   className="w-full px-4 py-3 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all resize-none"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                    border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
                   }}
                 />
               </div>
@@ -211,11 +211,11 @@ export function ContactPage() {
           <div
             className="rounded-3xl p-6"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'var(--tm-pane-bg)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+              border: '1px solid var(--tm-pane-border)',
+              boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
             }}
           >
             <h3 className="text-lg font-semibold text-white mb-4">Direct Contact</h3>

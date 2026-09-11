@@ -14,7 +14,7 @@ export function Title() {
           0 0 80px rgba(168, 85, 247, 0.3),
           0 0 120px rgba(168, 85, 247, 0.2)
         `,
-        WebkitTextStroke: '1px rgba(255, 255, 255, 0.2)'
+        WebkitTextStroke: '1px rgb(var(--tm-ink-rgb) / 0.2)'
       }}
     >
       TimeMachine

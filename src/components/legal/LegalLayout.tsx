@@ -72,8 +72,8 @@ export function LegalSection({ heading, children }: { heading: string; children:
     <section
       className="rounded-3xl p-6 sm:p-8"
       style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: 'var(--tm-pane-bg)',
+        border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
       }}
     >
       <h2 className="text-xl font-bold text-white mb-4">{heading}</h2>

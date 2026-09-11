@@ -91,8 +91,8 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
               border: `1px solid ${accent.border}`,
               boxShadow: `0 0 8px ${accent.border.replace('0.25', '0.08')}`,
             } : {
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'rgb(var(--tm-ink-rgb) / 0.03)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
             }}
           >
             {op.label}
@@ -111,8 +111,8 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
                 onClick={() => handleQuickPick(qp.value)}
                 className="px-2 py-0.5 rounded-md text-[10px] font-medium whitespace-nowrap transition-all text-white/35 hover:text-white/55"
                 style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.05)',
+                  background: 'rgb(var(--tm-ink-rgb) / 0.03)',
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.05)',
                 }}
               >
                 {qp.name}

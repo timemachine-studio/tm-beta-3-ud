@@ -59,7 +59,7 @@ export function PersonasPage() {
         >
           <div className="relative overflow-hidden rounded-3xl p-8 sm:p-12"
             style={{
-              background: 'linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(0,0,0,0.4) 100%)',
+              background: 'linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgb(var(--tm-paper-rgb) / 0.4) 100%)',
               border: '1px solid rgba(168,85,247,0.15)',
             }}
           >
@@ -88,7 +88,7 @@ export function PersonasPage() {
         >
           <div className="relative overflow-hidden rounded-3xl p-8 sm:p-12"
             style={{
-              background: 'linear-gradient(135deg, rgba(236,72,153,0.12) 0%, rgba(0,0,0,0.4) 100%)',
+              background: 'linear-gradient(135deg, rgba(236,72,153,0.12) 0%, rgb(var(--tm-paper-rgb) / 0.4) 100%)',
               border: '1px solid rgba(236,72,153,0.15)',
             }}
           >
@@ -117,7 +117,7 @@ export function PersonasPage() {
         >
           <div className="relative overflow-hidden rounded-3xl p-8 sm:p-12"
             style={{
-              background: 'linear-gradient(135deg, rgba(34,211,238,0.12) 0%, rgba(0,0,0,0.4) 100%)',
+              background: 'linear-gradient(135deg, rgba(34,211,238,0.12) 0%, rgb(var(--tm-paper-rgb) / 0.4) 100%)',
               border: '1px solid rgba(34,211,238,0.15)',
             }}
           >

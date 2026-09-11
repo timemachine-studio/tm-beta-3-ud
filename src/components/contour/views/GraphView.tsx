@@ -173,7 +173,7 @@ function GraphCanvas({ eq1, eq2 }: { eq1: string; eq2: string; accent: AccentThe
   };
 
   return (
-    <div className="relative select-none" style={{ background: 'rgba(0,0,0,0.22)' }}>
+    <div className="relative select-none" style={{ background: 'rgb(var(--tm-paper-rgb) / 0.22)' }}>
       <svg
         width="100%"
         viewBox={`0 0 ${GW} ${GH}`}
@@ -192,19 +192,19 @@ function GraphCanvas({ eq1, eq2 }: { eq1: string; eq2: string; accent: AccentThe
 
         {/* Minor grid */}
         {gridLines.filter((l) => !l.axis).map((l, i) => (
-          <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="rgba(255,255,255,0.045)" strokeWidth="1" />
+          <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="rgb(var(--tm-ink-rgb) / 0.045)" strokeWidth="1" />
         ))}
 
         {/* Axes */}
-        <line x1={0} y1={axisY} x2={GW} y2={axisY} stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" />
-        <line x1={axisX} y1={0} x2={axisX} y2={GH} stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" />
+        <line x1={0} y1={axisY} x2={GW} y2={axisY} stroke="rgb(var(--tm-ink-rgb) / 0.25)" strokeWidth="1.5" />
+        <line x1={axisX} y1={0} x2={axisX} y2={GH} stroke="rgb(var(--tm-ink-rgb) / 0.25)" strokeWidth="1.5" />
 
         {/* X tick marks + labels */}
         {xTicks.map((t, i) => (
           <g key={i}>
-            <line x1={t.sx} y1={axisY - 3} x2={t.sx} y2={axisY + 3} stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+            <line x1={t.sx} y1={axisY - 3} x2={t.sx} y2={axisY + 3} stroke="rgb(var(--tm-ink-rgb) / 0.3)" strokeWidth="1" />
             <text x={t.sx} y={Math.min(GH - 4, Math.max(11, axisY + 13))}
-              textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.38)" fontFamily="monospace">
+              textAnchor="middle" fontSize="8" fill="rgb(var(--tm-ink-rgb) / 0.38)" fontFamily="monospace">
               {formatTick(t.v)}
             </text>
           </g>
@@ -213,9 +213,9 @@ function GraphCanvas({ eq1, eq2 }: { eq1: string; eq2: string; accent: AccentThe
         {/* Y tick marks + labels */}
         {yTicks.map((t, i) => (
           <g key={i}>
-            <line x1={axisX - 3} y1={t.sy} x2={axisX + 3} y2={t.sy} stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+            <line x1={axisX - 3} y1={t.sy} x2={axisX + 3} y2={t.sy} stroke="rgb(var(--tm-ink-rgb) / 0.3)" strokeWidth="1" />
             <text x={Math.max(24, Math.min(GW - 8, axisX - 6))} y={t.sy + 3.5}
-              textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.38)" fontFamily="monospace">
+              textAnchor="end" fontSize="8" fill="rgb(var(--tm-ink-rgb) / 0.38)" fontFamily="monospace">
               {formatTick(t.v)}
             </text>
           </g>
@@ -223,14 +223,14 @@ function GraphCanvas({ eq1, eq2 }: { eq1: string; eq2: string; accent: AccentThe
 
         {/* Axis labels */}
         <text x={GW - 8} y={Math.min(GH - 5, Math.max(12, axisY - 7))}
-          fontSize="11" fill="rgba(255,255,255,0.4)" fontStyle="italic" fontFamily="serif">x</text>
+          fontSize="11" fill="rgb(var(--tm-ink-rgb) / 0.4)" fontStyle="italic" fontFamily="serif">x</text>
         <text x={Math.max(8, Math.min(GW - 14, axisX + 7))} y={12}
-          fontSize="11" fill="rgba(255,255,255,0.4)" fontStyle="italic" fontFamily="serif">y</text>
+          fontSize="11" fill="rgb(var(--tm-ink-rgb) / 0.4)" fontStyle="italic" fontFamily="serif">y</text>
 
         {/* Origin label */}
         {axisX > 12 && axisX < GW - 12 && axisY > 12 && axisY < GH - 12 && (
           <text x={axisX - 6} y={axisY + 13} textAnchor="end" fontSize="7"
-            fill="rgba(255,255,255,0.22)" fontFamily="monospace">0</text>
+            fill="rgb(var(--tm-ink-rgb) / 0.22)" fontFamily="monospace">0</text>
         )}
 
         {/* Curves */}
@@ -288,13 +288,13 @@ export function GraphView({ module, accent }: { module: ModuleData; accent: Acce
         {/* Eq 1 — from chat input (read-only display) */}
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-purple-400 shrink-0" />
-          <span className="text-xs font-mono shrink-0" style={{ color: 'rgba(255,255,255,0.3)' }}>y =</span>
+          <span className="text-xs font-mono shrink-0" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.3)' }}>y =</span>
           <span className="text-sm font-mono text-white/80 truncate">{displayEq1}</span>
         </div>
         {/* Eq 2 — user-editable */}
         <div className={`flex items-center gap-2 rounded-lg px-1 py-0.5 transition-colors ${eq2Err ? 'bg-red-500/10' : ''}`}>
           <div className="w-2 h-2 rounded-full bg-cyan-400 shrink-0" />
-          <span className="text-xs font-mono shrink-0" style={{ color: 'rgba(255,255,255,0.3)' }}>y =</span>
+          <span className="text-xs font-mono shrink-0" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.3)' }}>y =</span>
           <input
             type="text"
             value={eq2}
@@ -314,7 +314,7 @@ export function GraphView({ module, accent }: { module: ModuleData; accent: Acce
 
       {/* Footer hints */}
       <div className="px-4 py-2">
-        <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.18)' }}>
+        <span className="text-[10px] font-mono" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.18)' }}>
           scroll to zoom · drag to pan &nbsp;·&nbsp; supports: x^2 · sin(x) · e^x · |x| · pi · ln(x)
         </span>
       </div>

@@ -128,7 +128,7 @@ function HelpView({ accent }: { module: ModuleData; accent: AccentTheme }) {
             <div
               key={i}
               className="rounded-lg p-2"
-              style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.06)' }}
+              style={{ background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
             >
               <div
                 className="text-[10px] font-medium tracking-wider uppercase mb-1"
@@ -145,7 +145,7 @@ function HelpView({ accent }: { module: ModuleData; accent: AccentTheme }) {
       </div>
 
       {/* Footer */}
-      <div className="pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+      <div className="pt-3" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
         <span className="text-[10px] text-white/20">Press Esc to close</span>
       </div>
     </div>

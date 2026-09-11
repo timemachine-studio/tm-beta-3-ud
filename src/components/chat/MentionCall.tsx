@@ -75,11 +75,11 @@ export function MentionCall({ isVisible, onSelect, currentPersona, isGroupMode, 
                   style={{
                     background: isAI
                       ? personaColors[currentPersona]
-                      : 'rgba(255, 255, 255, 0.05)',
+                      : 'rgb(var(--tm-ink-rgb) / 0.05)',
                     backdropFilter: 'blur(12px)',
                     WebkitBackdropFilter: 'blur(12px)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                    border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                    boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                   }}
                 >
                   {!isAI && (
@@ -108,8 +108,8 @@ export function MentionCall({ isVisible, onSelect, currentPersona, isGroupMode, 
                 background: personaColors[key as keyof typeof personaColors],
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
               }}
             >
               <span className={`text-sm font-mono ${personaTextColors[key as keyof typeof personaTextColors]}`}>

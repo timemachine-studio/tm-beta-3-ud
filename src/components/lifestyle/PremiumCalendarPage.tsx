@@ -381,7 +381,7 @@ export function PremiumCalendarPage() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             className="relative w-full max-w-[500px] rounded-[32px] bg-zinc-900 border border-white/10 shadow-2xl overflow-hidden"
-                            style={{ background: 'linear-gradient(180deg, rgba(30,30,35,1) 0%, rgba(20,20,20,1) 100%)' }}
+                            style={{ background: 'var(--tm-popover-bg-solid)' }}
                         >
                             <div className="absolute top-0 left-0 right-0 h-32 bg-linear-to-b/srgb from-purple-500/20 to-transparent pointer-events-none" />
 

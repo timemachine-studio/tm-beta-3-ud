@@ -76,7 +76,7 @@ function ColorInteractive({ color, accent: _accent, onCopyValue }: { color?: Col
             className="w-6 h-6 rounded-lg shrink-0 border transition-all hover:scale-110"
             style={{
               background: p.hex,
-              borderColor: hex === p.hex.toUpperCase() ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.15)',
+              borderColor: hex === p.hex.toUpperCase() ? 'rgb(var(--tm-ink-rgb) / 0.6)' : 'rgb(var(--tm-ink-rgb) / 0.15)',
               boxShadow: hex === p.hex.toUpperCase() ? `0 0 8px ${p.hex}40` : 'none',
             }}
             title={p.name}
@@ -93,7 +93,7 @@ function ColorInteractive({ color, accent: _accent, onCopyValue }: { color?: Col
             value={cssColor}
             onChange={e => handlePickerChange(e.target.value)}
             className="w-10 h-10 rounded-xl border border-white/20 cursor-pointer p-0 [&::-webkit-color-swatch-wrapper]:p-0.5 [&::-webkit-color-swatch]:rounded-lg [&::-webkit-color-swatch]:border-none"
-            style={{ background: 'rgba(255,255,255,0.06)' }}
+            style={{ background: 'rgb(var(--tm-ink-rgb) / 0.06)' }}
           />
         </div>
 

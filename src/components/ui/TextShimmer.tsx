@@ -17,7 +17,7 @@ export function TextShimmer({
   duration = 2,
   spread = 2,
   baseColor = '#a855f7', // Default purple
-  shimmerColor = '#ffffff', // Default white
+  shimmerColor = 'var(--color-ink)', // Default ink (white in dark, near-black in light)
 }: TextShimmerProps) {
   const dynamicSpread = useMemo(() => {
     return children.length * spread;

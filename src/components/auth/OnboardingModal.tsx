@@ -86,11 +86,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 <div
                   className="relative w-full max-w-[440px] overflow-hidden rounded-3xl"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: 'var(--tm-pane-bg)',
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                    border: '1px solid var(--tm-pane-border)',
+                    boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                   }}
                 >
                   {/* Content */}
@@ -138,11 +138,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                                   maxLength={30}
                                   className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white text-[15px] placeholder-white/30 focus:outline-hidden transition-all"
                                   style={{
-                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                                     backdropFilter: 'blur(20px)',
                                     WebkitBackdropFilter: 'blur(20px)',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                                    border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                                    boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                                   }}
                                   autoFocus
                                 />
@@ -167,7 +167,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                                 backdropFilter: 'blur(20px)',
                                 WebkitBackdropFilter: 'blur(20px)',
                                 border: '1px solid rgba(168, 85, 247, 0.5)',
-                                boxShadow: '0 4px 12px rgba(168, 85, 247, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                                boxShadow: '0 4px 12px rgba(168, 85, 247, 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                               }}
                             >
                               Continue
@@ -203,11 +203,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                               maxLength={500}
                               className="w-full px-4 py-3.5 rounded-xl text-white text-[15px] placeholder-white/30 focus:outline-hidden transition-all resize-none"
                               style={{
-                                background: 'rgba(255, 255, 255, 0.05)',
+                                background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                                 backdropFilter: 'blur(20px)',
                                 WebkitBackdropFilter: 'blur(20px)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                                border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                                boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                               }}
                             />
                             <p className="text-white/30 text-xs text-right">
@@ -226,8 +226,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                                     onClick={() => setAboutMe(suggestion)}
                                     className="px-3 py-1.5 text-xs rounded-full text-white/50 hover:text-white/70 transition-all"
                                     style={{
-                                      background: 'rgba(255, 255, 255, 0.05)',
-                                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                                      background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                                      border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
                                     }}
                                   >
                                     {suggestion}
@@ -251,11 +251,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                                 onClick={() => setStep(1)}
                                 className="flex-1 py-3.5 rounded-xl text-white/70 font-medium hover:text-white transition-all"
                                 style={{
-                                  background: 'rgba(255, 255, 255, 0.05)',
+                                  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                                   backdropFilter: 'blur(20px)',
                                   WebkitBackdropFilter: 'blur(20px)',
-                                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                                  boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                                 }}
                               >
                                 Back
@@ -269,7 +269,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                                   backdropFilter: 'blur(20px)',
                                   WebkitBackdropFilter: 'blur(20px)',
                                   border: '1px solid rgba(168, 85, 247, 0.5)',
-                                  boxShadow: '0 4px 12px rgba(168, 85, 247, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                                  boxShadow: '0 4px 12px rgba(168, 85, 247, 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                                 }}
                               >
                                 {loading ? (

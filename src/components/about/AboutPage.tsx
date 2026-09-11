@@ -68,8 +68,8 @@ export function AboutPage() {
           <div
             className="rounded-3xl p-8"
             style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'var(--tm-pane-bg)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
             }}
           >
             <Zap className="w-8 h-8 text-purple-400 mb-5" />
@@ -82,8 +82,8 @@ export function AboutPage() {
           <div
             className="rounded-3xl p-8"
             style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'var(--tm-pane-bg)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
             }}
           >
             <Shield className="w-8 h-8 text-emerald-400 mb-5" />
@@ -96,8 +96,8 @@ export function AboutPage() {
           <div
             className="rounded-3xl p-8"
             style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'var(--tm-pane-bg)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
             }}
           >
             <Heart className="w-8 h-8 text-pink-400 mb-5" />
@@ -110,8 +110,8 @@ export function AboutPage() {
           <div
             className="rounded-3xl p-8"
             style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'var(--tm-pane-bg)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
             }}
           >
             <Globe className="w-8 h-8 text-blue-400 mb-5" />
@@ -127,8 +127,8 @@ export function AboutPage() {
           <div
             className="rounded-3xl p-8 sm:p-10"
             style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'var(--tm-pane-bg)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
             }}
           >
             <Sparkles className="w-8 h-8 text-violet-400 mb-5" />
@@ -166,8 +166,8 @@ export function AboutPage() {
           <div
             className="rounded-3xl p-8 sm:p-10"
             style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'var(--tm-pane-bg)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
             }}
           >
             <h2 className="text-2xl font-bold text-white mb-4">TimeMachine Mafia</h2>

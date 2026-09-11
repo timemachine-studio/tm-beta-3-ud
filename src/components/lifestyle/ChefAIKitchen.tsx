@@ -351,7 +351,7 @@ The JSON must perfectly match this structure:
                             initial={{ opacity: 0, scale: 0.98 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.6 }}
-                            className="w-full max-w-4xl mx-auto bg-[#111] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl my-8 md:my-12"
+                            className="w-full max-w-4xl mx-auto bg-surface border border-white/10 rounded-[32px] overflow-hidden shadow-2xl my-8 md:my-12"
                         >
                             <div className="relative h-64 sm:h-80 md:h-96 w-full">
                                 <img
@@ -359,7 +359,7 @@ The JSON must perfectly match this structure:
                                     alt={result.title}
                                     className="w-full h-full object-cover"
                                 />
-                                <div className="absolute inset-0 bg-linear-to-t/srgb from-[#111] via-black/40 to-transparent" />
+                                <div className="absolute inset-0 bg-linear-to-t/srgb from-surface via-black/40 to-transparent" />
 
                                 <div className="absolute top-6 left-6 px-4 py-2 rounded-full bg-white/10 backdrop-blur-xl text-white text-xs font-bold uppercase tracking-widest border border-white/20 flex items-center gap-2 shadow-xl">
                                     <Sparkles className="w-4 h-4 text-pink-400" /> AI Generated

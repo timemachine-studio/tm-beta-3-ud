@@ -65,26 +65,26 @@ export function JsonFormatView({ module, accent, onCopyValue }: { module: Module
             <button
               onClick={() => setShowMinified(false)}
               className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${!showMinified ? 'text-white' : 'text-white/35'}`}
-              style={!showMinified ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+              style={!showMinified ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.05)' }}
             >
               Formatted
             </button>
             <button
               onClick={() => setShowMinified(true)}
               className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${showMinified ? 'text-white' : 'text-white/35'}`}
-              style={showMinified ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+              style={showMinified ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.05)' }}
             >
               Minified
             </button>
           </div>
           <div className="max-h-[140px] overflow-y-auto rounded-lg p-3 text-white/70 text-xs font-mono leading-relaxed [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10 whitespace-pre-wrap break-all"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+            style={{ background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
           >
             {output}
           </div>
         </>
       )}
-      <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
         <button
           onClick={handleCopy}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"

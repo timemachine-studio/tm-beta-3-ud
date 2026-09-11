@@ -1,6 +1,6 @@
 # Current status
 
-Updated 2026-09-11. Assigned work: build the owner's two requirements directly rather than working through `superplan.md` — (A) a real tool catalogue with dynamic selection, and (B) TM writing and sharing its own tools. Three rounds so far: the catalogue, then a new provider, then backlog item 0 and item 4 (MCP).
+Updated 2026-09-11. Round 9 (light mode, Settings modal) is at the end. Earlier assigned work: build the owner's two requirements directly rather than working through `superplan.md` — (A) a real tool catalogue with dynamic selection, and (B) TM writing and sharing its own tools. Three rounds so far: the catalogue, then a new provider, then backlog item 0 and item 4 (MCP).
 
 Decisions taken from the owner this session: Python and code execution run **in the browser via Pyodide**, on the existing device bridge; generated tools are **sandbox-only and auto-published** to the shared registry; MCP gets a **curated catalog on by default, toggleable, plus user-added servers in Flight Controls**; and the **tool catalogue goes first**, because everything else plugs into it.
 
@@ -936,6 +936,87 @@ retry), `api/_lib/providerResilience.ts` (error detail in the log).
 
 `npm run typecheck`, `npm run lint`, `npm run build`, `npm test`: **44 files /
 438 tests**, up from 43/389.
+
+## Round 9 — light mode, and Settings as a modal
+
+**Done, verified live in the browser in both modes; dark is unchanged.**
+
+The owner's brief: dark mode is loved, light mode was not. A reference from
+a friend's product — flat cream paper, near-black ink, one green accent, no
+gradient, no glow, no glass — plus a screenshot of the exact pairing
+(`#FDF1E1` paper, `#035930` accent). Fonts, radii, button shapes and
+placement stay TimeMachine's; only the material changes.
+
+### How light mode works
+
+The app was authored dark-first with ~1,100 `text-white`, ~500 inline
+`rgba(255,255,255,…)` glass styles, purple glows and gradient fills. Rather
+than an audit of every className, light mode is two mechanisms in
+`src/stylesheet/light.css`:
+
+1. **Token swap.** `--color-white` → ink, `--color-black` → paper, every
+   Tailwind hue ramp mirrored (generated `light-palette.css`, chroma pulled
+   to 80%), and every brand hue — purple, cyan, pink, blue… — collapsed to
+   **one green ramp** with step 400 pinned to `#035930`. Status
+   red/amber/green keep their meaning. Inline styles were rewritten once
+   (`scripts/tokenize-inline-glass.py`) to `rgb(var(--tm-ink-rgb) / a)`,
+   with shadows and the lit glass edge on their own variables because they
+   keep their physical meaning across themes.
+2. **Atmosphere kill.** Category rules scoped by what the style attribute or
+   className contains switch off, in light only: every `backdrop-filter`,
+   every inline `box-shadow` and `shadow-[…]`, every `bg-linear-*`
+   (collapses to its `from` colour), every inline `linear-gradient(`
+   (collapses to the card), inline literal `rgba()` accents on borders and
+   fills, `text-shadow`, and the `blur-[120px]` colour blobs. Low-alpha
+   fills (`bg-white/5`, inline `/ 0.0x`) render as the card colour so
+   chips, pills and cards sit a step *above* the paper. The one shadow
+   that survives is the card shadow, re-applied by token. Send is the one
+   black control.
+
+A new component that follows the dark recipe is calm in light without
+knowing this file exists — that was the design goal, and it is why there
+are no per-component light branches.
+
+### Theme state
+
+`src/themes/themeState.ts` + `ThemeProvider`. Mode is `light | dark` only —
+monochrome, the four light seasons and the Set/Clear "default theme" are
+gone (older stored values are rejected, tested). Dark keeps four seasons
+plus **Pure** (black, no gradient) and an **Auto** swatch that follows the
+persona; picking a season pins it. Light has one variant and a **paper
+warmth slider** (white → cream) applied as inline variables on `<html>`.
+Everything persists in `localStorage` (`themeMode`, `seasonTheme`,
+`seasonPinned`, `lightWarmth`); `index.html` stamps `data-theme` before
+first paint so a light device does not flash black. `profiles.default_theme`
+is no longer read or written.
+
+### Settings is a modal
+
+`SettingsPage` is deleted. `SettingsModal` is a card over whatever page is
+showing, driven by `SettingsModalContext` above the router; `/settings` is
+kept as a deep link (Home, Contact, the Contour command) and lands on chat
+with the modal up. It is imported **statically on purpose** — as a lazy
+chunk it suspended the route tree and flashed the spinner on first open.
+
+### Files
+
+`src/stylesheet/light.css`, `light-palette.css` (generated),
+`scripts/generate-light-palette.py`, `scripts/tokenize-inline-glass.py`,
+`src/themes/{themeState,light,seasons}.ts` + test,
+`src/context/{ThemeProvider,themeContextValue,settingsModalContext}`,
+`src/components/settings/SettingsModal.tsx`, `App.tsx`, `index.html`,
+`UniversalGlassKit.css` header, 60-odd components (mechanical rewrite).
+
+### What is rough in light mode
+
+1. **Muted captions** (`text-white/30–40`) are fainter on paper than on
+   black — contrast is asymmetric. Body text passes; captions do not all.
+2. **Secondary pages** that hard-code their own ground (About, Features,
+   Legal) are flat paper without the card treatment their content had.
+3. **Tailwind `ring-*` focus rings** are box-shadows and are *not* killed;
+   arbitrary `shadow-[…]` classes are. Fine today; worth knowing.
+4. The category rules use `!important`. That is the cost of beating inline
+   styles wholesale; the alternative was touching every call site.
 
 ## What is rough
 

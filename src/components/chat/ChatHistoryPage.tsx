@@ -294,7 +294,7 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
     <div
       className="h-screen overflow-y-auto text-white"
       style={{
-        background: 'linear-gradient(to top, #581c87 0%, #000000 40%, #000000 100%)'
+        background: 'var(--tm-page-bg)'
       }}
     >
       <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
@@ -387,8 +387,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
             onClick={handleExportChats}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all duration-200"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
+              background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
             }}
           >
             <Download className="w-4 h-4" />
@@ -401,8 +401,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
             onClick={handleImportChats}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all duration-200"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
+              background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
             }}
           >
             <Upload className="w-4 h-4" />
@@ -416,8 +416,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
             disabled={isLoading}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all duration-200 disabled:opacity-50"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
+              background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
             }}
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -446,8 +446,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                 onClick={() => handleTabChange('prev')}
                 className="p-2 rounded-full transition-all duration-200"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
                 }}
               >
                 <ChevronLeft className="w-5 h-5 text-gray-200" />
@@ -458,8 +458,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                 animate={{ opacity: 1, scale: 1 }}
                 className="px-4 py-2 rounded-full text-white text-sm font-medium flex items-center gap-2"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)'
+                  background: 'rgb(var(--tm-ink-rgb) / 0.1)',
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)'
                 }}
               >
                 {selectedTab === 'groupChats' && <Users className="w-4 h-4" />}
@@ -471,8 +471,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                 onClick={() => handleTabChange('next')}
                 className="p-2 rounded-full transition-all duration-200"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
                 }}
               >
                 <ChevronRight className="w-5 h-5 text-gray-200" />
@@ -485,9 +485,9 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                   value={key}
                   className="px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium whitespace-nowrap flex items-center gap-2"
                   style={{
-                    background: selectedTab === key ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                    border: selectedTab === key ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.1)',
-                    color: selectedTab === key ? '#fff' : 'rgba(255, 255, 255, 0.7)'
+                    background: selectedTab === key ? 'rgb(var(--tm-ink-rgb) / 0.15)' : 'rgb(var(--tm-ink-rgb) / 0.05)',
+                    border: selectedTab === key ? '1px solid rgb(var(--tm-ink-rgb) / 0.2)' : '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                    color: selectedTab === key ? 'var(--color-ink)' : 'rgb(var(--tm-ink-rgb) / 0.7)'
                   }}
                 >
                   {key === 'groupChats' && <Users className="w-4 h-4" />}
@@ -531,8 +531,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                     animate={{ opacity: 1, y: 0 }}
                     className="p-4 rounded-xl cursor-pointer transition-all duration-300 hover:bg-white/10"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                      background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                      border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
                     }}
                     onClick={() => handleLoadGroupChat(chat.id)}
                   >
@@ -570,8 +570,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                   animate={{ opacity: 1, y: 0 }}
                   className="p-4 rounded-xl cursor-pointer transition-all duration-300"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                    background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                    border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
                   }}
                   onClick={() => handleLoadChat(session)}
                 >
@@ -599,8 +599,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                             }}
                             className="px-4 py-2 rounded-lg text-white text-sm font-medium self-start transition-all duration-200"
                             style={{
-                              background: 'rgba(255, 255, 255, 0.15)',
-                              border: '1px solid rgba(255, 255, 255, 0.2)'
+                              background: 'rgb(var(--tm-ink-rgb) / 0.15)',
+                              border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)'
                             }}
                           >
                             Save
@@ -628,8 +628,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                         }}
                         className="p-2 rounded-full transition-all duration-200"
                         style={{
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)'
+                          background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                          border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
                         }}
                         title="Rename"
                       >
@@ -644,8 +644,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                         }}
                         className="p-2 rounded-full transition-all duration-200 hover:bg-red-500/20"
                         style={{
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)'
+                          background: 'rgb(var(--tm-ink-rgb) / 0.05)',
+                          border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
                         }}
                         title="Delete"
                       >

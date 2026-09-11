@@ -23,8 +23,8 @@ const fadeUp = {
 };
 
 const glassCard = {
-  background: 'rgba(255,255,255,0.03)',
-  border: '1px solid rgba(255,255,255,0.06)',
+  background: 'rgb(var(--tm-ink-rgb) / 0.03)',
+  border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
 };
 
 interface FeatureCardProps {
@@ -196,7 +196,7 @@ export function FeaturesPage() {
                 key={persona.name}
                 className="rounded-2xl p-6 text-center"
                 style={{
-                  background: `linear-gradient(135deg, ${persona.color}10 0%, rgba(0,0,0,0.3) 100%)`,
+                  background: `linear-gradient(135deg, ${persona.color}10 0%, rgb(var(--tm-paper-rgb) / 0.3) 100%)`,
                   border: `1px solid ${persona.color}18`,
                 }}
               >
@@ -212,8 +212,8 @@ export function FeaturesPage() {
               onClick={() => navigate('/personas')}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white/70 hover:text-white text-sm font-medium transition-colors"
               style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgb(var(--tm-ink-rgb) / 0.04)',
+                border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
               }}
             >
               Explore all personas

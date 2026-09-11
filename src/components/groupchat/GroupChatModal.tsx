@@ -95,11 +95,11 @@ export function GroupChatModal({
                 <div
                   className="relative w-full max-w-md overflow-hidden rounded-3xl"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: 'var(--tm-pane-bg)',
                     backdropFilter: 'blur(30px)',
                     WebkitBackdropFilter: 'blur(30px)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                    border: '1px solid var(--tm-pane-border)',
+                    boxShadow: '0 25px 50px rgb(var(--tm-shadow-rgb) / 0.4), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                   }}
                 >
                   {/* Persona gradient overlay */}
@@ -122,11 +122,11 @@ export function GroupChatModal({
                           whileTap={{ scale: 0.9 }}
                           className="p-2 rounded-full"
                           style={{
-                            background: 'rgba(255, 255, 255, 0.05)',
+                            background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                             backdropFilter: 'blur(20px)',
                             WebkitBackdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                            border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                            boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                           }}
                         >
                           <X className="w-5 h-5 text-white/70" />
@@ -153,11 +153,11 @@ export function GroupChatModal({
                         <div
                           className="p-4 rounded-2xl"
                           style={{
-                            background: 'rgba(255, 255, 255, 0.05)',
+                            background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                             backdropFilter: 'blur(20px)',
                             WebkitBackdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                            border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                            boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                           }}
                         >
                           <p className="text-white/40 text-xs uppercase tracking-wider mb-2">Chat Name</p>
@@ -179,8 +179,8 @@ export function GroupChatModal({
                           style={{
                             backdropFilter: 'blur(20px)',
                             WebkitBackdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                            border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)',
+                            boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                           }}
                         >
                           {isCreating ? (
@@ -221,11 +221,11 @@ export function GroupChatModal({
                         <div
                           className="p-4 rounded-2xl"
                           style={{
-                            background: 'rgba(255, 255, 255, 0.05)',
+                            background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                             backdropFilter: 'blur(20px)',
                             WebkitBackdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                            border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                            boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                           }}
                         >
                           <p className="text-white/40 text-xs uppercase tracking-wider mb-2">Share Link</p>
@@ -239,11 +239,11 @@ export function GroupChatModal({
                             onClick={handleCopy}
                             className="flex-1 py-3 rounded-xl text-white font-medium flex items-center justify-center gap-2"
                             style={{
-                              background: 'rgba(255, 255, 255, 0.05)',
+                              background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                               backdropFilter: 'blur(20px)',
                               WebkitBackdropFilter: 'blur(20px)',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
-                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                              border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                              boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                             }}
                           >
                             {copied ? (
@@ -267,8 +267,8 @@ export function GroupChatModal({
                             style={{
                               backdropFilter: 'blur(20px)',
                               WebkitBackdropFilter: 'blur(20px)',
-                              border: '1px solid rgba(255, 255, 255, 0.2)',
-                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                              border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)',
+                              boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                             }}
                           >
                             <Check className="w-4 h-4" />

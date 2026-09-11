@@ -31,11 +31,11 @@ export function PlusMenu({ isVisible, onSelect }: PlusMenuProps) {
               }}
               className="px-4 py-2.5 rounded-full text-left transition-all duration-300 flex items-center gap-3 min-w-[200px]"
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
+                background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
               }}
             >
               <Icon className="w-4 h-4 text-white/70" />

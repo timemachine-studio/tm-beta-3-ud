@@ -185,7 +185,7 @@ function DictionaryInteractive({ dict, accent, onCopyValue }: { dict?: Dictionar
           <div>
             <DictHeader dict={result} accent={accent} />
             <DictMeanings dict={result} accent={accent} />
-            <div className="mt-3 pt-2 flex items-center gap-2" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div className="mt-3 pt-2 flex items-center gap-2" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
               <button
                 onClick={handleCopy}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"

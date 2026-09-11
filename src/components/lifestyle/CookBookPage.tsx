@@ -269,7 +269,7 @@ export function CookBookPage() {
                             animate={{ scale: 1, y: 0, opacity: 1 }}
                             exit={{ scale: 0.95, y: 20, opacity: 0 }}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full max-w-4xl bg-[#111] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl my-auto"
+                            className="w-full max-w-4xl bg-surface border border-white/10 rounded-[32px] overflow-hidden shadow-2xl my-auto"
                         >
                             <div className="relative h-64 sm:h-80 md:h-96 w-full">
                                 <img
@@ -277,7 +277,7 @@ export function CookBookPage() {
                                     alt={selectedRecipe.title}
                                     className="w-full h-full object-cover"
                                 />
-                                <div className="absolute inset-0 bg-linear-to-t/srgb from-[#111] via-black/40 to-transparent" />
+                                <div className="absolute inset-0 bg-linear-to-t/srgb from-surface via-black/40 to-transparent" />
                                 <button
                                     onClick={() => setSelectedRecipe(null)}
                                     className="absolute top-6 right-6 p-2 rounded-full bg-black/50 backdrop-blur-md text-white/70 hover:text-white hover:bg-white/20 transition-all border border-white/10"

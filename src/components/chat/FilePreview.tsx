@@ -75,11 +75,11 @@ export function FilePreview({ fileName, fileSize, onRemove, isUploading }: FileP
       <div
         className="relative group flex items-center gap-3 px-4 py-3 rounded-xl"
         style={{
-          background: 'rgba(255, 255, 255, 0.05)',
+          background: 'rgb(var(--tm-ink-rgb) / 0.05)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+          boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)',
           filter: isUploading ? 'blur(1px)' : 'none'
         }}
       >

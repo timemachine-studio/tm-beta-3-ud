@@ -45,21 +45,21 @@ export function CodeBlock({ language, code, themeText, isComplete = true }: Code
 
   const glassButton = "p-1.5 rounded-lg transition-all duration-200 hover:scale-105 hover:bg-white/10 active:scale-95";
   const glassStyle: React.CSSProperties = {
-    background: 'rgba(255, 255, 255, 0.08)',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
+    background: 'rgb(var(--tm-ink-rgb) / 0.08)',
+    border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)',
   };
 
   return (
     <>
       <div className="relative mb-4 rounded-xl overflow-hidden flex flex-col h-[380px] md:h-[500px] w-full md:w-[120%]" style={{
-        background: 'rgba(255, 255, 255, 0.06)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+        background: 'rgb(var(--tm-ink-rgb) / 0.06)',
+        border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
+        boxShadow: '0 8px 32px rgb(var(--tm-shadow-rgb) / 0.15)',
       }}>
         {/* Top bar with language label and buttons */}
         <div className="flex items-center justify-between px-4 py-2 shrink-0" style={{
-          background: 'rgba(255, 255, 255, 0.04)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          background: 'rgb(var(--tm-ink-rgb) / 0.04)',
+          borderBottom: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
         }}>
           <div className="flex items-center gap-3">
             <span className="text-xs font-mono text-white/40 uppercase tracking-wider select-none">
@@ -124,7 +124,7 @@ export function CodeBlock({ language, code, themeText, isComplete = true }: Code
         {/* Code or Preview content area */}
         <div className="flex-1 min-h-0 relative">
           {isHtml && activeTab === 'preview' ? (
-            <div className="w-full h-full bg-white relative">
+            <div className="w-full h-full bg-[#fff] relative">
               {/*
                 No allow-same-origin: combined with allow-scripts it voids the
                 sandbox entirely, leaving the framed document on our origin —

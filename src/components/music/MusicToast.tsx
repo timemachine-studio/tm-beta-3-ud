@@ -19,9 +19,9 @@ interface MusicToastProps {
 
 const MusicVisualizer = ({ currentPersona = 'default' }: { currentPersona?: 'default' | 'girlie' | 'x' }) => {
   const barGlowColors = {
-    default: 'rgba(255, 255, 255, 0.5)',
+    default: 'rgb(var(--tm-ink-rgb) / 0.5)',
     girlie: 'rgba(255, 105, 180, 0.7)',
-    x: 'rgba(255, 255, 255, 0.5)'
+    x: 'rgb(var(--tm-ink-rgb) / 0.5)'
   };
 
   return (

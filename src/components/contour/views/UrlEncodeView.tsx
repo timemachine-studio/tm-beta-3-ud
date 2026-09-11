@@ -36,11 +36,11 @@ function UrlEncodeView({ module, accent, onCopyValue }: { module: ModuleData; ac
         <div className="flex gap-1.5 mb-3">
           <button onClick={() => { setHasInteracted(true); setMode('encode'); }}
             className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${activeMode === 'encode' ? 'text-white' : 'text-white/40'}`}
-            style={activeMode === 'encode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+            style={activeMode === 'encode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
           >Encode</button>
           <button onClick={() => { setHasInteracted(true); setMode('decode'); }}
             className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${activeMode === 'decode' ? 'text-white' : 'text-white/40'}`}
-            style={activeMode === 'decode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+            style={activeMode === 'decode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
           >Decode</button>
         </div>
         <input
@@ -61,11 +61,11 @@ function UrlEncodeView({ module, accent, onCopyValue }: { module: ModuleData; ac
           <div className="flex gap-1.5 mb-3">
             <button onClick={() => { setHasInteracted(true); setMode('encode'); }}
               className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${activeMode === 'encode' ? 'text-white' : 'text-white/40'}`}
-              style={activeMode === 'encode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+              style={activeMode === 'encode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
             >Encode</button>
             <button onClick={() => { setHasInteracted(true); setMode('decode'); }}
               className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${activeMode === 'decode' ? 'text-white' : 'text-white/40'}`}
-              style={activeMode === 'decode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+              style={activeMode === 'decode' ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
             >Decode</button>
           </div>
           <input
@@ -85,7 +85,7 @@ function UrlEncodeView({ module, accent, onCopyValue }: { module: ModuleData; ac
           {result?.error && <div className="text-red-400/60 text-xs mt-1">{result.error}</div>}
         </div>
       </div>
-      <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
         <button onClick={handleCopy}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"
         >

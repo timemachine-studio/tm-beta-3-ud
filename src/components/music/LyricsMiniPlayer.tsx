@@ -106,11 +106,11 @@ export function LyricsMiniPlayer({
           style={{
             width: isOpen ? '24rem' : '3.5rem', // 3.5rem is 56px (w-14)
             height: isOpen ? 'auto' : '3.5rem', // 3.5rem is 56px (h-14)
-            background: 'rgba(0, 0, 0, 0.5)',
+            background: 'rgb(var(--tm-paper-rgb) / 0.5)',
             backdropFilter: 'blur(30px)',
             WebkitBackdropFilter: 'blur(30px)',
-            borderColor: 'rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+            borderColor: 'rgb(var(--tm-ink-rgb) / 0.1)',
+            boxShadow: '0 8px 32px rgb(var(--tm-shadow-rgb) / 0.4), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)',
             transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
         >
@@ -222,7 +222,7 @@ export function LyricsMiniPlayer({
                   }}
                   className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer outline-hidden transition-all accent-purple-500 hover:accent-pink-500 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:opacity-0 group-hover/slider:[&::-webkit-slider-thumb]:opacity-100 [&::-webkit-slider-thumb]:transition-opacity [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:opacity-0 group-hover/slider:[&::-moz-range-thumb]:opacity-100 [&::-moz-range-thumb]:border-none"
                   style={{
-                    background: `linear-gradient(to right, #a855f7 0%, #ec4899 ${progress}%, rgba(255, 255, 255, 0.1) ${progress}%, rgba(255, 255, 255, 0.1) 100%)`
+                    background: `linear-gradient(to right, #a855f7 0%, #ec4899 ${progress}%, rgb(var(--tm-ink-rgb) / 0.1) ${progress}%, rgb(var(--tm-ink-rgb) / 0.1) 100%)`
                   }}
                 />
                 <div className="flex justify-between text-[10px] text-white/40 mt-0.5">

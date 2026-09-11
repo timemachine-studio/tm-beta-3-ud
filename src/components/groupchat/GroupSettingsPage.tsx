@@ -193,11 +193,11 @@ export function GroupSettingsPage() {
         <div
           className="relative overflow-hidden rounded-2xl"
           style={{
-            background: 'rgba(255, 255, 255, 0.05)',
+            background: 'rgb(var(--tm-ink-rgb) / 0.05)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+            border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+            boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
           }}
         >
           <div className={`absolute inset-0 bg-linear-to-br/srgb ${personaColors[groupChat.persona]} opacity-10 rounded-2xl`} />
@@ -267,11 +267,11 @@ export function GroupSettingsPage() {
               onClick={copyInviteLink}
               className="w-full flex items-center justify-between p-4 rounded-xl"
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
+                background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
               }}
             >
               <div className="flex items-center gap-3">
@@ -294,11 +294,11 @@ export function GroupSettingsPage() {
         <div
           className="relative overflow-hidden rounded-2xl"
           style={{
-            background: 'rgba(255, 255, 255, 0.05)',
+            background: 'rgb(var(--tm-ink-rgb) / 0.05)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+            border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+            boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
           }}
         >
           <div className="relative p-6">
@@ -339,7 +339,7 @@ export function GroupSettingsPage() {
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
                 border: '1px solid rgba(239, 68, 68, 0.2)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
               }}
             >
               <div className="flex items-center gap-3">
@@ -360,7 +360,7 @@ export function GroupSettingsPage() {
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
                     border: '1px solid rgba(239, 68, 68, 0.3)',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                    boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                   }}
                 >
                   <p className="text-red-200 text-sm">
@@ -376,8 +376,8 @@ export function GroupSettingsPage() {
                       style={{
                         backdropFilter: 'blur(20px)',
                         WebkitBackdropFilter: 'blur(20px)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                        border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)',
+                        boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                       }}
                     >
                       {isDeleting ? (
@@ -395,11 +395,11 @@ export function GroupSettingsPage() {
                       onClick={() => setShowDeleteConfirm(false)}
                       className="flex-1 py-2 px-4 rounded-lg text-white/70 font-medium"
                       style={{
-                        background: 'rgba(255, 255, 255, 0.05)',
+                        background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                         backdropFilter: 'blur(20px)',
                         WebkitBackdropFilter: 'blur(20px)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                        border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                        boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                       }}
                     >
                       Cancel
@@ -417,7 +417,7 @@ export function GroupSettingsPage() {
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
                     border: '1px solid rgba(239, 68, 68, 0.2)',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                    boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                   }}
                 >
                   <div className="flex items-center gap-3">
@@ -456,11 +456,11 @@ function ParticipantRow({
     <div
       className="flex items-center gap-3 p-3 rounded-xl"
       style={{
-        background: 'rgba(255, 255, 255, 0.03)',
+        background: 'rgb(var(--tm-ink-rgb) / 0.03)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+        border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
+        boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
       }}
     >
       {/* Avatar */}
@@ -509,7 +509,7 @@ function ParticipantRow({
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             border: '1px solid rgba(239, 68, 68, 0.2)',
-            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
           }}
         >
           {isKicking ? (

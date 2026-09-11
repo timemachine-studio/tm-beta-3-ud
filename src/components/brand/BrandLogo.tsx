@@ -138,9 +138,11 @@ export function BrandLogo({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className={`absolute top-full left-0 mt-3 w-72 bg-black/10 backdrop-blur-3xl rounded-3xl z-50 overflow-hidden border border-white/5`}
+            className={`absolute top-full left-0 mt-3 w-72 bg-black/10 backdrop-blur-3xl rounded-3xl z-50 overflow-hidden border`}
             style={{
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))'
+              background: 'var(--tm-menu-bg)',
+              borderColor: 'var(--tm-menu-border)',
+              boxShadow: 'var(--tm-menu-shadow)',
             }}
           >
             {/* Sign In / My Account Button */}
@@ -166,7 +168,7 @@ export function BrandLogo({
                       backdropFilter: 'blur(12px)',
                       WebkitBackdropFilter: 'blur(12px)',
                       border: '1px solid rgba(168, 85, 247, 0.2)',
-                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                      boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                     }}
                   >
                     {profile?.avatar_url ? (
@@ -189,7 +191,7 @@ export function BrandLogo({
                       backdropFilter: 'blur(12px)',
                       WebkitBackdropFilter: 'blur(12px)',
                       border: '1px solid rgba(168, 85, 247, 0.2)',
-                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                      boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                     }}
                   >
                     <LogIn className="w-4 h-4 text-purple-400" />
@@ -222,7 +224,7 @@ export function BrandLogo({
                   flex flex-col gap-1 border-b border-white/5 last:border-b-0`}
                   style={{
                     background: currentPersona === key ?
-                      `linear-gradient(to right, ${personaGlowColors[key as keyof typeof personaGlowColors]}, rgba(0,0,0,0.1))` :
+                      `linear-gradient(to right, ${personaGlowColors[key as keyof typeof personaGlowColors]}, rgb(var(--tm-paper-rgb) / 0.1))` :
                       'transparent'
                   }}
                 >

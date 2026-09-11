@@ -150,7 +150,7 @@ export function ChatMode({
               className="h-[calc(100vh-16rem)] flex items-center justify-center"
             >
               <div className="flex w-full max-w-[23rem] flex-col items-start px-2 sm:w-auto sm:max-w-none sm:px-4">
-                <div className="text-lg sm:text-xl font-normal text-neutral-400 text-left">
+                <div className="tm-welcome-text text-lg sm:text-xl font-normal text-neutral-400 text-left">
                   <div className="flex items-center">
                     <span>Start a</span>
                     <FlipWords
@@ -179,11 +179,11 @@ export function ChatMode({
                       onClick={item.onClick}
                       className="reveoule-action-pill flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 py-2.5 text-white/50 transition-colors duration-200 hover:text-white/80 sm:gap-2 sm:px-4"
                       style={{
-                        background: 'rgba(255, 255, 255, 0.04)',
+                        background: 'rgb(var(--tm-ink-rgb) / 0.04)',
                         backdropFilter: 'blur(20px)',
                         WebkitBackdropFilter: 'blur(20px)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+                        border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
+                        boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.06)',
                       }}
                     >
                       <item.icon className="w-3.5 h-3.5" />

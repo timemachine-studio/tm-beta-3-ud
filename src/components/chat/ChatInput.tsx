@@ -891,11 +891,11 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
               disabled={isLoading || isUploading}
               className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
               style={{
-                background: `linear-gradient(135deg, ${(personaStyles.tintColors as Record<string, string>)[currentPersona] || personaStyles.tintColors.default}, rgba(255, 255, 255, 0.05))`,
+                background: `linear-gradient(135deg, ${(personaStyles.tintColors as Record<string, string>)[currentPersona] || personaStyles.tintColors.default}, rgb(var(--tm-ink-rgb) / 0.05))`,
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
                 border: `1px solid ${(personaStyles.borderColors as Record<string, string>)[currentPersona] || personaStyles.borderColors.default}`,
-                boxShadow: `${(personaStyles.glowShadow as Record<string, string>)[currentPersona] || personaStyles.glowShadow.default}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`
+                boxShadow: `${(personaStyles.glowShadow as Record<string, string>)[currentPersona] || personaStyles.glowShadow.default}, inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`
               }}
             >
               {selectedPlusOption ? (
@@ -931,11 +931,11 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                   text-base resize-none
                   overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: 'var(--tm-pane-bg)',
                   backdropFilter: 'blur(20px)',
                   WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                  border: '1px solid var(--tm-pane-border)',
+                  boxShadow: 'var(--tm-input-shadow)',
                   fontSize: '1rem',
                   minHeight: '56px',
                   maxHeight: '150px',
@@ -966,11 +966,11 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                     : (isLoading || isUploading || isFileReading || (!message.trim() && selectedImages.length === 0 && !selectedFile))}
                   className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
                   style={{
-                    background: `linear-gradient(135deg, ${(personaStyles.tintColors as Record<string, string>)[currentPersona] || personaStyles.tintColors.default}, rgba(255, 255, 255, 0.05))`,
+                    background: `linear-gradient(135deg, ${(personaStyles.tintColors as Record<string, string>)[currentPersona] || personaStyles.tintColors.default}, rgb(var(--tm-ink-rgb) / 0.05))`,
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
                     border: `1px solid ${(personaStyles.borderColors as Record<string, string>)[currentPersona] || personaStyles.borderColors.default}`,
-                    boxShadow: `${(personaStyles.glowShadow as Record<string, string>)[currentPersona] || personaStyles.glowShadow.default}, inset 0 1px 0 rgba(255, 255, 255, 0.15)`
+                    boxShadow: `${(personaStyles.glowShadow as Record<string, string>)[currentPersona] || personaStyles.glowShadow.default}, inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`
                   }}
                 >
                   {canStop ? (

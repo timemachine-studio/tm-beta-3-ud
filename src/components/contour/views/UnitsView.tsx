@@ -98,8 +98,8 @@ function UnitsInteractive({ units, accent, onCopyValue }: { units?: UnitResult; 
               border: `1px solid ${accent.border}`,
               boxShadow: `0 0 8px ${accent.border.replace('0.25', '0.08')}`,
             } : {
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'rgb(var(--tm-ink-rgb) / 0.03)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
             }}
           >
             {cat.label}
@@ -123,13 +123,13 @@ function UnitsInteractive({ units, accent, onCopyValue }: { units?: UnitResult; 
           style={selectStyle}
         >
           {currentCategory.units.map(u => (
-            <option key={u.label} value={u.label} style={{ background: '#1a1a1a', color: 'white' }}>{u.label}</option>
+            <option key={u.label} value={u.label} style={{ background: 'var(--color-surface)', color: 'var(--color-ink)' }}>{u.label}</option>
           ))}
         </select>
         <button
           onClick={handleSwap}
           className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors shrink-0"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+          style={{ background: 'rgb(var(--tm-ink-rgb) / 0.04)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)' }}
         >
           <Shuffle className="w-3.5 h-3.5" />
         </button>
@@ -140,7 +140,7 @@ function UnitsInteractive({ units, accent, onCopyValue }: { units?: UnitResult; 
           style={selectStyle}
         >
           {currentCategory.units.map(u => (
-            <option key={u.label} value={u.label} style={{ background: '#1a1a1a', color: 'white' }}>{u.label}</option>
+            <option key={u.label} value={u.label} style={{ background: 'var(--color-surface)', color: 'var(--color-ink)' }}>{u.label}</option>
           ))}
         </select>
       </div>

@@ -5,11 +5,11 @@ import { ArrowLeft, ShoppingBag, Package, Tag, Search, X } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
 const glassCard = {
-  background: 'rgba(255, 255, 255, 0.05)',
+  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
   backdropFilter: 'blur(20px)',
   WebkitBackdropFilter: 'blur(20px)',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+  boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)',
 } as const;
 
 const fadeUp = (delay = 0) => ({
@@ -254,11 +254,11 @@ export function ShopPage() {
               onClick={(e) => e.stopPropagation()}
               className="relative w-full max-w-lg mx-4 mb-4 sm:mb-0 rounded-3xl overflow-hidden"
               style={{
-                background: 'rgba(20, 20, 25, 0.95)',
+                background: 'var(--tm-popover-bg)',
                 backdropFilter: 'blur(40px)',
                 WebkitBackdropFilter: 'blur(40px)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                boxShadow: '0 24px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
+                boxShadow: '0 24px 48px rgb(var(--tm-shadow-rgb) / 0.4), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)',
               }}
             >
               {/* Close button */}

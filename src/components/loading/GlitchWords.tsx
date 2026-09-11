@@ -23,7 +23,7 @@ export function GlitchWords() {
       0 0 60px ${color},
       0 0 80px ${color}
     `,
-    WebkitTextStroke: '1px rgba(255,255,255,0.1)',
+    WebkitTextStroke: '1px rgb(var(--tm-ink-rgb) / 0.1)',
     fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif'
   });
 

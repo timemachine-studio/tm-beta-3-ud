@@ -17,6 +17,11 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotFoundPage } from './components/NotFoundPage';
 import { AboutUsToast } from './components/about/AboutUsToast';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { SettingsModalContext, useSettingsModal } from './context/settingsModalContext';
+// Imported statically on purpose: it is a modal over the current page, and
+// a lazy chunk would suspend the route tree (spinner, page blink) the first
+// time it opens.
+import { SettingsModal } from './components/settings/SettingsModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ChatMode } from './components/chat/ChatMode';
 import { StageMode } from './components/chat/StageMode';
@@ -40,7 +45,6 @@ import { RouteLoadingFallback } from './components/routing/RouteLoadingFallback'
 const HomePage = lazy(() => import('./components/home/HomePage').then((module) => ({ default: module.HomePage })));
 const AccountPage = lazy(() => import('./components/auth/AccountPage').then((module) => ({ default: module.AccountPage })));
 const ChatHistoryPage = lazy(() => import('./components/chat/ChatHistoryPage').then((module) => ({ default: module.ChatHistoryPage })));
-const SettingsPage = lazy(() => import('./components/settings/SettingsPage').then((module) => ({ default: module.SettingsPage })));
 const AboutPage = lazy(() => import('./components/about/AboutPage').then((module) => ({ default: module.AboutPage })));
 const PersonasPage = lazy(() => import('./components/personas/PersonasPage').then((module) => ({ default: module.PersonasPage })));
 const FeaturesPage = lazy(() => import('./components/features/FeaturesPage').then((module) => ({ default: module.FeaturesPage })));
@@ -428,22 +432,22 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   const heatLevelButtonStyles = useMemo(() => ({
     border: isHeatLevelExpanded ? '1px solid rgba(34, 211, 238, 0.5)' : '1px solid rgba(34, 211, 238, 0.3)',
     bg: isHeatLevelExpanded
-      ? 'linear-gradient(135deg, rgba(34, 211, 238, 0.3), rgba(255, 255, 255, 0.05))'
-      : 'linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(255, 255, 255, 0.05))',
+      ? 'linear-gradient(135deg, rgba(34, 211, 238, 0.3), rgb(var(--tm-ink-rgb) / 0.05))'
+      : 'linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgb(var(--tm-ink-rgb) / 0.05))',
     shadow: isHeatLevelExpanded
-      ? '0 0 20px rgba(34, 211, 238, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
-      : '0 0 12px rgba(34, 211, 238, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+      ? '0 0 20px rgba(34, 211, 238, 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
+      : '0 0 12px rgba(34, 211, 238, 0.25), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
     text: isHeatLevelExpanded ? 'rgb(135,206,250)' : theme.text,
   }), [isHeatLevelExpanded, theme.text]);
 
   const flowStateButtonStyles = useMemo(() => ({
     border: flowStateActive ? '1px solid rgba(168, 85, 247, 0.5)' : '1px solid rgba(168, 85, 247, 0.4)',
     bg: flowStateActive
-      ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(255, 255, 255, 0.05))'
-      : 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(255, 255, 255, 0.05))',
+      ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgb(var(--tm-ink-rgb) / 0.05))'
+      : 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgb(var(--tm-ink-rgb) / 0.05))',
     shadow: flowStateActive
-      ? '0 0 20px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
-      : '0 0 15px rgba(168, 85, 247, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+      ? '0 0 20px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
+      : '0 0 15px rgba(168, 85, 247, 0.35), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
     text: flowStateActive ? 'rgb(216, 180, 254)' : theme.text,
   }), [flowStateActive, theme.text]);
 
@@ -534,9 +538,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     navigate('/history');
   }, [navigate]);
 
-  const handleOpenSettings = useCallback(() => {
-    navigate('/settings');
-  }, [navigate]);
+  const { openSettings: handleOpenSettings } = useSettingsModal();
 
   const handleOnboardingComplete = useCallback(() => {
     setShowOnboarding(false);
@@ -668,7 +670,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                         transition={{ duration: 0.25, ease: 'easeOut' }}
                         className="absolute top-full right-0 mt-3 w-72 bg-black/10 backdrop-blur-3xl rounded-3xl z-50 overflow-hidden border border-white/5"
                         style={{
-                          background: 'linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))'
+                          background: 'linear-gradient(145deg, rgb(var(--tm-ink-rgb) / 0.03), rgb(var(--tm-ink-rgb) / 0.01))'
                         }}
                       >
                         {Object.entries(PRO_HEAT_LEVELS).map(([level, config]) => (
@@ -689,7 +691,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                               flex flex-col gap-1 border-b border-white/5 last:border-b-0`}
                             style={{
                               background: currentProHeatLevel === parseInt(level) ?
-                                'linear-gradient(to right, rgba(34,211,238,0.2), rgba(0,0,0,0.1))' :
+                                'linear-gradient(to right, rgba(34,211,238,0.2), rgb(var(--tm-paper-rgb) / 0.1))' :
                                 'transparent'
                             }}
                           >
@@ -856,11 +858,11 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
             <div
               className="p-4 rounded-2xl"
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
+                background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
               }}
             >
               <div className="flex items-center gap-3 mb-3">
@@ -877,11 +879,11 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                   onClick={dismissPendingMusic}
                   className="p-1.5 rounded-full"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                    border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                    boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                   }}
                 >
                   <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -895,11 +897,11 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                 onClick={playPendingMusic}
                 className="w-full py-2.5 px-4 rounded-xl text-white font-medium text-sm flex items-center justify-center gap-2"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                   backdropFilter: 'blur(20px)',
                   WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                  boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                 }}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -990,9 +992,9 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                       onClick={() => setIsLyricsMaximized(false)}
                       className="flex items-center gap-1.5 px-4 py-2 rounded-full text-white/70 hover:text-white transition-colors text-xs font-medium"
                       style={{
-                        background: 'rgba(0, 0, 0, 0.4)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+                        background: 'rgb(var(--tm-paper-rgb) / 0.4)',
+                        border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
+                        boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)',
                         backdropFilter: 'blur(20px)',
                         WebkitBackdropFilter: 'blur(20px)',
                       }}
@@ -1154,11 +1156,30 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   );
 }
 
+// Settings opens as a glass modal over the current page rather than as a
+// page of its own. `/settings` is kept as a deep link (HomePage, Contact,
+// the Contour `/settings` command) — it lands on the chat with the modal up.
+function SettingsRedirect() {
+  const { openSettings } = useSettingsModal();
+  useEffect(() => {
+    openSettings();
+  }, [openSettings]);
+  return <Navigate to="/" replace />;
+}
+
 function AppContent() {
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const settingsModal = useMemo(() => ({
+    isSettingsOpen,
+    openSettings: () => setIsSettingsOpen(true),
+    closeSettings: () => setIsSettingsOpen(false),
+  }), [isSettingsOpen]);
 
   return (
+    <SettingsModalContext.Provider value={settingsModal}>
+    <SettingsModal isOpen={isSettingsOpen} onClose={settingsModal.closeSettings} />
     <Suspense fallback={<RouteLoadingFallback />}>
       <Routes>
       <Route path="/" element={<><SEOHead /><MainChatPage /></>} />
@@ -1192,7 +1213,7 @@ function AppContent() {
           }} />
         </>
       } />
-      <Route path="/settings" element={<><SEOHead title="Settings" description="Customize your TimeMachine Chat experience with themes, personas, and preferences." path="/settings" noIndex /><SettingsPage /></>} />
+      <Route path="/settings" element={<SettingsRedirect />} />
       <Route path="/about" element={<><SEOHead title="About" description="Learn about TimeMachine — the super app bringing AI personas, privacy-first design, and intelligent tools into one chat interface. Built by TimeMachine Mafia." path="/about" /><AboutPage /></>} />
       <Route path="/personas" element={<><SEOHead title="Personas" description="Meet the TimeMachine AI personas — TimeMachine Air for everyday speed, TimeMachine Girlie for vibe-check conversations, and TimeMachine PRO for advanced intelligence." path="/personas" /><PersonasPage /></>} />
       <Route path="/features" element={<><SEOHead title="Features" description="Explore TimeMachine features — Contour command palette with 30+ tools, group chat, TM Healthcare, image generation, music streaming, memory system, voice input, and more." path="/features" /><FeaturesPage /></>} />
@@ -1218,6 +1239,7 @@ function AppContent() {
       <Route path="*" element={<><SEOHead title="Page not found" description="This TimeMachine page doesn't exist." noIndex /><NotFoundPage /></>} />
       </Routes>
     </Suspense>
+    </SettingsModalContext.Provider>
   );
 }
 

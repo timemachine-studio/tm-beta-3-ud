@@ -32,6 +32,17 @@
 
     <!-- Theme & App -->
     <meta name="theme-color" content="#0a0a0a" />
+    <!-- Stamp the stored theme before first paint so a light-mode device
+         does not flash black while the bundle loads. ThemeProvider owns it
+         from then on. -->
+    <script>
+      try {
+        if (localStorage.getItem('themeMode') === 'light') {
+          document.documentElement.setAttribute('data-theme', 'light');
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#fdf1e1');
+        }
+      } catch (e) {}
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="TimeMachine" />

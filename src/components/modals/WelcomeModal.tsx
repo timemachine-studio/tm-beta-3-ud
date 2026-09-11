@@ -237,10 +237,10 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
                           transition-all duration-300
                           flex items-center justify-center gap-2"
                         style={{
-                          background: 'rgba(255, 255, 255, 0.08)',
+                          background: 'rgb(var(--tm-ink-rgb) / 0.08)',
                           backdropFilter: 'blur(20px)',
-                          border: '1px solid rgba(255, 255, 255, 0.2)',
-                          boxShadow: '0 8px 32px rgba(168, 85, 247, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                          border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)',
+                          boxShadow: '0 8px 32px rgba(168, 85, 247, 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)',
                         }}
                       >
                         {/* Frosted glass overlay with gradient */}
@@ -256,7 +256,7 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
                         <div 
                           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                           style={{
-                            background: 'linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%)',
+                            background: 'linear-gradient(45deg, transparent 30%, rgb(var(--tm-ink-rgb) / 0.1) 50%, transparent 70%)',
                             transform: 'translateX(-100%)',
                             animation: 'shine 1.5s ease-in-out infinite',
                           }}

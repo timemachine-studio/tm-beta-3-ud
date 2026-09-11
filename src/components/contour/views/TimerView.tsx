@@ -91,7 +91,7 @@ function TimerDisplay({ timer, accent, onStart, onToggle, onReset }: {
           <button
             onClick={onReset}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 hover:text-white/80 transition-colors"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+            style={{ background: 'rgb(var(--tm-ink-rgb) / 0.04)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)' }}
           >
             <RotateCcw className="w-3 h-3" /> Reset
           </button>
@@ -181,7 +181,7 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
             <button
               onClick={onReset}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 hover:text-white/80 transition-colors"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+              style={{ background: 'rgb(var(--tm-ink-rgb) / 0.04)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)' }}
             >
               <RotateCcw className="w-3 h-3" /> Reset
             </button>
@@ -205,8 +205,8 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
                   background: accent.bg,
                   border: `1px solid ${accent.border}`,
                 } : {
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  background: 'rgb(var(--tm-ink-rgb) / 0.03)',
+                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
                 }}
               >
                 {p.label}
@@ -233,8 +233,8 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
             onClick={() => handlePreset(p.seconds)}
             className="px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all text-white/40 hover:text-white/60"
             style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'rgb(var(--tm-ink-rgb) / 0.03)',
+              border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
             }}
           >
             {p.label}
