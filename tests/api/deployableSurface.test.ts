@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -46,5 +46,36 @@ describe('deployable api/ surface', () => {
       'retention-cleanup.ts',
       'search.ts',
     ]);
+  });
+});
+
+/**
+ * Vercel runs `api/` as native Node ESM, where a relative import must carry
+ * its extension. Vite and vitest resolve `./toolCatalog` to the .ts file,
+ * `tsc` accepts it, and `vite build` never touches the server tree — so an
+ * extensionless import passes every gate and then takes the whole Function
+ * down at boot: `Cannot find module '/var/task/shared/toolCatalog'`. That is
+ * what happened with shared/deviceTools.ts. The api/ files already write
+ * `./x.js`; this holds shared/ and api/ to it.
+ */
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) return sourceFiles(full);
+    return /\.ts$/.test(entry) && !/\.test\.ts$/.test(entry) ? [full] : [];
+  });
+}
+
+describe('server-side ESM imports', () => {
+  it('names the extension on every relative import in shared/ and api/', () => {
+    const roots = [new URL('../../shared/', import.meta.url).pathname, API_DIR];
+    const offenders: string[] = [];
+    for (const file of roots.flatMap(sourceFiles)) {
+      const source = readFileSync(file, 'utf8');
+      for (const match of source.matchAll(/from\s+'(\.\.?\/[^']*)'/g)) {
+        if (!/\.(js|json)$/.test(match[1])) offenders.push(`${file.replace(/.*\/(shared|api)\//, '$1/')}: ${match[1]}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

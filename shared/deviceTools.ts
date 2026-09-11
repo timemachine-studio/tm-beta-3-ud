@@ -19,7 +19,7 @@
  * Both api/ and src/ import this file, so it must stay dependency-free.
  */
 
-import { capabilitiesMet, type ToolDescriptor } from './toolCatalog';
+import { capabilitiesMet, type ToolDescriptor } from './toolCatalog.js';
 
 /** A tool the browser executes. Anything not in here runs on the server. */
 export const DEVICE_TOOL_NAMES = [

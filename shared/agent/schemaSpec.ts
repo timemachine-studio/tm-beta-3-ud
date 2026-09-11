@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { jsonValueSchema, type JsonValue } from './primitives';
+import { jsonValueSchema, type JsonValue } from './primitives.js';
 
 /** Deliberately bounded JSON Schema subset for v1 tool/resource definitions.
  * External schemas must be normalized by their adapter; no remote $ref loading. */

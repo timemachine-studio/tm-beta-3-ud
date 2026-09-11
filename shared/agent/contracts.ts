@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { inputSchemaSpecSchema, schemaSpecSchema } from './schemaSpec';
-import { argumentsSchema, digestSchema, idSchema, jsonValueSchema, personaSchema, revisionSchema, storageSchema, timestampSchema, versionSchema } from './primitives';
+import { inputSchemaSpecSchema, schemaSpecSchema } from './schemaSpec.js';
+import { argumentsSchema, digestSchema, idSchema, jsonValueSchema, personaSchema, revisionSchema, storageSchema, timestampSchema, versionSchema } from './primitives.js';
 
 export const usageSchema = z.object({
   inputTokens: revisionSchema, outputTokens: revisionSchema, toolCalls: revisionSchema,

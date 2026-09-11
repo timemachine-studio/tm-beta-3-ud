@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { schemaSpecSchema } from '../agent/schemaSpec';
-import { grantScopeSchema } from '../agent/contracts';
-import { idSchema, versionSchema } from '../agent/primitives';
+import { schemaSpecSchema } from '../agent/schemaSpec.js';
+import { grantScopeSchema } from '../agent/contracts.js';
+import { idSchema, versionSchema } from '../agent/primitives.js';
 
 // Resolver IDs select shipped code. A manifest never supplies executable URLs.
 export const appDescriptorSchema = z.object({

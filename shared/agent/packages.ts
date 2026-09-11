@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { grantScopeSchema, toolDefinitionSchema } from './contracts';
-import { digestSchema, idSchema, jsonValueSchema, versionSchema } from './primitives';
+import { grantScopeSchema, toolDefinitionSchema } from './contracts.js';
+import { digestSchema, idSchema, jsonValueSchema, versionSchema } from './primitives.js';
 const fileSchema = z.string().min(1).max(256).refine(path => !path.startsWith('/') && !path.includes('\\') && path.split('/').every(part => part !== '..' && part !== '.' && part !== ''), 'Expected package-relative path');
 export const packageManifestSchema = z.object({
   schemaVersion: z.literal(1), id: idSchema, version: versionSchema, contentHash: digestSchema,

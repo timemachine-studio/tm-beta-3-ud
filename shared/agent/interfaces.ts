@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import type { ModelEvent, ModelMessage, PermissionGrant, Run, ToolCall, ToolDefinition, ToolResult, Usage } from './contracts';
-import { idSchema, timestampSchema } from './primitives';
+import type { ModelEvent, ModelMessage, PermissionGrant, Run, ToolCall, ToolDefinition, ToolResult, Usage } from './contracts.js';
+import { idSchema, timestampSchema } from './primitives.js';
 
 // This opaque, non-serializable context is constructed by the future authenticated
 // broker. Parsing model arguments can never produce one. No public factory yet.

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { artifactRefSchema, errorSchema, pendingOperationSchema, runSchema, runStatusSchema, toolCallSchema, toolDefinitionSchema, toolResultSchema, usageSchema } from './contracts';
-import { idSchema, MAX_JSON_BYTES, revisionSchema, timestampSchema } from './primitives';
+import { artifactRefSchema, errorSchema, pendingOperationSchema, runSchema, runStatusSchema, toolCallSchema, toolDefinitionSchema, toolResultSchema, usageSchema } from './contracts.js';
+import { idSchema, MAX_JSON_BYTES, revisionSchema, timestampSchema } from './primitives.js';
 
 const envelope = { schemaVersion: z.literal(1), runId: idSchema, sequence: revisionSchema, timestamp: timestampSchema };
 const artifacts = z.array(artifactRefSchema).max(100);
