@@ -28,8 +28,19 @@ export interface AgentLoopOptions {
   tools: ProviderTool[];
   toolContext: ToolExecutionContext;
   emit: AgentLoopEmitter;
-  /** Runs one model turn. Provider dispatch stays with the caller. */
-  callModel: (messages: ProviderMessage[], activeTools: ProviderTool[]) => Promise<ReadableStream>;
+  /**
+   * Runs one model turn. Provider dispatch stays with the caller.
+   *
+   * `attempt.afterEmptyAnswer` is set when the previous call for this same
+   * iteration produced neither text nor a tool call. The caller can use it to
+   * walk past the hop that just did that — the fallback chain only sees a
+   * connection that failed to open, never one that opened and said nothing.
+   */
+  callModel: (
+    messages: ProviderMessage[],
+    activeTools: ProviderTool[],
+    attempt: { afterEmptyAnswer: boolean },
+  ) => Promise<ReadableStream>;
   maxIterations?: number;
   log?: (message: string) => void;
   /**
@@ -177,6 +188,8 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
   let iteration = 0;
   let fullContent = '';
   let endedWithPendingToolCalls = false;
+  let retriedEmpty = false;
+  let retryingEmpty = false;
 
   while (iteration < maxIterations) {
     iteration++;
@@ -200,7 +213,8 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
 
     // Tool output accumulates across iterations and is replayed in full each
     // time. Keep the newest, trim the oldest — see trimToolResults.
-    const streamingResponse = await callModel(trimToolResults(currentMessages), activeTools);
+    const streamingResponse = await callModel(trimToolResults(currentMessages), activeTools, { afterEmptyAnswer: retryingEmpty });
+    retryingEmpty = false;
     const reader = streamingResponse.getReader();
     const decoder = new TextDecoder();
 
@@ -346,6 +360,26 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
     }
 
     // Plain text response — the run is finished.
+    // Or no response at all: a stream that carried neither text nor a tool
+    // call. It ends the run exactly like an answer would, and the user sees
+    // "the model came back with nothing" — so say so here, where the
+    // iteration and the transcript size are known.
+    if (!assistantContent.trim()) {
+      log?.(`Agent loop: model returned nothing on iteration ${iteration} (${currentMessages.length} messages, ${activeTools.length} tools)`);
+      // Once, and only while nothing has reached the client. Seen live on a
+      // tool-writing turn: the model drafted the whole call in its reasoning
+      // and stopped before emitting it, and the user got "the model came
+      // back with nothing" for a request that works on the next try. With no
+      // content streamed there is nothing to duplicate, so one more call is
+      // exactly what the user's Retry button would do — minus the user.
+      if (!fullContent.trim() && !retriedEmpty) {
+        retriedEmpty = true;
+        retryingEmpty = true;
+        iteration--;
+        log?.('Agent loop: retrying the empty answer once');
+        continue;
+      }
+    }
     endedWithPendingToolCalls = false;
     break;
   }

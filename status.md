@@ -1,6 +1,6 @@
 # Current status
 
-Updated 2026-09-10. Assigned work: build the owner's two requirements directly rather than working through `superplan.md` — (A) a real tool catalogue with dynamic selection, and (B) TM writing and sharing its own tools. Three rounds so far: the catalogue, then a new provider, then backlog item 0 and item 4 (MCP).
+Updated 2026-09-11. Assigned work: build the owner's two requirements directly rather than working through `superplan.md` — (A) a real tool catalogue with dynamic selection, and (B) TM writing and sharing its own tools. Three rounds so far: the catalogue, then a new provider, then backlog item 0 and item 4 (MCP).
 
 Decisions taken from the owner this session: Python and code execution run **in the browser via Pyodide**, on the existing device bridge; generated tools are **sandbox-only and auto-published** to the shared registry; MCP gets a **curated catalog on by default, toggleable, plus user-added servers in Flight Controls**; and the **tool catalogue goes first**, because everything else plugs into it.
 
@@ -698,37 +698,286 @@ Excel file with computed columns.
    job per device round; `<memory>` tags only on the final leg; `NotesPage` as
    a second writer; lexical search in `chats_search` / `notes_search`.
 
+## Round 8 — part B: TimeMachine writes and shares its own tools (5.1–5.4)
+
+### Decisions taken from the owner, before any code
+
+- **Publishing goes browser → Supabase under RLS.** The deployment is at
+  twelve Functions and a thirteenth has already failed a production deploy, so
+  a `/api/tools` route was not an option. The insert policy says "as yourself,
+  a fresh published row, never over another user's slug"; the server reads the
+  table with the service key and validates every row again.
+- **No new sandbox restrictions.** A registry tool runs with the same reach as
+  `run_python`: the user's attached files mounted, and whatever network a
+  worker can already make. The exposure is written down under "what is rough".
+- **Signed-in publishing only; revocation by SQL.** Anonymous sessions create
+  and use tools inside the conversation and nothing of theirs reaches the
+  table. `status = 'revoked'` in the SQL editor is the whole moderation tool
+  this round.
+- **Conservative creation.** A tool is written when the user asks for one, or
+  when `find_tools` has shown the capability is missing. A one-off answer stays
+  `run_python`.
+
+### What a generated tool is
+
+A Python function plus a plain-JSON descriptor, running in the existing Pyodide
+sandbox through the existing device bridge. Nothing about the bridge changed:
+`isDeviceToolName` now also answers yes to any `tm__` name, and the agent loop,
+the suspension frame and the client loop carried a new kind of tool without
+learning a single new one.
+
+```
+model calls create_tool(slug, description, parameters, source, terms, tests)
+  → device: zod-validate the spec (shared/toolRegistrySchema.ts)
+  → device: run every test through the sandbox wrapper; a failure goes back
+    as a traceback and "fix it and call create_tool again with the same slug"
+  → device: publish (signed in) — or not, and say which
+  → the tool rides on the message as `createdTools`, and on the very next leg
+    it is offered as `core` for this conversation (`sessionTools` in the body,
+    summaries only — the code never leaves the device that wrote it)
+model calls tm__<slug>(args)
+  → server: attaches the registry code to the call if the tool came from a
+    registry row; a session tool carries nothing, the browser already has it
+  → device: checks the digest against what the registry recorded, then runs
+```
+
+Three things were designed deliberately:
+
+1. **The sandbox program.** The tool's source and the arguments cross as
+   base64 into a wrapper that `exec`s the source in its own namespace with
+   `show()` passed in, calls `main(**args)`, and prints the JSON return value
+   as the last line. Its imports are *hoisted* to the top as real statements
+   — the sandbox loads packages by parsing the program it is handed, and a
+   source inside a string literal is invisible to it. Found by reasoning, not
+   live, but it would have failed the first tool that imported pandas.
+2. **Identity is a digest over slug + signature + source**, through the
+   canonical-JSON hashing that had sat unused in `shared/agent/primitives.ts`
+   since the superplan. Not the description, not the terms: two people
+   describing the same function differently have written the same tool, and
+   the registry's unique constraint holds it once. A second publisher of
+   identical code is told it is reused. The digest is computed over the
+   *normalised* signature — a test caught the spec-as-written and the
+   spec-as-stored hashing differently because one had
+   `additionalProperties: false` filled in and the other did not.
+3. **Selection is exactly the built-ins' selection.** A registry tool is a
+   `gated` descriptor with `requires: ['python']`, its terms the author's plus
+   the slug's words, budget-capped, findable through `find_tools`. Terms are
+   validated against a reserved list — "data", "file", "image", "pdf" — so a
+   stranger's tool cannot sit next to the image generator on every picture
+   request. A session tool is `core`: the user watched it being built.
+
+### `create_tool` is a per-turn cost only when it can pay
+
+Its schema was 759 tokens in the first draft — more than Air's whole gated
+budget — and shrank to 546 by leaving out everything a validation error can
+teach faster. It is gated on asking for a tool ("make me a tool", "reusable",
+"save this as a tool") and otherwise granted by `find_tools`: on a miss, and
+on a *weak* match, because lexical ranking almost never misses outright —
+"convert bangla calendar dates" finds `web_search` on "dates" with a score of
+1, which is the miss it actually is. The meta-tool never ranks the tool-maker
+itself, or every search would have offered "write your own" first.
+
+### Verified live, anonymous, in the browser
+
+*"Make me a reusable tool that returns the weekday name for a date given as
+YYYY-MM-DD. Keep it small, with one test."*
+
+```
+leg 1 (groq)   create_tool → slug weekday_from_date, one test, terms
+device         test ran in Pyodide, passed; publish refused: anonymous
+leg 2 (nvidia) "It takes a date in YYYY-MM-DD format and returns the
+               corresponding weekday name … Ready to use!"
+card           New tool: Weekday Name Lookup · tm__weekday_from_date ·
+               Kept in this chat only · source one click away
+```
+
+*"What day of the week was 1971-03-26?"* — no tool keyword in the message —
+→ `tm__weekday_from_date` called, **"It was a Friday."** (correct), with the
+card *Used Weekday Name Lookup · 0.0s · Returned: {"date": "1971-03-26",
+"weekday": "Friday"}*.
+
+Then a full reload, the chat reopened from History, *"And 2000-01-01?"* →
+**"Saturday."** (correct), 0.9s because the interpreter was fresh — the code
+came out of the stored session.
+
+The first attempt, before any of that, wrote a 60-line taka-to-words tool with
+four tests on the first call. It was the environment that stopped it, not the
+tool — see below.
+
+### What the live run found that no unit test could
+
+1. **The deploy on `main` was already broken.** Your Vercel log:
+   `Cannot find module '/var/task/shared/toolCatalog' imported from
+   shared/deviceTools.js`. `shared/deviceTools.ts` has imported `./toolCatalog`
+   with no extension since round 1. Vite and vitest resolve it, `tsc` accepts
+   it, `vite build` never touches the server tree — so it passed every gate
+   and took the Function down at boot. Every relative import in `shared/`
+   (eleven files, mine included) now carries `.js`, and
+   `tests/api/deployableSurface.test.ts` fails on any extensionless relative
+   import under `shared/` or `api/`. That is the third class of failure this
+   project has found that only shows up at deploy; it is pinned now.
+2. **groq's free tier cannot serve a tool-writing turn reliably.** The
+   account is on `on_demand` with 1,000 output tokens per minute and 7,000
+   input. Writing a tool is ~700–1,500 output tokens, and each device leg
+   replays ~3,500 input tokens, so the second leg of a creation turn was 429'd
+   on most attempts and fell to nvidia. The error text now reaches the log —
+   `runWithProviderFallback` logs the provider's own message, bounded, where
+   before it said only "attempt 1 failed".
+3. **"The model came back with nothing" — and was charged.** Several legs
+   ended with an empty answer: no text, no tool call, `finish_reason: stop`.
+   Replaying an identical request against groq produced a clean `create_tool`
+   call, whose reasoning drafted the whole call in prose before emitting it —
+   a 27B model that stops after the draft looks exactly like an empty answer.
+   The loop now retries an empty answer **once, only while nothing has reached
+   the client** — the same thing the user's Retry button does, minus the user
+   — and logs the empty iteration with its message and tool counts. The
+   nvidia block logs the shape of an empty stream too (reasoning chunks,
+   finish reason; never content). The retry also tells the route it is a
+   retry, and the route **walks past the hop that answered with nothing** and
+   charges it a breaker failure — the fallback chain only ever saw a
+   connection that failed to open, never one that opened and said nothing,
+   which is why AMD and LLM7 were never reached while nvidia returned empty
+   200s. What is *not* fixed: an empty answer that survives the retry still
+   charges quota.
+4. **Air was thinking out loud on groq, at the user's expense.** The groq
+   block sends `reasoning_effort` only when a persona sets one, and Air set
+   nothing. Measured against the live endpoint: "what is 17*23" cost **255
+   completion tokens and opened with `<think>Here's a thinking process`** —
+   against **4 tokens and `391`** with `reasoning_effort: 'none'`. On a tier
+   that allows 1,000 output tokens a minute, that thinking was most of Air's
+   budget, and it is why tool-writing turns kept tripping the limit. Air now
+   sends `'none'`. Flow State's `gpt-oss-20b` rejects `'none'` with a 400
+   (`low`/`medium`/`high` only — also verified), so it carries its own
+   `'low'` and the override *replaces* the persona's value rather than
+   inheriting it. Pinned by a test that reads the actual groq request body.
+   Verified live after: a plain Air turn served by groq with no `<think>`
+   on the wire.
+5. **Girlie's primary was dead.** `meta-llama/llama-4-scout-17b-16e-instruct`
+   returns **404 `model_not_found`** on groq — it is simply not in the list
+   groq serves any more — and Girlie declared no fallbacks, so every Girlie
+   message died on its first hop. Now `qwen/qwen3.8-27b` (image input,
+   streaming tool calls and `reasoning_effort: 'none'` each verified against
+   the live endpoint) with Air's fallback chain behind it.
+
+### The chain, made to mean it
+
+The owner's instruction: when one goes down, fire the next, and keep going
+until one works. The chain did that for a hop that failed to *connect*. It
+did not for a hop that connected and then said nothing, because
+`runWithProviderFallback` wraps opening the stream and nothing after it —
+that is what let nvidia's empty 200s end turns while AMD and LLM7 sat idle.
+
+`guardStreamStart` closes that. Every provider's stream now passes through it
+inside `dispatchStreamingProvider`: the first frames are read and held until
+one carries non-blank text or a tool call, then replayed byte for byte ahead
+of the rest. If the stream ends or fails before that, it rejects with a
+retryable `EmptyAnswerError` and the chain moves on. Nothing has reached the
+client by then, so nothing is duplicated — the retryable moment is now
+"opened and started answering", not merely "opened". Two more changes in
+the same spirit: an all-tripped breaker now tries every hop rather than
+only the primary, and the `nvidia` block forwards a persona's
+`reasoning_effort` (the `-reasoning` nemotron could not be told to stop
+thinking; `nemotron-3.5-lightning-30b-a3b` can, and does).
+
+**Verified live** with groq forced to fail (a bad key in the gitignored
+`.env.local`, dev server only, removed after): a 401 is non-retryable, so
+the hand-off was immediate, and both legs of *"What is 4177 * 39281? …"* ran
+on `nvidia/nemotron-3.5-lightning-30b-a3b` — `run_python` called,
+**164,076,737** (correct), Padma River. ~40 seconds, all of it nvidia's
+queue: even a four-token answer sat 19–30 s on their free endpoint in direct
+tests. That latency is the provider's, and it is why the hop sits second.
+
+### Files
+
+New: `shared/toolRegistry.ts` (names, bounds, spec types, digest subject,
+descriptors, the sandbox wrapper, `create_tool`), `shared/toolRegistrySchema.ts`
+(zod at every boundary: model-written spec, request body, registry row, frame
+payload), `api/_lib/toolRegistry.ts` (cached load, latest-per-slug, session
+shadows registry, frame payloads, use counting), `supabase/migrations/tool_registry.sql`,
+`src/services/tools/toolRegistryService.ts` (publish under RLS: digest reuse,
+version bump, slug ownership, rate limit, revoked-identical),
+`src/services/tools/publishResult.ts`, `src/components/chat/CreatedToolCard.tsx`,
+`api/_lib/toolRegistry.test.ts`.
+
+Changed: `shared/deviceTools.ts` (`tm__` names are device tools; `tool` payload
+on the frame; `create_tool` descriptor), `api/_lib/tools.ts` (find_tools grants
+`create_tool` on a miss or weak match, never ranks it), `api/_lib/validation.ts`
+(`sessionTools`), `api/ai-proxy.ts` and `api/pro-generation.ts` (registry load,
+descriptors, frame payloads; PRO carries `registryTools` in the job),
+`trigger/proGeneration.ts` (attaches them on suspension),
+`src/services/agent/deviceToolRunner.ts` (`create_tool`, `tm__` execution with
+digest check), `src/services/ai/aiProxyService.ts` (`sessionToolsFor`, tools
+grow within a turn), `src/hooks/useChat.ts`, `src/types/chat.ts`,
+`src/services/chat/*` (persistence, validated on the way back in),
+`src/services/python/pythonResult.ts` (tool-aware wording), `PythonRunCard.tsx`
+(names the tool, marks a shared one), `api/_lib/agentLoop.ts` (empty-answer
+retry), `api/_lib/providerResilience.ts` (error detail in the log).
+
+`npm run typecheck`, `npm run lint`, `npm run build`, `npm test`: **44 files /
+435 tests**, up from 43/389.
+
+## What is rough
+
+1. **Publishing is unverified live.** `tool_registry` does not exist in
+   Supabase yet and I have no account to sign in with. The insert path, the
+   digest reuse, the version bump and the slug-ownership refusal are
+   unit-tested against the service's own branches, and the server's "table
+   missing" path is verified live (it logs once a minute and the turn goes on).
+   The first real publish will be the first test of the RLS policy itself.
+2. **A published tool runs on every other user's device with that user's
+   attached files mounted and the worker's network reach.** The owner chose no
+   new restrictions this round. The digest check stops a tampered frame, the
+   rate-limit trigger stops one account filling the table, and revocation is
+   one SQL statement — but nothing reviews code before it is offered to
+   strangers. If that position changes, the two levers are: block `fetch` in
+   the worker during execution (micropip runs before it), and run registry
+   tools without mounts.
+3. **groq's free tier is still a ceiling, a much higher one now.** With
+   reasoning off, a plain Air turn costs single-digit output tokens instead of
+   hundreds, so the 1,000/minute limit is reached by tool-writing turns rather
+   than by every turn — and when it is, the chain now genuinely carries the
+   turn to nvidia. What it cannot fix is nvidia's queue: 19–40 s per leg.
+3b. **A hop that dies *after* its first token is still the end of the turn.**
+   By design — the text is already on the user's screen — but it means a
+   provider that streams three words and hangs is not covered. The 45 s fetch
+   timeout bounds it.
+4. **An empty answer that survives the retry is still charged.** The chain
+   now moves past the empty hop on the retry; the accounting does not know.
+5. **`create_tool` is 546 tokens.** It fits Air's 700-token gated budget on
+   its own and loses ties to cheaper tools when two others also match. Fine
+   in practice — a find_tools miss grants it regardless — but it is the
+   largest schema on the catalogue.
+6. **Registry terms are model-written.** Bounded, reserved words refused, the
+   slug's words added — but a badly chosen term still offers a stranger's tool
+   on turns it does not fit. The budget caps the damage and `find_tools`
+   remains the backstop; use counts order what fits.
+7. **300 tools is the load cap**, ordered by use. Past that the honest fix is
+   embeddings in `rankFindableTools`, which was isolated for exactly this.
+8. **PRO needs `npm run trigger:deploy`** — again. The task attaches registry
+   code on suspension and the deployed copy does not know the field.
+9. **Four empty sessions were created by the failed turns**, visible in
+   History. Pre-existing: a turn that errors still saves a session.
+10. Everything still open from earlier rounds.
+
 ## Still not done
 
-**Run three things before this is live:**
+**Run four things before this is live:**
 
-- `supabase/migrations/user_mcp_servers.sql` in the Supabase SQL editor.
+- `supabase/migrations/tool_registry.sql` in the Supabase SQL editor.
+- `supabase/migrations/user_mcp_servers.sql`, outstanding since round 4.
 - `MCP_CREDENTIAL_KEY` in the environment — `openssl rand -base64 32`.
-- `npm run trigger:deploy`, outstanding since round 3 and now also required for
-  `run_python` on PRO.
+- `npm run trigger:deploy`, outstanding since round 3.
 
-**Part B is the whole of what is left.** It depended on item 1, which exists:
-TimeMachine cannot publish a tool it cannot run, and it can run one now — write
-it, execute it, and hand back a real file. `ToolDescriptor` was designed for
-this: a descriptor is plain JSON so a Supabase row becomes a selectable tool
-with no new selection code, and `origin: 'registry'` is already in the type.
+**Part B, what remains:**
 
-- 5.1 registry schema, versioning, content digest (`shared/agent/primitives.ts`
-  already has canonical JSON and hashing, still unused)
-- 5.2 loading registry tools, zod-validated, because a descriptor is untrusted
-  the moment it leaves the database
-- 5.3 generating a tool from chat: write it, validate it, test-run it in the
-  sandbox, repair on failure
-- 5.4 auto-publish and reuse — the network effect the brief asked for
-- 5.5 workflow assembly
-
-One thing worth deciding before 5.4: a published tool is code one user's session
-generated and every other user's session then runs. The sandbox contains what it
-does, but "shared by default" is a distribution channel, and it needs a position
-on review, revocation and provenance before it is a feature rather than a risk.
-
-Nothing here depends on anything uncommitted: this round was committed and
-pushed to `main`.
+- 5.5 workflow assembly. The natural shape in this design is a tool that
+  declares `uses: [slug, …]` and has those tools' sources loaded into its
+  namespace before `main` runs — composition inside the sandbox, no new
+  executor. The model already chains tools across iterations for free.
+- 5.6 API integration templates. A different executor: a server-run tool
+  whose host, method and path are bound outside model-written strings and
+  whose credential comes from the user's encrypted store (4.4). Design it
+  with the credential storage, as the brief says.
 
 ------------------------------------------------------------------------------
 

@@ -193,3 +193,95 @@ describe('device tool bridge, end to end through the transport', () => {
     expect((failure as unknown as { code: string }).code).toBe('TRUNCATED');
   });
 });
+
+// The sandbox and the registry are both mocked: this is about what travels
+// between legs, not about Python.
+vi.mock('../python/pythonRuntime', () => ({
+  pythonRuntime: () => ({
+    run: async () => ({
+      ok: true, durationMs: 50, stdout: 'Returned: {"value": 1000.0}\n', stderr: '',
+      freshSession: false, outputs: [], files: [],
+    }),
+  }),
+}));
+vi.mock('../tools/toolRegistryService', () => ({
+  publishTool: async () => ({ published: false, reason: 'anonymous' }),
+}));
+
+describe('generated tools across legs', () => {
+  const spec = {
+    slug: 'unit_convert',
+    title: 'Unit converter',
+    description: 'Convert a length between metres and kilometres. Call it whenever the user asks to convert a length.',
+    summary: 'Convert lengths between metres and kilometres.',
+    parameters: { type: 'object', properties: { value: { type: 'number' } }, required: ['value'] },
+    source: 'def main(value):\n    return {"value": value * 1000.0}',
+    terms: ['convert', 'kilometres to metres'],
+    tests: [{ input: { value: 1 }, expect: '1000' }],
+  };
+
+  beforeEach(() => { installStorage(); chatService.setUserId(null); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('offers a tool created on one leg to the very next one, as a summary without its code', async () => {
+    const created: unknown[] = [];
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(legResponse(
+        deviceFrame({
+          assistantContent: null,
+          toolCalls: [{ id: 'call-1', name: 'create_tool', arguments: JSON.stringify(spec) }],
+          resolvedResults: [],
+          deviceRounds: 1,
+        }) + '[STATUS_END]',
+      ))
+      .mockResolvedValueOnce(legResponse('Made it.[STATUS_END]'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateAIResponseStreaming(
+      [{ id: 'm1', content: 'make me a unit converter tool', isAI: false }],
+      undefined, '', 'default', undefined, undefined, undefined,
+      undefined, undefined, (error) => { throw error; },
+      undefined, undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, 'session-1', undefined, undefined,
+      { deviceApps: ['python'], onToolCreated: (tool) => { created.push(tool); } },
+    );
+
+    const first = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(first.sessionTools).toBeUndefined();
+
+    const second = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(second.sessionTools).toEqual([{
+      slug: 'unit_convert',
+      title: 'Unit converter',
+      description: spec.description,
+      summary: spec.summary,
+      parameters: { ...spec.parameters, additionalProperties: false },
+      terms: spec.terms,
+    }]);
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatchObject({ slug: 'unit_convert', published: false });
+  });
+
+  it('carries tools from earlier messages on the first leg, newest definition per slug', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(legResponse('Sure.[STATUS_END]'));
+    vi.stubGlobal('fetch', fetchMock);
+    const tool = { ...spec, digest: 'sha256:' + 'a'.repeat(64), version: 1, published: false };
+
+    await generateAIResponseStreaming(
+      [
+        { id: 'a1', content: 'made a tool', isAI: true, createdTools: [tool] },
+        { id: 'a2', content: 'fixed it', isAI: true, createdTools: [{ ...tool, version: 2, summary: 'The repaired converter.' }] },
+        { id: 'm3', content: 'convert 2 km', isAI: false },
+      ],
+      undefined, '', 'default', undefined, undefined, undefined,
+      undefined, undefined, (error) => { throw error; },
+      undefined, undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, 'session-1', undefined, undefined,
+      { deviceApps: ['python'] },
+    );
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.sessionTools).toHaveLength(1);
+    expect(body.sessionTools[0].summary).toBe('The repaired converter.');
+  });
+});

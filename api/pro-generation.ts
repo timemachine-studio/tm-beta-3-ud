@@ -13,6 +13,8 @@ import {
   personaFallbacks,
   runProviderNames,
 } from './ai-proxy.js';
+import { loadPublishedToolsCached, resolveRequestTools } from './_lib/toolRegistry.js';
+import { registryToolPayload } from '../shared/toolRegistry.js';
 import { buildToolGuardrail, THINKING_DIRECTIVE, buildAppToolDirective, buildAttachedFilesDirective, resolveDeviceRoundBudget, selectToolSet, toApiMessages, type UserSkill } from './_lib/tools.js';
 import { enabledSkills, resolveFlightControlsCached } from './_lib/flightControls.js';
 import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
@@ -85,6 +87,7 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
     deviceRounds,
     deviceFiles,
     toolTranscript,
+    sessionTools,
   } = body;
 
   // Identify the user from the Supabase access token (falls back to anonymous)
@@ -168,6 +171,14 @@ The memory tags will be processed and removed from the visible response, so writ
   // come back through SKILLS_DATA, or the toggle only works one way.
   const governedSkillSlugs = flightControls.governedSkillSlugs;
 
+  // Generated tools, exactly as /api/ai-proxy resolves them. The task cannot
+  // read the registry for itself, so the code of any registry tool the model
+  // might call travels with the job.
+  const generatedTools = resolveRequestTools(
+    sessionTools,
+    deviceAppsEnabled.includes('python') ? await loadPublishedToolsCached() : [],
+  );
+
   const toolSet = selectToolSet({
     specialModeConfig,
     includeSkills: true,
@@ -178,6 +189,7 @@ The memory tags will be processed and removed from the visible response, so writ
     deviceDataPresent,
     deviceRoundsUsed: deviceRounds,
     surface: 'pro',
+    extraDescriptors: generatedTools.descriptors,
   });
   const toolsToUse: ProviderTool[] = toolSet.tools;
   const offeredToolNames = toolsToUse.map(tool => tool.function.name);
@@ -366,6 +378,13 @@ ${thinkingDirective}`;
     // client runs the calls and starts a fresh run with the transcript grown.
     deviceBridge: deviceAppsEnabled.length > 0,
     deviceRounds,
+    // Only the registry tools the request could actually offer, keyed by
+    // model-facing name, so the task can put the code on a suspended call.
+    registryTools: Object.fromEntries(
+      [...generatedTools.registryByName]
+        .filter(([name]) => offeredToolNames.includes(name) || toolSet.findable.some(d => d.name === name))
+        .map(([name, tool]) => [name, registryToolPayload(tool)]),
+    ),
   };
 
   try {

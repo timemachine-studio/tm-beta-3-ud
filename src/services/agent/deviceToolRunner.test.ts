@@ -195,3 +195,136 @@ describe('run_python through the device bridge', () => {
     expect(onStatus).toHaveBeenCalledWith('Starting Python (first run takes a moment)');
   });
 });
+
+describe('generated tools through the device bridge', () => {
+  const outcome = (overrides = {}) => ({
+    ok: true,
+    durationMs: 120,
+    stdout: 'Returned: {"value": 1000.0, "unit": "m"}\n',
+    stderr: '',
+    freshSession: false,
+    outputs: [],
+    files: [],
+    ...overrides,
+  });
+  const saveFile = async () => 'stored-1';
+
+  const spec = {
+    slug: 'unit_convert',
+    title: 'Unit converter',
+    description: 'Convert a length between metres, feet, inches and kilometres. Call it whenever the user asks to convert units of length.',
+    summary: 'Convert lengths between metric and imperial units.',
+    parameters: {
+      type: 'object',
+      properties: { value: { type: 'number' }, from_unit: { type: 'string' }, to_unit: { type: 'string' } },
+      required: ['value', 'from_unit', 'to_unit'],
+    },
+    source: 'FACTORS = {"m": 1.0, "km": 1000.0}\ndef main(value, from_unit, to_unit):\n    return {"value": value * FACTORS[from_unit] / FACTORS[to_unit], "unit": to_unit}',
+    terms: ['convert', 'metres to feet', 'kilometres'],
+    tests: [{ input: { value: 1, from_unit: 'km', to_unit: 'm' }, expect: '1000' }],
+  };
+
+  const published = async () => ({ published: true as const, id: 'row-1', version: 1, reused: false });
+
+  it('validates, test-runs in the sandbox, publishes, and hands back the tool', async () => {
+    const runPython = vi.fn(async (_code: string) => outcome());
+    const publishTool = vi.fn(async (_spec: unknown, _digest: string) => published());
+
+    const result = await runDeviceTool(call('create_tool', spec), { runPython, saveFile, publishTool });
+
+    // The test ran through the wrapper program, not the bare source.
+    const program = runPython.mock.calls[0][0];
+    expect(program).toContain('exec(compile(_tm_source, "tm__unit_convert", "exec"), _tm_ns)');
+    expect(publishTool).toHaveBeenCalledTimes(1);
+    expect(publishTool.mock.calls[0][1]).toMatch(/^sha256:/);
+    expect(result.createdTool).toMatchObject({ slug: 'unit_convert', published: true, registryId: 'row-1', version: 1 });
+    expect(result.content).toContain('tm__unit_convert is created');
+    expect(result.content).toContain('published to the shared TimeMachine registry');
+  });
+
+  it('refuses a spec that does not validate, before running anything', async () => {
+    const runPython = vi.fn();
+    const publishTool = vi.fn(published);
+    const result = await runDeviceTool(call('create_tool', { ...spec, terms: ['data', 'the'] }), { runPython, publishTool });
+    expect(runPython).not.toHaveBeenCalled();
+    expect(publishTool).not.toHaveBeenCalled();
+    expect(result.createdTool).toBeUndefined();
+    expect(result.content).toContain('too generic');
+  });
+
+  it('hands a failing test back as a traceback, and does not publish', async () => {
+    const runPython = vi.fn(async () => outcome({ ok: false, error: 'Traceback\nKeyError: \'ft\'', stdout: '' }));
+    const publishTool = vi.fn(published);
+    const result = await runDeviceTool(call('create_tool', spec), { runPython, saveFile, publishTool });
+    expect(publishTool).not.toHaveBeenCalled();
+    expect(result.createdTool).toBeUndefined();
+    expect(result.content).toContain('Test 1 of 1 failed');
+    expect(result.content).toContain("KeyError: 'ft'");
+    expect(result.content).toContain('call create_tool again with the same slug');
+  });
+
+  it('fails a test whose output lacks the expected text', async () => {
+    const runPython = vi.fn(async () => outcome({ stdout: 'Returned: {"value": 1.0}\n' }));
+    const publishTool = vi.fn(published);
+    const result = await runDeviceTool(call('create_tool', spec), { runPython, publishTool });
+    expect(publishTool).not.toHaveBeenCalled();
+    expect(result.content).toContain('did not contain the expected text');
+    expect(result.content).toContain('Expected to find: "1000"');
+  });
+
+  it('keeps a tool that could not be published, and says so', async () => {
+    const runPython = vi.fn(async () => outcome());
+    const publishTool = vi.fn(async () => ({ published: false as const, reason: 'anonymous' as const }));
+    const result = await runDeviceTool(call('create_tool', spec), { runPython, publishTool });
+    expect(result.createdTool).toMatchObject({ published: false, version: 1 });
+    expect(result.content).toContain('not signed in');
+  });
+
+  it('runs a session tool from the device copy, never from the frame', async () => {
+    const runPython = vi.fn(async () => outcome());
+    const sessionTool = { ...spec, digest: 'sha256:' + 'a'.repeat(64), version: 1, published: false };
+    const result = await runDeviceTool(
+      { id: 'c', name: 'tm__unit_convert', arguments: JSON.stringify({ value: 1, from_unit: 'km', to_unit: 'm' }) },
+      { runPython, saveFile, sessionTools: [sessionTool] },
+    );
+    expect(runPython).toHaveBeenCalledTimes(1);
+    expect(result.content).toContain('tm__unit_convert ran in');
+    expect(result.content).toContain('Returned: {"value": 1000.0');
+    expect(result.pythonRun?.tool).toMatchObject({ name: 'tm__unit_convert', title: 'Unit converter', shared: false });
+    expect(result.pythonRun?.code).toBe(spec.source);
+  });
+
+  it('runs a registry tool only when its digest matches what was published', async () => {
+    const { toolDigest } = await import('../../../shared/toolRegistrySchema');
+    const digest = await toolDigest(spec);
+    const payload = { id: 'row-1', slug: spec.slug, title: spec.title, version: 2, digest, parameters: spec.parameters, source: spec.source };
+    const runPython = vi.fn(async () => outcome());
+
+    const good = await runDeviceTool(
+      { id: 'c', name: 'tm__unit_convert', arguments: '{"value": 1, "from_unit": "km", "to_unit": "m"}', tool: payload },
+      { runPython, saveFile },
+    );
+    expect(runPython).toHaveBeenCalledTimes(1);
+    expect(good.pythonRun?.tool?.shared).toBe(true);
+
+    const tampered = await runDeviceTool(
+      { id: 'd', name: 'tm__unit_convert', arguments: '{}', tool: { ...payload, source: spec.source + '\nimport os' } },
+      { runPython, saveFile },
+    );
+    expect(runPython).toHaveBeenCalledTimes(1);
+    expect(tampered.content).toContain('does not match what the registry recorded');
+    expect(tampered.pythonRun).toBeUndefined();
+  });
+
+  it('refuses a tool whose code never arrived', async () => {
+    const runPython = vi.fn();
+    const result = await runDeviceTool({ id: 'e', name: 'tm__missing', arguments: '{}' }, { runPython });
+    expect(runPython).not.toHaveBeenCalled();
+    expect(result.content).toContain('its code did not arrive');
+  });
+
+  it('names the tool in the shimmer', () => {
+    expect(deviceToolStatus('tm__unit_convert')).toBe('Using unit convert');
+    expect(deviceToolStatus('create_tool')).toBe('Writing a new tool');
+  });
+});

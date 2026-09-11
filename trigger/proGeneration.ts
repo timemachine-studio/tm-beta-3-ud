@@ -9,6 +9,7 @@ import {
   processMemoryTags,
 } from "../api/ai-proxy.js";
 import type { DeviceToolRequestFrame } from "../shared/deviceTools.js";
+import type { RegistryToolPayload } from "../shared/toolRegistry.js";
 import { runWithProviderFallback, type ProviderHop } from "../api/_lib/providerResilience.js";
 import {
   attachmentsFrom,
@@ -69,6 +70,11 @@ export interface ProGenerationPayload {
    */
   offeredTools?: string[];
   findableTools?: ToolDescriptor[];
+  /**
+   * Code for the registry tools this job may call, by model-facing name. The
+   * browser runs them; this task only hands the code down with the call.
+   */
+  registryTools?: Record<string, RegistryToolPayload>;
   /** Flight Controls skills the user enabled, resolved by the route. */
   userSkills?: UserSkill[];
   /** Skill slugs the catalog owns, so a disabled built-in stays disabled. */
@@ -241,11 +247,15 @@ export const proGeneration = task({
           type: "device_tool_request",
           payload: {
             assistantContent: loopResult.deviceSuspension.assistantContent,
-            toolCalls: loopResult.deviceSuspension.allToolCalls.map(call => ({
-              id: call.id,
-              name: call.function.name,
-              arguments: call.function.arguments || "{}",
-            })),
+            toolCalls: loopResult.deviceSuspension.allToolCalls.map(call => {
+              const tool = payload.registryTools?.[call.function.name];
+              return {
+                id: call.id,
+                name: call.function.name,
+                arguments: call.function.arguments || "{}",
+                ...(tool ? { tool } : {}),
+              };
+            }),
             resolvedResults: loopResult.deviceSuspension.resolvedResults,
             deviceRounds: (payload.deviceRounds ?? 0) + 1,
           },

@@ -20,6 +20,13 @@
  */
 
 import { capabilitiesMet, type ToolDescriptor } from './toolCatalog.js';
+import {
+  CREATE_TOOL_NAME,
+  createToolDescriptor,
+  isRegistryToolName,
+  type RegistryToolName,
+  type RegistryToolPayload,
+} from './toolRegistry.js';
 
 /** A tool the browser executes. Anything not in here runs on the server. */
 export const DEVICE_TOOL_NAMES = [
@@ -30,14 +37,22 @@ export const DEVICE_TOOL_NAMES = [
   'chats_search',
   'chats_read',
   'run_python',
+  CREATE_TOOL_NAME,
 ] as const;
 
 export type DeviceToolName = (typeof DEVICE_TOOL_NAMES)[number];
 
 const DEVICE_TOOL_NAME_SET: ReadonlySet<string> = new Set(DEVICE_TOOL_NAMES);
 
-export function isDeviceToolName(name: string | undefined | null): name is DeviceToolName {
-  return !!name && DEVICE_TOOL_NAME_SET.has(name);
+/**
+ * Whether the browser is what runs this tool.
+ *
+ * The fixed list, plus every `tm__` name: a generated tool is Python, and the
+ * sandbox is here. The prefix is the whole test — a registry can grow without
+ * this function learning a single new name.
+ */
+export function isDeviceToolName(name: string | undefined | null): name is DeviceToolName | RegistryToolName {
+  return !!name && (DEVICE_TOOL_NAME_SET.has(name) || isRegistryToolName(name));
 }
 
 /**
@@ -77,6 +92,14 @@ export interface DeviceToolCall {
   name: string;
   /** Raw JSON string, exactly as the model emitted it. Parsed on the device. */
   arguments: string;
+  /**
+   * The code, for a tool that came from the shared registry.
+   *
+   * Present only when the server loaded the tool from a registry row; a tool
+   * this conversation created is already on the device and carries nothing.
+   * The browser checks the digest before it runs anything from here.
+   */
+  tool?: RegistryToolPayload;
 }
 
 export interface DeviceToolRequestFrame {
@@ -326,7 +349,7 @@ export const PYTHON_TERMS = [
 
 export const NOTES_TOOLS = [notesSearchTool, notesReadTool, notesCreateTool, notesEditTool];
 export const CHAT_HISTORY_TOOLS = [chatsSearchTool, chatsReadTool];
-export const DEVICE_TOOLS = [...NOTES_TOOLS, ...CHAT_HISTORY_TOOLS, runPythonTool];
+export const DEVICE_TOOLS = [...NOTES_TOOLS, ...CHAT_HISTORY_TOOLS, runPythonTool, createToolDescriptor.definition];
 
 /**
  * Which device apps a client says it can execute for.
@@ -484,4 +507,8 @@ export const DEVICE_TOOL_DESCRIPTORS: ToolDescriptor[] = [
       predicates: ['calculation_in_message', 'quantities_in_message'],
     },
   },
+  // Writing a tool needs the sandbox to test it in, so it is a device tool
+  // for the same reason run_python is. Its descriptor lives with the rest of
+  // the registry contract in toolRegistry.ts.
+  createToolDescriptor,
 ];

@@ -2,6 +2,8 @@ import { z } from 'zod';
 import type { Message } from '../../types/chat';
 import type { ChatSession } from './chatService';
 import { AI_PERSONAS } from '../../config/constants';
+import { MAX_SESSION_TOOLS } from '../../../shared/toolRegistry';
+import { sessionToolSchema } from '../../../shared/toolRegistrySchema';
 
 const dimensions = z.object({ width: z.number(), height: z.number() });
 const errorCode = z.enum(['RETENTION_UNVERIFIED', 'RATE_LIMITED', 'AUTH_EXPIRED', 'PROVIDER_DOWN', 'PAYLOAD_TOO_LARGE', 'TIMEOUT', 'TRUNCATED', 'EMPTY', 'ABORTED', 'NETWORK', 'UNKNOWN']);
@@ -64,6 +66,12 @@ const pythonRuns = z.array(z.object({
   error: z.string().max(8000).optional(),
   timedOut: z.boolean().optional(),
   artifacts: z.array(pythonArtifact).max(8),
+  tool: z.object({
+    name: z.string().max(64),
+    title: z.string().max(60),
+    args: z.string().max(8000),
+    shared: z.boolean(),
+  }).optional(),
 })).max(6);
 // Files the user attached, as references into the device file store. Bounded
 // like everything else here: a stored blob is untrusted input.
@@ -73,6 +81,9 @@ const attachments = z.array(z.object({
   mime: z.string().max(120),
   size: z.number().int().min(0),
 })).max(8);
+// Tools the conversation created. The full spec schema, because a stored
+// blob is untrusted and this is code the sandbox will run again.
+const createdTools = z.array(sessionToolSchema).max(MAX_SESSION_TOOLS);
 export const storedMetadataSchema = z.object({
   hasAnimated: z.boolean().nullish(), imageDimensions: dimensions.nullish(),
   specialMode: z.string().nullish(),
@@ -82,6 +93,7 @@ export const storedMetadataSchema = z.object({
   appObjects: appObjects.nullish(),
   pythonRuns: pythonRuns.nullish(),
   attachments: attachments.nullish(),
+  createdTools: createdTools.nullish(),
 });
 
 /** A malformed optional field must not discard another field's retry state. */
@@ -104,6 +116,7 @@ const messageSchema = storedMetadataSchema.extend({
   appObjects: appObjects.optional(),
   pythonRuns: pythonRuns.optional(),
   attachments: attachments.optional(),
+  createdTools: createdTools.optional(),
   thinking: z.string().optional(), rawContent: z.string().optional(),
   imageData: z.union([z.string(), z.array(z.string())]).optional(),
   audioUrl: z.string().optional(), inputImageUrls: z.array(z.string()).optional(),

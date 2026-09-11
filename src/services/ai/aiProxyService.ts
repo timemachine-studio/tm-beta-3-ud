@@ -11,6 +11,7 @@ import {
   type ToolTranscriptMessage,
 } from '../../../shared/deviceTools';
 import { resolveDeviceDataPresent, runDeviceTool } from '../agent/deviceToolRunner';
+import { MAX_SESSION_TOOLS, sessionToolSummary, type SessionTool } from '../../../shared/toolRegistry';
 
 export interface YouTubeMusicData {
   videoId: string;
@@ -59,6 +60,23 @@ const MAX_ATTACHED_FILES = 8;
  * Names are made unique here, once, because the same string has to be the path
  * the model is told about *and* the path the file is written to.
  */
+/**
+ * The tools this conversation has created, newest definition of each slug.
+ *
+ * Read off the transcript for the same reason attachments are: a tool made
+ * six turns ago is still callable, and it comes back after a reload for
+ * free. Newest first, so a repaired tool replaces the one it fixed.
+ */
+export function sessionToolsFor(messages: readonly Message[]): SessionTool[] {
+  const bySlug = new Map<string, SessionTool>();
+  for (let index = messages.length - 1; index >= 0 && bySlug.size < MAX_SESSION_TOOLS; index--) {
+    for (const tool of messages[index].createdTools ?? []) {
+      if (!bySlug.has(tool.slug) && bySlug.size < MAX_SESSION_TOOLS) bySlug.set(tool.slug, tool);
+    }
+  }
+  return [...bySlug.values()];
+}
+
 export function attachedFilesFor(messages: readonly Message[]): AttachedFile[] {
   const seen = new Set<string>();
   const names = new Set<string>();
@@ -100,6 +118,8 @@ export interface DeviceBridgeOptions {
   onAppObject?: (object: AppObjectRef) => void;
   /** Python this turn ran, with its charts, tables and generated files. */
   onPythonRun?: (run: PythonRun) => void;
+  /** A tool this turn wrote and tested. The message keeps it. */
+  onToolCreated?: (tool: SessionTool) => void;
 }
 
 // User profile info for memory context
@@ -554,6 +574,8 @@ export async function generateAIResponseStreaming(
   // throughout, so the user sees one answer being written, not several.
   const deviceApps = deviceBridge?.deviceApps ?? [];
   const attachedFiles = attachedFilesFor(messages);
+  // Grows within the turn: a tool created on one leg is callable on the next.
+  const sessionTools = sessionToolsFor(messages);
   const toolTranscript: ToolTranscriptMessage[] = [];
   let deviceRounds = 0;
   /** Which apps hold anything. Null until the first leg resolves it. */
@@ -594,9 +616,17 @@ export async function generateAIResponseStreaming(
         currentChatSessionId: deviceBridge?.currentChatSessionId,
         onStatus: onStatusChange,
         attachedFiles,
+        sessionTools,
       });
       if (outcome.appObject) deviceBridge?.onAppObject?.(outcome.appObject);
       if (outcome.pythonRun) deviceBridge?.onPythonRun?.(outcome.pythonRun);
+      if (outcome.createdTool) {
+        // Replace, not append: a repaired tool under the same slug is the
+        // same tool, and the next leg must offer exactly one of it.
+        const others = sessionTools.filter(tool => tool.slug !== outcome.createdTool!.slug);
+        sessionTools.splice(0, sessionTools.length, ...others, outcome.createdTool);
+        deviceBridge?.onToolCreated?.(outcome.createdTool);
+      }
 
       toolTranscript.push({
         role: 'tool',
@@ -649,6 +679,9 @@ export async function generateAIResponseStreaming(
                 }
               : {}),
             ...(toolTranscript.length > 0 ? { toolTranscript } : {}),
+            // Summaries only. The code stays here; the server needs just
+            // enough to build a descriptor the model can call.
+            ...(sessionTools.length > 0 ? { sessionTools: sessionTools.map(sessionToolSummary) } : {}),
           }
         : {};
 

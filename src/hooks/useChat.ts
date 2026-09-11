@@ -982,6 +982,17 @@ export function useChat(
               ? { ...messageItem, pythonRuns: [...(messageItem.pythonRuns ?? []), run] }
               : messageItem));
           },
+          onToolCreated: (tool) => {
+            if (wasStopped()) return;
+            isDirtyRef.current = true;
+            setMessages(previous => previous.map(messageItem => {
+              if (messageItem.id !== aiMessageId) return messageItem;
+              // A repaired tool replaces the version it fixed on the same
+              // turn; the conversation should show one card per tool.
+              const others = (messageItem.createdTools ?? []).filter(candidate => candidate.slug !== tool.slug);
+              return { ...messageItem, createdTools: [...others, tool] };
+            }));
+          },
         },
       );
       return;

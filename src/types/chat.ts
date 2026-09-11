@@ -1,4 +1,5 @@
 import type { AI_PERSONAS } from '../config/constants';
+import type { SessionTool } from '../../shared/toolRegistry';
 
 /**
  * The one persona union. Components used to declare their own — several still
@@ -96,6 +97,10 @@ export interface Message {
   // Python this turn ran on the device, with whatever it put in front of the
   // user: charts, tables, generated files.
   pythonRuns?: PythonRun[];
+  // Tools this turn wrote and test-ran (shared/toolRegistry.ts). Kept with the
+  // conversation so they stay callable on every later turn, through a reload,
+  // and for an anonymous user who cannot publish anything.
+  createdTools?: SessionTool[];
   // Files the user attached to this message, by reference into the device file
   // store. The bytes are not here; only what is needed to find them again.
   attachments?: AttachedFile[];
@@ -125,9 +130,10 @@ export type PythonArtifact =
   | { kind: 'text'; caption?: string; text: string }
   | { kind: 'file'; name: string; size: number; mime: string; fileId?: string; dataUrl?: string; dropped?: boolean };
 
-/** One `run_python` call, as the chat shows it. */
+/** One `run_python` call — or one call of a generated tool — as the chat shows it. */
 export interface PythonRun {
   id: string;
+  /** The Python that ran. For a tool call, the tool's own source. */
   code: string;
   ok: boolean;
   durationMs: number;
@@ -135,6 +141,15 @@ export interface PythonRun {
   error?: string;
   timedOut?: boolean;
   artifacts: PythonArtifact[];
+  /** Set when this was a generated tool being called rather than ad-hoc code. */
+  tool?: {
+    name: string;
+    title: string;
+    /** The arguments the model passed, as JSON. */
+    args: string;
+    /** Came from the shared registry — written by another user's session. */
+    shared: boolean;
+  };
 }
 
 /**

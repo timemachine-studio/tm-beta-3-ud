@@ -85,6 +85,7 @@ function messageToDbRow(message: Message, sessionId: string, userId: string) {
       appObjects: message.appObjects || null,
       pythonRuns: messageForStorage(message).pythonRuns || null,
       attachments: message.attachments || null,
+      createdTools: message.createdTools || null,
     } as unknown as Json,
     // Ordering is by created_at, and ids are no longer timestamps (1.12),
     // so the message has to carry its own clock.
@@ -114,6 +115,7 @@ function dbRowToMessage(row: MessageRow): Message {
     appObjects: saved.appObjects || undefined,
     pythonRuns: saved.pythonRuns || undefined,
     attachments: saved.attachments || undefined,
+    createdTools: saved.createdTools || undefined,
   };
 }
 

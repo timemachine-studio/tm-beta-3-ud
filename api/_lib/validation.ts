@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import type { VercelRequest, VercelResponse } from './vercelTypes.js';
 import { apiErrorBody } from './errors.js';
+import { MAX_SESSION_TOOLS } from '../../shared/toolRegistry.js';
+import { sessionToolSummarySchema } from '../../shared/toolRegistrySchema.js';
 
 /**
  * Input bounds for the API (production-check.md 1.8).
@@ -177,6 +179,11 @@ export const aiProxyBodySchema = z.object({
     size: z.number().int().min(0),
   })).max(8).optional(),
   toolTranscript: z.array(toolTranscriptMessageSchema).max(LIMITS.maxToolTranscript).optional(),
+  // Tools this conversation created (shared/toolRegistry.ts). Summaries only:
+  // the code stays on the device that wrote it. Each becomes a descriptor the
+  // model may call, so every field is validated as if it came from the model —
+  // which is where it did come from, one leg ago.
+  sessionTools: z.array(sessionToolSummarySchema).max(MAX_SESSION_TOOLS).optional(),
 }).passthrough();
 
 export type AiProxyBody = z.infer<typeof aiProxyBodySchema>;

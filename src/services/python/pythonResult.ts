@@ -140,6 +140,7 @@ export async function toPythonRun(
   code: string,
   outcome: PythonRunOutcome,
   saveFile: SaveArtifactFile,
+  tool?: PythonRun['tool'],
 ): Promise<PythonRun> {
   return {
     id: newId(),
@@ -150,6 +151,7 @@ export async function toPythonRun(
     error: tidyTraceback(outcome.error) || undefined,
     timedOut: outcome.timedOut || undefined,
     artifacts: await toArtifacts(outcome, saveFile),
+    ...(tool ? { tool } : {}),
   };
 }
 
@@ -199,9 +201,17 @@ function describeShown(artifacts: PythonArtifact[]): string[] {
  * a lost interpreter has to be stated outright — a `NameError` the model
  * cannot account for is where it starts inventing the answer instead.
  */
-export function formatPythonResultForModel(run: PythonRun, outcome: PythonRunOutcome): string {
+export function formatPythonResultForModel(
+  run: PythonRun,
+  outcome: PythonRunOutcome,
+  options: {
+    /** What to do after a failure. Defaults to the run_python advice. */
+    retry?: string;
+  } = {},
+): string {
   const seconds = (run.durationMs / 1000).toFixed(1);
   const lines: string[] = [];
+  const subject = run.tool ? `${run.tool.name}` : 'The code';
 
   if (run.timedOut) {
     return [
@@ -212,11 +222,11 @@ export function formatPythonResultForModel(run: PythonRun, outcome: PythonRunOut
   }
 
   if (!run.ok) {
-    lines.push(`The code failed after ${seconds}s.`);
-    if (outcome.freshSession) lines.push('This was a new Python session, so nothing from earlier calls existed.');
+    lines.push(`${subject} failed after ${seconds}s.`);
+    if (outcome.freshSession && !run.tool) lines.push('This was a new Python session, so nothing from earlier calls existed.');
     lines.push('', run.error || 'No error text was returned.', '');
     if (outcome.stdout.trim()) lines.push('It printed this before failing:', outcome.stdout.trim(), '');
-    lines.push('Read the error, fix the code, and call run_python again. Do not guess what the answer would have been.');
+    lines.push(options.retry ?? 'Read the error, fix the code, and call run_python again. Do not guess what the answer would have been.');
     // Seen live: a missing module sent the model into `!pip install`, then a
     // shell command, then subprocess — three wasted rounds, none of which
     // exists in this sandbox. Say what actually works.
@@ -226,8 +236,10 @@ export function formatPythonResultForModel(run: PythonRun, outcome: PythonRunOut
     return lines.join('\n');
   }
 
-  lines.push(`Ran in ${seconds}s.`);
-  if (outcome.freshSession) {
+  lines.push(run.tool ? `${run.tool.name} ran in ${seconds}s.` : `Ran in ${seconds}s.`);
+  // A tool runs in its own namespace, so a fresh session changes nothing
+  // for it — only ad-hoc code has state worth warning about.
+  if (outcome.freshSession && !run.tool) {
     lines.push('This was a new Python session; anything earlier calls defined is gone.');
   }
 
@@ -242,7 +254,9 @@ export function formatPythonResultForModel(run: PythonRun, outcome: PythonRunOut
   if (shown.length > 0) lines.push('', ...shown);
 
   if (!outcome.stdout.trim() && shown.length === 0) {
-    lines.push('', 'It produced no output. If you need a value back, print() it; if the user should see something, pass it to show().');
+    lines.push('', run.tool
+      ? 'It returned nothing and showed nothing.'
+      : 'It produced no output. If you need a value back, print() it; if the user should see something, pass it to show().');
   }
 
   return lines.join('\n');

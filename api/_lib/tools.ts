@@ -29,6 +29,7 @@ import {
   type ToolBudgetSurface,
   type ToolDescriptor,
 } from '../../shared/toolCatalog.js';
+import { CREATE_TOOL_NAME } from '../../shared/toolRegistry.js';
 import { fetchWebPage, formatPageForModel } from './webFetch.js';
 import { executeMcpTool, type DiscoveredMcpTool } from './mcpClient.js';
 import { isMcpToolName } from './mcpCatalog.js';
@@ -1111,9 +1112,27 @@ export async function executeTool(
       }
 
       await emit.emitMarker(`[STATUS:Looking for a tool: "${query}"]`);
-      const matches = rankFindableTools(candidates, query);
+      // The meta-tool must not find the tool-maker: every miss would rank it
+      // first, and the model would be handed "write your own" before it had
+      // seen what exists. It is granted explicitly below, on a genuine miss.
+      const creator = candidates.find(descriptor => descriptor.name === CREATE_TOOL_NAME);
+      const matches = rankFindableTools(
+        creator ? candidates.filter(descriptor => descriptor !== creator) : candidates,
+        query,
+      );
       if (matches.length === 0) {
-        const names = candidates.slice(0, 12).map(d => `${d.name} — ${d.summary}`).join('\n');
+        const others = candidates.filter(descriptor => descriptor !== creator);
+        const names = others.slice(0, 12).map(d => `${d.name} — ${d.summary}`).join('\n');
+        // A search that came back empty is the moment a capability has been
+        // shown to be missing — the one signal that justifies writing a tool
+        // rather than looking for one. So create_tool is loaded here, and
+        // only here, without a keyword in the user's message.
+        if (creator && policy) {
+          policy.granted.push(creator.definition as ProviderTool);
+          policy.grantedTokens += estimateSchemaTokens(creator.definition);
+          policy.revoked.delete(creator.name);
+          return `Nothing matched "${query}" — no existing tool does this. create_tool is available now: if Python can do it and the request is likely to come again, write it as a tool and then call it; for a one-off, use run_python; otherwise answer without a tool.${names ? `\n\nTools you could still load instead:\n${names}` : ''}`;
+        }
         return `Nothing matched "${query}". These are the tools you could still load:\n${names}\n\nCall find_tools again naming one of them, or answer without a tool.`;
       }
 
@@ -1147,7 +1166,21 @@ export async function executeTool(
       const more = skipped.length > 0
         ? `\n\nAlso matched but not loaded: ${skipped.slice(0, 6).map(d => d.name).join(', ')}. Call find_tools again with a narrower query if you need one of those.`
         : '';
-      return `Loaded ${loaded.length} tool${loaded.length === 1 ? '' : 's'}. ${loaded.length === 1 ? 'It is' : 'They are'} available now — call ${loaded.length === 1 ? 'it' : 'them'} directly.\n${lines}${more}`;
+      // Lexical ranking rarely misses outright: one shared word is a match
+      // with a score of 1 or 2, and "convert bangla calendar dates" finds
+      // web_search on "dates". So a weak best match is treated as the miss it
+      // almost certainly is — create_tool rides along, and the model decides
+      // with both in hand. A strong match (two exact words or better) stands
+      // on its own.
+      const weak = matches[0].score <= 2;
+      let creatorNote = '';
+      if (weak && creator && policy && policy.grantedTokens + estimateSchemaTokens(creator.definition) <= FIND_GRANT_TOKEN_BUDGET) {
+        policy.granted.push(creator.definition as ProviderTool);
+        policy.grantedTokens += estimateSchemaTokens(creator.definition);
+        policy.revoked.delete(creator.name);
+        creatorNote = `\n\nThat was only a weak match. If none of the above actually does this, create_tool is also loaded: if Python can do it and the request is likely to come again, write it as a tool; for a one-off, use run_python.`;
+      }
+      return `Loaded ${loaded.length} tool${loaded.length === 1 ? '' : 's'}. ${loaded.length === 1 ? 'It is' : 'They are'} available now — call ${loaded.length === 1 ? 'it' : 'them'} directly.\n${lines}${more}${creatorNote}`;
     } catch (err: unknown) {
       return `Error: ${err instanceof Error ? err.message : String(err)}`;
     }

@@ -357,6 +357,59 @@ describe('find_tools in the agent loop', () => {
   });
 });
 
+describe('an empty answer', () => {
+  const stream = (frames: object[]) => new ReadableStream({
+    start(controller) {
+      for (const frame of frames) controller.enqueue(new TextEncoder().encode(`${JSON.stringify(frame)}\n`));
+      controller.close();
+    },
+  });
+  const quiet = { emitContent: () => {}, emitToolText: () => {}, emitMarker: () => {} };
+
+  it('is retried once when nothing has reached the client yet, and the caller is told why', async () => {
+    let calls = 0;
+    const attempts: boolean[] = [];
+    const result = await runAgentLoop({
+      messages: [],
+      tools: [],
+      toolContext: { persona: 'default' },
+      emit: quiet,
+      callModel: async (_m, _t, attempt) => {
+        attempts.push(attempt.afterEmptyAnswer);
+        return stream(++calls === 1 ? [] : [{ type: 'content', content: 'second time lucky' }]);
+      },
+    });
+    expect(calls).toBe(2);
+    // The flag is what lets the route walk past the hop that said nothing —
+    // the fallback chain cannot see an empty answer on its own.
+    expect(attempts).toEqual([false, true]);
+    expect(result.content).toBe('second time lucky');
+    expect(result.iterations).toBe(1);
+  });
+
+  it('is retried only once, and never after text has streamed', async () => {
+    let calls = 0;
+    const twiceEmpty = await runAgentLoop({
+      messages: [], tools: [], toolContext: { persona: 'default' }, emit: quiet,
+      callModel: async () => { calls++; return stream([]); },
+    });
+    expect(calls).toBe(2);
+    expect(twiceEmpty.content).toBe('');
+
+    // A tool call on iteration 1 produced text, so an empty iteration 2 is a
+    // finished answer, not a failure to retry — retrying would duplicate it.
+    calls = 0;
+    const afterText = await runAgentLoop({
+      messages: [], tools: [], toolContext: { persona: 'default' }, emit: quiet,
+      callModel: async () => stream(++calls === 1
+        ? [{ type: 'content', content: 'partial' }, { type: 'tool_calls', tool_calls: [{ index: 0, id: 'c1', type: 'function', function: { name: 'no_such_tool', arguments: '{}' } }] }]
+        : []),
+    });
+    expect(calls).toBe(2);
+    expect(afterText.content).toBe('partial');
+  });
+});
+
 describe('catalogue integrity', () => {
   it('names every descriptor after the tool it describes', () => {
     for (const descriptor of BUILTIN_CATALOG) {

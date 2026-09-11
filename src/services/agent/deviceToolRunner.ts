@@ -3,8 +3,21 @@ import {
   type DeviceApp,
   type DeviceToolCall,
 } from '../../../shared/deviceTools';
+import {
+  CREATE_TOOL_NAME,
+  MAX_SESSION_TOOLS,
+  buildToolRunProgram,
+  isRegistryToolName,
+  registryToolName,
+  slugFromToolName,
+  type RegistryToolPayload,
+  type SessionTool,
+  type ToolSpec,
+} from '../../../shared/toolRegistry';
+import { parseToolSpec, registryToolPayloadSchema, toolDigest } from '../../../shared/toolRegistrySchema';
 import type { AppObjectRef, AttachedFile, PythonRun } from '../../types/chat';
 import { formatPythonResultForModel, toPythonRun, type SaveArtifactFile } from '../python/pythonResult';
+import { describePublish, type PublishResult } from '../tools/publishResult';
 import type { PythonMount, PythonPhase, PythonRunOptions, PythonRunOutcome } from '../python/pythonTypes';
 import { chatService } from '../chat/chatService';
 import {
@@ -31,6 +44,8 @@ export interface DeviceToolOutcome {
   appObject?: AppObjectRef;
   /** What a run_python call produced, for the chat to render under the answer. */
   pythonRun?: PythonRun;
+  /** A tool this call wrote and tested. The conversation keeps it from here. */
+  createdTool?: SessionTool;
 }
 
 export interface DeviceToolContext {
@@ -51,6 +66,18 @@ export interface DeviceToolContext {
    * Names are already unique — the same strings the model was told about.
    */
   attachedFiles?: readonly AttachedFile[];
+  /**
+   * Tools this conversation already created. A call to one of them is
+   * answered from here — its code never travels — and create_tool checks the
+   * count against MAX_SESSION_TOOLS.
+   */
+  sessionTools?: readonly SessionTool[];
+  /**
+   * Where a new tool is published. Defaults to the shared registry through
+   * the user's own Supabase session; a parameter so a test can watch it
+   * happen without a network.
+   */
+  publishTool?: (spec: ToolSpec, digest: string) => Promise<PublishResult>;
 }
 
 /**
@@ -84,6 +111,13 @@ const PYTHON_PHASE_LABEL: Record<PythonPhase, string> = {
   installing: 'Loading Python packages',
   running: 'Running Python',
 };
+
+async function publishToRegistry(spec: ToolSpec, digest: string): Promise<PublishResult> {
+  // Imported here so a turn that only saved a note does not pull the
+  // Supabase client into the device-tool path.
+  const { publishTool } = await import('../tools/toolRegistryService');
+  return publishTool(spec, digest);
+}
 
 async function runInSharedRuntime(code: string, options?: PythonRunOptions): Promise<PythonRunOutcome> {
   // Imported here, not at the top: this module is on the path of every device
@@ -145,9 +179,11 @@ const STATUS_LABEL: Record<string, string> = {
   chats_search: 'Searching your past chats',
   chats_read: 'Reading an earlier conversation',
   run_python: 'Running Python',
+  [CREATE_TOOL_NAME]: 'Writing a new tool',
 };
 
 export function deviceToolStatus(name: string): string {
+  if (isRegistryToolName(name)) return `Using ${slugFromToolName(name).replace(/_/g, ' ')}`;
   return STATUS_LABEL[name] ?? 'Working';
 }
 
@@ -293,7 +329,11 @@ export async function runDeviceTool(
         return { content: formatPythonResultForModel(run, outcome), pythonRun: run };
       }
 
+      case CREATE_TOOL_NAME:
+        return createTool(args, context);
+
       default:
+        if (isRegistryToolName(call.name)) return runGeneratedTool(call, args, context);
         return { content: `Error: ${call.name} is not a tool this app can run.` };
     }
   } catch (error) {
@@ -306,4 +346,148 @@ export async function runDeviceTool(
     console.error('Device tool failed:', call.name, error instanceof Error ? error.message : error);
     return { content: `Error: ${call.name} failed on this device. Tell the user you could not reach that app right now.` };
   }
+}
+
+// ─── Generated tools ────────────────────────────────────────────────────────
+
+/** What the sandbox is asked to run, and what came back. */
+async function runToolProgram(
+  tool: Pick<ToolSpec, 'slug' | 'source'>,
+  args: Record<string, unknown>,
+  context: DeviceToolContext,
+): Promise<PythonRunOutcome> {
+  const execute = context.runPython ?? runInSharedRuntime;
+  return execute(buildToolRunProgram(tool, args), {
+    onPhase: (phase) => context.onStatus?.(PYTHON_PHASE_LABEL[phase]),
+    mount: await resolveMounts(context.attachedFiles ?? []),
+  });
+}
+
+/**
+ * Write a tool: validate the spec, run every test in the sandbox, and only
+ * then let it exist.
+ *
+ * Repair is the agent loop, not a loop here. A failed test hands the model
+ * the traceback and says "fix it and call create_tool again with the same
+ * slug"; the next call is a fresh validation of a fresh spec. Keeping that
+ * outside this function means the round budget bounds the attempts, exactly
+ * as it bounds everything else the model does with the device.
+ */
+async function createTool(args: Record<string, unknown>, context: DeviceToolContext): Promise<DeviceToolOutcome> {
+  const existing = context.sessionTools ?? [];
+  const parsed = parseToolSpec(args);
+  if (!parsed.ok) {
+    return { content: `The tool spec was rejected:\n${parsed.issues}\n\nFix these and call create_tool again.` };
+  }
+  const spec = parsed.spec;
+  const name = registryToolName(spec.slug);
+
+  const replacing = existing.find(tool => tool.slug === spec.slug);
+  if (!replacing && existing.length >= MAX_SESSION_TOOLS) {
+    return { content: `This conversation already has ${MAX_SESSION_TOOLS} tools, which is the limit. Use run_python for this instead, or reuse one of: ${existing.map(tool => registryToolName(tool.slug)).join(', ')}.` };
+  }
+
+  context.onStatus?.(`Testing ${spec.title}`);
+  for (const [index, test] of spec.tests.entries()) {
+    const outcome = await runToolProgram(spec, test.input, context);
+    const label = `Test ${index + 1} of ${spec.tests.length}`;
+    if (!outcome.ok) {
+      const run = await toPythonRun(spec.source, outcome, context.saveFile ?? storeArtifactFile, {
+        name, title: spec.title, args: JSON.stringify(test.input), shared: false,
+      });
+      return {
+        content: [
+          `${label} failed, so the tool was not created.`,
+          `Input: ${JSON.stringify(test.input)}`,
+          '',
+          formatPythonResultForModel(run, outcome, {
+            retry: 'Fix the source and call create_tool again with the same slug and the corrected spec. Do not tell the user the tool exists.',
+          }),
+        ].join('\n'),
+        pythonRun: run,
+      };
+    }
+    if (test.expect !== undefined && !outcome.stdout.includes(test.expect)) {
+      return {
+        content: [
+          `${label} ran but its output did not contain the expected text, so the tool was not created.`,
+          `Input: ${JSON.stringify(test.input)}`,
+          `Expected to find: ${JSON.stringify(test.expect)}`,
+          `Output was: ${outcome.stdout.trim() || '(nothing)'}`,
+          '',
+          'Either the source is wrong or the expectation is. Fix whichever it is and call create_tool again with the same slug.',
+        ].join('\n'),
+      };
+    }
+  }
+
+  const digest = await toolDigest(spec);
+  const publish = context.publishTool ?? publishToRegistry;
+  const result = await publish(spec, digest);
+  const created: SessionTool = {
+    ...spec,
+    digest,
+    version: result.published ? result.version : (replacing?.version ?? 0) + 1,
+    published: result.published,
+    ...(result.published ? { registryId: result.id } : {}),
+  };
+
+  return {
+    content: [
+      `${name} is created and all ${spec.tests.length} test${spec.tests.length === 1 ? '' : 's'} passed. Call it directly now — it is in your tool list from this point on.`,
+      describePublish(result),
+      'The user can already see a card for the new tool; tell them what it does in a sentence, not the code.',
+    ].join('\n'),
+    createdTool: created,
+  };
+}
+
+/**
+ * Call a generated tool.
+ *
+ * The code comes from one of two places. A tool this conversation made is in
+ * `sessionTools`, on this device, and needs nothing from the frame. A tool
+ * from the shared registry arrives on the call itself, and is run only if it
+ * validates and its digest matches what the registry recorded — so what runs
+ * is exactly what was published, and a frame that was tampered with on the
+ * way runs nothing.
+ */
+async function runGeneratedTool(
+  call: DeviceToolCall,
+  args: Record<string, unknown>,
+  context: DeviceToolContext,
+): Promise<DeviceToolOutcome> {
+  const slug = slugFromToolName(call.name);
+  const local = (context.sessionTools ?? []).find(tool => tool.slug === slug);
+
+  let source: Pick<ToolSpec, 'slug' | 'source'> & { title: string };
+  let shared = false;
+  if (local) {
+    source = local;
+  } else {
+    const payload = registryToolPayloadSchema.safeParse(call.tool);
+    if (!payload.success) {
+      return { content: `${call.name} is not available on this device: its code did not arrive with the call. Do not call it again this turn; use run_python or answer without it.` };
+    }
+    const tool: RegistryToolPayload = payload.data;
+    if (await toolDigest(tool) !== tool.digest) {
+      console.error(`Registry tool ${call.name} refused: digest mismatch`);
+      return { content: `${call.name} was refused: its code does not match what the registry recorded for it. Do not call it again; use run_python or answer without it.` };
+    }
+    source = tool;
+    shared = true;
+  }
+
+  const outcome = await runToolProgram(source, args, context);
+  const run = await toPythonRun(source.source, outcome, context.saveFile ?? storeArtifactFile, {
+    name: call.name, title: source.title, args: JSON.stringify(args), shared,
+  });
+  return {
+    content: formatPythonResultForModel(run, outcome, {
+      retry: local
+        ? `Read the error. If the arguments were wrong, call ${call.name} again with corrected ones; if the tool itself is wrong, fix its source with create_tool using the same slug. Do not guess what the answer would have been.`
+        : `Read the error. If the arguments were wrong, call ${call.name} again with corrected ones; otherwise this tool does not fit — do the work with run_python instead. Do not guess what the answer would have been.`,
+    }),
+    pythonRun: run,
+  };
 }

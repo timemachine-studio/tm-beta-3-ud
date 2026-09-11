@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, ChevronDown, Download, Terminal } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Download, Terminal, Wrench } from 'lucide-react';
 import type { PythonArtifact, PythonRun } from '../../types/chat';
 import { formatBytes } from '../../services/python/pythonResult';
 import { useStoredFile } from './useStoredFile';
@@ -160,10 +160,17 @@ function RunView({ run }: { run: PythonRun }) {
         aria-expanded={showCode}
         className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition hover:bg-white/[0.03]"
       >
-        <Terminal className="h-3.5 w-3.5 shrink-0 text-white/40" />
+        {run.tool
+          ? <Wrench className="h-3.5 w-3.5 shrink-0 text-white/40" />
+          : <Terminal className="h-3.5 w-3.5 shrink-0 text-white/40" />}
         <span className="text-xs text-white/60">
-          {run.ok ? 'Ran Python' : 'Python failed'}
+          {run.tool
+            ? (run.ok ? `Used ${run.tool.title}` : `${run.tool.title} failed`)
+            : (run.ok ? 'Ran Python' : 'Python failed')}
           <span className="text-white/30"> · {seconds}s</span>
+          {/* A tool from the registry is someone else's code running here;
+              the row says so rather than presenting it as the assistant's own. */}
+          {run.tool?.shared && <span className="text-white/30"> · shared tool</span>}
         </span>
         <ChevronDown
           className={`ml-auto h-3.5 w-3.5 shrink-0 text-white/30 transition-transform ${showCode ? 'rotate-180' : ''}`}
@@ -172,6 +179,11 @@ function RunView({ run }: { run: PythonRun }) {
 
       {showCode && (
         <div className="border-t border-white/8 px-4 py-3">
+          {run.tool && (
+            <p className="mb-2 break-all font-mono text-[11px] text-white/45">
+              {run.tool.name}({run.tool.args})
+            </p>
+          )}
           <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-black/30 p-3 text-xs leading-relaxed text-white/60">
             {run.code}
           </pre>
