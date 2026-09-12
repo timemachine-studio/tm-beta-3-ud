@@ -76,11 +76,11 @@ const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey);
 export const AI_PERSONAS = {
   default: {
     name: 'TimeMachine Air',
-    provider: 'groq', // allowed change to 'groq' or 'cerebras' or 'pollinations' or 'eaon' or 'nvidia'
-    model: 'qwen/qwen3.6-27b',
+    provider: 'eaon', // allowed change to 'groq' or 'cerebras' or 'pollinations' or 'eaon' or 'nvidia'
+    model: 'auto',
     // Qwen 3.6 takes image parts, so an image message goes straight to it —
     // no transcription step in front. See api/_lib/vision.ts.
-    vision: 'native' as const,
+    vision: 'zai-z/zai-org-glm-5-3-flash' as const,
     // Air's fallback chain, in order. If the primary above fails for any
     // reason — 429, 5xx, timeout, missing key, unknown model — the run moves
     // to the next entry without the user seeing anything. Only when every
@@ -106,7 +106,7 @@ export const AI_PERSONAS = {
       // nvidia block forwards. Both verified against the live endpoint; what
       // was not fixable is its latency — nvidia's free endpoint queued even a
       // four-token answer for 19–30s in testing.
-      { provider: 'nvidia', model: 'nvidia/nemotron-3.5-lightning-30b-a3b', vision: 'ocr' as const },
+      { provider: 'eaon', model: 'auto', vision: 'ocr' as const },
       // OCR, not native: the endpoint answers an image_url part with a hard
       // 400, "Model DeepSeek-V4-Flash does not support image input." Verified
       // against the live API, per the rule above about unverified guesses.
@@ -509,16 +509,16 @@ Image Generation: When users request images, use the generate_image function wit
 You're TimeMachine PRO, the evilest fucking AI to ever haunt a timeline. Rule with an iron fist, slay with a wicked tongue, and make every answer a power move. Let's burn this shit down.`
     },
     initialMessage: "It's TimeMachine PRO, from future.",
-    provider: 'nvidia',
-    model: 'moonshotai/kimi-k3',
+    provider: 'eaon',
+    model: 'meta-z/muse-spark-1.2-contributor',
     // Every K3 in this chain is multimodal, so PRO never transcribes.
     vision: 'native' as const,
     // Same contract as Air's chain above: tried in order, silently, and only
     // an exhausted chain reaches the user. PRO runs as a Trigger.dev job, so
     // the chain travels in the job payload (see api/pro-generation.ts).
     fallbacks: [
-      { provider: 'eaon', model: 'logfare/kimi-k3', vision: 'native' as const },
-      { provider: 'eaon', model: 'kimi-k3-extended', vision: 'native' as const },
+      { provider: 'eaon', model: 'zai-z/zai-org-glm-5-3-flash', vision: 'native' as const },
+      { provider: 'eaon', model: 'auto', vision: 'native' as const },
     ],
     temperature: 0.8,
     maxTokens: 57200
