@@ -53,14 +53,14 @@ describe('AMD Radeon Cloud registration', () => {
 
   it('is text-only, so an image turn routed to it is transcribed first', () => {
     // Not a guess: the live endpoint returns 400 "Model DeepSeek-V4-Flash does
-    // not support image input" for an image_url part. Air lists AMD as its
-    // first fallback, so a wrong annotation here breaks every image turn the
+    // not support image input" for an image_url part. Girlie still lists AMD
+    // in its chain, so a wrong annotation here breaks its image turns the
     // moment the primary fails.
     expect(resolveVisionMode({ provider: 'amd', model: 'DeepSeek-V4-Flash' })).toBe('ocr');
 
-    const airAmdHop = AI_PERSONAS.default.fallbacks.find(hop => hop.provider === 'amd');
-    expect(airAmdHop).toBeDefined();
-    expect(resolveVisionMode(airAmdHop as { provider: string; model: string })).toBe('ocr');
+    const girlieAmdHop = AI_PERSONAS.girlie.fallbacks.find(hop => hop.provider === 'amd');
+    expect(girlieAmdHop).toBeDefined();
+    expect(resolveVisionMode(girlieAmdHop as { provider: string; model: string })).toBe('ocr');
   });
 
   it('has its own dispatch branch rather than falling through to Cerebras', async () => {
@@ -264,15 +264,16 @@ describe('LLM7', () => {
 });
 
 describe('Air\'s chain on the Eaon route', () => {
-  it('runs gemini, then minimax highspeed, then nvidia, amd, pollinations last', () => {
+  it('runs gemini, minimax highspeed, flash lite, then nvidia, pollinations last', () => {
     const chain = buildProviderChain(
       AI_PERSONAS.default.provider,
       AI_PERSONAS.default.model,
       AI_PERSONAS.default.fallbacks,
     );
-    expect(chain.map(hop => hop.provider)).toEqual(['eaon', 'eaon', 'nvidia', 'amd', 'pollinations']);
+    expect(chain.map(hop => hop.provider)).toEqual(['eaon', 'eaon', 'eaon', 'nvidia', 'pollinations']);
     expect(chain[0]).toMatchObject({ model: 'eaon/gemini-3.8-flash' });
     expect(chain[1]).toMatchObject({ model: 'eaon/minimax-m2.7-highspeed', vision: 'ocr' });
+    expect(chain[2]).toMatchObject({ model: 'eaon/gemini-3.1-flash-lite', vision: 'ocr' });
     // Pollinations is paid and the most dependable host in the file, so it
     // is the last line: reached only once the free providers are down.
     expect(chain[4]).toMatchObject({ model: 'nvidia/nemotron-3.5-lightning', vision: 'ocr' });

@@ -59,6 +59,8 @@ export const MODEL_VISION: Record<string, VisionCapability> = {
   'moonshotai/kimi-k3': { vision: 'native' },
   'logfare/kimi-k3': { vision: 'native' },
   'kimi-k3-extended': { vision: 'native' },
+  // Verified through Eaon's route from the other dev machine; Air's primary.
+  'eaon/gemini-3.8-flash': { vision: 'native' },
   // The OCR transcriber itself, listed so a run that happens to route to it
   // does not transcribe an image in order to hand it to a model that could
   // have looked at it directly.
@@ -86,9 +88,10 @@ export const MODEL_VISION: Record<string, VisionCapability> = {
   // ids; same text-only statement applies.
   'eaon/minimax-m2.7-highspeed': { vision: 'ocr' },
   'eaon/minimax-m3': { vision: 'ocr' },
-  // Gemini Flash is multimodal by spec, but an image has not been sent
-  // through Eaon's route yet. OCR until it has — see AI_PERSONAS.default.
-  'eaon/gemini-3.8-flash': { vision: 'ocr' },
+  // Not tried with an image yet; OCR per the rule above.
+  'eaon/gemini-3.1-flash-lite': { vision: 'ocr' },
+  // Cerebras serves gpt-oss text-only, same as groq's 20b above.
+  'gpt-oss-120b': { vision: 'ocr' },
   // `default` is a routing selector, so which upstream serves it can change.
   // OCR is the safe reading: an image sent to a text-only upstream is a hard
   // 400, an unnecessary transcription is only a worse answer.

@@ -81,12 +81,9 @@ export const AI_PERSONAS = {
     name: 'TimeMachine Air',
     provider: 'eaon', // allowed change to 'groq' or 'cerebras' or 'pollinations' or 'eaon' or 'nvidia'
     model: 'eaon/gemini-3.8-flash',
-    // OCR until verified, per the rule in api/_lib/vision.ts: Gemini Flash is
-    // multimodal by Google's own spec, but whether Eaon's route forwards an
-    // image_url part has not been tried against the live endpoint (the key in
-    // the local .env was rejected by ai.eaon.dev). An unverified 'native' is a
-    // hard 400 on every image turn; flip this once one image has gone through.
-    vision: 'ocr' as const,
+    // Gemini Flash takes image parts through Eaon's route, so an image turn
+    // goes straight to it — no transcription in front. See api/_lib/vision.ts.
+    vision: 'native' as const,
     // Air's fallback chain, in order. If the primary above fails for any
     // reason — 429, 5xx, timeout, missing key, unknown model — the run moves
     // to the next entry without the user seeing anything. Only when every
@@ -107,12 +104,13 @@ export const AI_PERSONAS = {
       // skipped together and the chain continues below. Text-only per the
       // catalog (same line as llm7's minimax-m2.7 in vision.ts), so `ocr`.
       { provider: 'eaon', model: 'eaon/minimax-m2.7-highspeed', vision: 'ocr' as const },
+      // Lightest Gemini on the same route: a third model-level cushion before
+      // the chain leaves eaon. OCR until an image has been sent through it.
+      { provider: 'eaon', model: 'eaon/gemini-3.1-flash-lite', vision: 'ocr' as const },
       // The rest is ordered by how dependable each hop has actually been, not
       // by preference: the earlier a hop sits, the more often a stall on it
       // costs a user 45s before the chain moves on. nvidia is the one that
-      // has answered consistently, so it goes first. AMD and LLM7 both work
-      // but both have hung for tens of seconds during testing, so they sit
-      // behind it.
+      // has answered consistently, so it goes first.
       //
       // OCR: the endpoint answers an image_url part with "multimodal
       // processing is not enabled" (400). Tool calls stream fine, and its
@@ -121,10 +119,6 @@ export const AI_PERSONAS = {
       // was not fixable is its latency — nvidia's free endpoint queued even a
       // four-token answer for 19–30s in testing.
       { provider: 'nvidia', model: 'nvidia/nemotron-3.5-lightning-30b-a3b', vision: 'ocr' as const },
-      // OCR, not native: the endpoint answers an image_url part with a hard
-      // 400, "Model DeepSeek-V4-Flash does not support image input." Verified
-      // against the live API, per the rule above about unverified guesses.
-      { provider: 'amd', model: 'DeepSeek-V4-Flash', vision: 'ocr' as const },
       // Last line, on purpose: Pollinations is paid and has been the most
       // dependable host in this file, so it is reached only once the free
       // providers are down. Text-only per its own model metadata
@@ -144,18 +138,18 @@ export const AI_PERSONAS = {
     // block reads this; the other providers have their own switches.
     reasoningEffort: 'none',
     flowState: {
-      provider: 'groq',
-      model: 'openai/gpt-oss-20b',
+      provider: 'cerebras',
+      model: 'gpt-oss-120b',
       // Flow State swaps the model, so it carries its own capability. Air's
-      // Air's `vision: 'native'` above describes Qwen 3.6, not this.
+      // `vision: 'native'` above describes Gemini, not this.
       vision: 'ocr' as const,
       temperature: 0.8,
-      maxTokens: 9304,
+      maxTokens: 5304,
       // Its own setting, not Air's: gpt-oss rejects 'none' outright ("must be
       // one of low, medium, or high" — a 400, verified), so inheriting the
       // persona's value would fail every Flow State turn.
       reasoningEffort: 'low',
-      quotaCost: 4
+      quotaCost: 40
     },
     systemPrompt: `You are TimeMachine Air, a personal AI companion and friend, not an assistant. Made by TimeMachine Engineering. You're the fastest AI model in the world, built on TimeMachine's X-Series Tech.
 
@@ -378,10 +372,9 @@ CRUTIAL: If you face any hard question or task, you can think for longer before 
     // does not serve fails worse than no hop at all.
     fallbacks: [
       { provider: 'nvidia', model: 'deepseek-ai/deepseek-v4-flash-0731', vision: 'ocr' as const },
-      { provider: 'amd', model: 'DeepSeek-V4-Flash', vision: 'ocr' as const },
     ],
     temperature: 0.8,
-    maxTokens: 57200
+    maxTokens: 34200
   }
 };
 
