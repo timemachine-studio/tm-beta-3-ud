@@ -13,6 +13,8 @@ import { Brain } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { GeneratedImage } from './GeneratedImage';
 import { AnimatedShinyText } from '../ui/AnimatedShinyText';
+import { HarnessTranscript } from './HarnessActionCard';
+import type { HarnessAction } from '../../types/chat';
 import { AudioPlayerBubble } from './AudioPlayerBubble';
 import { CodeBlock } from './CodeBlock';
 import { BrandOverride } from '../brand/BrandLogo';
@@ -37,6 +39,8 @@ interface AIMessageProps extends Omit<MessageProps, 'onAnimationComplete'> {
   musicVariations?: SavedVariation[];
   onMusicVariationsChange?: (messageId: string, variations: SavedVariation[]) => void;
   rawContent?: string;
+  /** Max Mode: the harness's cards, placed inline by marker (HarnessTranscript). */
+  harnessActions?: HarnessAction[];
 }
 
 const SPECIAL_MODE_SHIMMER_TEXT: Record<string, string> = {
@@ -151,7 +155,8 @@ function AIMessageComponent({
   brandOverride,
   musicVariations,
   onMusicVariationsChange,
-  rawContent
+  rawContent,
+  harnessActions,
 }: AIMessageProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
@@ -557,13 +562,30 @@ function AIMessageComponent({
                   <>
                     <div className="prose prose-invert prose-sm max-w-none">
                       <MarkdownRuntimeContext.Provider value={markdownRuntime}>
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-                          rehypePlugins={[rehypeKatex]}
-                          components={MarkdownComponents}
-                        >
-                          {cleanContent}
-                        </ReactMarkdown>
+                        {harnessActions && harnessActions.length > 0 ? (
+                          <HarnessTranscript
+                            content={cleanContent}
+                            actions={harnessActions}
+                            renderMarkdown={(text, key) => (
+                              <ReactMarkdown
+                                key={key}
+                                remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                                rehypePlugins={[rehypeKatex]}
+                                components={MarkdownComponents}
+                              >
+                                {text}
+                              </ReactMarkdown>
+                            )}
+                          />
+                        ) : (
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
+                            components={MarkdownComponents}
+                          >
+                            {cleanContent}
+                          </ReactMarkdown>
+                        )}
                       </MarkdownRuntimeContext.Provider>
                     </div>
                     {isSpecialLoadingPhase && (

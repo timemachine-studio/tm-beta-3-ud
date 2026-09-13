@@ -100,6 +100,29 @@ These are not code. They block launch and none of them can be handed to an agent
 | 4.4 | Load test and set the spend ceiling | M | Last, against the real thing. See 4.4a above. |
 | 4.5 | Launch-day runbook | S | Last. Someone other than you must be able to execute it. |
 
+### Gate MX — Max Mode (PRO as a coding harness)
+
+Shipped 2026-09-12 in place of Heat Level. The five personality prompts are
+gone (Level 2's text is now PRO's one `systemPrompt`); the button's slot on
+the PRO header is the Max Mode control. Contract: `shared/maxMode.ts`.
+
+| # | Task | Status | Notes |
+|---|---|---|---|
+| MX.1 | Remove Heat Level; Max Mode toggle with Plan / Edit / Auto; harness prompt and closed tool set on `/api/ai-proxy` | ✅ | `api/_lib/maxModePrompt.ts`, `selectMaxModeToolSet`. Max Mode turns bypass Trigger — one device round is a re-POST, not a new job. |
+| MX.2 | Device workspace (IndexedDB, one per chat), file tools, inline action cards, editor / preview / terminal panel | ✅ | `src/services/workspace/`, `src/components/maxmode/`. Cards are placed in the text by marker (`HARNESS_ACTION_MARKER`). |
+| MX.3 | Node runtime (WebContainers) for `run_command` and dev-server previews | ✅ | Needs cross-origin isolation, so Max Mode is its own document at `/max/:id` (headers in `vercel.json`; dev middleware in `vite.config.ts`). Safari has no isolation → no runtime, editing still works. |
+| MX.4 | GitHub App: connect, clone a branch into the workspace, push back as a branch + PR | ✅ code, **owner setup pending** | Register the App (see `.env.example`), set `GITHUB_APP_*`, run `supabase/migrations/github_connections.sql`. Rides on `/api/mcp-servers?github=…` — the deployment is at Vercel's 12-Function limit. |
+| MX.5 | Live end-to-end run with a signed-in PRO user (the model loop, not just the tools) | 🟡 | First live run built a Vite/React project over several legs, then a provider failure on a later leg wiped the turn. Fixed: a failed leg now keeps every completed leg on screen (text + cards) and Retry resumes from the failed leg with the transcript replayed (`HarnessResume`, `src/services/ai/harnessResume.test.ts`). |
+| MX.6 | Cost review: `MAX_MODE_ROUND_BUDGET` (12 / 24 / 40) and the 160k-char transcript budget against real usage | ⬜ | One Auto turn can be forty PRO calls. Watch the spend ceiling. |
+| MX.7 | Enforce mode and tool permissions at execution; preserve split stream frames and server-only iterations | ✅ local | Server dispatch checks the offered tool set; browser checks the mode and cancellation. Byte-by-byte UTF-8/frame tests and suspension replay tests. |
+| MX.8 | Bound coding transcript replay without orphaned tool results | ✅ local | Complete old call/result groups become abbreviated activity records before the next request. Includes tool arguments in the budget; 40-round batched regression. Live cost measurement remains MX.6. |
+| MX.9 | Prevent workspace data loss in runtime sync, editor saves and clone replacement | ✅ local | Atomic runtime reconciliation includes deletions and concurrent editor conflicts; full supported workspace scan; imports enforce unique-path capacity; clones stage before promotion; editor writes survive file switches. |
+| MX.10 | Require review before agent publication and reject stale GitHub baselines | ✅ local | Review dialog approves exact file contents, title, body, repository and branch. Cancel/Stop denies. Expected commit checked before remote writes; base-branch publication refused. |
+| MX.11 | Browser-only task receipts and Resume action | ✅ local | Prompt checkpoint before dispatch; per-call queued/uncertain/completed receipts; stable turn matching; late-callback guards; recovery without a saved chat prompt. Unknown external outcomes still need reconciliation. |
+| MX.12 | Isolate expensive workspace operations and verify actual preview load | ✅ local | Regex and ZIP workers with deadlines; bounded archive expansion; preview frame/source checks; WebContainer browser-error forwarding; Node termination acknowledgement guard. |
+
+
+
 ### Where the numbers stand
 
 | Metric | At audit | Now | Target |

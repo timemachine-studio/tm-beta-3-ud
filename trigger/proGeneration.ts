@@ -257,6 +257,7 @@ export const proGeneration = task({
               };
             }),
             resolvedResults: loopResult.deviceSuspension.resolvedResults,
+              priorTranscript: loopResult.deviceSuspension.priorTranscript,
             deviceRounds: (payload.deviceRounds ?? 0) + 1,
           },
         };

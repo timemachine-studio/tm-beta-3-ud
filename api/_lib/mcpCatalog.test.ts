@@ -165,7 +165,7 @@ describe('consent before execution, in the loop', () => {
 
     const result = await runAgentLoop({
       messages: [],
-      tools: [],
+      tools: [mcpTool().definition, { type: 'function', function: { name: 'web_search', parameters: {} } }],
       toolContext: {
         persona: 'default',
         policy: createToolPolicy({ offered: ['web_search', 'mcp__norway_weather__get_current_weather'] }),
@@ -189,7 +189,7 @@ describe('consent before execution, in the loop', () => {
     const requestMcpApproval = vi.fn(async () => null);
     const result = await runAgentLoop({
       messages: [],
-      tools: [],
+      tools: [mcpTool().definition, { type: 'function', function: { name: 'web_search', parameters: {} } }],
       toolContext: {
         persona: 'default',
         policy: createToolPolicy({ offered: ['web_search', 'mcp__norway_weather__get_current_weather'] }),

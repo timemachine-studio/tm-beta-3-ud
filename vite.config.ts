@@ -38,6 +38,14 @@ export default defineConfig(({ mode }) => {
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
             const urlObj = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+            // Max Mode's document is cross-origin isolated so the in-browser
+            // Node runtime can boot — the same headers vercel.json sets for
+            // /max in production, and only there, because they would break
+            // the YouTube embeds and third-party frames on every other page.
+            if (/^\/max(\/|$)/.test(urlObj.pathname)) {
+              res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+              res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+            }
             if (urlObj.pathname.startsWith('/api/')) {
               // Extract API endpoint name (strip leading /api/ and potential query parameters)
               const apiName = urlObj.pathname.slice(5);

@@ -72,7 +72,6 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
 
   const {
     messages,
-    heatLevel,
     imageData,
     inputImageUrls,
     imageDimensions,
@@ -125,13 +124,11 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
     ? (SPECIAL_MODE_CONFIGS as Record<string, Record<'default' | 'girlie' | 'pro', SpecialModeConfig>>)[specialMode]['pro']
     : null;
 
-  let systemPrompt: string;
-  if (specialModeConfig) {
-    systemPrompt = specialModeConfig.systemPrompt;
-  } else {
-    const validHeatLevel = heatLevel >= 1 && heatLevel <= 5 ? heatLevel : 2;
-    systemPrompt = personaConfig.systemPromptsByHeatLevel[validHeatLevel as keyof typeof personaConfig.systemPromptsByHeatLevel];
-  }
+  // Max Mode never reaches here: the client serves it through /api/ai-proxy,
+  // where a device round is a re-POST rather than a whole new Trigger job.
+  const systemPrompt: string = specialModeConfig
+    ? specialModeConfig.systemPrompt
+    : personaConfig.systemPrompt;
 
   let memoryContext = '';
   if (userId) {

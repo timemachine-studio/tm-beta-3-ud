@@ -217,7 +217,7 @@ export function GroupChatPage() {
       undefined, // imageData
       '', // systemPrompt
       persona,
-      undefined, // heatLevel
+      undefined, // maxMode (PRO only; group chat never runs the harness)
       undefined, // inputImageUrls
       undefined, // imageDimensions
       // onChunk

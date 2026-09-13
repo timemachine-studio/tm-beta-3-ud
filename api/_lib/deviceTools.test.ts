@@ -182,7 +182,7 @@ describe('runAgentLoop device suspension', () => {
 
     const result = await runAgentLoop({
       messages: [{ role: 'user', content: 'find my physics note' }],
-      tools: [],
+      tools: selectTools({ deviceApps: ['notes', 'chats'] }).concat([{ type: 'function', function: { name: 'list_skills', parameters: {} } }]),
       toolContext: { persona: 'default' },
       emit,
       callModel,
@@ -208,7 +208,7 @@ describe('runAgentLoop device suspension', () => {
 
     const result = await runAgentLoop({
       messages: [{ role: 'user', content: 'go' }],
-      tools: [],
+      tools: selectTools({ deviceApps: ['notes', 'chats'] }).concat([{ type: 'function', function: { name: 'list_skills', parameters: {} } }]),
       toolContext: { persona: 'default' },
       emit,
       callModel,
@@ -230,7 +230,7 @@ describe('runAgentLoop device suspension', () => {
 
     const result = await runAgentLoop({
       messages: [{ role: 'user', content: 'find my note' }],
-      tools: [],
+      tools: selectTools({ deviceApps: ['notes', 'chats'] }).concat([{ type: 'function', function: { name: 'list_skills', parameters: {} } }]),
       toolContext: { persona: 'default' },
       emit,
       callModel,
@@ -249,7 +249,7 @@ describe('runAgentLoop device suspension', () => {
 
     const result = await runAgentLoop({
       messages: [{ role: 'user', content: 'go' }],
-      tools: [],
+      tools: selectTools({ deviceApps: ['notes', 'chats'] }).concat([{ type: 'function', function: { name: 'list_skills', parameters: {} } }]),
       toolContext: { persona: 'default' },
       emit,
       callModel,

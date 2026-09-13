@@ -50,12 +50,12 @@ function requestHeaders(server: ServerFlightControl): HeadersInit {
 
 async function connect(server: ServerFlightControl): Promise<Client> {
   if (!server.mcp_server_url) throw new Error('MCP server URL is missing');
+  const headers = requestHeaders(server);
   // Same validation as web_fetch, from the same module — see safeUrl.ts.
   const url = await assertPublicUrl(server.mcp_server_url, { protocols: ['https:'] })
     .catch((error: unknown) => {
       throw new Error(`MCP server URL rejected: ${error instanceof Error ? error.message : String(error)}`);
     });
-  const headers = requestHeaders(server);
   const createClient = () => new Client(
     { name: 'timemachine-chat', version: '0.3.0' },
     { versionNegotiation: { mode: 'auto', probe: { maxRetries: 0 } } },

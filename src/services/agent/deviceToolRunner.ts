@@ -15,7 +15,8 @@ import {
   type ToolSpec,
 } from '../../../shared/toolRegistry';
 import { parseToolSpec, registryToolPayloadSchema, toolDigest } from '../../../shared/toolRegistrySchema';
-import type { AppObjectRef, AttachedFile, PythonRun } from '../../types/chat';
+import type { AppObjectRef, AttachedFile, HarnessAction, PythonRun } from '../../types/chat';
+import { MAX_MODE_RESULT_CHARS, isWorkspaceToolName, type WorkspaceToolName } from '../../../shared/maxMode';
 import { formatPythonResultForModel, toPythonRun, type SaveArtifactFile } from '../python/pythonResult';
 import { describePublish, type PublishResult } from '../tools/publishResult';
 import type { PythonMount, PythonPhase, PythonRunOptions, PythonRunOutcome } from '../python/pythonTypes';
@@ -48,7 +49,32 @@ export interface DeviceToolOutcome {
   createdTool?: SessionTool;
 }
 
+/** What a workspace tool hands back, before it becomes a card. */
+export interface WorkspaceToolResult {
+  /** For the transcript. */
+  content: string;
+  ok: boolean;
+  /** For the card — see HarnessAction. */
+  path?: string;
+  detail?: string;
+  output?: string;
+}
+
+/**
+ * Runs Max Mode's workspace tools (shared/maxMode.ts). Supplied by the
+ * harness rather than imported here, so a turn that saved a note never loads
+ * the workspace store, the Node runtime or the preview.
+ */
+export interface WorkspaceToolExecutor {
+  run: (
+    name: WorkspaceToolName,
+    args: Record<string, unknown>,
+    context: { onStatus?: (status: string) => void },
+  ) => Promise<WorkspaceToolResult>;
+}
+
 export interface DeviceToolContext {
+  signal?: AbortSignal;
   /** The chat this turn belongs to, excluded from history search as redundant. */
   currentChatSessionId?: string;
   /** Shimmer text, so the user can see which app is being touched. */
@@ -78,6 +104,10 @@ export interface DeviceToolContext {
    * happen without a network.
    */
   publishTool?: (spec: ToolSpec, digest: string) => Promise<PublishResult>;
+  /** Max Mode's workspace tools. Absent outside the harness, so a call is refused. */
+  workspace?: WorkspaceToolExecutor;
+  /** A harness card appearing or settling. */
+  onHarnessAction?: (action: HarnessAction) => void;
 }
 
 /**
@@ -185,6 +215,23 @@ const STATUS_LABEL: Record<string, string> = {
 export function deviceToolStatus(name: string): string {
   if (isRegistryToolName(name)) return `Using ${slugFromToolName(name).replace(/_/g, ' ')}`;
   return STATUS_LABEL[name] ?? 'Working';
+}
+
+/** What a harness card says while its tool runs. */
+export function harnessActionLabel(name: WorkspaceToolName, args: Record<string, unknown>): string {
+  const path = asString(args.path);
+  switch (name) {
+    case 'list_files': return path ? `Listing ${path}` : 'Listing the workspace';
+    case 'read_file': return `Reading ${path || 'a file'}`;
+    case 'write_file': return `Writing ${path || 'a file'}`;
+    case 'edit_file': return `Editing ${path || 'a file'}`;
+    case 'delete_file': return `Deleting ${path || 'a file'}`;
+    case 'grep_files': return `Searching for ${JSON.stringify(asString(args.query)).slice(0, 60)}`;
+    case 'run_command': return `Running ${asString(args.command).slice(0, 80) || 'a command'}`;
+    case 'open_preview': return `Previewing ${asString(args.target) || 'the app'}`;
+    case 'open_pull_request': return 'Opening a pull request';
+    default: return 'Working';
+  }
 }
 
 function bounded(value: unknown): string {
@@ -320,6 +367,7 @@ export async function runDeviceTool(
         const execute = context.runPython ?? runInSharedRuntime;
         const outcome = await execute(code, {
           onPhase: (phase) => context.onStatus?.(PYTHON_PHASE_LABEL[phase]),
+          signal: context.signal,
           mount: await resolveMounts(context.attachedFiles ?? []),
         });
         const run = await toPythonRun(code, outcome, context.saveFile ?? storeArtifactFile);
@@ -334,6 +382,7 @@ export async function runDeviceTool(
 
       default:
         if (isRegistryToolName(call.name)) return runGeneratedTool(call, args, context);
+        if (isWorkspaceToolName(call.name)) return runWorkspaceTool(call.id, call.name, args, context);
         return { content: `Error: ${call.name} is not a tool this app can run.` };
     }
   } catch (error) {
@@ -348,6 +397,60 @@ export async function runDeviceTool(
   }
 }
 
+// ─── Workspace tools (Max Mode) ─────────────────────────────────────────────
+
+/**
+ * Run one workspace tool and report it as a card, start and finish.
+ *
+ * The card exists before the tool does anything, so a slow command shows a
+ * shimmering "Running npm install" rather than nothing; the same id settles
+ * it. A tool that throws settles the card as failed and hands the model the
+ * error — the harness must never lose a turn to a tool that crashed.
+ */
+async function runWorkspaceTool(
+  id: string,
+  name: WorkspaceToolName,
+  args: Record<string, unknown>,
+  context: DeviceToolContext,
+): Promise<DeviceToolOutcome> {
+  const label = harnessActionLabel(name, args);
+  context.onStatus?.(label);
+  const started: HarnessAction = {
+    id, tool: name, label, status: 'running', path: asString(args.path) || undefined,
+    startedAt: new Date().toISOString(),
+  };
+  context.onHarnessAction?.(started);
+
+  if (!context.workspace) {
+    context.onHarnessAction?.({ ...started, status: 'failed', detail: 'no workspace', finishedAt: new Date().toISOString() });
+    return { content: `Error: ${name} is not available on this device. Do not call it again this turn.` };
+  }
+
+  try {
+    const result = await context.workspace.run(name, args, { onStatus: context.onStatus });
+    context.onHarnessAction?.({
+      ...started,
+      status: result.ok ? 'done' : 'failed',
+      path: result.path ?? started.path,
+      detail: result.detail,
+      output: result.output,
+      finishedAt: new Date().toISOString(),
+    });
+    // The harness's own ceiling, not main chat's: a file read is worth more
+    // than a note search, and the transcript budget is sized for it.
+    return {
+      content: result.content.length > MAX_MODE_RESULT_CHARS
+        ? `${result.content.slice(0, MAX_MODE_RESULT_CHARS - 24)}… [result truncated]`
+        : result.content,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Workspace tool failed:', name, message);
+    context.onHarnessAction?.({ ...started, status: 'failed', detail: message.slice(0, 120), finishedAt: new Date().toISOString() });
+    return { content: `Error: ${name} failed: ${message}` };
+  }
+}
+
 // ─── Generated tools ────────────────────────────────────────────────────────
 
 /** What the sandbox is asked to run, and what came back. */
@@ -359,6 +462,7 @@ async function runToolProgram(
   const execute = context.runPython ?? runInSharedRuntime;
   return execute(buildToolRunProgram(tool, args), {
     onPhase: (phase) => context.onStatus?.(PYTHON_PHASE_LABEL[phase]),
+    signal: context.signal,
     mount: await resolveMounts(context.attachedFiles ?? []),
   });
 }

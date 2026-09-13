@@ -320,8 +320,8 @@
 }
 
 /* Inline literal accents — the persona's cyan/purple/pink written as
-   rgba() into a border or fill (composer buttons, Flow State, Heat
-   Level, the persona pill). Borders go to the hairline, fills to the
+   rgba() into a border or fill (composer buttons, Flow State, Max
+   Mode, the persona pill). Borders go to the hairline, fills to the
    card; text keeps the one accent. */
 :root[data-theme="light"] [style*="border"][style*="rgba("] {
   border-color: var(--tm-pane-border) !important;

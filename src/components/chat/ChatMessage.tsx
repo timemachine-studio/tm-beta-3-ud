@@ -72,6 +72,7 @@ export function ChatMessage({
   appObjects,
   pythonRuns,
   createdTools,
+  harnessActions,
   status,
   errorCode,
   partialContent,
@@ -266,13 +267,41 @@ export function ChatMessage({
       >
         {renderReplyPreview()}
         {status === 'error' ? (
-          <FailedTurn
-            messageId={id}
-            errorCode={errorCode}
-            partialContent={partialContent}
-            onRetry={onRetry}
-            retrying={isRetrying}
-          />
+          harnessActions && harnessActions.length > 0 ? (
+            // A Max Mode turn that failed mid-way keeps everything it did on
+            // screen — text and cards, as they were — with the retry row
+            // beneath. Retry continues from the failed leg (HarnessResume).
+            <>
+              <AIMessage
+                content={partialContent ?? ''}
+                isChatMode={isChatMode}
+                messageId={id}
+                hasAnimated={true}
+                onAnimationComplete={onAnimationComplete}
+                currentPersona={currentPersona}
+                previousMessage={previousMessage}
+                isStreamingActive={false}
+                brandOverride={brandOverride}
+                harnessActions={harnessActions}
+              />
+              <div className="mt-2">
+                <FailedTurn
+                  messageId={id}
+                  errorCode={errorCode}
+                  onRetry={onRetry}
+                  retrying={isRetrying}
+                />
+              </div>
+            </>
+          ) : (
+            <FailedTurn
+              messageId={id}
+              errorCode={errorCode}
+              partialContent={partialContent}
+              onRetry={onRetry}
+              retrying={isRetrying}
+            />
+          )
         ) : mcpApproval ? (
           <McpApprovalCard
             approval={mcpApproval}
@@ -296,6 +325,7 @@ export function ChatMessage({
           brandOverride={brandOverride}
           musicVariations={musicVariations}
           onMusicVariationsChange={onMusicVariationsChange}
+          harnessActions={harnessActions}
         />
         {pythonRuns && pythonRuns.length > 0 && <PythonRunCard runs={pythonRuns} />}
         {createdTools && createdTools.length > 0 && <CreatedToolCard tools={createdTools} />}

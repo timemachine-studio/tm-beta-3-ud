@@ -42,7 +42,6 @@ export interface ModelConfig extends VisionCapability {
   temperature: number;
   maxTokens: number;
   systemPrompt?: string;
-  systemPromptsByHeatLevel?: Record<number, string>;
   reasoningEffort?: string;
   provider?: string;
   // A vision annotation sits next to the model it describes: Flow State names

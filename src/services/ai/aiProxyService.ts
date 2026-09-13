@@ -1,4 +1,5 @@
-import { Message, ImageDimensions, type AppObjectRef, type AttachedFile, type PythonRun } from '../../types/chat';
+import { compactHarnessTranscript } from '../../../shared/harnessTranscript';
+import { Message, ImageDimensions, harnessActionMarker, stripHarnessMarkers, type AppObjectRef, type AttachedFile, type HarnessAction, type HarnessResume, type PythonRun } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { supabase } from '../../lib/supabase';
 import type { McpApprovalRequest } from '../../types/flightControls';
@@ -10,6 +11,14 @@ import {
   type DeviceToolRequestFrame,
   type ToolTranscriptMessage,
 } from '../../../shared/deviceTools';
+import {
+  MAX_MODE_ROUND_HARD_STOP,
+  MAX_MODE_TOOLS,
+  isWorkspaceToolName,
+  type MaxModeKind,
+  type MaxModeWorkspaceSummary,
+} from '../../../shared/maxMode';
+import type { WorkspaceToolExecutor, DeviceToolOutcome } from '../agent/deviceToolRunner';
 import { resolveDeviceDataPresent, runDeviceTool } from '../agent/deviceToolRunner';
 import { MAX_SESSION_TOOLS, sessionToolSummary, type SessionTool } from '../../../shared/toolRegistry';
 
@@ -120,6 +129,30 @@ export interface DeviceBridgeOptions {
   onPythonRun?: (run: PythonRun) => void;
   /** A tool this turn wrote and tested. The message keeps it. */
   onToolCreated?: (tool: SessionTool) => void;
+  /**
+   * Max Mode (shared/maxMode.ts). Present only on a PRO turn with the harness
+   * on; the caller supplies the workspace because the bridge does not know
+   * where the project lives, only how to replay the transcript.
+   */
+  harness?: HarnessBridgeOptions;
+}
+
+export interface HarnessBridgeOptions {
+  mode: MaxModeKind;
+  /** Paths and sizes for the prompt. Called once per leg: files change between legs. */
+  summarizeWorkspace: () => Promise<MaxModeWorkspaceSummary>;
+  /** Executes the workspace tools against the device store and runtimes. */
+  executor: WorkspaceToolExecutor;
+  /** A card appearing (status 'running') or settling. Same id both times. */
+  onAction?: (action: HarnessAction) => void;
+  /**
+   * Continue a turn whose earlier legs completed. The transcript and text
+   * are taken up as they were; the failed leg is the first one to run.
+   */
+  resume?: HarnessResume;
+  /** Persist execution receipts before and after each device action. */
+  onCheckpoint?: (resume: HarnessResume) => Promise<void>;
+  onStart?: () => Promise<void>;
 }
 
 // User profile info for memory context
@@ -546,7 +579,10 @@ export async function generateAIResponseStreaming(
   imageData?: string | string[],
   _systemPrompt: string = '', // Not used anymore, kept for positional compatibility
   currentPersona: keyof typeof AI_PERSONAS = 'default',
-  heatLevel?: number,
+  // Max Mode (PRO only). The harness itself arrives in deviceBridge.harness;
+  // this positional slot is what Heat Level used to occupy, and stays a plain
+  // value so the retry context can carry it.
+  maxMode?: MaxModeKind,
   inputImageUrls?: string[],
   imageDimensions?: ImageDimensions,
   onChunk?: (chunk: string) => void,
@@ -573,21 +609,42 @@ export async function generateAIResponseStreaming(
   // the next leg with the results appended. Text streams into the same message
   // throughout, so the user sees one answer being written, not several.
   const deviceApps = deviceBridge?.deviceApps ?? [];
+  // The harness is real only when both sides agree: a PRO turn, the mode set,
+  // and a caller that brought a workspace. Anything less is ordinary PRO.
+  const harness = currentPersona === 'pro' && maxMode && deviceBridge?.harness ? deviceBridge.harness : null;
   const attachedFiles = attachedFilesFor(messages);
   // Grows within the turn: a tool created on one leg is callable on the next.
   const sessionTools = sessionToolsFor(messages);
-  const toolTranscript: ToolTranscriptMessage[] = [];
-  let deviceRounds = 0;
+  // A resumed Max Mode turn starts where the failed one got to — see
+  // HarnessResume. Everything the completed legs produced is shown again
+  // through onChunk, so the new message carries it exactly as the old one did.
+  const resume = harness ? deviceBridge?.harness?.resume : undefined;
+  const toolTranscript: ToolTranscriptMessage[] = resume ? [...resume.toolTranscript] : [];
+  let deviceRounds = resume?.deviceRounds ?? 0;
   /** Which apps hold anything. Null until the first leg resolves it. */
   let dataPresent: readonly DeviceApp[] | null = null;
-  let combinedContent = '';
+  let combinedContent = resume?.content ?? '';
+  if (resume?.content) onChunk?.(resume.content);
   const thinkingParts: string[] = [];
   let youtubeMusic: YouTubeMusicData | undefined;
 
   /** Run the device calls and grow the transcript. Returns false if we must stop. */
   const resolveDeviceRequest = async (request: DeviceToolRequestFrame['payload']): Promise<boolean> => {
     if (signal?.aborted) return false;
+    const hardStop = harness ? MAX_MODE_ROUND_HARD_STOP : DEVICE_ROUND_HARD_STOP;
+    if (request.deviceRounds !== deviceRounds + 1 || request.deviceRounds > hardStop
+      || !Array.isArray(request.toolCalls) || request.toolCalls.length === 0 || request.toolCalls.length > 16
+      || !Array.isArray(request.resolvedResults)
+      || request.toolCalls.some(call => !call || typeof call.id !== 'string' || !call.id || call.id.length > 200
+        || typeof call.name !== 'string' || !call.name || call.name.length > 64
+        || typeof call.arguments !== 'string' || call.arguments.length > 600_000)
+      || new Set(request.toolCalls.map(call => call.id)).size !== request.toolCalls.length
+      || new Set(request.resolvedResults.map(result => result.id)).size !== request.resolvedResults.length
+      || request.resolvedResults.some(result => !request.toolCalls.some(call => call.id === result.id && call.name === result.name))) {
+      throw new ChatError('UNKNOWN', 'The tool continuation was invalid. No device actions from this batch were executed.');
+    }
 
+    if (request.priorTranscript?.length) toolTranscript.push(...request.priorTranscript);
     toolTranscript.push({
       role: 'assistant',
       content: request.assistantContent,
@@ -609,14 +666,61 @@ export async function generateAIResponseStreaming(
       });
     }
 
+    const pendingSlots = new Map<string, ToolTranscriptMessage>();
+    if (harness) {
+      for (const call of request.toolCalls) {
+        if (request.resolvedResults.some(result => result.id === call.id)) continue;
+        const receipt: ToolTranscriptMessage = {
+          role: 'tool', tool_call_id: call.id, name: call.name,
+          content: '[Not executed: this call was queued when the turn was interrupted. It may be requested again if still needed.]',
+        };
+        pendingSlots.set(call.id, receipt);
+        toolTranscript.push(receipt);
+      }
+    }
+    deviceRounds = request.deviceRounds;
+    const checkpoint = async () => {
+      if (harness?.onCheckpoint) {
+        await harness.onCheckpoint({
+          toolTranscript: compactHarnessTranscript(toolTranscript), deviceRounds, content: combinedContent,
+        });
+      }
+    };
+    await checkpoint();
+
     for (const call of request.toolCalls) {
       if (request.resolvedResults.some(resolved => resolved.id === call.id)) continue;
 
-      const outcome = await runDeviceTool(call, {
+      // A workspace tool gets a card the moment it starts, placed in the text
+      // exactly where the model's progress note left off. The marker goes
+      // through onChunk so the message on screen and the content saved at the
+      // end agree about where the card sits.
+      const isHarnessCall = !!harness && isWorkspaceToolName(call.name);
+      if (isHarnessCall) {
+        const marker = `\n\n${harnessActionMarker(call.id)}\n\n`;
+        combinedContent += marker;
+        onChunk?.(marker);
+      }
+
+      const receipt = pendingSlots.get(call.id);
+      if (receipt) {
+        receipt.content = '[Execution outcome unknown: the browser may have stopped while this call was running. Inspect current files or process state before proceeding. Do not blindly repeat this command or external publication; ask the user if its outcome cannot be established.]';
+        await checkpoint();
+      }
+      const allowed = !harness || (isWorkspaceToolName(call.name)
+        ? MAX_MODE_TOOLS[harness.mode].includes(call.name)
+        : call.name === 'run_python' && harness.mode === 'auto');
+      const outcome: DeviceToolOutcome = signal?.aborted
+        ? { content: 'Error: the user stopped this turn; this tool was not executed.' }
+        : !allowed
+          ? { content: `Error: ${call.name} is not allowed in this Max Mode turn.` }
+          : await runDeviceTool(call, {
         currentChatSessionId: deviceBridge?.currentChatSessionId,
+        signal,
         onStatus: onStatusChange,
         attachedFiles,
         sessionTools,
+        ...(harness ? { workspace: harness.executor, onHarnessAction: harness.onAction } : {}),
       });
       if (outcome.appObject) deviceBridge?.onAppObject?.(outcome.appObject);
       if (outcome.pythonRun) deviceBridge?.onPythonRun?.(outcome.pythonRun);
@@ -628,21 +732,24 @@ export async function generateAIResponseStreaming(
         deviceBridge?.onToolCreated?.(outcome.createdTool);
       }
 
-      toolTranscript.push({
+      if (receipt) receipt.content = outcome.content;
+      else toolTranscript.push({
         role: 'tool',
         tool_call_id: call.id,
         name: call.name,
         content: outcome.content,
       });
+      await checkpoint();
     }
 
     deviceRounds = request.deviceRounds;
     // A safety valve, not the budget. The server decides when to stop offering
     // the tools; this only catches a server that never does.
-    return deviceRounds < DEVICE_ROUND_HARD_STOP;
+    return deviceRounds < (harness ? MAX_MODE_ROUND_HARD_STOP : DEVICE_ROUND_HARD_STOP);
   };
 
   try {
+    await harness?.onStart?.();
     for (;;) {
       // What the model asked this browser to do, if this leg suspended.
       let deviceRequest: DeviceToolRequestFrame['payload'] | null = null;
@@ -664,11 +771,18 @@ export async function generateAIResponseStreaming(
         dataPresent = await resolveDeviceDataPresent(deviceBridge?.currentChatSessionId);
       }
 
+      // Summarised per leg, not per turn: the model's own writes change the
+      // tree between legs, and the prompt lists the tree.
+      const maxModeField = harness
+        ? { maxMode: { mode: harness.mode, workspace: await harness.summarizeWorkspace() } }
+        : {};
+
       const bridgeFields = deviceApps.length > 0
         ? {
             deviceApps,
             deviceDataPresent: dataPresent ?? [],
             deviceRounds,
+            ...maxModeField,
             // Metadata only. The bytes stay on the device; this is what lets
             // the server tell the model which paths exist.
             ...(attachedFiles.length > 0
@@ -678,7 +792,7 @@ export async function generateAIResponseStreaming(
                   })),
                 }
               : {}),
-            ...(toolTranscript.length > 0 ? { toolTranscript } : {}),
+            ...(toolTranscript.length > 0 ? { toolTranscript: harness ? compactHarnessTranscript(toolTranscript) : toolTranscript } : {}),
             // Summaries only. The code stays here; the server needs just
             // enough to build a descriptor the model can call.
             ...(sessionTools.length > 0 ? { sessionTools: sessionTools.map(sessionToolSummary) } : {}),
@@ -686,8 +800,11 @@ export async function generateAIResponseStreaming(
         : {};
 
       // TimeMachine PRO runs in the background (Trigger.dev) so long generations
-      // are not bound by Vercel's serverless time limit.
-      if (currentPersona === 'pro') {
+      // are not bound by Vercel's serverless time limit. Max Mode is the
+      // exception: a coding turn is dozens of short legs, and each device
+      // round on Trigger is a whole new job with the transcript re-sent. The
+      // streaming endpoint serves a leg in seconds, so the harness goes there.
+      if (currentPersona === 'pro' && !harness) {
         const runId = await startProRun({
           messages: messages.map(msg => ({
             content: msg.content,
@@ -695,7 +812,6 @@ export async function generateAIResponseStreaming(
           })),
           persona: currentPersona,
           imageData,
-          heatLevel,
           inputImageUrls,
           imageDimensions,
           stream: true,
@@ -731,12 +847,13 @@ export async function generateAIResponseStreaming(
       } else {
         const requestBody = JSON.stringify({
           messages: messages.map(msg => ({
-            content: msg.content,
+            // Earlier harness turns carry card markers; the model has no use
+            // for them.
+            content: harness ? stripHarnessMarkers(msg.content) : msg.content,
             isAI: msg.isAI
           })),
           persona: currentPersona,
           imageData,
-          heatLevel,
           inputImageUrls,
           imageDimensions,
           stream: true,
@@ -880,12 +997,32 @@ export async function generateAIResponseStreaming(
     }
     if (error instanceof ChatError) {
       // Rate limits still surface through the dedicated modal path.
-      if (onError) onError(error.code === 'RATE_LIMITED' ? new RateLimitError(error.message) : error);
+      if (error.code === 'RATE_LIMITED') {
+        onError?.(new RateLimitError(error.message));
+        return;
+      }
+      // A Max Mode leg that died takes nothing with it. The failure carries
+      // every completed leg — text, cards and transcript — so the turn stays
+      // on screen as it was and Retry picks up from the failed leg. Without
+      // this, a provider's bad minute on leg twelve erased eleven legs of
+      // work and Retry started the whole job over.
+      if (harness && (toolTranscript.length > 0 || combinedContent)) {
+        onError?.(new ChatError(
+          error.code,
+          error.message,
+          combinedContent + (error.partialContent ?? ''),
+          { toolTranscript: [...toolTranscript], deviceRounds, content: combinedContent },
+        ));
+        return;
+      }
+      onError?.(error);
       return;
     }
 
     if (onError) {
-      onError(new ChatError('UNKNOWN', error instanceof Error ? error.message : 'Unknown error occurred'));
+      onError(new ChatError('UNKNOWN', error instanceof Error ? error.message : 'Unknown error occurred',
+        harness ? combinedContent : undefined,
+        harness ? { toolTranscript: [...toolTranscript], deviceRounds, content: combinedContent } : undefined));
     }
   }
 }
@@ -895,7 +1032,9 @@ export async function generateAIResponse(
   imageData?: string | string[],
   _systemPrompt: string = '', // Not used anymore, kept for positional compatibility
   currentPersona: keyof typeof AI_PERSONAS = 'default',
-  heatLevel?: number,
+  // Max Mode needs the device bridge, which only the streaming path has. The
+  // slot is kept so the two functions stay positionally aligned.
+  _maxMode?: MaxModeKind,
   inputImageUrls?: string[],
   imageDimensions?: ImageDimensions,
   _userId?: string,
@@ -919,7 +1058,6 @@ export async function generateAIResponse(
         })),
         persona: currentPersona,
         imageData,
-        heatLevel,
         inputImageUrls,
         imageDimensions,
         stream: false,
@@ -962,7 +1100,6 @@ export async function generateAIResponse(
         })),
         persona: currentPersona,
         imageData,
-        heatLevel,
         inputImageUrls,
         imageDimensions,
         stream: false,

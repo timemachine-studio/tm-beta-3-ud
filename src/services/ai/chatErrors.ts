@@ -1,4 +1,4 @@
-import type { ChatErrorCode } from '../../types/chat';
+import type { ChatErrorCode, HarnessResume } from '../../types/chat';
 
 /**
  * A generation failure with a machine-readable cause.
@@ -11,12 +11,15 @@ export class ChatError extends Error {
   readonly code: ChatErrorCode;
   /** Whatever streamed before the failure, so the UI can keep showing it. */
   readonly partialContent?: string;
+  /** Max Mode: the completed legs, so Retry continues rather than restarts. */
+  readonly resume?: HarnessResume;
 
-  constructor(code: ChatErrorCode, message: string, partialContent?: string) {
+  constructor(code: ChatErrorCode, message: string, partialContent?: string, resume?: HarnessResume) {
     super(message);
     this.name = 'ChatError';
     this.code = code;
     this.partialContent = partialContent;
+    this.resume = resume;
   }
 }
 

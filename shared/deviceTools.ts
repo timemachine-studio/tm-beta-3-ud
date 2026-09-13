@@ -27,6 +27,7 @@ import {
   type RegistryToolName,
   type RegistryToolPayload,
 } from './toolRegistry.js';
+import { isWorkspaceToolName, type WorkspaceToolName } from './maxMode.js';
 
 /** A tool the browser executes. Anything not in here runs on the server. */
 export const DEVICE_TOOL_NAMES = [
@@ -49,10 +50,12 @@ const DEVICE_TOOL_NAME_SET: ReadonlySet<string> = new Set(DEVICE_TOOL_NAMES);
  *
  * The fixed list, plus every `tm__` name: a generated tool is Python, and the
  * sandbox is here. The prefix is the whole test — a registry can grow without
- * this function learning a single new name.
+ * this function learning a single new name. Max Mode's workspace tools
+ * (shared/maxMode.ts) are device tools for the same reason: the project is
+ * on the device.
  */
-export function isDeviceToolName(name: string | undefined | null): name is DeviceToolName | RegistryToolName {
-  return !!name && (DEVICE_TOOL_NAME_SET.has(name) || isRegistryToolName(name));
+export function isDeviceToolName(name: string | undefined | null): name is DeviceToolName | RegistryToolName | WorkspaceToolName {
+  return !!name && (DEVICE_TOOL_NAME_SET.has(name) || isRegistryToolName(name) || isWorkspaceToolName(name));
 }
 
 /**
@@ -107,6 +110,8 @@ export interface DeviceToolRequestFrame {
   payload: {
     /** The assistant turn that made the calls, replayed verbatim on resume. */
     assistantContent: string | null;
+    /** Earlier server-only iterations in this leg, before the suspended batch. */
+    priorTranscript?: ToolTranscriptMessage[];
     toolCalls: DeviceToolCall[];
     /** Results for calls in the same batch that the server could execute. */
     resolvedResults: Array<{ id: string; name: string; content: string }>;
@@ -357,7 +362,11 @@ export const DEVICE_TOOLS = [...NOTES_TOOLS, ...CHAT_HISTORY_TOOLS, runPythonToo
  * an older cached bundle that does not know these tools would otherwise be
  * offered them and strand every run at the first call.
  */
-export const DEVICE_APPS = ['notes', 'chats', 'python'] as const;
+// 'workspace' and 'node' exist for Max Mode (shared/maxMode.ts): the first
+// says the client has a project store to run the workspace tools against,
+// the second that it can boot the in-browser Node runtime. Neither is
+// offered outside Max Mode, so main chat pays nothing for them.
+export const DEVICE_APPS = ['notes', 'chats', 'python', 'workspace', 'node'] as const;
 export type DeviceApp = (typeof DEVICE_APPS)[number];
 
 /**

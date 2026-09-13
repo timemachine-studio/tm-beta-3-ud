@@ -3,6 +3,15 @@ import type { VercelRequest, VercelResponse } from './vercelTypes.js';
 import { apiErrorBody } from './errors.js';
 import { MAX_SESSION_TOOLS } from '../../shared/toolRegistry.js';
 import { sessionToolSummarySchema } from '../../shared/toolRegistrySchema.js';
+import { DEVICE_APPS } from '../../shared/deviceTools.js';
+import {
+  MAX_MODE_KINDS,
+  MAX_MODE_RESULT_CHARS,
+  MAX_MODE_ROUND_HARD_STOP,
+  MAX_MODE_RUNTIMES,
+  MAX_MODE_TRANSCRIPT_MESSAGES,
+  MAX_SUMMARY_PATHS,
+} from '../../shared/maxMode.js';
 
 /**
  * Input bounds for the API (production-check.md 1.8).
@@ -28,11 +37,11 @@ export const LIMITS = {
   maxImageDataBytes: 3 * 1024 * 1024,
   maxPdfChars: 400_000,
   maxPromptChars: 4_000,
-  // One device tool result, and the whole replayed transcript. Matches
-  // MAX_DEVICE_RESULT_CHARS in shared/deviceTools.ts, which is what the
-  // executors truncate to before sending.
-  maxDeviceResultChars: 12_000,
-  maxToolTranscript: 64,
+  // One device tool result. Matches MAX_MODE_RESULT_CHARS in shared/maxMode.ts,
+  // the widest any executor truncates to before sending (main chat's tools stop
+  // at MAX_DEVICE_RESULT_CHARS, well under it). The transcript length is
+  // bounded by MAX_MODE_TRANSCRIPT_MESSAGES for the same reason.
+  maxDeviceResultChars: MAX_MODE_RESULT_CHARS,
 } as const;
 
 /**
@@ -115,7 +124,7 @@ const toolTranscriptMessageSchema = z.object({
     type: z.string().max(32),
     function: z.object({
       name: z.string().min(1).max(64),
-      arguments: z.string().max(LIMITS.maxMessageChars),
+      arguments: z.string().max(600_000),
     }),
   })).max(16).optional(),
   tool_call_id: z.string().max(200).optional(),
@@ -143,7 +152,22 @@ export const aiProxyBodySchema = z.object({
   messages: z.array(messageSchema).min(1).max(LIMITS.maxMessages),
   persona: z.enum(PERSONAS).default('default'),
   imageData: z.union([imageDataSchema, z.array(imageDataSchema).max(LIMITS.maxImageData)]).optional(),
-  heatLevel: z.number().int().min(1).max(5).default(2),
+  // Max Mode (shared/maxMode.ts): PRO as a coding harness. The summary is
+  // paths and sizes only; file contents travel through the transcript, one
+  // read at a time, like every other device tool result.
+  maxMode: z.object({
+    mode: z.enum(MAX_MODE_KINDS),
+    workspace: z.object({
+      paths: z.array(z.string().max(512)).max(MAX_SUMMARY_PATHS),
+      truncated: z.boolean(),
+      repo: z.object({
+        owner: z.string().min(1).max(100),
+        name: z.string().min(1).max(100),
+        branch: z.string().min(1).max(200),
+      }).optional(),
+      runtimes: z.array(z.enum(MAX_MODE_RUNTIMES)).max(4),
+    }),
+  }).optional(),
   stream: z.boolean().default(false),
   flowState: z.boolean().default(false),
   inputImageUrls: z.array(imageUrlSchema).max(LIMITS.maxImageUrls).optional(),
@@ -165,11 +189,13 @@ export const aiProxyBodySchema = z.object({
   // ─── Device tool bridge (shared/deviceTools.ts) ───────────────────────────
   // Which device apps this client can execute for. Absent means none: an
   // older cached bundle must not be offered tools it cannot run.
-  deviceApps: z.array(z.enum(['notes', 'chats', 'python'])).max(8).optional(),
+  deviceApps: z.array(z.enum(DEVICE_APPS)).max(8).optional(),
   // Of those, the ones that actually hold data. Readers are left out of a
   // request with nothing to read; writers never are.
-  deviceDataPresent: z.array(z.enum(['notes', 'chats', 'python'])).max(8).optional(),
-  deviceRounds: z.number().int().min(0).max(16).default(0),
+  deviceDataPresent: z.array(z.enum(DEVICE_APPS)).max(8).optional(),
+  // Bounded by the widest budget any mode grants; the route enforces the
+  // mode's own budget on top of this.
+  deviceRounds: z.number().int().min(0).max(MAX_MODE_ROUND_HARD_STOP).default(0),
   // Files the user attached, by reference. The bytes never leave the device —
   // this is metadata so the model can be told what it can open, and nothing
   // here is trusted for anything but wording.
@@ -178,7 +204,7 @@ export const aiProxyBodySchema = z.object({
     mime: z.string().max(120),
     size: z.number().int().min(0),
   })).max(8).optional(),
-  toolTranscript: z.array(toolTranscriptMessageSchema).max(LIMITS.maxToolTranscript).optional(),
+  toolTranscript: z.array(toolTranscriptMessageSchema).max(MAX_MODE_TRANSCRIPT_MESSAGES).optional(),
   // Tools this conversation created (shared/toolRegistry.ts). Summaries only:
   // the code stays on the device that wrote it. Each becomes a descriptor the
   // model may call, so every field is validated as if it came from the model —

@@ -1,10 +1,14 @@
+import { getWorkspaceMeta } from '../services/workspace/workspaceStore';
+import { harnessTurnKey, prepareHarnessRecovery } from '../services/workspace/harnessRecovery';
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Message, ImageDimensions, MusicVariation, ChatErrorCode, RetryContext, type AttachedFile } from '../types/chat';
+import { Message, ImageDimensions, MusicVariation, ChatErrorCode, RetryContext, type AttachedFile, type HarnessAction, type HarnessResume } from '../types/chat';
+import type { MaxModeKind } from '../../shared/maxMode';
+import { createHarnessBridge, forgetHarnessResume, harnessDeviceApps, recallHarnessResume, rememberHarnessResume, rememberWorkspaceMode, workspaceModeFor } from '../services/workspace/harnessBridge';
 import { generateAIResponse, generateAIResponseStreaming, resolveMcpApproval, getActiveProRun, streamProRun, YouTubeMusicData, UserMemoryContext } from '../services/ai/aiProxyService';
 import type { McpApprovalDecision, McpApprovalRequest } from '../types/flightControls';
 import { ChatError } from '../services/ai/chatErrors';
 import { INITIAL_MESSAGE, AI_PERSONAS } from '../config/constants';
-import { chatService, ChatSession } from '../services/chat/chatService';
+import { chatService, ChatSession, isPersistable } from '../services/chat/chatService';
 import { processGeneratedImages } from '../services/image/imageService';
 import {
   subscribeToGroupChat,
@@ -119,7 +123,7 @@ export function useChat(
   userProfile?: { nickname?: string | null; about_me?: string | null },
   initialPersona?: keyof typeof AI_PERSONAS,
   authLoading?: boolean,
-  initialSession?: { messages: Message[]; id: string; heat_level?: number } | null,
+  initialSession?: { messages: Message[]; id: string; maxMode?: MaxModeKind } | null,
   flowStateActive?: boolean
 ) {
   // Start with empty state - will be initialized once we know the persona
@@ -130,7 +134,9 @@ export function useChat(
   const [currentPersona, setCurrentPersona] = useState<keyof typeof AI_PERSONAS>(initialPersona || 'default');
   // If initialSession provided, we're already initialized
   const [isInitialized, setIsInitialized] = useState(!!initialSession);
-  const [currentProHeatLevel, setCurrentProHeatLevel] = useState<number>(initialSession?.heat_level || 2);
+  // Max Mode (PRO only): null is off. Per chat, because the workspace is per
+  // chat — see src/services/workspace.
+  const [maxMode, setMaxModeState] = useState<MaxModeKind | null>(initialSession?.maxMode ?? null);
   const [currentEmotion, setCurrentEmotion] = useState<string>('joy');
   const [error, setError] = useState<string | null>(null);
   const [showAboutUs, setShowAboutUs] = useState(false);
@@ -236,7 +242,7 @@ export function useChat(
           name: sessionName,
           messages: messagesToSave,
           persona,
-          heat_level: persona === 'pro' ? currentProHeatLevel : undefined,
+          maxMode: persona === 'pro' && maxMode ? maxMode : undefined,
           createdAt: now,
           lastModified: now
         };
@@ -248,13 +254,14 @@ export function useChat(
     };
 
     if (forceImmediate) {
-      // Save immediately without debounce (used when switching sessions)
-      doSave();
-    } else {
-      // Debounce saves to avoid too many requests
-      saveTimeoutRef.current = setTimeout(doSave, 500);
+      // Save immediately without debounce (used when switching sessions).
+      // Returned so a caller about to leave the page can wait for it.
+      return doSave();
     }
-  }, [currentProHeatLevel]);
+    // Debounce saves to avoid too many requests
+    saveTimeoutRef.current = setTimeout(doSave, 500);
+    return undefined;
+  }, [maxMode]);
 
   // Handle persona change
   const handlePersonaChange = useCallback((persona: keyof typeof AI_PERSONAS) => {
@@ -282,10 +289,9 @@ export function useChat(
 
     setCurrentPersona(persona);
 
-    // Reset heat level to 2 when switching to pro persona
-    if (persona === 'pro') {
-      setCurrentProHeatLevel(2);
-    }
+    // A new chat starts with the harness off: Max Mode is a per-chat choice,
+    // and the workspace it opens belongs to the chat it was opened in.
+    setMaxModeState(null);
 
     setError(null);
     setActivePdfText(null); // Clear PDF context on persona switch
@@ -739,7 +745,7 @@ export function useChat(
   const latest = useRef({
     messages,
     currentPersona,
-    currentProHeatLevel,
+    maxMode,
     currentSessionId,
     activePdfText,
     isCollaborative,
@@ -753,7 +759,7 @@ export function useChat(
     latest.current = {
       messages,
       currentPersona,
-      currentProHeatLevel,
+      maxMode,
       currentSessionId,
       activePdfText,
       isCollaborative,
@@ -776,6 +782,32 @@ export function useChat(
     saveChatSessionRef.current = saveChatSession;
   });
 
+  /**
+   * Turn Max Mode on (with a mode) or off for the current chat.
+   *
+   * Remembered with the workspace rather than only in state, so a chat
+   * reopened from history comes back in the mode it was left in — the
+   * session record cannot carry it for signed-in users (see ChatSession).
+   */
+  const setMaxMode = useCallback((mode: MaxModeKind | null) => {
+    setMaxModeState(mode);
+    rememberWorkspaceMode(latest.current.currentSessionId, mode);
+  }, []);
+
+  /**
+   * Write the current chat out now and wait for it.
+   *
+   * For the moments a full navigation is about to happen — entering or
+   * leaving Max Mode — when the debounced save would be lost with the page.
+   * A chat with nothing but the welcome bubble is not saved: the route it
+   * lands on starts a fresh one under the same id.
+   */
+  const persistNow = useCallback(async () => {
+    const { currentSessionId: sessionId, messages: current, currentPersona: persona } = latest.current;
+    if (!sessionId || current.length <= 1) return;
+    await saveChatSession(sessionId, markStreamingAsInterrupted(current), persona, true);
+  }, [saveChatSession]);
+
   const clearTurnState = useCallback(() => {
     setStreamingMessageId(null);
     streamingMessageIdRef.current = null;
@@ -794,6 +826,17 @@ export function useChat(
   const failTurn = useCallback((aiMessageId: string, error: unknown) => {
     const code: ChatErrorCode = error instanceof ChatError ? error.code : 'UNKNOWN';
     const partial = error instanceof ChatError ? error.partialContent : undefined;
+    const resume = error instanceof ChatError ? error.resume : undefined;
+    // On the device too, so a Retry after a reload still continues. Keyed by
+    // the prompt that started the turn: message ids do not survive a reload
+    // for signed-in users.
+    if (resume && latest.current.currentSessionId) {
+      const turn = latest.current.messages;
+      const failedIndex = turn.findIndex(message => message.id === aiMessageId);
+      let userIndex = failedIndex - 1;
+      while (userIndex >= 0 && turn[userIndex].isAI) userIndex--;
+      if (userIndex >= 0) rememberHarnessResume(latest.current.currentSessionId, turn[userIndex].content, resume, harnessTurnKey(turn[userIndex]), turn[userIndex].retryContext?.maxMode);
+    }
 
     isDirtyRef.current = true;
     setMessages(prev => prev.map(msg =>
@@ -805,6 +848,9 @@ export function useChat(
           content: '',
           rawContent: undefined,
           partialContent: partial && partial.trim() ? cleanContent(partial) : undefined,
+          // The cards stay (they are on the message already); a Max Mode
+          // turn also keeps where it got to, so Retry continues from there.
+          harnessResume: resume,
           hasAnimated: true,
         }
         : msg
@@ -822,6 +868,8 @@ export function useChat(
     aiMessageId: string,
     apiMessages: Message[],
     ctx: RetryContext,
+    resume?: HarnessResume,
+    userTurn?: Pick<Message, 'id' | 'content' | 'createdAt'>,
   ) => {
     const {
       messages: _ignored,
@@ -861,7 +909,7 @@ export function useChat(
         ctx.imageData,
         '', // System prompt is now handled server-side
         persona,
-        persona === 'pro' ? ctx.heatLevel : undefined,
+        persona === 'pro' ? ctx.maxMode : undefined,
         ctx.inputImageUrls,
         ctx.imageDimensions,
         // onChunk callback
@@ -894,6 +942,8 @@ export function useChat(
 
           setLoadingPhase(null);
           abortControllerRef.current = null;
+          // The turn made it to the end; nothing is left to continue.
+          if (ctx.maxMode && sessionId) forgetHarnessResume(sessionId, userTurn ? harnessTurnKey(userTurn) : undefined);
           completeStreamingMessageRef.current(aiMessageId, cleanedContent, response.thinking, undefined, sessionId);
         },
         // onError callback
@@ -958,7 +1008,12 @@ export function useChat(
           // is. Declaring 'python' is also the version check — an older cached
           // bundle sends the first two and is never offered a tool it cannot
           // run.
-          deviceApps: ['notes', 'chats', 'python'],
+          // A Max Mode turn declares the workspace instead: its tool set is
+          // closed on the server (selectMaxModeToolSet), and notes are not
+          // project context.
+          deviceApps: persona === 'pro' && ctx.maxMode && !collaborative
+            ? harnessDeviceApps()
+            : ['notes', 'chats', 'python'],
           currentChatSessionId: !collaborative ? sessionId : undefined,
           onAppObject: (object) => {
             if (wasStopped()) return;
@@ -993,6 +1048,36 @@ export function useChat(
               return { ...messageItem, createdTools: [...others, tool] };
             }));
           },
+          // Max Mode: the workspace this chat owns, and the cards for what
+          // the harness does in it. Group chat opts out for the same reason
+          // it opts out of notes — one member's project is not group context.
+          ...(persona === 'pro' && ctx.maxMode && sessionId && !collaborative
+            ? {
+              harness: createHarnessBridge({
+                sessionId,
+                mode: ctx.maxMode,
+                userContent: userTurn?.content ?? [...apiMessages].reverse().find(message => !message.isAI)?.content ?? '',
+                turnId: userTurn ? harnessTurnKey(userTurn) : undefined,
+                signal: controller.signal,
+                resume,
+                onAction: (action: HarnessAction) => {
+                  if (wasStopped()) return;
+                  isDirtyRef.current = true;
+                  setMessages(previous => previous.map(messageItem => {
+                    if (messageItem.id !== aiMessageId) return messageItem;
+                    // The same id settles the card it started; a new id is a
+                    // new card, appended in the order things happened.
+                    const existing = messageItem.harnessActions ?? [];
+                    const index = existing.findIndex(candidate => candidate.id === action.id);
+                    const next = index >= 0
+                      ? existing.map((candidate, i) => (i === index ? action : candidate))
+                      : [...existing, action];
+                    return { ...messageItem, harnessActions: next };
+                  }));
+                },
+              }),
+            }
+            : {}),
         },
       );
       return;
@@ -1005,7 +1090,7 @@ export function useChat(
         ctx.imageData,
         '', // System prompt is now handled server-side
         persona,
-        persona === 'pro' ? ctx.heatLevel : undefined,
+        persona === 'pro' ? ctx.maxMode : undefined,
         ctx.inputImageUrls,
         ctx.imageDimensions,
         uid || undefined,
@@ -1081,7 +1166,7 @@ export function useChat(
     const {
       messages: currentMessages,
       currentPersona: persona,
-      currentProHeatLevel: heatLevel,
+      maxMode: harnessMode,
       isCollaborative: collaborative,
       collaborativeId: collabId,
       userId: uid,
@@ -1113,7 +1198,7 @@ export function useChat(
     // this, never from whatever the UI happens to be set to later (1.10).
     const retryContext: RetryContext = {
       persona: messagePersona,
-      heatLevel: messagePersona === 'pro' ? heatLevel : undefined,
+      maxMode: messagePersona === 'pro' && harnessMode ? harnessMode : undefined,
       specialMode,
       flowState: messagePersona === 'default' ? flowState : undefined,
       imageData,
@@ -1200,11 +1285,13 @@ export function useChat(
       }
     }
 
-    // Create placeholder AI message for streaming
+    // Create placeholder AI message for streaming. Stamped strictly after
+    // the user message: the two are made in the same tick, and a tie on
+    // created_at is a coin toss once the chat is reloaded from the database.
     const aiMessageId = newId();
     const aiMessage: Message = {
       id: aiMessageId,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(Date.parse(userMessage.createdAt ?? '') + 1 || Date.now()).toISOString(),
       content: '',
       rawContent: '',
       isAI: true,
@@ -1227,7 +1314,7 @@ export function useChat(
       setActivePdfText(pdfData);
     }
 
-    await runTurn(aiMessageId, apiMessages, retryContext);
+    await runTurn(aiMessageId, apiMessages, retryContext, undefined, userMessage);
   }, [runTurn, toApiContext]);
 
   /**
@@ -1254,7 +1341,7 @@ export function useChat(
     const userMessage = currentMessages[userIndex];
     const ctx: RetryContext = userMessage.retryContext ?? {
       persona: latest.current.currentPersona,
-      heatLevel: latest.current.currentProHeatLevel,
+      maxMode: latest.current.maxMode ?? undefined,
       flowState: latest.current.flowStateActive,
       imageData: userMessage.imageData,
       inputImageUrls: userMessage.inputImageUrls,
@@ -1264,19 +1351,32 @@ export function useChat(
     // Everything strictly before the failed turn, plus a fresh placeholder.
     const history = currentMessages.slice(0, failedIndex);
     const newAiMessageId = newId();
+    const failed = currentMessages[failedIndex];
+    // A Max Mode turn continues from the leg that failed rather than from
+    // the user's message: the settled cards come across, and the bridge
+    // replays the transcript behind them (HarnessResume). The message holds
+    // it while the page lives; the workspace holds it across a reload.
+    const sessionId = latest.current.currentSessionId;
+    const resume = ctx.maxMode
+      ? (failed.harnessResume ?? (sessionId ? await recallHarnessResume(sessionId, userMessage.content, harnessTurnKey(userMessage)) : null) ?? undefined)
+      : undefined;
 
     isDirtyRef.current = true;
     setMessages([
       ...history,
       {
         id: newAiMessageId,
-        createdAt: new Date().toISOString(),
+        // After everything before it, whatever the clock says.
+        createdAt: new Date(Math.max(Date.now(), Date.parse(userMessage.createdAt ?? '') + 1 || 0)).toISOString(),
         content: '',
         rawContent: '',
         isAI: true,
         hasAnimated: false,
         status: 'streaming',
         specialMode: ctx.specialMode,
+        ...(resume && failed.harnessActions
+          ? { harnessActions: failed.harnessActions.filter(action => action.status !== 'running') }
+          : {}),
       },
     ]);
     setError(null);
@@ -1286,8 +1386,29 @@ export function useChat(
       apiMessages = formatMessagesAsDialogue(apiMessages);
     }
 
-    await runTurn(newAiMessageId, apiMessages, ctx);
+    await runTurn(newAiMessageId, apiMessages, ctx, resume, userMessage);
   }, [runTurn, toApiContext]);
+
+  const resumeWorkspaceTurn = useCallback(async () => {
+    if (isStreamingRef.current || latest.current.isCollaborative) return;
+    const sessionId = latest.current.currentSessionId;
+    if (!sessionId) return;
+    const saved = (await getWorkspaceMeta(sessionId))?.resume;
+    if (!saved || latest.current.currentSessionId !== sessionId || isStreamingRef.current) return;
+    const mode = saved.mode ?? latest.current.maxMode ?? 'auto';
+    const recovery = prepareHarnessRecovery(latest.current.messages, saved, mode);
+    const aiMessageId = newId();
+    isDirtyRef.current = true;
+    setMaxMode(mode);
+    setMessages([...recovery.history, {
+      id: aiMessageId, content: '', rawContent: '', isAI: true, status: 'streaming',
+      createdAt: new Date().toISOString(), harnessActions: recovery.actions,
+    }]);
+    setError(null);
+    await runTurn(aiMessageId, toApiContext(recovery.history), recovery.context, {
+      content: saved.content, deviceRounds: saved.deviceRounds, toolTranscript: saved.toolTranscript,
+    }, recovery.user);
+  }, [runTurn, toApiContext, setMaxMode]);
 
   /**
    * Cancel the generation in flight and settle the turn immediately.
@@ -1370,8 +1491,10 @@ export function useChat(
     setStreamingMessageId(null);
     setIsLoading(false);
 
-    // Filter out any empty messages from the loaded session
-    const validMessages = session.messages.filter(msg => msg.content && msg.content.trim() !== '');
+    // Filter out any empty messages from the loaded session — but a failed
+    // turn is empty by design (its text is in partialContent) and has to come
+    // back as a failed turn, or the Retry row is gone (1.10).
+    const validMessages = session.messages.filter(isPersistable);
 
     // Ensure we have at least the initial message if all messages were empty
     const messagesToLoad = validMessages.length > 0
@@ -1394,9 +1517,14 @@ export function useChat(
     setActivePdfText(null); // Clear PDF context when loading a different chat
     isDirtyRef.current = false; // Reset dirty state on load
 
-    // Set heat level if it's a pro session
-    if (session.heat_level) {
-      setCurrentProHeatLevel(session.heat_level);
+    // A chat that has a workspace is a Max Mode chat, whatever the session
+    // record says: signed-in history has no column for it, and the workspace
+    // is the thing that matters.
+    setMaxModeState(session.maxMode ?? null);
+    if (session.persona === 'pro' && !session.maxMode) {
+      workspaceModeFor(session.id).then(mode => {
+        if (mode) setMaxModeState(current => current ?? mode);
+      });
     }
 
     // If a PRO generation is still running in the background for this chat,
@@ -1692,7 +1820,7 @@ export function useChat(
     isChatMode,
     isLoading,
     currentPersona,
-    currentProHeatLevel,
+    maxMode,
     currentEmotion,
     error,
     showAboutUs,
@@ -1709,9 +1837,11 @@ export function useChat(
     setChatMode,
     handleSendMessage,
     retryMessage,
+    resumeWorkspaceTurn,
     stopGeneration,
     handlePersonaChange,
-    setCurrentProHeatLevel,
+    setMaxMode,
+    persistNow,
     startNewChat,
     markMessageAsAnimated,
     dismissAboutUs,

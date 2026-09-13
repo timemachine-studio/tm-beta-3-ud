@@ -29,6 +29,7 @@ import { discoverMcpTools } from './_lib/mcpClient.js';
 import { credentialsAvailable, encryptCredential, McpCredentialError } from './_lib/mcpCredentials.js';
 import { assertPublicUrl } from './_lib/safeUrl.js';
 import { searchMcpRegistry } from './_lib/mcpRegistry.js';
+import { handleGithubRequest } from './_lib/githubRoute.js';
 
 const createSchema = z.object({
   name: z.string().min(1).max(80),
@@ -89,6 +90,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const user = await getAuthenticatedRequestUser(req);
   if (!user) return res.status(401).json(apiErrorBody('AUTH_REQUIRED', 'Sign in is required'));
+
+  // ─── GitHub (Max Mode) ──────────────────────────────────────────────────
+  // Another connected service on the same Function, for the same reason the
+  // registry search is here: the deployment is at its Function limit. See
+  // api/_lib/githubRoute.ts.
+  if (typeof req.query?.github === 'string') {
+    return handleGithubRequest(req, res, user, req.query.github);
+  }
 
   // ─── Registry search ────────────────────────────────────────────────────
   // Folded into this route rather than given its own file: Vercel deploys one

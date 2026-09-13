@@ -7,7 +7,7 @@ import type { ProviderMessage, ProviderTool, ProviderToolCall } from './provider
 // runtime backstop impossible to enforce for Air — a refusal needs a next
 // iteration to land in.
 
-import { isDeviceToolName, type DeviceToolCall } from '../../shared/deviceTools.js';
+import { isDeviceToolName, type DeviceToolCall, type ToolTranscriptMessage } from '../../shared/deviceTools.js';
 import {
   applyPolicy,
   executeTool,
@@ -42,6 +42,8 @@ export interface AgentLoopOptions {
     attempt: { afterEmptyAnswer: boolean },
   ) => Promise<ReadableStream>;
   maxIterations?: number;
+  /** Characters of tool output the transcript may carry. See trimToolResults. */
+  toolResultBudget?: number;
   log?: (message: string) => void;
   /**
    * The caller can suspend this run and hand device tool calls to the browser.
@@ -71,6 +73,7 @@ export interface AgentLoopOptions {
  */
 export interface DeviceToolSuspension {
   assistantContent: string | null;
+  priorTranscript: ToolTranscriptMessage[];
   /** Every call the model made this iteration, device and server alike. */
   allToolCalls: ProviderToolCall[];
   /** Server-executable calls from the same batch, already run. */
@@ -178,6 +181,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
     emit,
     callModel,
     maxIterations = DEFAULT_MAX_ITERATIONS,
+    toolResultBudget = TOOL_RESULT_BUDGET_CHARS,
     log,
     deviceBridge = false,
     requestMcpApproval,
@@ -213,7 +217,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
 
     // Tool output accumulates across iterations and is replayed in full each
     // time. Keep the newest, trim the oldest — see trimToolResults.
-    const streamingResponse = await callModel(trimToolResults(currentMessages), activeTools, { afterEmptyAnswer: retryingEmpty });
+    const streamingResponse = await callModel(trimToolResults(currentMessages, toolResultBudget), activeTools, { afterEmptyAnswer: retryingEmpty });
     retryingEmpty = false;
     const reader = streamingResponse.getReader();
     const decoder = new TextDecoder();
@@ -223,14 +227,15 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
     let isFirstContentOfIteration = true;
     toolCallsMap.clear();
 
+    let frameBuffer = '';
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n').filter(line => line.trim());
+      frameBuffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+      const lines = frameBuffer.split('\n');
+      frameBuffer = done ? '' : (lines.pop() ?? '');
 
       for (const line of lines) {
+        if (!line.trim()) continue;
         try {
           const data = JSON.parse(line);
 
@@ -265,15 +270,17 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
               } else {
                 const existing = toolCallsMap.get(index);
                 if (!existing) continue;
+                if (delta.id) existing.id = delta.id;
                 if (delta.function?.name) existing.function.name = delta.function.name;
                 if (delta.function?.arguments) existing.function.arguments += delta.function.arguments;
               }
             }
           }
         } catch {
-          // Malformed frame — skip it, same as the original loop.
+          // Malformed complete frame — never discard an incomplete chunk.
         }
       }
+      if (done) break;
     }
 
     if (hasToolCalls && toolCallsMap.size > 0) {
@@ -285,10 +292,12 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
         // URL, and CLAUDE.md's security rules forbid logging request content.
         log?.(`Agent loop: tool calls ${toolCalls.map(call => call.function.name).join(', ')}`);
 
+        const allowedNames = new Set(activeTools.map(tool => tool.function.name));
         const pendingCalls = deviceBridge
-          ? toolCalls.filter(call => isDeviceToolName(call.function.name))
+          ? toolCalls.filter(call => allowedNames.has(call.function.name) && isDeviceToolName(call.function.name))
           : [];
 
+        const priorTranscript = currentMessages.slice(messages.length) as ToolTranscriptMessage[];
         currentMessages.push({
           role: 'assistant',
           content: assistantContent || null,
@@ -300,7 +309,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
         // must not quietly perform half of it and then stop.
         if (requestMcpApproval) {
           for (const toolCall of toolCalls) {
-            if (pendingCalls.includes(toolCall)) continue;
+            if (pendingCalls.includes(toolCall) || !allowedNames.has(toolCall.function.name)) continue;
             const approval = await requestMcpApproval(toolCall, currentMessages);
             if (approval) {
               log?.(`Agent loop: waiting on approval for ${toolCall.function.name}`);
@@ -321,7 +330,9 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
         for (const toolCall of toolCalls) {
           if (pendingCalls.includes(toolCall)) continue;
 
-          const result = await executeTool(toolCall, toolContext, {
+          const result = !allowedNames.has(toolCall.function.name)
+            ? `Error: ${toolCall.function.name} is not available on this iteration. Use only the offered tools.`
+            : await executeTool(toolCall, toolContext, {
             emitText: emit.emitToolText,
             emitMarker: emit.emitMarker,
           });
@@ -343,6 +354,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
             hitMaxIterations: false,
             deviceSuspension: {
               assistantContent: assistantContent || null,
+              priorTranscript,
               allToolCalls: toolCalls,
               resolvedResults,
               pendingCalls: pendingCalls.map(call => ({

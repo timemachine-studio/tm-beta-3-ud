@@ -4,6 +4,7 @@ import type { ChatSession } from './chatService';
 import { AI_PERSONAS } from '../../config/constants';
 import { MAX_SESSION_TOOLS } from '../../../shared/toolRegistry';
 import { sessionToolSchema } from '../../../shared/toolRegistrySchema';
+import { MAX_MODE_KINDS, MAX_MODE_ROUND_HARD_STOP } from '../../../shared/maxMode';
 
 const dimensions = z.object({ width: z.number(), height: z.number() });
 const errorCode = z.enum(['RETENTION_UNVERIFIED', 'RATE_LIMITED', 'AUTH_EXPIRED', 'PROVIDER_DOWN', 'PAYLOAD_TOO_LARGE', 'TIMEOUT', 'TRUNCATED', 'EMPTY', 'ABORTED', 'NETWORK', 'UNKNOWN']);
@@ -84,6 +85,19 @@ const attachments = z.array(z.object({
 // Tools the conversation created. The full spec schema, because a stored
 // blob is untrusted and this is code the sandbox will run again.
 const createdTools = z.array(sessionToolSchema).max(MAX_SESSION_TOOLS);
+// What the Max Mode harness did on a turn. A stored card is never running:
+// a chat reopened mid-turn shows the settled state, never a shimmer.
+const harnessActions = z.array(z.object({
+  id: z.string().max(200),
+  tool: z.string().max(64),
+  label: z.string().max(200),
+  status: z.enum(['running', 'done', 'failed']).transform(value => (value === 'running' ? 'failed' as const : value)),
+  path: z.string().max(512).optional(),
+  detail: z.string().max(200).optional(),
+  output: z.string().max(12_000).optional(),
+  startedAt: z.string(),
+  finishedAt: z.string().optional(),
+})).max(MAX_MODE_ROUND_HARD_STOP * 4);
 export const storedMetadataSchema = z.object({
   hasAnimated: z.boolean().nullish(), imageDimensions: dimensions.nullish(),
   specialMode: z.string().nullish(),
@@ -94,6 +108,7 @@ export const storedMetadataSchema = z.object({
   pythonRuns: pythonRuns.nullish(),
   attachments: attachments.nullish(),
   createdTools: createdTools.nullish(),
+  harnessActions: harnessActions.nullish(),
 });
 
 /** A malformed optional field must not discard another field's retry state. */
@@ -117,6 +132,7 @@ const messageSchema = storedMetadataSchema.extend({
   pythonRuns: pythonRuns.optional(),
   attachments: attachments.optional(),
   createdTools: createdTools.optional(),
+  harnessActions: harnessActions.optional(),
   thinking: z.string().optional(), rawContent: z.string().optional(),
   imageData: z.union([z.string(), z.array(z.string())]).optional(),
   audioUrl: z.string().optional(), inputImageUrls: z.array(z.string()).optional(),
@@ -125,7 +141,7 @@ const messageSchema = storedMetadataSchema.extend({
   replyTo: z.object({ id: z.string(), content: z.string(), sender_nickname: z.string().optional(), isAI: z.boolean() }).optional(),
   reactions: z.record(z.string(), z.array(z.string())).optional(),
   retryContext: z.object({
-    persona: z.string(), heatLevel: z.number().optional(), specialMode: z.string().optional(),
+    persona: z.string(), maxMode: z.enum(MAX_MODE_KINDS).optional(), specialMode: z.string().optional(),
     flowState: z.boolean().optional(), imageData: z.union([z.string(), z.array(z.string())]).optional(),
     inputImageUrls: z.array(z.string()).optional(), imageDimensions: dimensions.optional(),
     pdfData: z.string().optional(), pdfFileName: z.string().optional(),
@@ -139,7 +155,7 @@ const sessionSchema = z.object({
   id: z.string().min(1), user_id: z.string().optional(), name: z.string().min(1),
   messages: z.array(messageSchema),
   persona: z.custom<ChatSession['persona']>(value => typeof value === 'string' && Object.prototype.hasOwnProperty.call(AI_PERSONAS, value)),
-  heat_level: z.number().optional(), createdAt: z.string().min(1), lastModified: z.string().min(1),
+  maxMode: z.enum(MAX_MODE_KINDS).optional(), createdAt: z.string().min(1), lastModified: z.string().min(1),
 }).passthrough();
 
 /** Validate imported JSON before either local or cloud history receives it. */

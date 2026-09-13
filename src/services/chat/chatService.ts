@@ -13,6 +13,7 @@ import { Message } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { newId } from '../../utils/id';
 import { pythonRunsForStorage } from '../python/pythonResult';
+import type { MaxModeKind } from '../../../shared/maxMode';
 import type { Json, ChatSession as SessionRow, ChatMessage as MessageRow } from '../../types/database';
 
 export interface ChatSession {
@@ -21,7 +22,13 @@ export interface ChatSession {
   name: string;
   messages: Message[];
   persona: keyof typeof AI_PERSONAS;
-  heat_level?: number;
+  /**
+   * Max Mode (PRO only): the harness mode this chat was last in. Local
+   * sessions keep it; the cloud row has no column for it, and needs none —
+   * the workspace itself lives on the device, and a chat that has one is a
+   * Max Mode chat whatever the row says.
+   */
+  maxMode?: MaxModeKind;
   createdAt: string;
   lastModified: string;
 }
@@ -29,7 +36,7 @@ export interface ChatSession {
 // A message worth persisting: it has content, or it is a failed turn whose
 // retry row should still be there when the chat is reopened (1.10/1.13).
 // Everything else is a streaming placeholder.
-function isPersistable(message: Message): boolean {
+export function isPersistable(message: Message): boolean {
   return Boolean((message.content && message.content.trim() !== '') || message.status === 'error');
 }
 
@@ -42,8 +49,13 @@ function isPersistable(message: Message): boolean {
  * file-store id now, so this bounds the shape rather than the size.
  */
 function messageForStorage(message: Message): Message {
-  if (!message.pythonRuns?.length) return message;
-  return { ...message, pythonRuns: pythonRunsForStorage(message.pythonRuns) };
+  // harnessResume is a replay transcript for the bridge that produced it —
+  // large, and useless once the page is gone. It never reaches a store.
+  // (The Supabase path builds its row field by field, so it never sees it.)
+  const { harnessResume: _resume, ...rest } = message;
+  void _resume;
+  if (!message.pythonRuns?.length) return rest;
+  return { ...rest, pythonRuns: pythonRunsForStorage(message.pythonRuns) };
 }
 
 // Convert database row to ChatSession
@@ -54,7 +66,6 @@ function dbRowToSession(row: SessionRow, messages: Message[]): ChatSession {
     name: row.name,
     messages,
     persona: row.persona as keyof typeof AI_PERSONAS,
-    heat_level: row.heat_level,
     createdAt: row.created_at,
     lastModified: row.updated_at,
   };
@@ -86,6 +97,7 @@ function messageToDbRow(message: Message, sessionId: string, userId: string) {
       pythonRuns: messageForStorage(message).pythonRuns || null,
       attachments: message.attachments || null,
       createdTools: message.createdTools || null,
+      harnessActions: message.harnessActions || null,
     } as unknown as Json,
     // Ordering is by created_at, and ids are no longer timestamps (1.12),
     // so the message has to carry its own clock.
@@ -116,6 +128,7 @@ function dbRowToMessage(row: MessageRow): Message {
     pythonRuns: saved.pythonRuns || undefined,
     attachments: saved.attachments || undefined,
     createdTools: saved.createdTools || undefined,
+    harnessActions: saved.harnessActions || undefined,
   };
 }
 
@@ -215,7 +228,16 @@ export async function getSupabaseSessions(userId: string): Promise<ChatSession[]
           return dbRowToSession(session, []);
         }
 
-        return dbRowToSession(session, (messages || []).map(dbRowToMessage));
+        // A user message and the assistant placeholder for its reply used to
+        // be created in the same tick, so created_at ties and Postgres returns
+        // them in any order — a reloaded chat showed the reply above the
+        // prompt, and Retry (which walks back from the failed turn to its
+        // prompt) found nothing. New turns are stamped apart; for rows that
+        // already tie, the prompt comes before its reply. Row ids are uuids,
+        // so they are no help as a tiebreaker.
+        const ordered = (messages || []).map(dbRowToMessage).sort((a, b) =>
+          (a.createdAt ?? '').localeCompare(b.createdAt ?? '') || Number(a.isAI) - Number(b.isAI));
+        return dbRowToSession(session, ordered);
       })
     );
 
@@ -249,7 +271,6 @@ export async function saveSupabaseSession(
           user_id: userId,
           name: session.name,
           persona: session.persona,
-          heat_level: session.heat_level || 2,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'id'

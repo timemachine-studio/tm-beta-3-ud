@@ -30,6 +30,12 @@ import {
   type ToolDescriptor,
 } from '../../shared/toolCatalog.js';
 import { CREATE_TOOL_NAME } from '../../shared/toolRegistry.js';
+import {
+  MAX_MODE_ROUND_BUDGET,
+  maxModeOffersPython,
+  workspaceToolsFor,
+  type MaxModeRequest,
+} from '../../shared/maxMode.js';
 import { fetchWebPage, formatPageForModel } from './webFetch.js';
 import { executeMcpTool, type DiscoveredMcpTool } from './mcpClient.js';
 import { isMcpToolName } from './mcpCatalog.js';
@@ -819,6 +825,49 @@ export function selectToolSet(opts: SelectToolsOptions): SelectedToolSet {
 /** The tool list alone, for call sites that do not need the rest. */
 export function selectTools(opts: SelectToolsOptions): ProviderTool[] {
   return selectToolSet(opts).tools;
+}
+
+/**
+ * The tools for a Max Mode turn (shared/maxMode.ts).
+ *
+ * A closed set, chosen by the mode rather than by the catalogue: the whole
+ * point of Plan mode is that write_file is not in the request, and a keyword
+ * gate has no business deciding whether a coding agent may read a file. The
+ * web tools come along because a task often needs a doc page or an error
+ * message looked up; nothing else from main chat does — notes and chat
+ * history are not project context, and find_tools would only reopen the door
+ * the mode closed.
+ *
+ * Past the mode's round budget the workspace tools are withheld, exactly as
+ * the general bridge withholds its tools, and the prompt says so. The client
+ * declares 'workspace' the same way it declares 'notes': an older bundle that
+ * cannot run these tools is never offered them.
+ */
+export function selectMaxModeToolSet(opts: {
+  request: MaxModeRequest;
+  deviceApps: readonly string[];
+  deviceRoundsUsed: number;
+}): SelectedToolSet {
+  const { request, deviceApps, deviceRoundsUsed } = opts;
+  const canRun = deviceApps.includes('workspace') && deviceRoundsUsed < MAX_MODE_ROUND_BUDGET[request.mode];
+
+  const workspace = canRun ? workspaceToolsFor(request) : [];
+  const python = canRun && maxModeOffersPython(request) && deviceApps.includes('python')
+    ? [findDescriptor('run_python')!.definition]
+    : [];
+  const web = [webSearchTool, webFetchTool];
+
+  const definitions = [...workspace, ...python, ...web];
+  const offered = definitions
+    .map(tool => findDescriptor(tool.function.name))
+    .filter((d): d is ToolDescriptor => !!d);
+  return {
+    tools: definitions as ProviderTool[],
+    offered,
+    findable: [],
+    tokensUsed: definitions.reduce((sum, tool) => sum + estimateSchemaTokens(tool), 0),
+    canFindTools: false,
+  };
 }
 
 // ─── History sanitising ─────────────────────────────────────────────────────

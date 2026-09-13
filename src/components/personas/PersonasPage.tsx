@@ -132,7 +132,7 @@ export function PersonasPage() {
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">TimeMachine PRO</h2>
               <p className="text-white/40 text-sm mb-6">Our most technologically advanced intelligence with human-like emotions and thinking</p>
               <p className="text-white/60 text-base sm:text-lg leading-relaxed max-w-2xl mb-6">
-                TimeMachine PRO is the most powerful intelligence we've ever built. It doesn't just respond — it thinks, reasons, and understands with human-like emotional depth. PRO is designed for deep work: complex analysis, strategic planning, code review, research, and conversations that matter. Adjust its intensity with Heat Levels from careful and conservative to bold and assertive.
+                TimeMachine PRO is the most powerful intelligence we've ever built. It doesn't just respond — it thinks, reasons, and understands with human-like emotional depth. PRO is designed for deep work: complex analysis, strategic planning, code review, research, and conversations that matter. Switch on Max Mode and it becomes a coding agent: a project workspace on your device, files it reads and edits, a Node runtime it tests in, and pull requests it opens on GitHub.
               </p>
               <div className="flex flex-wrap gap-2">
                 {['Conservative', 'Balanced', 'Direct', 'Bold', 'Maximum'].map((level, i) => (

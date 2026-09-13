@@ -1,5 +1,6 @@
 import type { AI_PERSONAS } from '../config/constants';
 import type { SessionTool } from '../../shared/toolRegistry';
+import type { MaxModeKind } from '../../shared/maxMode';
 
 /**
  * The one persona union. Components used to declare their own — several still
@@ -40,7 +41,8 @@ export type ChatErrorCode =
 // reconstruct it from current UI state (production-check.md 1.10).
 export interface RetryContext {
   persona: string;
-  heatLevel?: number;
+  /** Max Mode (PRO only): which harness mode the turn ran in. */
+  maxMode?: MaxModeKind;
   specialMode?: string;
   flowState?: boolean;
   imageData?: string | string[];
@@ -104,6 +106,66 @@ export interface Message {
   // Files the user attached to this message, by reference into the device file
   // store. The bytes are not here; only what is needed to find them again.
   attachments?: AttachedFile[];
+  // Max Mode: everything the harness did on this turn — each file read,
+  // edit, command and preview — in the order it happened. The content carries
+  // a marker where each one sits (see HARNESS_ACTION_MARKER), so the cards
+  // render inline between the model's progress notes rather than under them.
+  harnessActions?: HarnessAction[];
+  // Max Mode: where a failed turn got to, so Retry continues it instead of
+  // starting the whole job again. In memory only — never saved.
+  harnessResume?: HarnessResume;
+}
+
+/**
+ * Enough to pick a Max Mode turn up where a leg failed.
+ *
+ * A coding turn is dozens of legs, and the transcript the client replays is
+ * what makes them one turn. When leg twelve dies, the eleven before it are
+ * not lost work: this carries their transcript, the rounds spent, and the
+ * text (with its card markers) already shown — and the next leg is exactly
+ * what would have run had the provider not had a bad minute.
+ */
+export interface HarnessResume {
+  toolTranscript: import('../../shared/deviceTools').ToolTranscriptMessage[];
+  deviceRounds: number;
+  /** Everything streamed by the legs that completed, markers included. */
+  content: string;
+}
+
+/**
+ * One thing the harness did on a Max Mode turn.
+ *
+ * Created the moment a workspace tool starts — that is when the card appears,
+ * shimmering — and replaced when it finishes. Kept on the message so a chat
+ * reopened later still shows what was done, without the shimmer.
+ */
+export interface HarnessAction {
+  /** The tool call id, so a finish can find its start. */
+  id: string;
+  tool: string;
+  /** What the card says: "Reading src/App.tsx", "Running npm test". */
+  label: string;
+  status: 'running' | 'done' | 'failed';
+  /** The file involved, when there is one. */
+  path?: string;
+  /** One line for the settled card: "+12 −3", "exit 0 in 4.1s", "3 matches". */
+  detail?: string;
+  /** Bounded output the card can expand: a diff, a command's tail, matches. */
+  output?: string;
+  startedAt: string;
+  finishedAt?: string;
+}
+
+/** Where a harness action sits in the message text. Never shown to the user. */
+export const HARNESS_ACTION_MARKER = /\u2fe6tm-action:([A-Za-z0-9_.:-]+)\u2fe7/g;
+
+export function harnessActionMarker(id: string): string {
+  return `\u2fe6tm-action:${id}\u2fe7`;
+}
+
+/** The message text with every action marker removed, for anything that is not the card renderer. */
+export function stripHarnessMarkers(content: string): string {
+  return content.includes('\u2fe6') ? content.replace(HARNESS_ACTION_MARKER, '').replace(/\n{3,}/g, '\n\n').trim() : content;
 }
 
 /**
