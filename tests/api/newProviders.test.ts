@@ -263,32 +263,44 @@ describe('LLM7', () => {
   });
 });
 
-describe('Air\'s chain after both providers were added', () => {
-  it('runs groq, then nvidia, then amd, then pollinations last', () => {
+describe('Air\'s chain on the Eaon route', () => {
+  it('runs gemini, then minimax highspeed, then nvidia, amd, pollinations last', () => {
     const chain = buildProviderChain(
       AI_PERSONAS.default.provider,
       AI_PERSONAS.default.model,
       AI_PERSONAS.default.fallbacks,
     );
+    expect(chain.map(hop => hop.provider)).toEqual(['eaon', 'eaon', 'nvidia', 'amd', 'pollinations']);
+    expect(chain[0]).toMatchObject({ model: 'eaon/gemini-3.8-flash' });
+    expect(chain[1]).toMatchObject({ model: 'eaon/minimax-m2.7-highspeed', vision: 'ocr' });
     // Pollinations is paid and the most dependable host in the file, so it
-    // is the last line: reached only once three free providers are down.
-    expect(chain.map(hop => hop.provider)).toEqual(['groq', 'nvidia', 'amd', 'pollinations']);
-    expect(chain[3]).toMatchObject({ model: 'nvidia/nemotron-3.5-lightning', vision: 'ocr' });
+    // is the last line: reached only once the free providers are down.
+    expect(chain[4]).toMatchObject({ model: 'nvidia/nemotron-3.5-lightning', vision: 'ocr' });
   });
 
-  it('keeps every hop on a distinct provider', () => {
-    // One provider's circuit breaker opening must not take out two hops.
+  it('keeps every hop on a distinct (provider, model) pair', () => {
     const chain = buildProviderChain(
       AI_PERSONAS.default.provider,
       AI_PERSONAS.default.model,
       AI_PERSONAS.default.fallbacks,
     );
-    expect(new Set(chain.map(hop => hop.provider)).size).toBe(chain.length);
+    expect(new Set(chain.map(hop => `${hop.provider}:${hop.model}`)).size).toBe(chain.length);
+  });
+
+  it('still has a hop off eaon for when the eaon breaker opens', () => {
+    // The primary and its backup share a provider, and the breaker keys by
+    // provider — so the chain must not end there.
+    const chain = buildProviderChain(
+      AI_PERSONAS.default.provider,
+      AI_PERSONAS.default.model,
+      AI_PERSONAS.default.fallbacks,
+    );
+    expect(chain.some(hop => hop.provider !== 'eaon')).toBe(true);
   });
 
   it('sends an image turn through OCR on every fallback', () => {
-    // Only the groq primary can see. Each fallback must say so itself, or a
-    // turn that falls through hits a hard 400 on the image part.
+    // No fallback can see. Each must say so itself, or a turn that falls
+    // through hits a hard 400 on the image part.
     for (const hop of AI_PERSONAS.default.fallbacks) {
       expect(resolveVisionMode(hop)).toBe('ocr');
     }

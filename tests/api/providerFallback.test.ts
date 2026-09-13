@@ -28,9 +28,13 @@ describe('Air provider chain', () => {
     expect(chain.slice(1)).toEqual(personaFallbacks(air));
   });
 
-  it('gives each hop a distinct provider, so one provider failing cannot end the chain', () => {
+  it('keeps at least one hop off the primary provider, so one provider failing cannot end the chain', () => {
+    // Air's primary and its designated backup both sit on eaon by design; the
+    // breaker keys by provider, so what matters is that the chain continues
+    // past eaon rather than that every hop is unique.
     const chain = buildProviderChain(air.provider, air.model, personaFallbacks(air));
-    expect(new Set(chain.map(hop => hop.provider)).size).toBe(chain.length);
+    expect(chain.some(hop => hop.provider !== air.provider)).toBe(true);
+    expect(new Set(chain.map(hop => `${hop.provider}:${hop.model}`)).size).toBe(chain.length);
   });
 
   it('drops a fallback naming a provider with no dispatch branch', () => {
@@ -89,15 +93,20 @@ describe('PRO provider chain', () => {
   it('runs the primary first, then each configured fallback in order', () => {
     const chain = buildProviderChain(pro.provider, pro.model, personaFallbacks(pro));
 
-    expect(chain).toHaveLength(3);
+    expect(chain).toHaveLength(1 + personaFallbacks(pro).length);
     expect(chain[0]).toEqual({ provider: pro.provider, model: pro.model });
     expect(chain.slice(1)).toEqual(personaFallbacks(pro));
   });
 
   it('keeps two hops on the same provider when their models differ', () => {
-    // PRO's fallbacks are both Eaon. Dedup is per (provider, model) pair, so
-    // collapsing them to one would silently cost a hop.
-    const chain = buildProviderChain(pro.provider, pro.model, personaFallbacks(pro));
+    // Dedup is per (provider, model) pair, so two hops that share a provider
+    // but not a model must both survive — collapsing them would silently
+    // cost a hop. Built from a synthetic chain rather than PRO's live one,
+    // which changes as models come and go.
+    const chain = buildProviderChain('nvidia', 'model-a', [
+      { provider: 'eaon', model: 'model-b' },
+      { provider: 'eaon', model: 'model-c' },
+    ]);
     const eaon = chain.filter(hop => hop.provider === 'eaon');
     expect(eaon).toHaveLength(2);
     expect(new Set(eaon.map(hop => hop.model)).size).toBe(2);
@@ -112,14 +121,21 @@ describe('runProviderNames', () => {
     // saw only the primary it would refuse a turn two healthy providers could
     // have served.
     expect(runProviderNames(air.provider, air)).toEqual([
-      air.provider,
-      ...personaFallbacks(air).map(hop => hop.provider),
+      ...new Set([air.provider, ...personaFallbacks(air).map(hop => hop.provider)]),
     ]);
   });
 
   it('collapses a persona whose hops share a provider to one name', () => {
-    // The ceiling is per provider, so PRO's two Eaon hops are one budget.
-    expect(runProviderNames(AI_PERSONAS.pro.provider, AI_PERSONAS.pro)).toEqual(['nvidia', 'eaon']);
+    // The ceiling is per provider, so two hops on one provider are one budget.
+    const persona = {
+      ...AI_PERSONAS.pro,
+      provider: 'nvidia',
+      fallbacks: [
+        { provider: 'eaon', model: 'model-b', vision: 'native' as const },
+        { provider: 'eaon', model: 'model-c', vision: 'native' as const },
+      ],
+    };
+    expect(runProviderNames(persona.provider, persona)).toEqual(['nvidia', 'eaon']);
   });
 
   it('is just the primary for a persona with no fallbacks', () => {

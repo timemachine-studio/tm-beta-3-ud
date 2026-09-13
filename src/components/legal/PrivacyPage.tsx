@@ -47,7 +47,7 @@ export function PrivacyPage() {
             <><span className="text-white/70">Groq</span> (api.groq.com)</>,
             <><span className="text-white/70">Cerebras</span> (api.cerebras.ai)</>,
             <><span className="text-white/70">Pollinations</span> (gen.pollinations.ai) — also used for image and audio generation</>,
-            <><span className="text-white/70">Eaon</span> (api.eaon.dev)</>,
+            <><span className="text-white/70">Eaon</span> (ai.eaon.dev)</>,
             <><span className="text-white/70">FreeTheAI</span> (api.freetheai.xyz)</>,
           ]}
         />

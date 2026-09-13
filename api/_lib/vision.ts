@@ -82,6 +82,13 @@ export const MODEL_VISION: Record<string, VisionCapability> = {
   // ["text"]` and `capabilities.vision: false`, so this one is the provider's
   // own statement rather than an untested guess.
   'minimax-m2.7': { vision: 'ocr' },
+  // Eaon's route (ai.eaon.dev) serves the same MiniMax line under prefixed
+  // ids; same text-only statement applies.
+  'eaon/minimax-m2.7-highspeed': { vision: 'ocr' },
+  'eaon/minimax-m3': { vision: 'ocr' },
+  // Gemini Flash is multimodal by spec, but an image has not been sent
+  // through Eaon's route yet. OCR until it has — see AI_PERSONAS.default.
+  'eaon/gemini-3.8-flash': { vision: 'ocr' },
   // `default` is a routing selector, so which upstream serves it can change.
   // OCR is the safe reading: an image sent to a text-only upstream is a hard
   // 400, an unnecessary transcription is only a worse answer.

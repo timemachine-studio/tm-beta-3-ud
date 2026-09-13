@@ -37,7 +37,7 @@ async function completeWithModel(state: ContinuationState, messages: Array<Recor
     apiKey = process.env.SECRETSTOAI_API_KEY || process.env.SECRETS_TO_AI_API_KEY || '';
     body = { model: state.model, messages, temperature: state.temperature, max_tokens: state.maxTokens, stream: false };
   } else if (provider === 'eaon') {
-    url = 'https://api.eaon.dev/v1/chat/completions';
+    url = 'https://ai.eaon.dev/v1/chat/completions';
     apiKey = process.env.EAON_API_KEY || '';
     body = { model: state.model, messages, temperature: state.temperature, max_tokens: state.maxTokens, stream: false };
   } else if (provider === 'nvidia' || provider === 'nim') {
