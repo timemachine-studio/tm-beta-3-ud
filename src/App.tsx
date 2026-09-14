@@ -9,7 +9,7 @@ import { searchMusic, getLyrics, Track as LyricsTrack, LyricLine } from './servi
 import LyricsDisplay from './components/music/LyricsDisplay';
 import LyricsYouTubePlayer from './components/music/LyricsYouTubePlayer';
 import { LyricsMiniPlayer } from './components/music/LyricsMiniPlayer';
-import { Users, Settings, Zap } from 'lucide-react';
+import { Users, Settings, Zap, PanelRightOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useChat } from './hooks/useChat';
 import { useAnonymousRateLimit } from './hooks/useAnonymousRateLimit';
@@ -40,6 +40,8 @@ import { GroupChat } from './types/groupChat';
 import { ACCESS_TOKEN_REQUIRED, MAINTENANCE_MODE, AI_PERSONAS } from './config/constants';
 import { ChatSession, chatService, getSupabaseSessions, getLocalSessions, isPersistable } from './services/chat/chatService';
 import { MaxModeButton } from './components/maxmode/MaxModeButton';
+import { MaxModePill } from './components/maxmode/MaxModePill';
+import { GlassPill } from './components/maxmode/glass';
 import { workspaceModeFor } from './services/workspace/harnessBridge';
 import { githubExchange } from './services/workspace/githubService';
 import type { MaxModeKind } from '../shared/maxMode';
@@ -374,8 +376,8 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   // Max Mode is its own document (see MainChatPageProps). Entering it from
   // here is a full navigation, so the chat is written out first — the route
   // loads it by id, and the debounced save may not have run yet.
-  const enterMaxMode = useCallback(async (mode: MaxModeKind) => {
-    setMaxMode(mode);
+  const enterMaxMode = useCallback(async () => {
+    setMaxMode('auto');
     try {
       await persistNow();
     } catch (error) {
@@ -393,8 +395,9 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     window.location.assign(`/chat/${currentSessionId}`);
   }, [persistNow, currentSessionId]);
 
-  // On small screens the workspace and the chat take turns.
-  const [showWorkspaceOnMobile, setShowWorkspaceOnMobile] = useState(false);
+  // The workspace card can be collapsed. On small screens it and the chat
+  // take turns, so it starts closed there and open on a desktop.
+  const [workspaceOpen, setWorkspaceOpen] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
     if (!ACCESS_TOKEN_REQUIRED) return false;
     const accessGranted = localStorage.getItem('timeMachine_accessGranted');
@@ -505,7 +508,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     shadow: flowStateActive
       ? '0 0 20px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
       : '0 0 15px rgba(168, 85, 247, 0.35), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
-    text: flowStateActive ? 'rgb(216, 180, 254)' : theme.text,
+    text: flowStateActive ? 'rgb(var(--tm-accent-rgb, 216 180 254))' : theme.text,
   }), [flowStateActive, theme.text]);
 
   const handleAccessGranted = useCallback(() => {
@@ -652,7 +655,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
         style={maxModeRoute ? { height: 'calc(var(--vh, 1vh) * 100)' } : undefined}
       >
       <div
-        className={maxModeRoute ? `relative min-w-0 flex-1 h-full ${showWorkspaceOnMobile ? 'hidden lg:block' : ''}` : undefined}
+        className={maxModeRoute ? `relative min-w-0 flex-1 h-full ${workspaceOpen ? 'hidden lg:block' : ''}` : undefined}
         style={maxModeRoute ? { transform: 'translateZ(0)' } : undefined}
       >
       <main className="relative h-screen flex flex-col" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
@@ -703,11 +706,10 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                 </motion.button>
               ) : currentPersona === 'pro' ? (
                 <MaxModeButton
-                  mode={maxMode}
+                  active={!!maxModeRoute}
                   textColor={theme.text}
-                  onSelect={maxModeRoute ? setMaxMode : enterMaxMode}
+                  onEnter={enterMaxMode}
                   onExit={maxModeRoute ? exitMaxMode : undefined}
-                  onToggleWorkspace={maxModeRoute ? () => setShowWorkspaceOnMobile(value => !value) : undefined}
                 />
               ) : currentPersona === 'default' ? (
                 // Flow State button for Air persona — liquid glass style
@@ -790,11 +792,13 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
           </div>
         </header>
 
-        <MusicPlayer
-          currentPersona={currentPersona}
-          currentEmotion={currentEmotion}
-          isCenterStage={false}
-        />
+        {!maxModeRoute && (
+          <MusicPlayer
+            currentPersona={currentPersona}
+            currentEmotion={currentEmotion}
+            isCenterStage={false}
+          />
+        )}
 
         {youtubeMusic && (
           <YouTubePlayer
@@ -1115,6 +1119,16 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
 
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-transparent">
           <div className="max-w-4xl mx-auto">
+            {maxModeRoute && (
+              <div className="mb-2 flex items-center justify-between px-1">
+                <MaxModePill mode={maxMode ?? 'auto'} onSelect={setMaxMode} />
+                {!workspaceOpen && (
+                  <GlassPill onClick={() => setWorkspaceOpen(true)} className="h-8 px-3 text-[13px]" title="Show the workspace">
+                    <PanelRightOpen className="w-3.5 h-3.5" /> Workspace
+                  </GlassPill>
+                )}
+              </div>
+            )}
             <ChatInput
               onSendMessage={handleSendMessageWithRateLimit}
               isLoading={isLoading}
@@ -1158,14 +1172,13 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
       </main>
       </div>
       {maxModeRoute && (
-        <Suspense fallback={<div className={`${showWorkspaceOnMobile ? 'flex' : 'hidden'} lg:flex w-full lg:w-[56%] xl:w-[58%] h-full items-center justify-center border-l border-white/10`}><RouteLoadingFallback /></div>}>
+        <Suspense fallback={<div className={`${workspaceOpen ? 'flex' : 'hidden'} w-full lg:w-[720px] h-full items-center justify-center`}><RouteLoadingFallback /></div>}>
           <WorkspacePanel
             sessionId={currentSessionId}
-            mode={maxMode}
             isGenerating={isLoading}
             onResume={resumeWorkspaceTurn}
-            className={`${showWorkspaceOnMobile ? 'flex' : 'hidden'} lg:flex w-full lg:w-[56%] xl:w-[58%] h-full`}
-            onBackToChat={() => setShowWorkspaceOnMobile(false)}
+            className={workspaceOpen ? 'block' : 'hidden'}
+            onCollapse={() => setWorkspaceOpen(false)}
           />
         </Suspense>
       )}

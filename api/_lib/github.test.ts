@@ -107,8 +107,73 @@ describe('publishing from a known checkout', () => {
       expect(fetcher).toHaveBeenCalledTimes(1);
     } finally { vi.unstubAllGlobals(); }
   });
-  it('refuses a direct push to the base branch', async () => {
+  it('refuses a pull request from the base branch onto itself', async () => {
     const { pushChanges } = await import('./github.js');
     await expect(pushChanges('test-token', { owner: 'o', name: 'r', base: 'main', branch: 'main', title: 'Fix', body: '', expectedHead: 'a'.repeat(40), changes: [{ path: 'a.ts', content: 'new' }] })).rejects.toThrow('separate branch');
+  });
+});
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+describe('direct commits and empty repositories', () => {
+  it('commits straight onto the base branch and opens no pull request', async () => {
+    const { vi } = await import('vitest');
+    const { pushChanges } = await import('./github.js');
+    const calls: string[] = [];
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? 'GET'} ${url.replace('https://api.github.com', '')}`);
+      if (url.endsWith('/git/ref/heads/main')) return jsonResponse({ object: { sha: 'a'.repeat(40) } });
+      if (url.includes('/git/commits/')) return jsonResponse({ tree: { sha: 't'.repeat(40) } });
+      if (url.endsWith('/git/blobs')) return jsonResponse({ sha: 'b'.repeat(40) });
+      if (url.endsWith('/git/trees')) return jsonResponse({ sha: 'n'.repeat(40) });
+      if (url.endsWith('/git/commits')) return jsonResponse({ sha: 'c'.repeat(40) });
+      if (url.endsWith('/git/refs/heads/main')) return jsonResponse({});
+      return jsonResponse({ message: `unexpected ${url}` }, 500);
+    });
+    vi.stubGlobal('fetch', fetcher);
+    try {
+      const result = await pushChanges('test-token', { owner: 'o', name: 'r', base: 'main', branch: 'main', mode: 'direct', title: 'Save', body: 'why', expectedHead: 'a'.repeat(40), changes: [{ path: 'a.ts', content: 'new' }] });
+      expect(result).toEqual({ number: null, url: `https://github.com/o/r/commit/${'c'.repeat(40)}`, branch: 'main', commit: 'c'.repeat(40) });
+      expect(calls).toContain('PATCH /repos/o/r/git/refs/heads/main');
+      expect(calls.some(call => call.includes('/pulls'))).toBe(false);
+      const commitCall = fetcher.mock.calls.find(([url]) => (url as string).endsWith('/git/commits'));
+      expect(JSON.parse(commitCall![1]!.body as string).message).toBe('Save\n\nwhy');
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it('puts the first commit of an empty repository in through the Contents API, then the rest on top', async () => {
+    const { vi } = await import('vitest');
+    const { pushChanges } = await import('./github.js');
+    const calls: string[] = [];
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? 'GET'} ${url.replace('https://api.github.com', '')}`);
+      if (url.includes('/git/ref/heads/')) return jsonResponse({ message: 'Git Repository is empty.' }, 409);
+      if (url.includes('/contents/')) return jsonResponse({ commit: { sha: 'f'.repeat(40) } });
+      if (url.includes('/git/commits/')) return jsonResponse({ tree: { sha: 't'.repeat(40) } });
+      if (url.endsWith('/git/blobs')) return jsonResponse({ sha: 'b'.repeat(40) });
+      if (url.endsWith('/git/trees')) return jsonResponse({ sha: 'n'.repeat(40) });
+      if (url.endsWith('/git/commits')) return jsonResponse({ sha: 'c'.repeat(40) });
+      if (url.endsWith('/git/refs/heads/main')) return jsonResponse({});
+      return jsonResponse({ message: `unexpected ${url}` }, 500);
+    });
+    vi.stubGlobal('fetch', fetcher);
+    try {
+      const result = await pushChanges('test-token', { owner: 'o', name: 'r', base: 'main', branch: 'tm/x', mode: 'pull_request', title: 'Initial commit', body: '', expectedHead: '', changes: [{ path: 'README.md', content: '# hi' }, { path: 'src/a.ts', content: 'a' }, { path: 'gone.ts', content: null }] });
+      expect(result.number).toBeNull();
+      expect(result.branch).toBe('main');
+      expect(calls[2]).toBe('PUT /repos/o/r/contents/README.md');
+      // The deletion is dropped: there is nothing to delete in an empty repository.
+      const treeCall = fetcher.mock.calls.find(([url]) => (url as string).endsWith('/git/trees'));
+      expect(JSON.parse(treeCall![1]!.body as string).tree.map((entry: { path: string }) => entry.path)).toEqual(['src/a.ts']);
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it('tells a workspace taken from a commit that the repository is now empty', async () => {
+    const { vi } = await import('vitest');
+    const { pushChanges } = await import('./github.js');
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ message: 'Not Found' }, 404)));
+    try {
+      await expect(pushChanges('test-token', { owner: 'o', name: 'r', base: 'main', branch: 'main', mode: 'direct', title: 'x', body: '', expectedHead: 'a'.repeat(40), changes: [{ path: 'a.ts', content: 'a' }] })).rejects.toThrow('repository is empty');
+    } finally { vi.unstubAllGlobals(); }
   });
 });

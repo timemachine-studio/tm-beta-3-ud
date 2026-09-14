@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PreviewController } from './previewController';
-import { writeWorkspaceFile } from './workspaceStore';
+import { getWorkspaceMeta, writeWorkspaceFile } from './workspaceStore';
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
@@ -52,5 +52,40 @@ describe('preview verification', () => {
     send(frame, 'error', 'real error');
     await vi.advanceTimersByTimeAsync(1200);
     expect(await report).toEqual({ loaded: true, errors: 1, console: ['[error] real error'] });
+  });
+});
+
+describe('preview memory', () => {
+  it('remembers an HTML preview and renders it again on a fresh page', async () => {
+    await writeWorkspaceFile('preview-memory', 'index.html', '<h1>Hi</h1>');
+    const first = new PreviewController();
+    void first.showHtml('preview-memory', 'index.html');
+    await vi.waitFor(async () => expect((await getWorkspaceMeta('preview-memory'))?.previewTarget).toEqual({ kind: 'html', path: 'index.html' }));
+    const second = new PreviewController();
+    await second.restore('preview-memory');
+    await vi.waitFor(() => expect(second.current()).toMatchObject({ kind: 'html', path: 'index.html' }));
+  });
+  it('brings a dev server back as stale, since the runtime died with the page', async () => {
+    const first = new PreviewController();
+    void first.showUrl('preview-server', 'https://p.example', 'npm run dev');
+    await vi.waitFor(async () => expect((await getWorkspaceMeta('preview-server'))?.previewTarget).toEqual({ kind: 'url', command: 'npm run dev' }));
+    const second = new PreviewController();
+    await second.restore('preview-server');
+    expect(second.current()).toMatchObject({ kind: 'stale', command: 'npm run dev' });
+  });
+  it('does not replace a preview the harness already opened', async () => {
+    await writeWorkspaceFile('preview-live', 'index.html', '<h1>Hi</h1>');
+    const preview = new PreviewController();
+    void preview.showUrl('preview-live', 'https://p.example', 'npm run dev');
+    await vi.waitFor(async () => expect((await getWorkspaceMeta('preview-live'))?.previewTarget).toBeDefined());
+    await preview.restore('preview-live');
+    expect(preview.current()?.kind).toBe('url');
+  });
+  it('forgets the preview when the workspace is reset', async () => {
+    const preview = new PreviewController();
+    void preview.showUrl('preview-reset', 'https://p.example', 'npm run dev');
+    await vi.waitFor(async () => expect((await getWorkspaceMeta('preview-reset'))?.previewTarget).toBeDefined());
+    preview.clear();
+    await vi.waitFor(async () => expect((await getWorkspaceMeta('preview-reset'))?.previewTarget).toBeUndefined());
   });
 });

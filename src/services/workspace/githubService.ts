@@ -17,13 +17,14 @@ import type { PublicationProposal } from './publicationApproval';
 import { supabase } from '../../lib/supabase';
 import type { WorkspaceRepoRef } from '../../../shared/maxMode';
 import {
+  clearWorkspace,
+  deleteWorkspacePath,
   getWorkspaceMeta,
   listWorkspace,
+  promoteWorkspaceClone,
   readWorkspaceFile,
   updateWorkspaceMeta,
   writeWorkspaceFiles,
-  clearWorkspace,
-  promoteWorkspaceClone,
   type WorkspaceMeta,
 } from './workspaceStore';
 
@@ -51,8 +52,18 @@ export interface CloneResult {
 }
 
 export type PushResult =
-  | { ok: true; number: number; url: string; branch: string; changedFiles: number }
+  | { ok: true; number: number | null; url: string; branch: string; changedFiles: number }
   | { ok: false; error: string };
+
+export interface PullResult {
+  /** Files taken from the remote because they had not changed here. */
+  updated: string[];
+  /** Files removed because the remote removed them and they had not changed here. */
+  removed: string[];
+  /** Changed on both sides; the local version was kept. */
+  conflicts: string[];
+  commit: string;
+}
 
 export class GithubError extends Error {
   constructor(message: string, readonly code?: string) {
@@ -145,66 +156,167 @@ type CloneLine =
   | { type: 'done'; commit: string; written: number; skipped: number; truncated: boolean }
   | { type: 'error'; message: string };
 
+interface FetchedBranch {
+  baseShas: Record<string, string>;
+  commit: string;
+  written: number;
+  skipped: number;
+  truncated: boolean;
+}
+
 /**
- * Replace the workspace with a checkout of the branch.
+ * A checkout of the branch, streamed into a staging workspace.
  *
  * The server streams one JSON line per file; they are written to the store
  * in batches as they arrive, so a large repository neither sits in memory
- * twice nor waits for the last file before the first one appears.
+ * twice nor waits for the last file before the first one appears. The
+ * caller decides what to do with the staging area — replace the workspace,
+ * or merge into it — and clears it.
  */
-export async function cloneRepoIntoWorkspace(sessionId: string, repo: WorkspaceRepoRef): Promise<CloneResult> {
+async function fetchBranch(stagingId: string, repo: WorkspaceRepoRef): Promise<FetchedBranch> {
   const response = await request('clone', {}, { owner: repo.owner, name: repo.name, branch: repo.branch });
   if (!response.ok || !response.body) {
     const payload = await response.json().catch(() => null) as { error?: { code?: string; message?: string } } | null;
     throw new GithubError(payload?.error?.message ?? `Clone failed (${response.status})`, payload?.error?.code);
   }
+  const baseShas: Record<string, string> = {};
+  let batch: Array<{ path: string; content: string | Uint8Array; sha: string }> = [];
+  let written = 0;
+  let skippedHere = 0;
+  const flush = async () => {
+    if (batch.length === 0) return;
+    const result = await writeWorkspaceFiles(stagingId, batch);
+    for (const file of batch) if (result.written.includes(file.path)) baseShas[file.path] = file.sha;
+    written += result.written.length;
+    skippedHere += result.skipped.length;
+    batch = [];
+  };
 
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let done: Extract<CloneLine, { type: 'done' }> | null = null;
+  for (;;) {
+    const { done: finished, value } = await reader.read();
+    buffer += finished ? decoder.decode() + '\n' : decoder.decode(value, { stream: true });
+    let newline = buffer.indexOf('\n');
+    while (newline !== -1) {
+      const line = buffer.slice(0, newline);
+      buffer = buffer.slice(newline + 1);
+      newline = buffer.indexOf('\n');
+      if (!line.trim()) continue;
+      const parsed = JSON.parse(line) as CloneLine;
+      if (parsed.type === 'file') {
+        batch.push({ path: parsed.path, sha: parsed.sha, content: parsed.content ?? (parsed.base64 ? fromBase64(parsed.base64) : '') });
+        if (batch.length >= 100) await flush();
+      } else if (parsed.type === 'done') {
+        done = parsed;
+      } else if (parsed.type === 'error') {
+        throw new GithubError(parsed.message);
+      }
+    }
+    if (finished) break;
+  }
+  await flush();
+  if (!done) throw new GithubError('The clone stopped before it finished.');
+  return { baseShas, commit: done.commit, written, skipped: done.skipped + skippedHere, truncated: done.truncated };
+}
+
+/** Replace the workspace with a checkout of the branch. */
+export async function cloneRepoIntoWorkspace(sessionId: string, repo: WorkspaceRepoRef): Promise<CloneResult> {
   const stagingId = `clone-${crypto.randomUUID()}`;
   try {
+    const fetched = await fetchBranch(stagingId, repo);
+    await promoteWorkspaceClone(stagingId, sessionId, { ...repo, baseShas: fetched.baseShas, baseCommit: fetched.commit });
+    return { written: fetched.written, skipped: fetched.skipped, truncated: fetched.truncated, commit: fetched.commit };
+  } finally {
+    await clearWorkspace(stagingId);
+  }
+}
 
-    const baseShas: Record<string, string> = {};
-    let batch: Array<{ path: string; content: string | Uint8Array; sha: string }> = [];
-    let written = 0;
-    let skippedHere = 0;
-    const flush = async () => {
-      if (batch.length === 0) return;
-      const result = await writeWorkspaceFiles(stagingId, batch);
-      for (const file of batch) if (result.written.includes(file.path)) baseShas[file.path] = file.sha;
-      written += result.written.length;
-      skippedHere += result.skipped.length;
-      batch = [];
-    };
+/**
+ * Attach a repository that has no commits yet, keeping the workspace's
+ * files. The first push is its initial commit.
+ */
+export async function linkEmptyRepository(sessionId: string, repo: WorkspaceRepoRef): Promise<void> {
+  await updateWorkspaceMeta(sessionId, { repo: { ...repo, baseShas: {}, baseCommit: '' } });
+}
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let done: Extract<CloneLine, { type: 'done' }> | null = null;
-    for (;;) {
-      const { done: finished, value } = await reader.read();
-      buffer += finished ? decoder.decode() + '\n' : decoder.decode(value, { stream: true });
-      let newline = buffer.indexOf('\n');
-      while (newline !== -1) {
-        const line = buffer.slice(0, newline);
-        buffer = buffer.slice(newline + 1);
-        newline = buffer.indexOf('\n');
-        if (!line.trim()) continue;
-        const parsed = JSON.parse(line) as CloneLine;
-        if (parsed.type === 'file') {
-          batch.push({ path: parsed.path, sha: parsed.sha, content: parsed.content ?? (parsed.base64 ? fromBase64(parsed.base64) : '') });
-          if (batch.length >= 100) await flush();
-        } else if (parsed.type === 'done') {
-          done = parsed;
-        } else if (parsed.type === 'error') {
-          throw new GithubError(parsed.message);
-        }
-      }
-      if (finished) break;
+/** Forget the repository. The files stay. */
+export async function unlinkRepository(sessionId: string): Promise<void> {
+  await updateWorkspaceMeta(sessionId, { repo: undefined });
+}
+
+export interface CreatedRepository {
+  owner: string;
+  name: string;
+  defaultBranch: string;
+  url: string;
+}
+
+/**
+ * A new repository under the user's account, linked to this workspace. The
+ * caller then commits the workspace to it; a failure there (the App not
+ * installed on the new repository, typically) leaves the link in place so
+ * the push can be retried once that is fixed.
+ */
+export async function createRepositoryForWorkspace(sessionId: string, options: { name: string; private: boolean; description?: string }): Promise<CreatedRepository> {
+  const created = await call<CreatedRepository>('create', {}, { name: options.name, private: options.private, description: options.description ?? '' });
+  await linkEmptyRepository(sessionId, { owner: created.owner, name: created.name, branch: created.defaultBranch });
+  return created;
+}
+
+/**
+ * Bring the base branch's newer commits in, keeping local work.
+ *
+ * Not a merge of contents: a file the remote changed and this workspace
+ * did not is taken from the remote; a file changed here and not there is
+ * kept; a file changed on both sides is kept as it is here and reported.
+ * Either way the baseline becomes the remote head, so the next push is a
+ * commit on top of it rather than a stale-head refusal. A tracked pull
+ * request is forgotten — its branch may be merged or gone — and the next
+ * push opens a fresh one.
+ */
+export async function pullLatestIntoWorkspace(sessionId: string): Promise<PullResult> {
+  const meta = await getWorkspaceMeta(sessionId);
+  if (!meta?.repo) throw new GithubError('This workspace is not connected to a GitHub repository.');
+  const repo = meta.repo;
+  const stagingId = `pull-${crypto.randomUUID()}`;
+  try {
+    const fetched = await fetchBranch(stagingId, { owner: repo.owner, name: repo.name, branch: repo.branch });
+    const remote = fetched.baseShas;
+    const old = repo.baseShas;
+    const local: Record<string, string> = {};
+    for (const entry of await listWorkspace(sessionId)) {
+      const file = await readWorkspaceFile(sessionId, entry.path);
+      if (file) local[entry.path] = await gitBlobSha(file.bytes ?? new TextEncoder().encode(file.text ?? ''));
     }
-    await flush();
-    if (!done) throw new GithubError('The clone stopped before it finished.');
-
-    await promoteWorkspaceClone(stagingId, sessionId, { ...repo, baseShas, baseCommit: done.commit });
-    return { written, skipped: done.skipped + skippedHere, truncated: done.truncated, commit: done.commit };
+    const updated: string[] = [];
+    const removed: string[] = [];
+    const conflicts: string[] = [];
+    const paths = new Set([...Object.keys(old), ...Object.keys(remote), ...Object.keys(local)]);
+    const writes: Array<{ path: string; content: string | Uint8Array }> = [];
+    for (const path of paths) {
+      const remoteChanged = remote[path] !== old[path];
+      if (!remoteChanged) continue;
+      const localChanged = local[path] !== old[path];
+      if (localChanged) {
+        if (local[path] !== remote[path]) conflicts.push(path);
+        continue;
+      }
+      if (remote[path] === undefined) {
+        await deleteWorkspacePath(sessionId, path);
+        removed.push(path);
+        continue;
+      }
+      const file = await readWorkspaceFile(stagingId, path);
+      if (!file) continue;
+      writes.push({ path, content: file.bytes ?? file.text ?? '' });
+      updated.push(path);
+    }
+    if (writes.length) await writeWorkspaceFiles(sessionId, writes);
+    await updateWorkspaceMeta(sessionId, { repo: { owner: repo.owner, name: repo.name, branch: repo.branch, baseShas: remote, baseCommit: fetched.commit } });
+    return { updated: updated.sort(), removed: removed.sort(), conflicts: conflicts.sort(), commit: fetched.commit };
   } finally {
     await clearWorkspace(stagingId);
   }
@@ -254,28 +366,32 @@ function suggestBranch(title: string): string {
   return `tm/${slug}-${Date.now().toString(36).slice(-4)}`;
 }
 
-/** Commit every change to a branch and open (or update) the pull request. */
-export async function openPullRequestFromWorkspace(
-  sessionId: string,
-  options: { title: string; body: string; branch?: string; approve?: (proposal: PublicationProposal) => Promise<boolean>; signal?: AbortSignal },
-): Promise<PushResult> {
+interface PublishOptions {
+  title: string;
+  body: string;
+  branch?: string;
+  approve?: (proposal: PublicationProposal) => Promise<boolean>;
+  signal?: AbortSignal;
+}
+
+async function publish(sessionId: string, mode: 'pull_request' | 'direct', options: PublishOptions): Promise<PushResult> {
   const diff = await workspaceChanges(sessionId);
   if (!diff?.repo) return { ok: false, error: 'This workspace is not connected to a GitHub repository.' };
   const existing = diff.repo.pullRequest;
   if (diff.changes.length === 0) {
     return { ok: false, error: existing
       ? `Nothing has changed since the last push; the pull request is still ${existing.url}.`
-      : 'Nothing has changed since the clone; there is nothing to push.' };
+      : diff.repo.baseCommit ? 'Nothing has changed since the clone; there is nothing to push.' : 'The workspace is empty; there is nothing to push.' };
   }
 
-  const branch = existing?.branch ?? options.branch ?? suggestBranch(options.title);
+  const branch = mode === 'direct' ? diff.repo.branch : existing?.branch ?? options.branch ?? suggestBranch(options.title);
   if (options.approve && !await options.approve({
     repository: `${diff.repo.owner}/${diff.repo.name}`, base: diff.repo.branch, branch,
     title: options.title, body: options.body, changes: diff.changes,
   })) return { ok: false, error: 'Publication was not approved. Workspace changes remain local. Do not retry publication unless the user asks again.' };
   if (options.signal?.aborted) return { ok: false, error: 'The user stopped this turn before publication.' };
   try {
-    const result = await call<{ number: number; url: string; branch: string; commit: string }>(
+    const result = await call<{ number: number | null; url: string; branch: string; commit: string }>(
       'push',
       {},
       {
@@ -284,6 +400,7 @@ export async function openPullRequestFromWorkspace(
         base: diff.repo.branch,
         expectedHead: diff.repo.baseCommit,
         branch,
+        mode,
         title: options.title,
         body: options.body,
         changes: diff.changes,
@@ -297,11 +414,22 @@ export async function openPullRequestFromWorkspace(
       const bytes = change.base64 ? fromBase64(change.base64) : new TextEncoder().encode(change.content ?? '');
       baseShas[change.path] = await gitBlobSha(bytes);
     }
+    const pullRequest = result.number !== null ? { branch: result.branch, number: result.number, url: result.url } : existing;
     await updateWorkspaceMeta(sessionId, {
-      repo: { ...diff.repo, baseCommit: result.commit, baseShas, pullRequest: { branch: result.branch, number: result.number, url: result.url } },
+      repo: { ...diff.repo, baseCommit: result.commit, baseShas, pullRequest },
     });
     return { ok: true, number: result.number, url: result.url, branch: result.branch, changedFiles: diff.changes.length };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : 'GitHub push failed.' };
   }
+}
+
+/** Commit every change to a branch and open (or update) the pull request. */
+export function openPullRequestFromWorkspace(sessionId: string, options: PublishOptions): Promise<PushResult> {
+  return publish(sessionId, 'pull_request', options);
+}
+
+/** Commit every change straight onto the branch the workspace tracks. */
+export function commitToBranch(sessionId: string, options: Omit<PublishOptions, 'branch'>): Promise<PushResult> {
+  return publish(sessionId, 'direct', options);
 }

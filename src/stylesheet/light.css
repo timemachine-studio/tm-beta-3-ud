@@ -58,6 +58,10 @@
   /* ---- inline primitives (space-separated so the alpha is supplied at
      the call site: rgb(var(--tm-ink-rgb) / 0.05)) ---- */
   --tm-ink-rgb: 26 26 26;
+  /* The one accent, for inline styles that glow in a persona's own hue in
+     dark: write `rgb(var(--tm-accent-rgb, <dark hue>) / a)` and the dark
+     hue is the fallback there, the deep green takes over here. */
+  --tm-accent-rgb: 3 89 48;
   --tm-paper-rgb: 253 241 225;
   /* Warm near-black: a neutral black shadow on warm paper reads as dirt. */
   --tm-shadow-rgb: 60 45 20;

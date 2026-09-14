@@ -28,6 +28,24 @@ Publication sends the reviewed snapshot even if the editor changes while the dia
 
 No commit, deployment, or real GitHub publication was made.
 
+## GitHub pass, 2026-09-14
+
+The first version handled one shape only: clone an existing branch, push back as a pull request. That left no way in for a project started in the workspace, no way out of a stale baseline, and an "unlink" that did nothing. What changed:
+
+| Gap | New behavior |
+|---|---|
+| No repository for a project started here | `create` action: a new repository under the user's account (needs the App's *Administration: write*), linked with an empty baseline, then a direct first commit of the workspace. A push that fails because the App is not installed on the new repository leaves the link in place with a message. |
+| Empty repositories | A repository with no branches can be linked as-is. The first commit goes in through the Contents API (the Git Data API refuses refs in an empty repository), the rest of the files as an ordinary commit on top. |
+| Pull-request-only publication | `mode: 'direct'` commits straight onto the tracked branch and opens nothing. The reviewed-snapshot approval and the stale-head check apply to both modes. |
+| Stale baseline after the remote advanced (a merged PR, a deleted branch) | "Pull latest" fetches the branch into a staging area and merges by baseline: remote-only changes are taken, local-only kept, both-sided kept locally and reported. The baseline moves to the remote head; a tracked pull request is forgotten. Not a content merge. |
+| Unlink | Removes the repository link and keeps the files. Previously the control only reset picker state. |
+| Expired or revoked token | Errors with `AUTH_REQUIRED` show a "Connect GitHub again" control instead of dead text. |
+| Clone over existing files | Confirmed first, with the file count. |
+
+Still open: file modes and symlinks (5 above), idempotent publication receipts, and a real content merge for both-sided changes — today the user resolves those by hand in the editor and commits.
+
+Separately, a runtime sync back that finds the container empty while the baseline is not now refuses to mirror that as deletions. The store is the only copy of the project; a torn-down or mid-wipe container must not empty it.
+
 ## Verification
 
 - Full Vitest suite: 531 tests in 61 files passed.

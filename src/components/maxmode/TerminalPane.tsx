@@ -8,6 +8,11 @@
  * the shell are pulled back into the workspace when they press Enter, so
  * the model's next read sees them.
  *
+ * The pane stays mounted while other tabs are showing, so the shell and its
+ * scrollback survive a tab switch. The runtime is not booted until the tab
+ * is first opened, though — and when it is, the terminal starts with what
+ * the runtime already printed, so nothing the harness ran before is missing.
+ *
  * Where the runtime cannot boot (no cross-origin isolation — Safari, or a
  * page that was not served from /max), the tab says so rather than hanging.
  */
@@ -17,16 +22,21 @@ import { nodeRuntime, nodeRuntimeSupported } from '../../services/workspace/node
 
 interface TerminalPaneProps {
   sessionId: string;
+  /** Whether the tab is showing. The shell starts the first time it is. */
+  active: boolean;
 }
 
-export function TerminalPane({ sessionId }: TerminalPaneProps) {
+export function TerminalPane({ sessionId, active }: TerminalPaneProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const supported = nodeRuntimeSupported();
   const [state, setState] = useState<'idle' | 'booting' | 'ready' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  // Latches: once the tab has been opened, the shell stays for the session.
+  const [started, setStarted] = useState(active);
+  if (active && !started) setStarted(true);
 
   useEffect(() => {
-    if (!hostRef.current || !supported) return;
+    if (!hostRef.current || !supported || !started) return;
     let disposed = false;
     let cleanup: (() => void) | null = null;
 
@@ -48,7 +58,10 @@ export function TerminalPane({ sessionId }: TerminalPaneProps) {
       terminal.open(hostRef.current);
       fit.fit();
 
-      // Whatever the harness runs, mirrored here.
+      // What the runtime printed before this terminal existed, then
+      // whatever the harness runs from now on, mirrored here.
+      const history = nodeRuntime().outputHistory();
+      if (history) terminal.write(history);
       const unsubscribe = nodeRuntime().onOutput((chunk, source) => {
         terminal.write(source === 'system' ? `\x1b[36m${chunk}\x1b[0m` : chunk);
       });
@@ -67,8 +80,16 @@ export function TerminalPane({ sessionId }: TerminalPaneProps) {
       setState('ready');
 
       const writer = process.input.getWriter();
+      // The line being typed, so a server the user starts can be named. An
+      // approximation — backspaces are honoured, cursor movement is not.
+      let line = '';
       const onData = terminal.onData((data) => {
         writer.write(data).catch(() => undefined);
+        for (const char of data) {
+          if (char === '\r') { nodeRuntime().noteShellCommand(line); line = ''; }
+          else if (char === '\x7f') line = line.slice(0, -1);
+          else if (char >= ' ') line += char;
+        }
         // Enter: the user may have changed files. Pull them in shortly after
         // the command has had a chance to run.
         if (data.includes('\r')) setTimeout(() => nodeRuntime().pullChanges(sessionId).catch(() => undefined), 1_500);
@@ -102,7 +123,7 @@ export function TerminalPane({ sessionId }: TerminalPaneProps) {
     });
 
     return () => { disposed = true; cleanup?.(); };
-  }, [sessionId, supported]);
+  }, [sessionId, supported, started]);
 
   if (!supported) {
     return (
@@ -115,7 +136,7 @@ export function TerminalPane({ sessionId }: TerminalPaneProps) {
   return (
     <div className="h-full flex flex-col min-h-0">
       {state !== 'ready' && (
-        <div className={`px-3 py-1 text-xs border-b border-white/10 ${state === 'error' ? 'text-rose-300' : 'text-white/40'}`}>
+        <div className={`px-3 py-1 text-xs border-b border-white/[0.06] ${state === 'error' ? 'text-rose-300' : 'text-white/40'}`}>
           {state === 'error' ? error : 'Starting the Node runtime…'}
         </div>
       )}

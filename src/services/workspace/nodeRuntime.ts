@@ -60,6 +60,8 @@ export function nodeRuntimeSupported(): boolean {
 
 const MAX_OUTPUT_CHARS = 200_000;
 const MAX_SYNC_BACK_FILES = MAX_WORKSPACE_FILES;
+/** How much past output a terminal opened later can still show. */
+const MAX_HISTORY_CHARS = 100_000;
 
 // Built from code points rather than written as literals: the control
 // characters are the point, and a literal one in a regex is a lint error.
@@ -94,16 +96,34 @@ export class NodeRuntime {
   private server: { process: WebContainerProcess; command: string; url: string | null; port: number | null } | null = null;
   private outputListeners = new Set<RuntimeOutputListener>();
   private serverReady: Array<(ready: { url: string; port: number }) => void> = [];
+  private history = '';
+  /** The last line typed into the shell, to label a server it starts. */
+  private lastShellCommand: string | null = null;
+  /** A server the user started from the shell and the preview is showing. */
+  private shellServerPort: number | null = null;
 
   onOutput(listener: RuntimeOutputListener): () => void {
     this.outputListeners.add(listener);
     return () => { this.outputListeners.delete(listener); };
   }
 
+  /** Everything emitted so far, so a terminal opened later shows what it missed. */
+  outputHistory(): string {
+    return this.history;
+  }
+
   private emit(chunk: string, source: 'command' | 'server' | 'system'): void {
+    // Kept with the same colouring the terminal applies live.
+    this.history = (this.history + (source === 'system' ? `\x1b[36m${chunk}\x1b[0m` : chunk)).slice(-MAX_HISTORY_CHARS);
     for (const listener of this.outputListeners) {
       try { listener(chunk, source); } catch (error) { console.error('Runtime output listener failed:', error); }
     }
+  }
+
+  /** The terminal reports what the user ran, so a server they start has a name. */
+  noteShellCommand(command: string): void {
+    const trimmed = command.trim();
+    if (trimmed) this.lastShellCommand = trimmed;
   }
 
   /** Boot once. A second call while booting waits for the first. */
@@ -120,9 +140,16 @@ export class NodeRuntime {
           const waiting = this.serverReady;
           this.serverReady = [];
           for (const resolve of waiting) resolve({ url, port });
+          // Nobody in the harness is waiting for this one, so the user
+          // started it from the shell. Show it the same way.
+          if (!this.server && waiting.length === 0 && this.mountedSession) {
+            this.shellServerPort = port;
+            void previewController.showUrl(this.mountedSession, url, this.lastShellCommand ?? 'shell');
+          }
         });
         container.on('preview-message', message => {
-          if (!this.mountedSession || !this.server || this.server.port !== message.port) return;
+          if (!this.mountedSession) return;
+          if (this.server?.port !== message.port && this.shellServerPort !== message.port) return;
           const text = 'message' in message ? message.message : message.args.map((value: unknown) => {
             try { return typeof value === 'string' ? value : JSON.stringify(value); }
             catch { return String(value); }
@@ -151,13 +178,17 @@ export class NodeRuntime {
       // between workspaces, node_modules included.
       onPhase?.('Loading the workspace into the runtime');
       this.stopServer();
+      // The baseline goes first. If the wipe fails part-way, a sync back
+      // must not read the half-empty container as "the command deleted
+      // these" and remove the old session's files from the store.
+      this.mountedFiles.clear();
+      this.mountedSession = null;
+      this.server = null;
       const entries = await container.fs.readdir('.', { withFileTypes: true });
       for (const entry of entries) {
         await container.fs.rm(entry.name, { recursive: true, force: true });
       }
-      this.mountedFiles.clear();
       this.mountedSession = sessionId;
-      this.server = null;
     }
 
     const entries = await listWorkspace(sessionId);
@@ -202,6 +233,14 @@ export class NodeRuntime {
       }
     };
     await walk('');
+    // A command may delete files; it does not make every tracked file
+    // vanish at once. That is the container in a bad state — torn down,
+    // or wiped by a session switch that raced this — and the store is the
+    // only copy of the project. Refuse rather than mirror the void.
+    if (this.mountedFiles.size > 0 && present.size === 0) {
+      this.mountedFiles.clear();
+      throw new Error('The runtime filesystem came back empty; the workspace was left as it is. The next command re-mounts it.');
+    }
     const result = await reconcileWorkspaceRuntime(sessionId, this.mountedFiles, found, present);
     // Track what is actually in the runtime, not a newer concurrent UI edit.
     // The next sync can then restore that edit (or remove a UI-deleted file).
@@ -317,6 +356,7 @@ export class NodeRuntime {
     const container = await this.boot();
     options.signal?.throwIfAborted();
     this.stopServer();
+    this.shellServerPort = null;
     this.emit(`$ ${command}   (background)\n`, 'server');
 
     let earlyReady: { url: string; port: number } | null = null;
@@ -381,6 +421,28 @@ export class NodeRuntime {
 
   currentServer(): { command: string; url: string | null; port: number | null } | null {
     return this.server ? { command: this.server.command, url: this.server.url, port: this.server.port } : null;
+  }
+
+  /**
+   * Bring a remembered dev server back after a reload.
+   *
+   * The runtime is new, so its node_modules are gone with it: when the
+   * project has a package.json and nothing installed, `npm install` runs
+   * first — the command the user would type anyway, and the one the model
+   * would be asked to run next. Then the server starts and the preview shows.
+   */
+  async restartServer(sessionId: string, command: string, options: RunOptions): Promise<ServerResult> {
+    this.assertAvailable();
+    const container = await this.boot(options.onPhase);
+    const hasPackage = (await readWorkspaceFile(sessionId, 'package.json')) !== null;
+    const installed = await container.fs.readdir('node_modules').then(entries => entries.length > 0, () => false);
+    if (hasPackage && !installed) {
+      const install = await this.run(sessionId, 'npm install', { ...options, timeoutMs: Math.max(options.timeoutMs, 180_000) });
+      if (install.exitCode !== 0) return { url: null, port: null, output: install.output };
+    }
+    const server = await this.startServer(sessionId, command, options);
+    if (server.url) void previewController.showUrl(sessionId, server.url, command, options.signal);
+    return server;
   }
 
   /** An interactive shell for the terminal tab. The caller owns the process. */

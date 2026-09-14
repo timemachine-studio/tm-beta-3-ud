@@ -1,6 +1,6 @@
-import { PublicationApproval } from './PublicationApproval';
 /**
- * The workspace half of the Max Mode screen.
+ * The workspace half of the Max Mode screen: one rounded glass card, like
+ * every other surface in the app.
  *
  * Files (tree + editor), Preview and Terminal tabs over the chat's own
  * workspace, with GitHub, zip import/export and reset along the top. The
@@ -8,14 +8,19 @@ import { PublicationApproval } from './PublicationApproval';
  * appears in the tree and in an open editor as it lands; the panel is a view
  * of the workspace, not a copy of it.
  *
+ * The card's width and the tree/editor split are both draggable and
+ * remembered per browser. The card can also be collapsed; the header's
+ * workspace pill brings it back. Collapsing hides rather than unmounts it —
+ * the preview's console is only captured while its frame is mounted.
+ *
  * Tabs follow the work: a preview the harness opens switches to Preview, a
  * command it runs switches to Terminal, and a file it edits opens in the
  * editor — unless the user has pinned a tab by clicking one themselves.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Eye, FolderTree, FolderGit2, Loader2, RotateCcw, TerminalSquare, Upload, X } from 'lucide-react';
-import { MAX_MODE_LABELS, type MaxModeKind } from '../../../shared/maxMode';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Download, Eye, FolderTree, FolderGit2, Loader2, PanelRightClose, RotateCcw, TerminalSquare, Upload } from 'lucide-react';
+import { MAX_MODE_LABELS } from '../../../shared/maxMode';
 import { useAuth } from '../../context/AuthContext';
 import {
   clearWorkspace,
@@ -33,21 +38,32 @@ import { CodeEditor } from './CodeEditor';
 import { PreviewPane } from './PreviewPane';
 import { TerminalPane } from './TerminalPane';
 import { GithubPanel } from './GithubPanel';
+import { PublicationApproval } from './PublicationApproval';
+import { GlassPill, ResizeHandle } from './glass';
+import { glassCardStyle, glassPillStyle } from './glassStyles';
+import { useResizable } from './useResizable';
 
 type Tab = 'files' | 'preview' | 'terminal';
 
 const EMPTY_PATHS: ReadonlySet<string> = new Set();
 
+/** The chat keeps at least this much of the window; the card takes the rest. */
+const CHAT_MIN_WIDTH = 420;
+const PANEL_MIN_WIDTH = 360;
+const TREE_MIN_WIDTH = 140;
+const TREE_MAX_WIDTH = 480;
+
+const panelCeiling = () => window.innerWidth - CHAT_MIN_WIDTH;
+
 interface WorkspacePanelProps {
   sessionId: string;
-  mode: MaxModeKind | null;
   isGenerating: boolean;
   onResume: () => Promise<void>;
   className?: string;
-  onBackToChat: () => void;
+  onCollapse: () => void;
 }
 
-export function WorkspacePanel({ sessionId, mode, isGenerating, onResume, className, onBackToChat }: WorkspacePanelProps) {
+export function WorkspacePanel({ sessionId, isGenerating, onResume, className, onCollapse }: WorkspacePanelProps) {
   const { user } = useAuth();
   const { entries, error: filesError, refresh } = useWorkspaceFiles(sessionId);
   const [tab, setTab] = useState<Tab>('files');
@@ -62,6 +78,9 @@ export function WorkspacePanel({ sessionId, mode, isGenerating, onResume, classN
   const turnRef = useRef(0);
   const [recent, setRecent] = useState<{ turn: number; paths: Set<string> }>({ turn: 0, paths: new Set() });
   const importRef = useRef<HTMLInputElement>(null);
+
+  const panel = useResizable({ storageKey: 'maxModePanelWidth', fallback: 720, min: PANEL_MIN_WIDTH, max: panelCeiling, invert: true });
+  const tree = useResizable({ storageKey: 'maxModeTreeWidth', fallback: 220, min: TREE_MIN_WIDTH, max: TREE_MAX_WIDTH });
 
   const loadMeta = useCallback(() => {
     getWorkspaceMeta(sessionId).then(setMeta).catch(() => setMeta(null));
@@ -84,11 +103,13 @@ export function WorkspacePanel({ sessionId, mode, isGenerating, onResume, classN
   const activePaths = isGenerating ? recent.paths : EMPTY_PATHS;
 
   // A preview always comes to the front, pinned tab or not: open_preview
-  // exists to show the user something, and its console is only captured
-  // while the frame is mounted.
+  // exists to show the user something. A remembered one (a reload, or the
+  // chat reopened) is put back first; a stale dev server stays where it is
+  // rather than pulling the user off the files they came for.
   useEffect(() => previewController.subscribe((target) => {
-    if (target && target.sessionId === sessionId) setTab('preview');
+    if (target && target.sessionId === sessionId && target.kind !== 'stale') setTab('preview');
   }), [sessionId]);
+  useEffect(() => { void previewController.restore(sessionId); }, [sessionId]);
   useEffect(() => {
     if (!nodeRuntimeSupported()) return;
     return nodeRuntime().onOutput((_chunk, source) => {
@@ -153,8 +174,6 @@ export function WorkspacePanel({ sessionId, mode, isGenerating, onResume, classN
     return () => clearTimeout(timer);
   }, [notice]);
 
-  const title = useMemo(() => meta?.repo ? `${meta.repo.owner}/${meta.repo.name}` : 'Workspace', [meta]);
-
   const tabs: Array<{ id: Tab; label: string; icon: typeof FolderTree }> = [
     { id: 'files', label: 'Files', icon: FolderTree },
     { id: 'preview', label: 'Preview', icon: Eye },
@@ -162,93 +181,103 @@ export function WorkspacePanel({ sessionId, mode, isGenerating, onResume, classN
   ];
 
   return (
-    <aside className={`relative flex-col border-l border-white/10 bg-black/20 backdrop-blur-xl ${className ?? ''}`} aria-label="Workspace">
-      <PublicationApproval sessionId={sessionId} />
-      <header className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
-        <button type="button" onClick={onBackToChat} className="lg:hidden p-1.5 rounded-lg hover:bg-white/10 text-white/60" aria-label="Back to chat">
-          <X className="w-4 h-4" />
-        </button>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-white/90 truncate">{title}</div>
-          <div className="text-[11px] text-white/40">
-            {mode ? `${MAX_MODE_LABELS[mode].name} mode` : 'Max Mode'} · {entries.length} file{entries.length === 1 ? '' : 's'}
-            {meta?.repo ? ` · ${meta.repo.branch}` : ''}
-          </div>
-        </div>
-        <button type="button" onClick={() => setShowGithub(true)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs bg-white/5 border border-white/10 hover:bg-white/10 text-white/80" title="GitHub">
-          <FolderGit2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{meta?.repo ? 'Pull request' : 'GitHub'}</span>
-        </button>
-        <button type="button" onClick={() => importRef.current?.click()} disabled={!!busy || isGenerating} className="p-1.5 rounded-lg hover:bg-white/10 text-white/60 disabled:opacity-40" title="Import a zip" aria-label="Import a zip">
-          {busy === 'import' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-        </button>
-        <input ref={importRef} type="file" accept=".zip,application/zip" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) importZip(file); }} />
-        <button type="button" onClick={exportZip} disabled={!!busy || isGenerating || entries.length === 0} className="p-1.5 rounded-lg hover:bg-white/10 text-white/60 disabled:opacity-40" title="Download as zip" aria-label="Download as zip">
-          {busy === 'export' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-        </button>
-        <button type="button" onClick={reset} disabled={!!busy || isGenerating || entries.length === 0} className="p-1.5 rounded-lg hover:bg-white/10 text-white/60 disabled:opacity-40" title="Reset the workspace" aria-label="Reset the workspace">
-          <RotateCcw className="w-4 h-4" />
-        </button>
-      </header>
+    <div
+      className={`relative h-full shrink-0 w-full lg:w-(--ws-w) p-2 lg:py-3 lg:pr-3 lg:pl-1 ${className ?? ''}`}
+      style={{ '--ws-w': `${panel.width}px` } as CSSProperties}
+    >
+      <ResizeHandle handleProps={panel.handleProps} label="Resize the workspace" edge="left" className="hidden lg:block" />
+      <aside className="@container relative flex h-full flex-col overflow-hidden rounded-3xl" style={glassCardStyle} aria-label="Workspace">
+        <PublicationApproval sessionId={sessionId} />
+        <header className="flex items-center gap-2 px-3 py-2.5">
+          <GlassPill onClick={onCollapse} className="h-8 w-8" aria-label="Hide the workspace" title="Hide the workspace">
+            <PanelRightClose className="w-4 h-4" />
+          </GlassPill>
 
-      <nav className="flex items-center gap-1 px-2 py-1.5 border-b border-white/10" aria-label="Workspace tabs">
-        {tabs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => choose(id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors ${tab === id ? 'bg-white/10 text-white' : 'text-white/50 hover:text-white/80 hover:bg-white/5'}`}
-            aria-current={tab === id ? 'page' : undefined}
-          >
-            <Icon className="w-3.5 h-3.5" /> {label}
-          </button>
-        ))}
-      </nav>
+          <nav className="flex items-center gap-0.5 p-1" style={glassPillStyle()} aria-label="Workspace tabs">
+            {tabs.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => choose(id)}
+                className={`flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs transition-colors ${tab === id ? 'bg-white/15 text-white shadow-[inset_0_1px_0_rgb(var(--tm-edge-rgb)/0.15)]' : 'text-white/55 hover:text-white/85'}`}
+                aria-current={tab === id ? 'page' : undefined}
+                title={label}
+              >
+                <Icon className="w-3.5 h-3.5" /> <span className="hidden @lg:inline">{label}</span>
+              </button>
+            ))}
+          </nav>
 
-      {meta?.resume && !isGenerating && (
-        <div className="border-b border-white/10 px-3 py-2 text-xs text-white/70">
-          <p className="mb-2 truncate">Saved task: {meta.resume.userContent}</p>
-          <button type="button" disabled={busy === 'resume'} className="rounded-lg border border-cyan-400/30 bg-cyan-500/15 px-3 py-1.5 text-cyan-100 disabled:opacity-50"
-            onClick={async () => {
-              setBusy('resume');
-              try { await onResume(); }
-              catch (cause) { setNotice(cause instanceof Error ? cause.message : 'Could not resume the saved task.'); }
-              finally { setBusy(null); loadMeta(); }
-            }}>
-            Resume {meta.resume.mode ? MAX_MODE_LABELS[meta.resume.mode].name : ''} task
-          </button>
-        </div>
-      )}
+          <div className="flex-1" />
 
-      {(notice || filesError) && (
-        <div className="px-3 py-1.5 text-xs border-b border-white/10 text-amber-200/90">{filesError ?? notice}</div>
-      )}
+          <GlassPill onClick={() => setShowGithub(true)} className="h-8 max-w-48 px-3" title={meta?.repo ? `${meta.repo.owner}/${meta.repo.name} · ${meta.repo.branch}` : 'GitHub'}>
+            <FolderGit2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden @2xl:inline truncate">{meta?.repo ? meta.repo.name : 'GitHub'}</span>
+          </GlassPill>
+          <GlassPill onClick={() => importRef.current?.click()} disabled={!!busy || isGenerating} className="h-8 w-8" title="Import a zip" aria-label="Import a zip">
+            {busy === 'import' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+          </GlassPill>
+          <input ref={importRef} type="file" accept=".zip,application/zip" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) importZip(file); }} />
+          <GlassPill onClick={exportZip} disabled={!!busy || isGenerating || entries.length === 0} className="h-8 w-8" title="Download as zip" aria-label="Download as zip">
+            {busy === 'export' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          </GlassPill>
+          <GlassPill onClick={reset} disabled={!!busy || isGenerating || entries.length === 0} className="h-8 w-8" title="Reset the workspace" aria-label="Reset the workspace">
+            <RotateCcw className="w-4 h-4" />
+          </GlassPill>
+        </header>
 
-      <div className="flex-1 min-h-0 relative">
-        {tab === 'files' && (
-          <div className="h-full flex min-h-0">
-            <div className="w-52 xl:w-60 shrink-0 border-r border-white/10 overflow-y-auto">
-              <FileTree entries={entries} selectedPath={openPath} onSelect={path => { setSelectedPath(path); }} activePaths={activePaths} />
-            </div>
-            <div className="flex-1 min-w-0 min-h-0">
-              {openPath
-                ? <CodeEditor key={`${sessionId}:${openPath}`} sessionId={sessionId} path={openPath} />
-                : <div className="h-full flex items-center justify-center text-sm text-white/30">Select a file to open it.</div>}
-            </div>
+        {meta?.resume && !isGenerating && (
+          <div className="mx-3 mb-2 flex items-center gap-3 rounded-2xl px-3 py-2 text-xs text-white/70" style={glassPillStyle()}>
+            <p className="min-w-0 flex-1 truncate">Saved task: {meta.resume.userContent}</p>
+            <GlassPill tone="accent" disabled={busy === 'resume'} className="h-7 px-3"
+              onClick={async () => {
+                setBusy('resume');
+                try { await onResume(); }
+                catch (cause) { setNotice(cause instanceof Error ? cause.message : 'Could not resume the saved task.'); }
+                finally { setBusy(null); loadMeta(); }
+              }}>
+              Resume {meta.resume.mode ? MAX_MODE_LABELS[meta.resume.mode].name : ''} task
+            </GlassPill>
           </div>
         )}
-        {tab === 'preview' && <PreviewPane />}
-        {tab === 'terminal' && <TerminalPane sessionId={sessionId} />}
 
-        {showGithub && (
-          <GithubPanel
-            sessionId={sessionId}
-            meta={meta}
-            signedIn={!!user}
-            onClose={() => setShowGithub(false)}
-            onChanged={() => { loadMeta(); refresh(); }}
-          />
+        {(notice || filesError) && (
+          <div className="mx-3 mb-2 rounded-2xl px-3 py-1.5 text-xs text-amber-200/90" style={glassPillStyle()}>{filesError ?? notice}</div>
         )}
-      </div>
-    </aside>
+
+        {/* Every tab stays mounted: the terminal keeps its shell and scrollback
+            across a switch, and the preview frame keeps running. */}
+        <div className="relative min-h-0 flex-1 border-t border-white/[0.06]">
+          <div className={`h-full ${tab === 'files' ? '' : 'hidden'}`}>
+            <div className="flex h-full min-h-0">
+              <div className="shrink-0 overflow-y-auto w-(--tree-w)" style={{ '--tree-w': `${tree.width}px` } as CSSProperties}>
+                <FileTree entries={entries} selectedPath={openPath} onSelect={path => { setSelectedPath(path); }} activePaths={activePaths} />
+              </div>
+              <div className="relative w-px shrink-0 bg-white/[0.06]">
+                <ResizeHandle handleProps={tree.handleProps} label="Resize the file tree" edge="left" />
+              </div>
+              <div className="min-w-0 min-h-0 flex-1">
+                {openPath
+                  ? <CodeEditor key={`${sessionId}:${openPath}`} sessionId={sessionId} path={openPath} />
+                  : <div className="flex h-full items-center justify-center text-sm text-white/30">Select a file to open it.</div>}
+              </div>
+            </div>
+          </div>
+          <div className={`h-full ${tab === 'preview' ? '' : 'hidden'}`}><PreviewPane sessionId={sessionId} /></div>
+          <div className={`h-full ${tab === 'terminal' ? '' : 'hidden'}`}><TerminalPane sessionId={sessionId} active={tab === 'terminal'} /></div>
+
+          {showGithub && (
+            <GithubPanel
+              sessionId={sessionId}
+              meta={meta}
+              fileCount={entries.length}
+              signedIn={!!user}
+              onClose={() => setShowGithub(false)}
+              onChanged={() => { loadMeta(); refresh(); }}
+            />
+          )}
+        </div>
+      </aside>
+    </div>
   );
 }

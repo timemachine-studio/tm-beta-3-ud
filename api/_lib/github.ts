@@ -59,6 +59,18 @@ export function installUrl(config: GithubAppConfig): string {
   return `https://github.com/apps/${encodeURIComponent(config.slug)}/installations/new`;
 }
 
+/**
+ * Where "Connect GitHub" sends the user: the App's install page, with our
+ * state. With "Request user authorization (OAuth) during installation" on,
+ * GitHub does the install (pick an account, pick repositories) and the
+ * authorization on one screen and returns to the callback with a code —
+ * one trip instead of authorize-then-install-separately. A user who has
+ * already installed the App lands on its settings and comes back the same way.
+ */
+export function connectUrl(config: GithubAppConfig, state: string): string {
+  return `${installUrl(config)}?${new URLSearchParams({ state }).toString()}`;
+}
+
 // ─── OAuth state ────────────────────────────────────────────────────────────
 //
 // GitHub sends the user back to /github/callback in the app, which posts the
@@ -107,11 +119,6 @@ export function verifyState(config: GithubAppConfig, raw: string | undefined): O
   } catch {
     return null;
   }
-}
-
-export function authorizeUrl(config: GithubAppConfig, redirectUri: string, state: string): string {
-  const params = new URLSearchParams({ client_id: config.clientId, redirect_uri: redirectUri, state });
-  return `https://github.com/login/oauth/authorize?${params.toString()}`;
 }
 
 // ─── Tokens ─────────────────────────────────────────────────────────────────
@@ -271,6 +278,49 @@ export async function listBranches(token: string, owner: string, name: string): 
   return branches.map(branch => branch.name);
 }
 
+export interface CreatedRepo {
+  owner: string;
+  name: string;
+  defaultBranch: string;
+  url: string;
+}
+
+/**
+ * A new, empty repository under the user's account. The first push puts
+ * the workspace on its default branch (pushChanges handles the empty
+ * repository). No auto-init: a README the user did not write is a stray
+ * file the workspace would then not know about.
+ *
+ * Needs the App's *Administration: write* repository permission. A new
+ * repository is inside the installation only when the App was installed
+ * on "all repositories"; otherwise the user adds it, and the push says so.
+ */
+export async function createRepository(token: string, options: { name: string; private: boolean; description?: string }): Promise<CreatedRepo> {
+  const repo = await githubJson<{ id: number; name: string; default_branch: string; html_url: string; owner: { login: string } }>(token, '/user/repos', {
+    method: 'POST',
+    body: JSON.stringify({ name: options.name, private: options.private, description: options.description || undefined, auto_init: false }),
+  });
+  await addToInstallation(token, repo.owner.login, repo.id);
+  return { owner: repo.owner.login, name: repo.name, defaultBranch: repo.default_branch || 'main', url: repo.html_url };
+}
+
+/**
+ * Put a repository the user just created inside the App's installation, so
+ * the push that follows can reach it. An installation on "all repositories"
+ * already has it and GitHub answers 304; anything else that goes wrong is
+ * not fatal here — the push will say the App cannot see the repository.
+ */
+async function addToInstallation(token: string, owner: string, repositoryId: number): Promise<void> {
+  try {
+    const { installations } = await githubJson<{ installations: Array<{ id: number; account: { login: string } }> }>(token, '/user/installations?per_page=100');
+    const installation = installations.find(candidate => candidate.account.login.toLowerCase() === owner.toLowerCase()) ?? installations[0];
+    if (!installation) return;
+    await githubFetch(token, `/user/installations/${installation.id}/repositories/${repositoryId}`, { method: 'PUT' });
+  } catch (error) {
+    console.warn('Could not add the new repository to the App installation:', error instanceof Error ? error.message : error);
+  }
+}
+
 // ─── Clone: tarball → files ─────────────────────────────────────────────────
 
 export interface ClonedFile {
@@ -388,7 +438,7 @@ export async function cloneBranch(
   return { commit: head.commit.sha, written, skipped, truncated };
 }
 
-// ─── Push: workspace → branch → pull request ────────────────────────────────
+// ─── Push: workspace → branch (→ pull request) ──────────────────────────────
 
 export interface PushChange {
   path: string;
@@ -396,6 +446,15 @@ export interface PushChange {
   content: string | null;
   base64?: string;
 }
+
+/**
+ * `pull_request` commits to `branch` and opens (or adds to) a pull request
+ * against `base`. `direct` commits straight onto `base` — the user's own
+ * project, no review step wanted. An empty repository takes its first
+ * commit on `base` either way: there is nothing to open a pull request
+ * against yet.
+ */
+export type PushMode = 'pull_request' | 'direct';
 
 export interface PushOptions {
   owner: string;
@@ -405,11 +464,14 @@ export interface PushOptions {
   title: string;
   body: string;
   changes: PushChange[];
+  /** The head the workspace was taken from; '' for an empty repository. */
   expectedHead: string;
+  mode?: PushMode;
 }
 
 export interface PushResult {
-  number: number;
+  /** Null for a direct commit. */
+  number: number | null;
   url: string;
   branch: string;
   commit: string;
@@ -417,29 +479,73 @@ export interface PushResult {
 
 const PUSH_CONCURRENCY = 6;
 
+async function refSha(token: string, path: string, what: string): Promise<string | null> {
+  const response = await githubFetch(token, path);
+  if (response.ok) return ((await response.json()) as { object: { sha: string } }).object.sha;
+  if (response.status === 404) return null;
+  if (response.status === 409) return null; // "Git Repository is empty"
+  throw new GithubError(`Could not check the ${what} (${response.status}). Nothing was pushed.`, 502, 'UNAVAILABLE');
+}
+
+/**
+ * The first commit of an empty repository. The Git Data API refuses to
+ * create refs (and, on some paths, blobs) in a repository with no commits,
+ * so the first file goes in through the Contents API, which creates the
+ * branch and the initial commit together. Everything else follows as an
+ * ordinary commit on top.
+ */
+async function initialCommit(token: string, repoPath: string, branch: string, message: string, first: PushChange): Promise<string> {
+  const content = first.base64 ?? Buffer.from(first.content ?? '', 'utf8').toString('base64');
+  const result = await githubJson<{ commit: { sha: string } }>(token, `${repoPath}/contents/${first.path.split('/').map(encodeURIComponent).join('/')}`, {
+    method: 'PUT',
+    body: JSON.stringify({ message, content, branch }),
+  });
+  return result.commit.sha;
+}
+
 export async function pushChanges(token: string, options: PushOptions): Promise<PushResult> {
-  const { owner, name, base, branch, title, body, changes, expectedHead } = options;
-  if (branch === base) throw new GithubError('Publish to a separate branch, not the base branch.');
+  const { owner, name, base, title, body, expectedHead } = options;
+  const mode: PushMode = options.mode ?? 'pull_request';
+  if (mode === 'pull_request' && options.branch === base) throw new GithubError('Publish to a separate branch, not the base branch.');
   const repoPath = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
   const refPath = (ref: string) => `${repoPath}/git/ref/heads/${ref.split('/').map(encodeURIComponent).join('/')}`;
 
-  // Commit on top of the branch if it exists (a second push), else on base.
-  let parentSha: string;
-  let branchExists = false;
-  const existing = await githubFetch(token, refPath(branch));
-  if (existing.ok) {
-    parentSha = ((await existing.json()) as { object: { sha: string } }).object.sha;
-    branchExists = true;
-  } else if (existing.status === 404) {
-    const baseRef = await githubJson<{ object: { sha: string } }>(token, refPath(base));
-    parentSha = baseRef.object.sha;
+  // Where the commit lands and what it sits on: the PR branch if it exists
+  // (a second push), else the base; or the base itself for a direct commit.
+  let parentSha: string | null;
+  let branch = mode === 'direct' ? base : options.branch;
+  let branchExists: boolean;
+  if (mode === 'direct') {
+    parentSha = await refSha(token, refPath(base), 'base branch');
+    branchExists = parentSha !== null;
   } else {
-    throw new GithubError(`Could not check the target branch (${existing.status}). Nothing was pushed.`, 502, 'UNAVAILABLE');
+    parentSha = await refSha(token, refPath(branch), 'target branch');
+    branchExists = parentSha !== null;
+    if (!branchExists) parentSha = await refSha(token, refPath(base), 'base branch');
   }
-  if (parentSha !== expectedHead) {
-    throw new GithubError('The remote branch changed since this workspace was cloned or last pushed. Reconcile those changes before publishing. Your local files are unchanged.', 409);
+  if ((parentSha ?? '') !== expectedHead) {
+    throw new GithubError(parentSha === null
+      ? 'The repository is empty, but this workspace was taken from a commit. Pull the latest state first. Your local files are unchanged.'
+      : 'The remote branch changed since this workspace was cloned or last pushed. Pull the latest state before publishing. Your local files are unchanged.', 409);
+  }
+
+  let changes = [...options.changes];
+  const empty = parentSha === null;
+  if (empty) {
+    // No pull request against a branch that does not exist: the first
+    // commit goes straight onto the base, whatever was asked.
+    branch = base;
+    const first = changes.find(change => change.content !== null || change.base64);
+    if (!first) throw new GithubError('Nothing to push: an empty repository needs at least one file.');
+    changes = changes.filter(change => change !== first && (change.content !== null || change.base64));
+    parentSha = await initialCommit(token, repoPath, base, title, first);
+    branchExists = true;
+    if (changes.length === 0) {
+      return { number: null, url: `https://github.com/${owner}/${name}/tree/${encodeURIComponent(base)}`, branch: base, commit: parentSha };
+    }
   }
   const parent = await githubJson<{ tree: { sha: string } }>(token, `${repoPath}/git/commits/${parentSha}`);
+  const baseTreeSha = parent.tree.sha;
 
   // Blobs, a few at a time. Deletions need no blob: sha null in the tree.
   const tree: Array<{ path: string; mode: '100644'; type: 'blob'; sha: string | null }> = [];
@@ -465,11 +571,11 @@ export async function pushChanges(token: string, options: PushOptions): Promise<
 
   const newTree = await githubJson<{ sha: string }>(token, `${repoPath}/git/trees`, {
     method: 'POST',
-    body: JSON.stringify({ base_tree: parent.tree.sha, tree }),
+    body: JSON.stringify({ base_tree: baseTreeSha, tree }),
   });
   const commit = await githubJson<{ sha: string }>(token, `${repoPath}/git/commits`, {
     method: 'POST',
-    body: JSON.stringify({ message: title, tree: newTree.sha, parents: [parentSha] }),
+    body: JSON.stringify({ message: body ? `${title}\n\n${body}` : title, tree: newTree.sha, parents: [parentSha] }),
   });
 
   if (branchExists) {
@@ -482,6 +588,10 @@ export async function pushChanges(token: string, options: PushOptions): Promise<
       method: 'POST',
       body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: commit.sha }),
     });
+  }
+
+  if (mode === 'direct' || empty) {
+    return { number: null, url: `https://github.com/${owner}/${name}/commit/${commit.sha}`, branch, commit: commit.sha };
   }
 
   // One pull request per branch. If one is already open, this push just

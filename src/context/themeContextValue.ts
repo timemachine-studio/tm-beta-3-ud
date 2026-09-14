@@ -28,7 +28,7 @@ export const ThemeContext = createContext<ThemeContextType>({
   mode: 'dark',
   season: 'autumnDark',
   seasonFollowsPersona: true,
-  lightWarmth: 100,
+  lightWarmth: 40,
   setMode: () => { },
   setSeason: () => { },
   setLightWarmth: () => { },

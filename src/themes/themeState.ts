@@ -53,9 +53,14 @@ export function readStoredThemeState(read: (key: string) => string | null): Stor
  * of the two endpoint palettes below, applied as inline variables on
  * <html> so one number moves the whole page. Ink and the green accent do
  * not move — only the paper does.
+ *
+ * Light opens at 40 — a hint of warmth, not the full cream. The key is
+ * versioned because ThemeProvider writes the value on first load, so
+ * everyone who ever opened light mode had the old default of 100 stored
+ * whether they chose it or not (2026-09-14).
  */
-export const WARMTH_KEY = 'lightWarmth';
-export const DEFAULT_LIGHT_WARMTH = 100;
+export const WARMTH_KEY = 'lightWarmth.v2';
+export const DEFAULT_LIGHT_WARMTH = 40;
 
 export function readStoredWarmth(read: (key: string) => string | null): number {
   const raw = read(WARMTH_KEY);

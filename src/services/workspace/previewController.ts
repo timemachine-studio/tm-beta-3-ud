@@ -13,11 +13,17 @@
  * know the other exists.
  */
 
-import { readWorkspaceFile } from './workspaceStore';
+import { getWorkspaceMeta, readWorkspaceFile, updateWorkspaceMeta, type WorkspacePreviewRef } from './workspaceStore';
 
+/**
+ * `stale` is a dev server the page remembers but no longer has: the runtime
+ * is per tab, so a reload takes every process with it. The pane offers to
+ * start it again rather than showing a frame that would never load.
+ */
 export type PreviewTarget =
   | { kind: 'html'; sessionId: string; path: string; srcdoc: string; generation: number }
-  | { kind: 'url'; sessionId: string; url: string; command: string; generation: number };
+  | { kind: 'url'; sessionId: string; url: string; command: string; generation: number }
+  | { kind: 'stale'; sessionId: string; command: string; generation: number };
 
 export interface PreviewReport {
   console: string[];
@@ -224,7 +230,52 @@ export class PreviewController {
     this.target = target;
     const report = this.report(target.generation, signal);
     this.notify();
+    void this.remember(target);
     return report;
+  }
+
+  /**
+   * Write what is showing into the workspace's metadata, so a reload (or
+   * reopening the chat) can put it back. Best effort: the preview is on
+   * screen either way.
+   */
+  private async remember(target: PreviewTarget): Promise<void> {
+    const ref: WorkspacePreviewRef = target.kind === 'html'
+      ? { kind: 'html', path: target.path }
+      : { kind: 'url', command: target.command };
+    try {
+      await updateWorkspaceMeta(target.sessionId, { previewTarget: ref });
+    } catch (error) {
+      console.error('Could not remember the preview:', error instanceof Error ? error.message : error);
+    }
+  }
+
+  /**
+   * Put back what this workspace last previewed, on a fresh page.
+   *
+   * An HTML file is rendered again from the store. A dev server cannot be:
+   * the runtime it ran in died with the old page, so it comes back as
+   * `stale` and the pane offers to start it again. Does nothing when the
+   * session already has a preview — the harness may have opened one first.
+   */
+  async restore(sessionId: string): Promise<void> {
+    if (this.target?.sessionId === sessionId) return;
+    let ref: WorkspacePreviewRef | undefined;
+    try {
+      ref = (await getWorkspaceMeta(sessionId))?.previewTarget;
+    } catch (error) {
+      console.error('Could not read the remembered preview:', error instanceof Error ? error.message : error);
+      return;
+    }
+    if (!ref || this.target?.sessionId === sessionId) return;
+    if (ref.kind === 'html') {
+      // The load report is the harness's concern; here nobody is waiting.
+      this.showHtml(sessionId, ref.path).catch(() => undefined);
+      return;
+    }
+    this.target = { kind: 'stale', sessionId, command: ref.command, generation: ++this.generation };
+    this.log = [];
+    this.notify();
   }
 
   /** Render a workspace HTML file and wait for the actual frame to load. */
@@ -252,6 +303,7 @@ export class PreviewController {
   }
 
   clear(): void {
+    const sessionId = this.target?.sessionId;
     this.generation++;
     for (const waiter of [...this.waiters]) waiter({ level: 'cancelled', text: '' });
     this.frame = null;
@@ -259,6 +311,9 @@ export class PreviewController {
     this.target = null;
     this.log = [];
     this.notify();
+    if (sessionId) {
+      updateWorkspaceMeta(sessionId, { previewTarget: undefined }).catch(() => undefined);
+    }
   }
 }
 

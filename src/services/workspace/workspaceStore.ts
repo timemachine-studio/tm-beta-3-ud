@@ -66,6 +66,11 @@ export interface WorkspaceFile extends WorkspaceEntry {
   bytes: Uint8Array | null;
 }
 
+/** A preview, as remembered: a workspace HTML file, or the command that served it. */
+export type WorkspacePreviewRef =
+  | { kind: 'html'; path: string }
+  | { kind: 'url'; command: string };
+
 export interface WorkspaceMeta {
   sessionId: string;
   /** The harness mode the chat was left in. Null when Max Mode is off. */
@@ -80,7 +85,7 @@ export interface WorkspaceMeta {
     pullRequest?: { branch: string; number: number; url: string };
   };
   /** What the preview pane last showed, so reopening the chat shows it again. */
-  previewTarget?: string;
+  previewTarget?: WorkspacePreviewRef;
   /**
    * Durable checkpoint for the current/interrupted turn. Kept here rather than
    * on the message because it is a replay transcript — large, and only

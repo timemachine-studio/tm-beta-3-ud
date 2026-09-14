@@ -3,11 +3,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { listWorkspace, readWorkspaceFile, writeWorkspaceFile, writeWorkspaceFiles } from './workspaceStore';
 import { nodeRuntime } from './nodeRuntime';
 
-const mock = vi.hoisted(() => ({ files: new Map<string, Uint8Array>(), spawn: vi.fn(), boot: vi.fn() }));
+const mock = vi.hoisted(() => ({
+  files: new Map<string, Uint8Array>(), spawn: vi.fn(), boot: vi.fn(),
+  handlers: new Map<string, (...args: never[]) => void>(),
+}));
 vi.mock('@webcontainer/api', () => ({ WebContainer: { boot: async () => {
   mock.boot();
   return {
-    on: vi.fn(), spawn: mock.spawn,
+    on: (event: string, handler: (...args: never[]) => void) => { mock.handlers.set(event, handler); },
+    spawn: mock.spawn,
     fs: {
       readdir: async (dir: string) => {
         const prefix = dir === '.' ? '' : `${dir}/`;
@@ -71,6 +75,78 @@ describe('runtime lifecycle', () => {
     await nodeRuntime().run('runtime-conflict', 'verify', { timeoutMs: 1000 });
     expect(new TextDecoder().decode(mock.files.get('a.ts'))).toBe('user');
     expect((await readWorkspaceFile('runtime-conflict', 'a.ts'))?.text).toBe('user');
+  });
+});
+
+describe('an empty runtime never empties the workspace', () => {
+  beforeEach(() => { mock.spawn.mockReset(); mock.spawn.mockImplementation(async () => processResult()); });
+  it('refuses to mirror a container that has lost every file', async () => {
+    const { NodeRuntime } = await import('./nodeRuntime');
+    await writeWorkspaceFiles('runtime-void', [{ path: 'a.ts', content: 'a' }, { path: 'b.ts', content: 'b' }]);
+    const runtime = new NodeRuntime();
+    mock.spawn.mockImplementationOnce(async () => { mock.files.clear(); return processResult(); });
+    await expect(runtime.run('runtime-void', 'oops', { timeoutMs: 1000 })).rejects.toThrow('came back empty');
+    expect(await listWorkspace('runtime-void')).toHaveLength(2);
+    // The next command re-mounts from the store and carries on.
+    await runtime.run('runtime-void', 'again', { timeoutMs: 1000 });
+    expect(mock.files.has('a.ts')).toBe(true);
+  });
+});
+
+describe('the terminal and the preview', () => {
+  beforeEach(() => { mock.spawn.mockReset(); mock.spawn.mockImplementation(async () => processResult()); });
+  it('replays output to a terminal opened after the fact', async () => {
+    const { NodeRuntime } = await import('./nodeRuntime');
+    const runtime = new NodeRuntime();
+    mock.spawn.mockImplementationOnce(async () => processResult('hello from earlier\n'));
+    await runtime.run('runtime-history', 'echo', { timeoutMs: 1000 });
+    expect(runtime.outputHistory()).toContain('$ echo');
+    expect(runtime.outputHistory()).toContain('hello from earlier');
+  });
+  it('shows a server the user started from the shell, named by what they typed', async () => {
+    const { NodeRuntime } = await import('./nodeRuntime');
+    const { previewController } = await import('./previewController');
+    const shown = vi.spyOn(previewController, 'showUrl').mockResolvedValue({ console: [], errors: 0, loaded: true });
+    const runtime = new NodeRuntime();
+    await runtime.run('runtime-shell', 'true', { timeoutMs: 1000 });
+    runtime.noteShellCommand('npm run dev');
+    (mock.handlers.get('server-ready') as (port: number, url: string) => void)(5173, 'https://p.example');
+    expect(shown).toHaveBeenCalledWith('runtime-shell', 'https://p.example', 'npm run dev');
+    shown.mockRestore();
+  });
+  it('does not treat the harness\'s own server as a shell one', async () => {
+    const { NodeRuntime } = await import('./nodeRuntime');
+    const { previewController } = await import('./previewController');
+    const shown = vi.spyOn(previewController, 'showUrl').mockResolvedValue({ console: [], errors: 0, loaded: true });
+    const runtime = new NodeRuntime();
+    mock.spawn.mockImplementationOnce(async () => processResult('', new Promise<number>(() => undefined)));
+    const started = runtime.startServer('runtime-harness', 'npm run dev', { timeoutMs: 5000 });
+    await vi.waitFor(() => expect(mock.spawn).toHaveBeenCalledTimes(1));
+    (mock.handlers.get('server-ready') as (port: number, url: string) => void)(5173, 'https://p.example');
+    expect((await started).url).toBe('https://p.example');
+    expect(shown).not.toHaveBeenCalled();
+    shown.mockRestore();
+  });
+  it('installs before restarting a remembered server when nothing is installed', async () => {
+    const { NodeRuntime } = await import('./nodeRuntime');
+    const { previewController } = await import('./previewController');
+    vi.spyOn(previewController, 'showUrl').mockResolvedValue({ console: [], errors: 0, loaded: true });
+    await writeWorkspaceFile('runtime-restart', 'package.json', '{}');
+    const runtime = new NodeRuntime();
+    const commands: string[] = [];
+    mock.spawn.mockImplementation(async (_bin: string, args: string[]) => {
+      commands.push(args[1]);
+      if (args[1] === 'npm run dev') {
+        setTimeout(() => (mock.handlers.get('server-ready') as (port: number, url: string) => void)(5173, 'https://p.example'), 0);
+        return processResult('', new Promise<number>(() => undefined));
+      }
+      return processResult();
+    });
+    const result = await runtime.restartServer('runtime-restart', 'npm run dev', { timeoutMs: 5000 });
+    expect(commands).toEqual(['npm install', 'npm run dev']);
+    expect(result.url).toBe('https://p.example');
+    expect(previewController.showUrl).toHaveBeenCalledWith('runtime-restart', 'https://p.example', 'npm run dev', undefined);
+    vi.restoreAllMocks();
   });
 });
 

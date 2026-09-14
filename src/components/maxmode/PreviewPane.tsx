@@ -7,19 +7,44 @@
  */
 
 import { useEffect, useState } from 'react';
-import { ExternalLink, RefreshCw } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Loader2, Maximize2, Minimize2, Play, RefreshCw } from 'lucide-react';
 import { PREVIEW_SANDBOX, previewController, type PreviewTarget } from '../../services/workspace/previewController';
+import { nodeRuntime, nodeRuntimeSupported } from '../../services/workspace/nodeRuntime';
 import { toSafeExternalUrl } from '../contour/modules/webViewer';
+import { GlassPill } from './glass';
 
-export function PreviewPane() {
+interface PreviewPaneProps {
+  sessionId: string;
+}
+
+export function PreviewPane({ sessionId }: PreviewPaneProps) {
   const [target, setTarget] = useState<PreviewTarget | null>(previewController.current());
   const [log, setLog] = useState<readonly string[]>(previewController.consoleLog());
-  const [showConsole, setShowConsole] = useState(true);
+  // Closed by default; the log is the controller's, so it is all still
+  // there when the console is opened later.
+  const [showConsole, setShowConsole] = useState(false);
+  const [restart, setRestart] = useState<{ phase: string } | { error: string } | null>(null);
+  // Full screen is the pane portalled to <body> over everything, not the
+  // Fullscreen API: that needs a gesture the browser trusts, prompts in
+  // some, and never settles in an embedded view. Portalled, because the
+  // card's backdrop-filter makes it the containing block for anything
+  // `fixed` inside it — an overlay rendered in place would only fill the
+  // card. "Open in a new tab" is not an option: the runtime's preview origin
+  // only exists inside this isolated page.
+  const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => previewController.subscribe((next, nextLog) => {
     setTarget(next);
     setLog([...nextLog]);
   }), []);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setFullscreen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [fullscreen]);
 
   if (!target) {
     return (
@@ -29,27 +54,55 @@ export function PreviewPane() {
     );
   }
 
+  if (target.kind === 'stale') {
+    const command = target.command;
+    const phase = restart !== null && 'phase' in restart ? restart.phase : null;
+    const start = async () => {
+      setRestart({ phase: 'Starting' });
+      try {
+        const result = await nodeRuntime().restartServer(sessionId, command, { timeoutMs: 90_000, onPhase: phase => setRestart({ phase }) });
+        if (!result.url) setRestart({ error: 'The server did not start listening. The Terminal tab has its output.' });
+        else setRestart(null);
+      } catch (cause) {
+        setRestart({ error: cause instanceof Error ? cause.message : 'The server could not be started.' });
+      }
+    };
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-4 p-6 text-center text-sm text-white/50 leading-relaxed">
+        <p>
+          The preview was <code className="font-mono text-white/70">{command}</code>. The runtime it ran in went away with the page, so it needs starting again.
+        </p>
+        {nodeRuntimeSupported() ? (
+          <GlassPill tone="accent" onClick={start} disabled={phase !== null} className="h-9 px-4 text-sm">
+            {phase !== null ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            {phase ?? 'Start it again'}
+          </GlassPill>
+        ) : (
+          <p className="text-xs text-white/40">This browser cannot run the Node runtime, so the server cannot be started here.</p>
+        )}
+        {restart !== null && 'error' in restart && <p className="text-xs text-rose-300">{restart.error}</p>}
+        <p className="text-xs text-white/35">Or run it yourself in the Terminal tab — a server started there shows up here too.</p>
+      </div>
+    );
+  }
+
   const url = target.kind === 'url' ? toSafeExternalUrl(target.url) : null;
 
-  return (
-    <div className="h-full flex flex-col min-h-0">
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/10 text-xs">
-        <span className="font-mono text-white/60 truncate flex-1">
-          {target.kind === 'html' ? target.path : `${target.command} → ${target.url}`}
-        </span>
+  const pane = (
+    <div className={`flex flex-col min-h-0 ${fullscreen ? 'fixed inset-0 z-[90] bg-black' : 'h-full'}`}>
+      <div className="flex items-center gap-2 px-3 py-2 text-xs">
         {target.kind === 'html' && (
-          <button type="button" onClick={() => { previewController.refresh().catch(() => undefined); }} className="p-1 rounded hover:bg-white/10 text-white/60" aria-label="Reload preview">
+          <GlassPill onClick={() => { previewController.refresh().catch(() => undefined); }} className="h-7 w-7" aria-label="Reload preview" title="Reload preview">
             <RefreshCw className="w-3.5 h-3.5" />
-          </button>
+          </GlassPill>
         )}
-        {url && (
-          <a href={url} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-white/10 text-white/60" aria-label="Open in a new tab">
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        )}
-        <button type="button" onClick={() => setShowConsole(value => !value)} className="px-2 py-0.5 rounded hover:bg-white/10 text-white/60">
+        <GlassPill onClick={() => setFullscreen(value => !value)} className="h-7 w-7" aria-label={fullscreen ? 'Leave full screen' : 'Full screen'} title={fullscreen ? 'Leave full screen' : 'Full screen'}>
+          {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+        </GlassPill>
+        <div className="flex-1" />
+        <GlassPill active={showConsole} onClick={() => setShowConsole(value => !value)} className="h-7 px-3" aria-pressed={showConsole}>
           Console{log.length > 0 ? ` (${log.length})` : ''}
-        </button>
+        </GlassPill>
       </div>
       <div className="flex-1 min-h-0 bg-[#fff]">
         {target.kind === 'html' ? (
@@ -80,7 +133,7 @@ export function PreviewPane() {
         )}
       </div>
       {showConsole && (
-        <div className="h-32 shrink-0 border-t border-white/10 overflow-y-auto font-mono text-[11px] leading-5 px-3 py-1">
+        <div className="h-32 shrink-0 border-t border-white/[0.06] overflow-y-auto font-mono text-[11px] leading-5 px-3 py-1">
           {log.length === 0
             ? <div className="text-white/30">Console is empty.</div>
             : log.map((line, index) => (
@@ -90,4 +143,6 @@ export function PreviewPane() {
       )}
     </div>
   );
+
+  return fullscreen ? createPortal(pane, document.body) : pane;
 }

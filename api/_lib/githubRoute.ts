@@ -7,7 +7,7 @@
  * verified by the time this runs.
  *
  * Actions: status · connect · exchange · disconnect · repos · branches ·
- * clone · push. Clone streams NDJSON — a repository can be far bigger than a
+ * create · clone · push. Clone streams NDJSON — a repository can be far bigger than a
  * buffered response — and push is bounded by the request size limit, which
  * is fine for the deltas it carries.
  */
@@ -21,9 +21,10 @@ import { credentialsAvailable } from './mcpCredentials.js';
 import {
   GithubError,
   accessTokenFor,
-  authorizeUrl,
   cloneBranch,
+  connectUrl,
   completeConnection,
+  createRepository,
   deleteConnection,
   githubAppConfig,
   installUrl,
@@ -41,12 +42,19 @@ const branchName = z.string().min(1).max(200).regex(/^[^\s~^:?*[\\]+$/).refine(v
 const exchangeSchema = z.object({ code: z.string().min(1).max(200), state: z.string().min(1).max(2000) });
 const branchesSchema = z.object({ owner: repoName, name: repoName });
 const cloneSchema = z.object({ owner: repoName, name: repoName, branch: branchName });
+const createSchema = z.object({
+  name: repoName,
+  private: z.boolean().default(true),
+  description: z.string().max(350).default(''),
+});
 const pushSchema = z.object({
   owner: repoName,
   name: repoName,
   base: branchName,
-  expectedHead: z.string().regex(/^[a-f0-9]{40}$/i),
+  /** Empty for a repository with no commits yet. */
+  expectedHead: z.string().regex(/^(?:[a-f0-9]{40})?$/i),
   branch: branchName,
+  mode: z.enum(['pull_request', 'direct']).default('pull_request'),
   title: z.string().min(1).max(256),
   body: z.string().max(20_000).default(''),
   changes: z.array(z.object({
@@ -84,7 +92,9 @@ export async function handleGithubRequest(req: VercelRequest, res: VercelRespons
   }
 
   if (!configured) {
-    return res.status(503).json(apiErrorBody('UNAVAILABLE', 'GitHub is not configured on this deployment: set GITHUB_APP_SLUG, GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET and MCP_CREDENTIAL_KEY.'));
+    // Operator detail goes to the server log; the user sees only that it is off.
+    console.error('GitHub is not configured: set GITHUB_APP_SLUG, GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET and MCP_CREDENTIAL_KEY (see .env.example).');
+    return res.status(503).json(apiErrorBody('UNAVAILABLE', 'GitHub is not available on this deployment.'));
   }
 
   try {
@@ -92,7 +102,7 @@ export async function handleGithubRequest(req: VercelRequest, res: VercelRespons
       case 'connect': {
         const returnTo = typeof req.query?.returnTo === 'string' ? req.query.returnTo : '/max';
         const state = mintState(config!, user.id, returnTo);
-        return res.status(200).json({ url: authorizeUrl(config!, callbackUri(req), state) });
+        return res.status(200).json({ url: connectUrl(config!, state) });
       }
       case 'exchange': {
         if (req.method !== 'POST') return res.status(405).json(apiErrorBody('BAD_REQUEST', 'POST required'));
@@ -119,6 +129,13 @@ export async function handleGithubRequest(req: VercelRequest, res: VercelRespons
         if (!query) return;
         const { token } = await accessTokenFor(config!, user.id);
         return res.status(200).json({ branches: await listBranches(token, query.owner, query.name) });
+      }
+      case 'create': {
+        if (req.method !== 'POST') return res.status(405).json(apiErrorBody('BAD_REQUEST', 'POST required'));
+        const body = parseOrReject(res, createSchema, req.body || {});
+        if (!body) return;
+        const { token } = await accessTokenFor(config!, user.id);
+        return res.status(200).json(await createRepository(token, body));
       }
       case 'clone': {
         if (req.method !== 'POST') return res.status(405).json(apiErrorBody('BAD_REQUEST', 'POST required'));

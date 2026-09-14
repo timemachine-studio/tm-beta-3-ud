@@ -37,13 +37,15 @@ describe('readStoredThemeState', () => {
 });
 
 describe('light warmth', () => {
-  it('defaults to cream and clamps stored values', async () => {
-    const { readStoredWarmth, lightWarmthVariables } = await import('./themeState');
-    expect(readStoredWarmth(storage({}))).toBe(100);
-    expect(readStoredWarmth(storage({ lightWarmth: '250' }))).toBe(100);
-    expect(readStoredWarmth(storage({ lightWarmth: '-3' }))).toBe(0);
-    expect(readStoredWarmth(storage({ lightWarmth: 'x' }))).toBe(100);
-    expect(readStoredWarmth(storage({ lightWarmth: '42.6' }))).toBe(43);
+  it('defaults to a hint of warmth, ignores the old key, and clamps stored values', async () => {
+    const { readStoredWarmth, lightWarmthVariables, WARMTH_KEY } = await import('./themeState');
+    expect(readStoredWarmth(storage({}))).toBe(40);
+    // The first default was written to storage for everyone; it does not carry over.
+    expect(readStoredWarmth(storage({ lightWarmth: '100' }))).toBe(40);
+    expect(readStoredWarmth(storage({ [WARMTH_KEY]: '250' }))).toBe(100);
+    expect(readStoredWarmth(storage({ [WARMTH_KEY]: '-3' }))).toBe(0);
+    expect(readStoredWarmth(storage({ [WARMTH_KEY]: 'x' }))).toBe(40);
+    expect(readStoredWarmth(storage({ [WARMTH_KEY]: '42.6' }))).toBe(43);
 
     expect(lightWarmthVariables(0)['--color-canvas']).toBe('#ffffff');
     expect(lightWarmthVariables(100)['--color-canvas']).toBe('#fdf1e1');
