@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { Suspense, lazy, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import { ChatInput } from './components/chat/ChatInput';
 import { BrandLogo } from './components/brand/BrandLogo';
@@ -48,7 +48,9 @@ import type { MaxModeKind } from '../shared/maxMode';
 import { newId } from './utils/id';
 import { SEOHead } from './components/seo/SEOHead';
 import { RouteLoadingFallback } from './components/routing/RouteLoadingFallback';
+import { hasEnteredApp, markEnteredApp, type LandingHandoff } from './components/landing/entered';
 
+const LandingPage = lazy(() => import('./components/landing/LandingPage').then((module) => ({ default: module.LandingPage })));
 const HomePage = lazy(() => import('./components/home/HomePage').then((module) => ({ default: module.HomePage })));
 const AccountPage = lazy(() => import('./components/auth/AccountPage').then((module) => ({ default: module.AccountPage })));
 const ChatHistoryPage = lazy(() => import('./components/chat/ChatHistoryPage').then((module) => ({ default: module.ChatHistoryPage })));
@@ -589,6 +591,28 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     setAuthModalMessage(undefined);
     setShowAuthModal(true);
   }, []);
+
+  // The landing page hands over either a first message to send or a request
+  // to open sign-in (components/landing/entered.ts). Once, on arrival: the
+  // ref guards re-renders, and the history entry is cleared the same way the
+  // other nav state above is so a reload does not send it twice.
+  const landingHandoff = location.state as LandingHandoff | null;
+  const handoffConsumedRef = useRef(false);
+  useEffect(() => {
+    if (maxModeRoute || handoffConsumedRef.current) return;
+    if (!landingHandoff?.initialPrompt && !landingHandoff?.openAuth) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      // Consumed only once it actually runs: StrictMode mounts twice, and the
+      // first mount's microtask is cancelled by its cleanup.
+      if (cancelled || handoffConsumedRef.current) return;
+      handoffConsumedRef.current = true;
+      if (landingHandoff.openAuth) handleOpenAuth();
+      if (landingHandoff.initialPrompt) void handleSendMessageWithRateLimit(landingHandoff.initialPrompt);
+      window.history.replaceState({}, '', '/');
+    });
+    return () => { cancelled = true; };
+  }, [landingHandoff, maxModeRoute, handleOpenAuth, handleSendMessageWithRateLimit]);
 
   const handleOpenAccount = useCallback(() => {
     navigate('/account');
@@ -1287,6 +1311,23 @@ function SettingsRedirect() {
   return <Navigate to="/" replace />;
 }
 
+// "/" is the product for anyone signed in and for anyone who has already
+// stepped into it; the landing page only for a signed-out first visit. In-app
+// navigation to "/" always carries router state (a session, a mode, a
+// handoff), so it counts as an entry too — see components/landing/entered.ts.
+function RootRoute() {
+  const { user } = useAuth();
+  const location = useLocation();
+  const showLanding = !user && !location.state && !hasEnteredApp();
+  useEffect(() => {
+    if (!showLanding) markEnteredApp();
+  }, [showLanding]);
+  if (showLanding) {
+    return <><SEOHead /><LandingPage /></>;
+  }
+  return <><SEOHead /><MainChatPage /></>;
+}
+
 function AppContent() {
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -1302,7 +1343,8 @@ function AppContent() {
     <SettingsModal isOpen={isSettingsOpen} onClose={settingsModal.closeSettings} />
     <Suspense fallback={<RouteLoadingFallback />}>
       <Routes>
-      <Route path="/" element={<><SEOHead /><MainChatPage /></>} />
+      <Route path="/" element={<RootRoute />} />
+      <Route path="/welcome" element={<><SEOHead title="Welcome" description="TimeMachine Chat — one chat with three AI minds, a coding agent in Max Mode, and nothing about you for sale. Free to try." path="/welcome" /><LandingPage /></>} />
       <Route path="/reveoule" element={
         <>
           <SEOHead title="Rêveoulé" description="Beauty products collab" path="/reveoule" noIndex />

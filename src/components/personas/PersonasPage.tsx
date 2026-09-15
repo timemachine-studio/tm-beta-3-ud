@@ -1,175 +1,158 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Zap, Heart, Brain } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { AI_PERSONAS } from '../../config/constants';
+import { Arrow, Display, FeatureList, Glow, MarketingShell } from '../landing/MarketingShell';
+import { useEnterApp, useReveal } from '../landing/marketing';
 
-const fadeUp = {
-  initial: { opacity: 0, y: 30 },
-  animate: { opacity: 1, y: 0 },
-};
+/* One plate per mind. Names and greetings come from the app; the portraits
+   are the three objects of the landing page's minds illustration. */
+
+const MINDS = [
+  {
+    key: 'default' as const,
+    hue: '168 85 247',
+    role: 'Everyday, at speed',
+    art: '/landing/persona-1.webp',
+    alt: 'A violet cube in flight, trailing three lines of light',
+    body: 'The default mind. Answers, drafts, plans, quick explanations and casual conversation, back before you finish the thought. Air is the one that is always on.',
+    good: ['Fast answers and explanations', 'Writing and rewriting', 'Plans, lists, everyday questions'],
+  },
+  {
+    key: 'girlie' as const,
+    hue: '236 72 153',
+    role: 'Gets the vibe',
+    art: '/landing/persona-2.webp',
+    alt: 'A pink sphere with two orbit rings',
+    body: 'Warmer, louder, on your side. Girlie speaks your language, hypes you up and keeps the energy right — life advice, outfit calls, and the late-night rant.',
+    good: ['Life and style advice', 'Reading a text before you send it', 'A hype-up when you need one'],
+  },
+  {
+    key: 'pro' as const,
+    hue: '34 211 238',
+    role: 'Deep work',
+    art: '/landing/persona-3.webp',
+    alt: 'A cyan wireframe octahedron',
+    body: 'The most capable mind. PRO reasons through the hard ones — analysis, research, strategy and code — and in Max Mode becomes a coding agent with a workspace on your device.',
+    good: ['Analysis and research', 'Code review and debugging', 'Max Mode: a coding agent'],
+  },
+];
 
 export function PersonasPage() {
   const navigate = useNavigate();
+  const { reveal } = useReveal();
+  const { startChatting, sendFirst } = useEnterApp();
 
   return (
-    <div className="min-h-screen relative overflow-auto bg-black">
-      {/* Background */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-linear-to-b/srgb from-black via-black to-purple-950/30" />
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-purple-500/8 rounded-full blur-[150px]" />
-      </div>
-
-      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-24">
-        {/* Nav */}
-        <motion.nav {...fadeUp} className="flex items-center justify-between mb-16">
-          <motion.button
-            whileHover={{ scale: 1.05, x: -3 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-white/50 hover:text-white transition-colors"
-          >
-            <ArrowLeft size={18} />
-            <span className="text-sm">Back</span>
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => navigate('/features')}
-            className="text-sm text-white/40 hover:text-white/70 transition-colors"
-          >
-            View all features
-          </motion.button>
-        </motion.nav>
-
-        {/* Hero */}
-        <motion.header {...fadeUp} transition={{ delay: 0.1 }} className="text-center mb-20">
-          <h1 className="text-5xl sm:text-7xl font-bold text-white mb-6 tracking-tight">
-            Meet the <span className="bg-linear-to-r/srgb from-purple-400 to-violet-400 bg-clip-text text-transparent">Personas</span>
-          </h1>
-          <p className="text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
-            TimeMachine AI gives you three distinct intelligences — each built for a different side of you. Switch anytime. One app, many minds.
-          </p>
-        </motion.header>
-
-        {/* TimeMachine Air */}
-        <motion.section
-          {...fadeUp}
-          transition={{ delay: 0.15 }}
-          className="mb-8"
-        >
-          <div className="relative overflow-hidden rounded-3xl p-8 sm:p-12"
-            style={{
-              background: 'linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgb(var(--tm-paper-rgb) / 0.4) 100%)',
-              border: '1px solid rgba(168,85,247,0.15)',
-            }}
-          >
-            <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-purple-500/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
-            <div className="relative">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-purple-400" />
-                </div>
-                <span className="text-purple-400/60 text-sm font-medium uppercase tracking-widest">Default Persona</span>
-              </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">TimeMachine Air</h2>
-              <p className="text-white/40 text-sm mb-6">Fastest intelligence in the world for everyday use</p>
-              <p className="text-white/60 text-base sm:text-lg leading-relaxed max-w-2xl">
-                TimeMachine Air is your everyday AI companion — supercomputer speed in your pocket. Designed for instant answers, creative brainstorming, writing help, and casual conversations. Air responds at lightning speed without compromising intelligence. It's the persona that's always ready, always fast, always on.
-              </p>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* TimeMachine Girlie */}
-        <motion.section
-          {...fadeUp}
-          transition={{ delay: 0.2 }}
-          className="mb-8"
-        >
-          <div className="relative overflow-hidden rounded-3xl p-8 sm:p-12"
-            style={{
-              background: 'linear-gradient(135deg, rgba(236,72,153,0.12) 0%, rgb(var(--tm-paper-rgb) / 0.4) 100%)',
-              border: '1px solid rgba(236,72,153,0.15)',
-            }}
-          >
-            <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-pink-500/10 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2" />
-            <div className="relative">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center">
-                  <Heart className="w-5 h-5 text-pink-400" />
-                </div>
-                <span className="text-pink-400/60 text-sm font-medium uppercase tracking-widest">Expressive Persona</span>
-              </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">TimeMachine Girlie</h2>
-              <p className="text-white/40 text-sm mb-6">The intelligence that gets the vibe check</p>
-              <p className="text-white/60 text-base sm:text-lg leading-relaxed max-w-2xl">
-                TimeMachine Girlie understands the vibe. She's not just smart — she gets you. Built for those moments when you need someone who speaks your language, hypes you up, and keeps the energy right. From life advice to outfit inspo to late-night rants, Girlie brings personality, warmth, and a whole lot of sparkle to every conversation.
-              </p>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* TimeMachine PRO */}
-        <motion.section
-          {...fadeUp}
-          transition={{ delay: 0.25 }}
-          className="mb-16"
-        >
-          <div className="relative overflow-hidden rounded-3xl p-8 sm:p-12"
-            style={{
-              background: 'linear-gradient(135deg, rgba(34,211,238,0.12) 0%, rgb(var(--tm-paper-rgb) / 0.4) 100%)',
-              border: '1px solid rgba(34,211,238,0.15)',
-            }}
-          >
-            <div className="absolute top-0 left-0 w-[300px] h-[300px] bg-cyan-500/10 rounded-full blur-[100px] -translate-y-1/2 -translate-x-1/2" />
-            <div className="relative">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                  <Brain className="w-5 h-5 text-cyan-400" />
-                </div>
-                <span className="text-cyan-400/60 text-sm font-medium uppercase tracking-widest">Advanced Persona</span>
-              </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">TimeMachine PRO</h2>
-              <p className="text-white/40 text-sm mb-6">Our most technologically advanced intelligence with human-like emotions and thinking</p>
-              <p className="text-white/60 text-base sm:text-lg leading-relaxed max-w-2xl mb-6">
-                TimeMachine PRO is the most powerful intelligence we've ever built. It doesn't just respond — it thinks, reasons, and understands with human-like emotional depth. PRO is designed for deep work: complex analysis, strategic planning, code review, research, and conversations that matter. Switch on Max Mode and it becomes a coding agent: a project workspace on your device, files it reads and edits, a Node runtime it tests in, and pull requests it opens on GitHub.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {['Conservative', 'Balanced', 'Direct', 'Bold', 'Maximum'].map((level, i) => (
-                  <span
-                    key={level}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium"
-                    style={{
-                      background: `rgba(34,211,238,${0.08 + i * 0.04})`,
-                      border: '1px solid rgba(34,211,238,0.15)',
-                      color: `rgba(34,211,238,${0.5 + i * 0.12})`,
-                    }}
-                  >
-                    Level {i + 1}: {level}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </motion.section>
-
-
-        {/* CTA */}
-        <motion.div {...fadeUp} transition={{ delay: 0.35 }} className="text-center mt-16">
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigate('/')}
-            className="px-8 py-4 rounded-2xl text-white font-semibold text-base"
-            style={{
-              background: 'linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(139,92,246,0.2) 100%)',
-              border: '1px solid rgba(168,85,247,0.25)',
-            }}
-          >
-            Start chatting now
-          </motion.button>
+    <MarketingShell hue="236 72 153">
+      {/* ── Hero ────────────────────────────────────────────────── */}
+      <section className="mx-auto max-w-6xl px-5 sm:px-8">
+        <motion.div {...reveal()}>
+          <Display className="max-w-3xl text-[2.9rem] leading-[1] sm:text-6xl lg:text-[76px]">
+            Three minds,
+            <br />
+            <em>one conversation.</em>
+          </Display>
         </motion.div>
-      </div>
-    </div>
+        <motion.p {...reveal(0.06)} className="mt-6 max-w-xl text-lg leading-relaxed text-white/60 sm:text-xl">
+          Each mind opens the conversation in its own words and has its own strengths. Start a message with{' '}
+          <span className="font-mono text-[0.95em] text-white/85">@girlie</span> or{' '}
+          <span className="font-mono text-[0.95em] text-white/85">@pro</span> and that one answers, in the same thread.
+        </motion.p>
+      </section>
+
+      {/* ── The three plates ──────────────────────────────────────── */}
+      <section className="mx-auto max-w-6xl px-5 pt-16 sm:px-8 lg:pt-20" aria-label="The personas">
+        <div className="flex flex-col gap-6">
+          {MINDS.map((m, i) => (
+            <motion.article
+              key={m.key}
+              {...reveal(0.05)}
+              className="tm-panel relative grid overflow-hidden rounded-3xl lg:grid-cols-[1fr_1.1fr]"
+              aria-labelledby={`persona-${m.key}`}
+            >
+              <Glow hue={m.hue} className={`top-1/2 h-[60vmax] w-[60vmax] -translate-y-1/2 ${i % 2 === 0 ? 'left-[-20%]' : 'right-[-20%]'}`} alpha={0.1} />
+              <div className={`relative flex items-center justify-center p-6 sm:p-10 ${i % 2 === 1 ? 'lg:order-2' : ''}`}>
+                <img src={m.art} alt={m.alt} width={556} height={700} loading={i === 0 ? 'eager' : 'lazy'} className="tm-art max-h-[360px] w-auto" />
+              </div>
+              <div className={`relative border-t p-7 sm:p-10 lg:border-l lg:border-t-0 ${i % 2 === 1 ? 'lg:order-1 lg:border-l-0 lg:border-r' : ''}`} style={{ borderColor: 'rgb(var(--tm-ink-rgb) / 0.08)' }}>
+                <p className="text-sm font-semibold" style={{ color: `rgb(${m.hue})` }}>{m.role}</p>
+                <Display as="h2" id={`persona-${m.key}`} className="mt-2 text-4xl leading-[1] sm:text-5xl">
+                  {AI_PERSONAS[m.key].name.replace('TimeMachine ', '')}
+                </Display>
+                <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-white/65">{m.body}</p>
+                <ul className="mt-6 flex flex-wrap gap-2">
+                  {m.good.map((g) => (
+                    <li key={g} className="tm-glass tm-glass-pill rounded-full px-3.5 py-1.5 text-sm text-white/80">{g}</li>
+                  ))}
+                </ul>
+                <p className="mt-6 font-mono text-sm text-white/40">“{AI_PERSONAS[m.key].initialMessage}”</p>
+                <button
+                  onClick={() => sendFirst(m.key === 'default' ? 'Hey' : `@${m.key} Hey`)}
+                  className="group mt-6 inline-flex items-center gap-1.5 text-sm transition-colors hover:text-white"
+                  style={{ color: `rgb(${m.hue})` }}
+                >
+                  Say hi to {AI_PERSONAS[m.key].name.replace('TimeMachine ', '')} <Arrow />
+                </button>
+              </div>
+            </motion.article>
+          ))}
+        </div>
+
+        <FeatureList
+          label="How switching works"
+          items={[
+            ['@mentions', 'Start a message with @girlie or @pro and that mind takes the turn, mid-conversation. The rest of the chat stays with the mind you chose.'],
+            ['Persona menu', 'Tap the name at the top of the chat to change the mind for the whole conversation.'],
+            ['Girlie and PRO need an ID', 'Air is free to try without an account. Girlie and PRO answer once you have a free TimeMachine ID.'],
+          ]}
+        />
+      </section>
+
+      {/* ── Max Mode callout ─────────────────────────────────────── */}
+      <section className="relative mx-auto max-w-6xl px-5 pt-20 sm:px-8 lg:pt-28" aria-labelledby="p-max">
+        <div className="tm-panel relative grid overflow-hidden rounded-3xl lg:grid-cols-[1fr_1.2fr]">
+          <Glow hue="34 211 238" className="right-[-10%] top-1/2 h-[60vmax] w-[60vmax] -translate-y-1/2" alpha={0.08} />
+          <div className="relative p-7 sm:p-10">
+            <p className="text-sm font-semibold text-cyan-300">PRO only</p>
+            <Display as="h2" id="p-max" className="mt-2 text-4xl leading-[1] sm:text-5xl">
+              Max Mode
+            </Display>
+            <p className="mt-4 max-w-md text-[17px] leading-relaxed text-white/65">
+              Flip it on and PRO reads, edits and runs code in a workspace on your device, previews the result, and opens the pull request on GitHub when it&apos;s done.
+            </p>
+            <button onClick={() => navigate('/features')} className="group mt-6 inline-flex items-center gap-1.5 text-sm text-white/70 transition-colors hover:text-white">
+              See it in Features <Arrow />
+            </button>
+          </div>
+          <figure className="relative m-0 border-t lg:border-l lg:border-t-0" style={{ borderColor: 'rgb(var(--tm-ink-rgb) / 0.08)' }}>
+            <img
+              src="/landing/screen-maxmode.webp"
+              alt="Max Mode in Auto: PRO writing the files for a 3D racing game beside the workspace editor."
+              width={2000}
+              height={1412}
+              loading="lazy"
+              className="block h-full w-full object-cover object-left-top"
+            />
+          </figure>
+        </div>
+      </section>
+
+      {/* ── Close ────────────────────────────────────────────────── */}
+      <section className="mx-auto max-w-6xl px-5 pt-24 sm:px-8 lg:pt-32">
+        <motion.div {...reveal()}>
+          <Display as="h2" className="max-w-2xl text-5xl leading-[0.98] sm:text-7xl">
+            Pick a mind, <em>say hi.</em>
+          </Display>
+        </motion.div>
+        <motion.div {...reveal(0.08)} className="mt-8 flex flex-wrap items-center gap-3">
+          <button onClick={startChatting} className="tm-press inline-flex items-center gap-2 rounded-full bg-pill px-6 py-3 text-base font-medium text-pill-ink hover:opacity-90">
+            Start chatting <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <span className="text-sm text-white/40">Free to try, no account needed.</span>
+        </motion.div>
+      </section>
+    </MarketingShell>
   );
 }

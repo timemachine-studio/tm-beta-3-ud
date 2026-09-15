@@ -1,243 +1,181 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Terminal,
-  Users,
-  HeartPulse,
-  Image,
-  Music,
-  BrainCircuit,
-  Mic,
-  Palette,
-  Wrench,
-  Globe,
-  Sparkles,
-} from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { Arrow, Display, FeatureList, Glow, MarketingShell } from '../landing/MarketingShell';
+import { useEnterApp, useReveal } from '../landing/marketing';
 
-const fadeUp = {
-  initial: { opacity: 0, y: 30 },
-  animate: { opacity: 1, y: 0 },
-};
+/* Every feature the chat holds, each with its own plate. Copy stays literally
+   true — see CLAUDE.md on privacy claims. */
 
-const glassCard = {
-  background: 'rgb(var(--tm-ink-rgb) / 0.03)',
-  border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
-};
-
-interface FeatureCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  accent: string;
-  delay: number;
-}
-
-function FeatureCard({ icon, title, description, accent, delay }: FeatureCardProps) {
-  return (
-    <motion.article
-      {...fadeUp}
-      transition={{ delay }}
-      whileHover={{ y: -4, scale: 1.01 }}
-      className="rounded-3xl p-6 sm:p-8 h-full"
-      style={glassCard}
-    >
-      <div
-        className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5"
-        style={{ background: `${accent}15` }}
-      >
-        {icon}
-      </div>
-      <h3 className="text-lg sm:text-xl font-bold text-white mb-3">{title}</h3>
-      <p className="text-white/45 text-sm sm:text-base leading-relaxed">{description}</p>
-    </motion.article>
-  );
-}
+const TILES = [
+  ['Contour', 'Type / and thirty tools open inside the chat: calculator, converters, timer, translator, JSON, regex, notes, events.', '/landing/icon-contour.webp', '168 85 247'],
+  ['Memory', 'Tell it once. Facts and preferences carry across chats, and you can read and delete every entry.', '/landing/icon-memory.webp', '168 85 247'],
+  ['Flight Controls', 'Turn tools, web search and MCP servers on or off, per conversation.', '/landing/icon-flight.webp', '52 211 153'],
+  ['Notes', 'A block editor for thoughts, lists and tables. The AI can search them when you ask.', '/landing/tile-1.webp', '168 85 247'],
+  ['Group chat', 'One conversation, your friends, the same AI in the room. Share a link to invite.', '/landing/tile-2.webp', '96 165 250'],
+  ['TM Healthcare', 'Medicines, generics, dosages and side effects from a real drug index.', '/landing/tile-3.webp', '248 113 113'],
+  ['Images', 'Describe it and it appears in the chat. Everything you make lands in your album.', '/landing/tile-4.webp', '251 191 36'],
+  ['Album', 'Every generated and uploaded image, kept in one place.', '/landing/icon-album.webp', '236 72 153'],
+  ['Music', 'A player that follows the mood of the conversation.', '/landing/tile-5.webp', '236 72 153'],
+  ['Voice', 'Talk, watch the transcript appear, edit it, then send.', '/landing/tile-6.webp', '34 211 238'],
+  ['Web coding mode', 'Build small web pages in the chat and preview them live.', '/landing/icon-webcode.webp', '34 211 238'],
+  ['Themes', 'Seasons in dark, a paper-warmth slider in light, and a pure black mode.', '/landing/icon-themes.webp', '251 191 36'],
+] as const;
 
 export function FeaturesPage() {
   const navigate = useNavigate();
+  const { reveal } = useReveal();
+  const { startChatting } = useEnterApp();
 
   return (
-    <div className="min-h-screen relative overflow-auto bg-black">
-      {/* Background */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-linear-to-b/srgb from-black via-black to-violet-950/20" />
-        <div className="absolute top-[60%] left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-violet-500/6 rounded-full blur-[150px]" />
-      </div>
-
-      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-24">
-        {/* Nav */}
-        <motion.nav {...fadeUp} className="flex items-center justify-between mb-16">
-          <motion.button
-            whileHover={{ scale: 1.05, x: -3 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-white/50 hover:text-white transition-colors"
-          >
-            <ArrowLeft size={18} />
-            <span className="text-sm">Back</span>
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => navigate('/about')}
-            className="text-sm text-white/40 hover:text-white/70 transition-colors"
-          >
-            About us
-          </motion.button>
-        </motion.nav>
-
-        {/* Hero */}
-        <motion.header {...fadeUp} transition={{ delay: 0.1 }} className="text-center mb-20">
-          <h1 className="text-5xl sm:text-7xl font-bold text-white mb-6 tracking-tight">
-            Everything you need.<br />
-            <span className="bg-linear-to-r/srgb from-violet-400 to-purple-400 bg-clip-text text-transparent">One chat.</span>
-          </h1>
-          <p className="text-lg sm:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
-            TimeMachine is more than a chat app. It's an intelligent platform packed with tools, AI models, and features that replace a dozen apps on your phone.
-          </p>
-        </motion.header>
-
-        {/* Main Features Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          <FeatureCard
-            icon={<Terminal className="w-6 h-6 text-emerald-400" />}
-            title="TimeMachine Contour"
-            description="A powerful command palette with 30+ built-in tools. Calculator, unit converter, JSON formatter, hash generator, regex tester, translator, timer, and more — all accessible by typing / in chat. No extra apps needed."
-            accent="#34d399"
-            delay={0.15}
-          />
-          <FeatureCard
-            icon={<Users className="w-6 h-6 text-blue-400" />}
-            title="Group Chat"
-            description="Invite friends into a shared AI conversation. Chat together in real-time with the same AI persona. Share links, react to messages, and collaborate on anything from homework to trip planning."
-            accent="#60a5fa"
-            delay={0.2}
-          />
-          <FeatureCard
-            icon={<HeartPulse className="w-6 h-6 text-red-400" />}
-            title="TM Healthcare"
-            description="A dedicated health and wellness assistant built into TimeMachine. Get thoughtful guidance on health topics, wellness tips, and general medical information in a safe, private environment."
-            accent="#f87171"
-            delay={0.25}
-          />
-          <FeatureCard
-            icon={<Image className="w-6 h-6 text-amber-400" />}
-            title="Image Generation"
-            description="Describe any image and TimeMachine brings it to life. Generated images are automatically saved to your personal album. Create art, visualize ideas, or generate content — all inside chat."
-            accent="#fbbf24"
-            delay={0.3}
-          />
-        </section>
-
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-16">
-          <FeatureCard
-            icon={<Music className="w-6 h-6 text-pink-400" />}
-            title="Music Streaming"
-            description="Mood-responsive music that adapts to your conversation. Built-in YouTube player with persona-based ambient soundscapes."
-            accent="#f472b6"
-            delay={0.35}
-          />
-          <FeatureCard
-            icon={<BrainCircuit className="w-6 h-6 text-violet-400" />}
-            title="Memory System"
-            description="TimeMachine remembers your preferences, facts, and instructions across conversations. It learns who you are and gets better over time."
-            accent="#8b5cf6"
-            delay={0.4}
-          />
-          <FeatureCard
-            icon={<Mic className="w-6 h-6 text-orange-400" />}
-            title="Voice Input"
-            description="Talk instead of type. Transcribe your speech live into the text bar, then review or edit it before sending."
-            accent="#fb923c"
-            delay={0.45}
-          />
-        </section>
-
-        {/* More features */}
-        <motion.section {...fadeUp} transition={{ delay: 0.5 }} className="mb-16">
-          <div className="rounded-3xl p-8 sm:p-10" style={glassCard}>
-            <h2 className="text-xl font-bold text-white mb-6">And so much more</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-              {[
-                { icon: <Palette className="w-4 h-4 text-purple-400" />, text: 'Seasonal themes, dark mode, light mode, monochrome' },
-                { icon: <Globe className="w-4 h-4 text-blue-400" />, text: 'Switch persona mid-conversation with @mentions' },
-                { icon: <Wrench className="w-4 h-4 text-emerald-400" />, text: 'Web coding mode for developers' },
-                { icon: <Sparkles className="w-4 h-4 text-amber-400" />, text: 'Music composition and creative writing' },
-                { icon: <Image className="w-4 h-4 text-pink-400" />, text: 'Personal album for all generated and uploaded images' },
-                { icon: <BrainCircuit className="w-4 h-4 text-violet-400" />, text: 'Chat history with full session restore' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-start gap-3 py-2">
-                  <div className="mt-0.5">{item.icon}</div>
-                  <p className="text-white/50 text-sm">{item.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.section>
-
-        {/* Personas Preview */}
-        <motion.section {...fadeUp} transition={{ delay: 0.55 }}>
-          <div className="text-center mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Three intelligences. Your choice.</h2>
-            <p className="text-white/40 max-w-lg mx-auto">
-              TimeMachine AI personas are built for different sides of you. Explore them all.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            {[
-              { name: 'TimeMachine Air', tag: 'Everyday speed', color: '#a855f7' },
-              { name: 'TimeMachine Girlie', tag: 'Gets the vibe', color: '#ec4899' },
-              { name: 'TimeMachine PRO', tag: 'Deep intelligence', color: '#22d3ee' },
-            ].map((persona) => (
-              <div
-                key={persona.name}
-                className="rounded-2xl p-6 text-center"
-                style={{
-                  background: `linear-gradient(135deg, ${persona.color}10 0%, rgb(var(--tm-paper-rgb) / 0.3) 100%)`,
-                  border: `1px solid ${persona.color}18`,
-                }}
-              >
-                <h3 className="text-white font-bold mb-1">{persona.name}</h3>
-                <p className="text-white/35 text-sm">{persona.tag}</p>
-              </div>
-            ))}
-          </div>
-          <div className="text-center">
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate('/personas')}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white/70 hover:text-white text-sm font-medium transition-colors"
-              style={{
-                background: 'rgb(var(--tm-ink-rgb) / 0.04)',
-                border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
-              }}
-            >
-              Explore all personas
-              <ArrowRight size={16} />
-            </motion.button>
-          </div>
-        </motion.section>
-
-        {/* CTA */}
-        <motion.div {...fadeUp} transition={{ delay: 0.6 }} className="text-center mt-16">
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigate('/')}
-            className="px-8 py-4 rounded-2xl text-white font-semibold text-base"
-            style={{
-              background: 'linear-gradient(135deg, rgba(139,92,246,0.3) 0%, rgba(124,58,237,0.2) 100%)',
-              border: '1px solid rgba(139,92,246,0.25)',
-            }}
-          >
-            Try TimeMachine now
-          </motion.button>
+    <MarketingShell hue="168 85 247">
+      {/* ── Hero ────────────────────────────────────────────────── */}
+      <section className="mx-auto max-w-6xl px-5 sm:px-8">
+        <motion.div {...reveal()}>
+          <Display className="max-w-3xl text-[2.9rem] leading-[1] sm:text-6xl lg:text-[76px]">
+            Everything you need,
+            <br />
+            <em>in one chat.</em>
+          </Display>
         </motion.div>
-      </div>
-    </div>
+        <motion.p {...reveal(0.06)} className="mt-6 max-w-xl text-lg leading-relaxed text-white/60 sm:text-xl">
+          TimeMachine replaces a dozen apps with one conversation: three minds, a coding agent, thirty tools, notes, images, music — and a privacy policy you can actually read.
+        </motion.p>
+        <motion.div {...reveal(0.1)} className="mt-8 flex flex-wrap items-center gap-3">
+          <button onClick={startChatting} className="tm-press inline-flex items-center gap-2 rounded-full bg-pill px-5 py-2.5 text-sm font-medium text-pill-ink hover:opacity-90">
+            Start chatting <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button onClick={() => navigate('/personas')} className="group inline-flex items-center gap-1.5 px-2 text-sm text-white/70 transition-colors hover:text-white">
+            Meet the personas <Arrow />
+          </button>
+        </motion.div>
+      </section>
+
+      {/* ── Contour ──────────────────────────────────────────────── */}
+      <section className="relative mx-auto max-w-6xl px-5 pt-20 sm:px-8 lg:pt-28" aria-labelledby="f-contour">
+        <Glow hue="168 85 247" className="left-[-10%] top-[40%] h-[50vmax] w-[50vmax]" alpha={0.08} />
+        <div className="relative">
+          <motion.div {...reveal()}>
+            <Display as="h2" id="f-contour" className="max-w-2xl text-[2.5rem] leading-[1] sm:text-5xl lg:text-[60px]">
+              Type <span className="font-mono text-[0.8em] text-white/70">/</span> and the tools <em>come to you.</em>
+            </Display>
+          </motion.div>
+          <motion.p {...reveal(0.06)} className="mt-5 max-w-xl text-lg leading-relaxed text-white/60">
+            Contour is a command palette inside the chat. Calculator, unit and currency converters, timezone and colour converters, a timer, a translator, JSON and regex tools, quick notes and events, a hash generator — thirty in all, no tab switching.
+          </motion.p>
+          <motion.figure {...reveal(0.1)} className="tm-panel mt-10 overflow-hidden rounded-3xl">
+            <img
+              src="/landing/screen-contour.webp"
+              alt="The Contour palette open in the chat, listing the unit, currency, timezone and colour converters."
+              width={1684}
+              height={792}
+              loading="lazy"
+              className="block w-full"
+            />
+          </motion.figure>
+        </div>
+      </section>
+
+      {/* ── Max Mode ─────────────────────────────────────────────── */}
+      <section className="relative mx-auto max-w-6xl px-5 pt-20 sm:px-8 lg:pt-28" aria-labelledby="f-max">
+        <Glow hue="34 211 238" className="right-[-10%] top-[40%] h-[60vmax] w-[60vmax]" alpha={0.08} />
+        <div className="relative">
+          <motion.div {...reveal()}>
+            <Display as="h2" id="f-max" className="max-w-2xl text-[2.5rem] leading-[1] sm:text-5xl lg:text-[60px]">
+              PRO, with its hands <em>on the keyboard.</em>
+            </Display>
+          </motion.div>
+          <motion.p {...reveal(0.06)} className="mt-5 max-w-xl text-lg leading-relaxed text-white/60">
+            Max Mode turns PRO into a coding agent. The project lives in a workspace on your device, the code runs in a Node runtime inside your browser, and when it&apos;s done it opens the pull request on GitHub.
+          </motion.p>
+          <motion.figure {...reveal(0.1)} className="tm-panel relative mt-10 overflow-hidden rounded-3xl">
+            <img
+              src="/landing/screen-maxmode.webp"
+              alt="Max Mode in Auto: PRO writing the files for a 3D racing game, with the workspace file tree and editor beside the chat."
+              width={2000}
+              height={1412}
+              loading="lazy"
+              className="block w-full"
+            />
+            <figcaption className="tm-glass absolute bottom-4 right-4 flex items-center gap-2 rounded-full py-1.5 pl-3 pr-3.5 font-sans text-xs text-white/85 sm:bottom-6 sm:right-6">
+              <span className="tm-live-dot h-2 w-2 rounded-full bg-cyan-300" />
+              A real Max Mode session · Auto
+            </figcaption>
+          </motion.figure>
+          <FeatureList
+            items={[
+              ['Plan', 'Reads and explains. Changes nothing.'],
+              ['Edit', 'Reads and writes files. Never runs anything.'],
+              ['Auto', 'The full loop: edit, run, preview, fix, repeat.'],
+              ['Workspace on your device', 'The project is stored in your browser, one workspace per chat. No upload.'],
+              ['Node runtime in the browser', 'npm install, tests and dev servers run in a WebContainer, with a live preview.'],
+              ['GitHub', 'Clone a repository, commit to a branch, or open a pull request for review.'],
+            ]}
+            label="Max Mode"
+          />
+        </div>
+      </section>
+
+      {/* ── Everything else ─────────────────────────────────────── */}
+      <section className="relative mx-auto max-w-6xl px-5 pt-20 sm:px-8 lg:pt-28" aria-labelledby="f-all">
+        <motion.div {...reveal()}>
+          <Display as="h2" id="f-all" className="max-w-2xl text-[2.5rem] leading-[1] sm:text-5xl lg:text-[60px]">
+            Already <em>in the chat.</em>
+          </Display>
+        </motion.div>
+        <motion.ul {...reveal(0.08)} className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Features">
+          {TILES.map(([name, what, src, hue]) => (
+            <li key={name} className="tm-panel group relative overflow-hidden rounded-3xl">
+              <Glow hue={hue} className="left-1/2 top-[30%] h-[220px] w-[220px] -translate-x-1/2 -translate-y-1/2" alpha={0.12} />
+              <div className="relative aspect-[3/2] w-full overflow-hidden">
+                <img src={src} alt="" width={512} height={341} loading="lazy" aria-hidden="true" className="tm-art absolute inset-0 h-full w-full object-contain transition-transform duration-500 ease-out group-hover:scale-[1.04]" />
+              </div>
+              <div className="relative border-t px-5 pb-5 pt-4" style={{ borderColor: 'rgb(var(--tm-ink-rgb) / 0.08)' }}>
+                <p className="font-semibold text-white">{name}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-white/55">{what}</p>
+              </div>
+            </li>
+          ))}
+        </motion.ul>
+      </section>
+
+      {/* ── Notes ────────────────────────────────────────────────── */}
+      <section className="relative mx-auto max-w-6xl px-5 pt-20 sm:px-8 lg:pt-28" aria-labelledby="f-notes">
+        <motion.div {...reveal()}>
+          <Display as="h2" id="f-notes" className="max-w-2xl text-[2.5rem] leading-[1] sm:text-5xl lg:text-[60px]">
+            Notes that the AI <em>can read.</em>
+          </Display>
+        </motion.div>
+        <motion.p {...reveal(0.06)} className="mt-5 max-w-xl text-lg leading-relaxed text-white/60">
+          Headings, checklists, tables, code, quotes and dividers in a block editor on your device. Ask the chat to search or update them and it does, without the notes ever leaving your browser to be stored anywhere else.
+        </motion.p>
+        <motion.figure {...reveal(0.1)} className="tm-panel mt-10 overflow-hidden rounded-3xl">
+          <img
+            src="/landing/screen-notes.webp"
+            alt="TimeMachine Notes with a Kyoto trip note open: headings, a checklist, a bullet list and a quote, and the Notes composer below."
+            width={2848}
+            height={1800}
+            loading="lazy"
+            className="block w-full"
+          />
+        </motion.figure>
+      </section>
+
+      {/* ── Close ────────────────────────────────────────────────── */}
+      <section className="mx-auto max-w-6xl px-5 pt-24 sm:px-8 lg:pt-32">
+        <motion.div {...reveal()}>
+          <Display as="h2" className="max-w-2xl text-5xl leading-[0.98] sm:text-7xl">
+            Try it <em>now.</em>
+          </Display>
+        </motion.div>
+        <motion.div {...reveal(0.08)} className="mt-8 flex flex-wrap items-center gap-3">
+          <button onClick={startChatting} className="tm-press inline-flex items-center gap-2 rounded-full bg-pill px-6 py-3 text-base font-medium text-pill-ink hover:opacity-90">
+            Start chatting <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <span className="text-sm text-white/40">Free to try, no account needed.</span>
+        </motion.div>
+      </section>
+    </MarketingShell>
   );
 }
