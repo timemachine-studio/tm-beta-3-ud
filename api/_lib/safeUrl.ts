@@ -15,9 +15,22 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
-/** Loopback, link-local, private, and the unspecified address. */
+/** Loopback, link-local, private, carrier-grade NAT, and the unspecified address. */
 export function isPrivateAddress(address: string): boolean {
-  if (address === '::1' || address.startsWith('fe80:') || address.startsWith('fc') || address.startsWith('fd')) return true;
+  const lower = address.toLowerCase();
+  if (lower === '::' || lower === '::1' || lower.startsWith('fe80:') || lower.startsWith('fc') || lower.startsWith('fd')) return true;
+  // An IPv4 address can be written as IPv6 (`::ffff:127.0.0.1`, or the hex
+  // form `::ffff:7f00:1`). Node's isIP calls both v6, and the dotted check
+  // below would not see them (pre-launch-audit.md A.16).
+  const mapped = lower.match(/^(?:0*:)*ffff:(.+)$/);
+  if (mapped) {
+    const tail = mapped[1];
+    if (tail.includes('.')) return isPrivateAddress(tail);
+    const [hi, lo] = tail.split(':').map(part => parseInt(part, 16));
+    if (Number.isFinite(hi) && Number.isFinite(lo)) {
+      return isPrivateAddress(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+    }
+  }
   const parts = address.split('.').map(Number);
   if (parts.length !== 4 || parts.some(Number.isNaN)) return false;
   return parts[0] === 10
@@ -25,6 +38,8 @@ export function isPrivateAddress(address: string): boolean {
     || (parts[0] === 169 && parts[1] === 254)
     || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31)
     || (parts[0] === 192 && parts[1] === 168)
+    // 100.64.0.0/10 — shared address space; some clouds put metadata here.
+    || (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127)
     || parts[0] === 0;
 }
 

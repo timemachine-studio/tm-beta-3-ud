@@ -91,7 +91,7 @@ const faqs: FAQItem[] = [
     category: 'Privacy',
     icon: <Shield className="w-5 h-5" />,
     question: 'Is my data private?',
-    answer: 'Yes! Your conversations are private and only visible to you (and group members in group chats). We don\'t sell your data or use it for advertising. You can delete your history anytime.'
+    answer: 'Your chat history is only visible to you (and to group members in group chats). To generate a reply, each message is sent to one of the AI providers named in our Privacy Policy — we don\'t run our own models. We don\'t sell your data or use it for advertising, and you can delete your history anytime.'
   },
   {
     category: 'Privacy',

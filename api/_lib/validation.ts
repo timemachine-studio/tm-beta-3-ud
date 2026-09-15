@@ -75,9 +75,14 @@ export function bodyTooLarge(req: VercelRequest): boolean {
   }
 }
 
-/** Hosts we are willing to hand to an upstream image pipeline. */
+/**
+ * Hosts we are willing to hand to an upstream image pipeline: our own Supabase
+ * storage, plus anything in ALLOWED_IMAGE_HOSTS. ImgBB used to be listed here
+ * because the client uploaded anonymous photos there; it no longer does
+ * (pre-launch-audit.md A.1).
+ */
 function allowedImageHosts(): string[] {
-  const hosts = new Set<string>(['i.ibb.co', 'ibb.co']);
+  const hosts = new Set<string>();
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   if (supabaseUrl) {
     try { hosts.add(new URL(supabaseUrl).host); } catch { /* malformed env */ }

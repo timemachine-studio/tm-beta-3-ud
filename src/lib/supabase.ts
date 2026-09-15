@@ -34,7 +34,8 @@ export const uploadImage = async (
 ): Promise<{ url: string; path: string } | null> => {
   try {
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    // The bucket serves public URLs, so the path must not be guessable.
+    const fileName = `${crypto.randomUUID()}.${fileExt}`;
     const filePath = userId ? `${userId}/${fileName}` : `anonymous/${fileName}`;
 
     const { error: uploadError } = await supabase.storage

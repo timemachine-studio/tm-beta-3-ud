@@ -13,7 +13,7 @@ import {
 } from './vision.js';
 
 const DATA_URL = 'data:image/png;base64,AAAA';
-const HOSTED = 'https://i.ibb.co/abc/photo.png';
+const HOSTED = 'https://example.supabase.co/storage/v1/object/public/user-images/abc/photo.png';
 
 const userTurn = (content: string): ProviderMessage[] => ([
   { role: 'system', content: 'system prompt' },

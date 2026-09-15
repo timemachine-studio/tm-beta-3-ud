@@ -15,6 +15,24 @@ export type BlockType =
   | 'graph'
   | 'table';
 
+/**
+ * Block types the Notes AI co-pilot may create or convert to. Text-shaped
+ * only: the media and structured blocks (`doodle`, `image`, `graph`,
+ * `table`) carry payloads the editor interprets, and letting model output
+ * choose those types with arbitrary content is how a prompt-injected note
+ * reached the graph evaluator (pre-launch-audit.md A.3).
+ */
+export const AI_WRITABLE_BLOCK_TYPES: ReadonlySet<BlockType> = new Set<BlockType>([
+  'text', 'heading1', 'heading2', 'heading3', 'bullet-list', 'numbered-list',
+  'todo', 'quote', 'code', 'divider', 'callout',
+]);
+
+export function aiBlockType(candidate: unknown): BlockType | undefined {
+  return typeof candidate === 'string' && AI_WRITABLE_BLOCK_TYPES.has(candidate as BlockType)
+    ? (candidate as BlockType)
+    : undefined;
+}
+
 export interface Block {
   id: string;
   type: BlockType;

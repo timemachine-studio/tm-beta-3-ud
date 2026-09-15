@@ -352,21 +352,25 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
           const base64Images = await Promise.all(outgoingImages.map(convertImageToBase64));
 
-          // Upload images using the new service (uses Supabase for logged in users, ImgBB for anonymous)
-          const uploadResults = await Promise.all(
-            base64Images.map(base64Image => uploadImage(base64Image, user?.id))
-          );
-
-          const successfulUploads = uploadResults.filter(result => result.success);
-
-          if (successfulUploads.length === 0) {
-            alert('Failed to upload images. Please try again.');
-            setIsUploading(false);
-            restoreComposer();
-            return;
+          // Signed-in images are uploaded to the user's own Supabase storage
+          // so image-edit tools have a hosted URL to hand upstream. Anonymous
+          // images are not uploaded anywhere: they travel inline as data URLs,
+          // which the server accepts and transcribes (pre-launch-audit.md A.1 —
+          // the old fallback put them on a public third-party host).
+          let publicUrls: string[] | undefined;
+          if (user?.id) {
+            const uploadResults = await Promise.all(
+              base64Images.map(base64Image => uploadImage(base64Image, user.id))
+            );
+            const successfulUploads = uploadResults.filter(result => result.success);
+            if (successfulUploads.length === 0) {
+              alert('Failed to upload images. Please try again.');
+              setIsUploading(false);
+              restoreComposer();
+              return;
+            }
+            publicUrls = successfulUploads.map(result => result.url);
           }
-
-          const publicUrls = successfulUploads.map(result => result.url);
 
           setIsUploading(false);
           await onSendMessage(outgoingMessage, base64Images, publicUrls, firstImageDimensions, undefined, activeMode);

@@ -44,7 +44,9 @@ import SendIcon from '../icons/SendIcon';
 import { useTheme } from '../../context/ThemeContext';
 import { sendNotesAIRequest } from '../../services/ai/notesAiService';
 import { renderInline } from './renderInline';
+import { compileMathExpression } from '../../utils/mathExpression';
 import {
+  aiBlockType,
   createInitialNotesState,
   type Block,
   type BlockType,
@@ -726,55 +728,9 @@ function ImageBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCont
 // ─── graph block ─────────────────────────────────────────────────────
 
 // Convert natural math notation to JS-evaluable expression
-function parseMathExpr(input: string): string {
-  if (!input.trim()) return '';
-  let s = input.trim();
-
-  // Strip "y =", "f(x) =", "g(x) =" prefixes
-  s = s.replace(/^\s*[yfg]\s*\(\s*x\s*\)\s*=\s*/i, '');
-  s = s.replace(/^\s*y\s*=\s*/i, '');
-
-  // Handle |expr| → abs(expr), iteratively for nested
-  let prev = '';
-  while (prev !== s) { prev = s; s = s.replace(/\|([^|]+)\|/, 'abs($1)'); }
-
-  // Replace ^ with ** (before function names to avoid conflict)
-  s = s.replace(/\^/g, '**');
-
-  // Replace functions — longer/specific names first to avoid partial replacement
-  const fns: [RegExp, string][] = [
-    [/\bsqrt\b/g, 'Math.sqrt'], [/\bcbrt\b/g, 'Math.cbrt'],
-    [/\bsinh\b/g, 'Math.sinh'], [/\bcosh\b/g, 'Math.cosh'], [/\btanh\b/g, 'Math.tanh'],
-    [/\basin\b/g, 'Math.asin'], [/\bacos\b/g, 'Math.acos'], [/\batan2\b/g, 'Math.atan2'], [/\batan\b/g, 'Math.atan'],
-    [/\bsin\b/g,  'Math.sin'],  [/\bcos\b/g,  'Math.cos'],  [/\btan\b/g,  'Math.tan'],
-    [/\babs\b/g,  'Math.abs'],  [/\bsign\b/g, 'Math.sign'], [/\bhypot\b/g, 'Math.hypot'],
-    [/\bln\b/g,   'Math.log'],  [/\blog10\b/g,'Math.log10'],[/\blog2\b/g, 'Math.log2'],
-    [/\blog\b/g,  'Math.log10'],[/\bexp\b/g,  'Math.exp'],
-    [/\bceil\b/g, 'Math.ceil'], [/\bfloor\b/g,'Math.floor'],[/\bround\b/g,'Math.round'],
-    [/\btrunc\b/g,'Math.trunc'],[/\bpow\b/g,  'Math.pow'],  [/\bmax\b/g,  'Math.max'],
-    [/\bmin\b/g,  'Math.min'],  [/\bmod\b/g,  '%'],
-  ];
-  for (const [re, rep] of fns) s = s.replace(re, rep);
-
-  // Replace constants
-  s = s.replace(/\bpi\b/gi, 'Math.PI');
-  s = s.replace(/π/g, 'Math.PI');
-  s = s.replace(/\be\b/g, 'Math.E');
-  s = s.replace(/∞/g, 'Infinity');
-
-  // Implicit multiplication (after function/constant replacement)
-  s = s.replace(/(\d)(x)(?!\w)/g, '$1*$2');            // 3x → 3*x
-  s = s.replace(/(\d)\s*\(/g, '$1*(');                  // 3( → 3*(
-  s = s.replace(/\)\s*\(/g, ')*(');                     // )( → )*(
-  s = s.replace(/\)\s*x(?!\w)/g, ')*x');               // )x → )*x
-  s = s.replace(/\)\s*(\d)/g, ')*$1');                  // )3 → )*3
-  s = s.replace(/x\s*\(/g, 'x*(');                      // x( → x*(
-  s = s.replace(/(\d)\s*(Math\.)/g, '$1*$2');           // 3Math. → 3*Math.
-  s = s.replace(/\)\s*(Math\.)/g, ')*$2');              // )Math. → )*Math.
-  s = s.replace(/x\s*(Math\.)/g, 'x*$2');              // xMath. → x*Math.
-
-  return s;
-}
+// The expression parser lives in src/utils/mathExpression.ts. It used to be a
+// string rewriter feeding `new Function` here, which ran anything it did not
+// recognise as JavaScript (pre-launch-audit.md A.3).
 
 function formatTick(val: number): string {
   if (Math.abs(val) < 1e-10) return '0';
@@ -816,15 +772,9 @@ function GraphBlock({ block, onChange, onDelete, onDuplicate, dragControls }: Gr
   const toMathY = useCallback((sy: number) => -(sy - H / 2) / view.scale + view.cy, [view]);
 
   // Build evaluator from equation string
-  const buildEval = useCallback((eq: string): ((x: number) => number | null) | null => {
-    const js = parseMathExpr(eq);
-    if (!js) return null;
-    try {
-       
-      const fn = new Function('x', `"use strict"; try { const _v=(${js}); return (typeof _v==='number'&&isFinite(_v))?_v:null; } catch(e){return null;}`);
-      return fn as (x: number) => number | null;
-    } catch { return null; }
-  }, []);
+  const buildEval = useCallback((eq: string): ((x: number) => number | null) | null => (
+    compileMathExpression(eq)
+  ), []);
 
   // Generate SVG path — adaptive sampling with discontinuity detection
   const genPath = useCallback((evalFn: (x: number) => number | null): string => {
@@ -2159,13 +2109,16 @@ export function NotesPage() {
           originalContent: existingBlock.content,
           originalType: existingBlock.type,
           newContent: edit.newContent,
-          newType: edit.newType as BlockType | undefined,
+          newType: aiBlockType(edit.newType),
         });
 
-        // Apply the AI content immediately (will be reverted on reject)
+        // Apply the AI content immediately (will be reverted on reject). The
+        // type is validated: model output may not turn a block into a graph,
+        // table, image or doodle.
+        const newType = aiBlockType(edit.newType);
         updateBlock(edit.blockId, {
           content: edit.newContent,
-          ...(edit.newType ? { type: edit.newType as BlockType } : {}),
+          ...(newType ? { type: newType } : {}),
         });
       }
 
@@ -2176,16 +2129,17 @@ export function NotesPage() {
 
         for (const nb of response.newBlocks) {
           const tempId = uid();
+          const blockType = aiBlockType(nb.type) ?? 'text';
           const newBlock: Block = {
             id: tempId,
-            type: nb.type as BlockType,
+            type: blockType,
             content: nb.content,
           };
 
           const pending: PendingNewBlock = {
             tempId,
             afterBlockId: nb.afterBlockId,
-            type: nb.type as BlockType,
+            type: blockType,
             content: nb.content,
           };
 

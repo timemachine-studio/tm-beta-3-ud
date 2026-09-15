@@ -89,7 +89,7 @@ export function AboutPage() {
             <Shield className="w-8 h-8 text-emerald-400 mb-5" />
             <h2 className="text-xl font-bold text-white mb-3">Privacy First</h2>
             <p className="text-white/45 leading-relaxed">
-              Your data is only yours. We prioritize safety and privacy over everything. We never sell your data, never train on your conversations, and never compromise your trust.
+              Your data is only yours. We prioritize safety and privacy over everything. We never sell your data, never use it for advertising, and we name every provider that processes a message in our Privacy Policy.
             </p>
           </div>
 

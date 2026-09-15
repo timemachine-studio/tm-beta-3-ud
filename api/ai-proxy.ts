@@ -3,7 +3,7 @@ import type { HealthcareBrand } from '../shared/healthcare.js';
 import type { ModelConfig, SpecialModeConfig, VisionCapability } from './_lib/providerTypes.js';
 import type { ProviderMessage, ProviderTool, ProviderRequest, ProviderResponse } from './_lib/providerTypes.js';
 import type { VercelRequest, VercelResponse } from './_lib/vercelTypes.js';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
 import { enabledMcpServers, enabledSkills, loadUserMcpServers, resolveFlightControlsCached } from './_lib/flightControls.js';
 import { discoverMcpToolsCached } from './_lib/mcpClient.js';
@@ -52,28 +52,8 @@ import {
   type VisionHop,
 } from './_lib/vision.js';
 import { aiProxyBodySchema, parseOrReject, rejectIfTooLarge } from './_lib/validation.js';
-import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 
-// Initialize Supabase client for server-side operations
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-if (!supabaseUrl) {
-  // Fail fast rather than falling back to a hardcoded project URL: a stale
-  // fallback silently points production at the wrong database.
-  throw new Error('VITE_SUPABASE_URL is not set.');
-}
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  // The anon-key fallback silently loses access to system-level tables. Since
-  // rate_limits is now RLS-locked to the service role (see
-  // supabase/migrations/rate_limits_rls.sql) and checkRateLimit fails closed,
-  // running without this key turns every request into a 503 with no obvious
-  // cause. Say so at boot rather than leaving it to be diagnosed from traffic.
-  console.error(
-    'SUPABASE_SERVICE_ROLE_KEY is not set — falling back to the anon key. ' +
-    'Rate limiting cannot read rate_limits under RLS and every request will 503.',
-  );
-}
-const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey);
+import { supabaseAdmin as supabase } from './_lib/supabaseAdmin.js';
 
 // AI Personas configuration
 export const AI_PERSONAS = {
@@ -756,337 +736,24 @@ export function formatMemoriesForContext(memories: AIMemory[], userProfile?: { n
   return context;
 }
 
-// Default rate limiting configuration (fallback when no custom limits set)
-const DEFAULT_PERSONA_LIMITS: Record<string, number> = {
-  default: parseInt(process.env.VITE_DEFAULT_PERSONA_LIMIT || '400'),
-  girlie: parseInt(process.env.VITE_GIRLIE_PERSONA_LIMIT || '70'),
-  pro: parseInt(process.env.VITE_PRO_PERSONA_LIMIT || '200'),
-};
-
-// Anonymous trial. These are the numbers the UI shows, and they are enforced
-// here — the localStorage counter in useAnonymousRateLimit is display only and
-// resets when a visitor clears site data.
-export const ANONYMOUS_PERSONA_LIMITS: Record<string, number> = {
-  default: parseInt(process.env.ANON_DEFAULT_PERSONA_LIMIT || '3'),
-  girlie: 0,
-  pro: 0,
-};
-
-export function getAnonymousLimit(persona: string): number {
-  return ANONYMOUS_PERSONA_LIMITS[persona] ?? 0;
-}
-
-// ─── Anonymous device cookie ────────────────────────────────────────────────
-// An anonymous visitor is counted against two independent buckets: their IP
-// (which they cannot clear) and a signed device id (which survives an IP
-// change). Whichever is exhausted first stops them, so neither clearing site
-// data nor hopping networks grants a fresh trial on its own.
-
-const ANON_COOKIE_NAME = 'tm_anon';
-const ANON_TRIAL_SECRET = process.env.ANON_TRIAL_SECRET || '';
-
-function signDeviceId(deviceId: string): string {
-  return createHmac('sha256', ANON_TRIAL_SECRET).update(deviceId).digest('base64url');
-}
-
-function parseCookies(header: string | undefined): Record<string, string> {
-  const out: Record<string, string> = {};
-  if (!header) return out;
-  for (const part of header.split(';')) {
-    const index = part.indexOf('=');
-    if (index === -1) continue;
-    out[part.slice(0, index).trim()] = decodeURIComponent(part.slice(index + 1).trim());
-  }
-  return out;
-}
-
-/**
- * Read the signed device id from the request, or mint a new one and set it.
- * Returns null when ANON_TRIAL_SECRET is unset — the IP bucket still applies.
- */
-export function resolveAnonymousDeviceId(req: VercelRequest, res: VercelResponse): string | null {
-  if (!ANON_TRIAL_SECRET) return null;
-
-  const cookies = parseCookies(req.headers.cookie);
-  const raw = cookies[ANON_COOKIE_NAME];
-
-  if (raw) {
-    const separator = raw.lastIndexOf('.');
-    if (separator > 0) {
-      const deviceId = raw.slice(0, separator);
-      const signature = raw.slice(separator + 1);
-      const expected = signDeviceId(deviceId);
-      // Compare in constant time, and only when the lengths already match —
-      // timingSafeEqual throws on a length mismatch.
-      if (
-        signature.length === expected.length &&
-        timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
-      ) {
-        return deviceId;
-      }
-    }
-  }
-
-  const deviceId = randomUUID();
-  const value = `${deviceId}.${signDeviceId(deviceId)}`;
-  res.setHeader(
-    'Set-Cookie',
-    `${ANON_COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; Max-Age=${60 * 60 * 24 * 30}; HttpOnly; SameSite=Lax; Secure`,
-  );
-  return deviceId;
-}
-
-// Get rate limit for a user - checks for custom overrides in profiles.rate_limit_overrides
-// You can set custom limits per user from Supabase Table Editor:
-// profiles.rate_limit_overrides = { "default": 100, "girlie": 100, "pro": 50 }
-async function getUserRateLimit(userId: string | null, persona: string): Promise<number> {
-  if (userId) {
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('rate_limit_overrides')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (profile?.rate_limit_overrides) {
-        const overrides = profile.rate_limit_overrides as Record<string, number>;
-        if (typeof overrides[persona] === 'number') {
-          return overrides[persona];
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user rate limits:', error);
-    }
-  }
-  return DEFAULT_PERSONA_LIMITS[persona] ?? 50;
-}
-
-export type RateLimitOutcome =
-  // `providers` is the requested chain minus anything at its daily ceiling —
-  // the whole chain when no ceiling is configured. Empty only when the caller
-  // named no providers at all.
-  | { allowed: true; providers: string[] }
-  | { allowed: false; reason: 'limit'; limit: number }
-  | { allowed: false; reason: 'backend_error' }
-  | { allowed: false; reason: 'spend_ceiling'; providers: string[] };
-
-// Reserved bucket keys in the rate_limits table. Real personas are lowercase
-// identifiers, so a '__' prefix cannot collide with one.
-const PROVIDER_BUCKET_PREFIX = '__provider__:';
-const GLOBAL_BUCKET_IP = '__global__';
-
-/**
- * Read one bucket's usage in the current 24h window.
- * Throws on a backend error so callers can fail closed.
- */
-async function readBucketCount(
-  persona: string,
-  key: { userId: string } | { ip: string },
-): Promise<number> {
-  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-  let query = supabase.from('rate_limits').select('*').eq('persona', persona);
-  query = 'userId' in key ? query.eq('user_id', key.userId) : query.eq('ip_address', key.ip);
-
-  const { data, error } = await query.maybeSingle();
-  if (error) throw new Error(`rate_limit_backend_error: ${error.message}`);
-  if (!data) return 0;
-
-  // Window expired — increment will reset it, so it reads as zero usage.
-  if (new Date(data.window_start) < dayAgo) return 0;
-
-  return data.message_count ?? 0;
-}
-
-/**
- * Daily ceiling on total generations per provider. A hard stop that protects
- * the card when something (a leak, a bug, a bot) drives volume past anything
- * a real user population would produce. 0 / unset disables the ceiling.
- *
- * Returns the subset of `providers` still under their ceiling, in the order
- * given. This is per *provider*, not per run: one provider hitting its cap
- * means the run skips that provider, not that the app stops answering. The
- * previous version checked only the primary and refused the whole turn on it,
- * which — now that Air has a fallback chain — took two healthy providers down
- * with the capped one.
- */
-async function providersUnderCeiling(providers: string[]): Promise<string[]> {
-  const ceiling = parseInt(process.env.PROVIDER_DAILY_CEILING || '0', 10);
-  if (!ceiling || Number.isNaN(ceiling)) return providers;
-
-  const verdicts = await Promise.all(providers.map(async (provider) => {
-    const used = await readBucketCount(`${PROVIDER_BUCKET_PREFIX}${provider}`, { ip: GLOBAL_BUCKET_IP });
-    if (used >= ceiling) {
-      console.warn(`provider_spend_ceiling_reached provider=${provider} used=${used} ceiling=${ceiling}`);
-      return null;
-    }
-    return provider;
-  }));
-
-  const open = verdicts.filter((provider): provider is string => provider !== null);
-  if (open.length === 0 && providers.length > 0) {
-    console.error(`provider_spend_ceiling_reached_all providers=${providers.join(',')} ceiling=${ceiling}`);
-  }
-  return open;
-}
-
-/**
- * Supabase-based rate limiting.
- *
- * Fails CLOSED: a backend error denies the request. The previous behaviour
- * ("allow on error to not block users") meant a Supabase incident removed all
- * limits and made spend unbounded — see production-check.md 0.4.
- */
-/**
- * Remaining quota for the caller in the current 24h window.
- * Returns null when the limiter backend is unavailable — callers should show
- * nothing rather than a number they cannot stand behind.
- */
-export async function getRemainingQuota(
-  userId: string | null,
-  ip: string,
-  persona: string,
-  anonymousDeviceId?: string | null,
-): Promise<{ remaining: number; limit: number } | null> {
-  try {
-    if (userId) {
-      const limit = await getUserRateLimit(userId, persona);
-      const used = await readBucketCount(persona, { userId });
-      return { remaining: Math.max(0, limit - used), limit };
-    }
-
-    const limit = getAnonymousLimit(persona);
-    if (limit <= 0) return { remaining: 0, limit: 0 };
-
-    let used = await readBucketCount(persona, { ip });
-    if (anonymousDeviceId) {
-      used = Math.max(used, await readBucketCount(persona, { ip: `device:${anonymousDeviceId}` }));
-    }
-    return { remaining: Math.max(0, limit - used), limit };
-  } catch (error) {
-    console.error('rate_limit_backend_error', error instanceof Error ? error.message : error);
-    return null;
-  }
-}
-
-export async function checkRateLimit(
-  userId: string | null,
-  ip: string,
-  persona: string,
-  options: { anonymousDeviceId?: string | null; providers?: string[] } = {},
-): Promise<RateLimitOutcome> {
-  try {
-    // Only a run with nowhere left to go is refused here. A single capped
-    // provider just drops out of the chain.
-    const requested = options.providers ?? [];
-    const open = requested.length > 0 ? await providersUnderCeiling(requested) : [];
-    if (requested.length > 0 && open.length === 0) {
-      return { allowed: false, reason: 'spend_ceiling', providers: requested };
-    }
-
-    if (userId) {
-      const limit = await getUserRateLimit(userId, persona);
-      const used = await readBucketCount(persona, { userId });
-      return used < limit
-        ? { allowed: true, providers: open }
-        : { allowed: false, reason: 'limit', limit };
-    }
-
-    // Anonymous: enforce the same number the UI advertises, server-side.
-    const limit = getAnonymousLimit(persona);
-    if (limit <= 0) return { allowed: false, reason: 'limit', limit };
-
-    const ipUsed = await readBucketCount(persona, { ip });
-    if (ipUsed >= limit) return { allowed: false, reason: 'limit', limit };
-
-    if (options.anonymousDeviceId) {
-      const deviceUsed = await readBucketCount(persona, { ip: `device:${options.anonymousDeviceId}` });
-      if (deviceUsed >= limit) return { allowed: false, reason: 'limit', limit };
-    }
-
-    return { allowed: true, providers: open };
-  } catch (error) {
-    // Deliberately fail closed. This log line is the signal that the limiter
-    // backend is down — alert on it (production-check.md 2.1).
-    console.error('rate_limit_backend_error', error instanceof Error ? error.message : error);
-    return { allowed: false, reason: 'backend_error' };
-  }
-}
-
-/** Increment one bucket by `amount`, resetting the window if it has expired. */
-async function bumpBucket(
-  persona: string,
-  key: { userId: string } | { ip: string },
-  amount: number,
-): Promise<void> {
-  const now = new Date();
-  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-  let query = supabase.from('rate_limits').select('*').eq('persona', persona);
-  query = 'userId' in key ? query.eq('user_id', key.userId) : query.eq('ip_address', key.ip);
-
-  const { data: existing, error } = await query.maybeSingle();
-  if (error) throw new Error(`rate_limit_backend_error: ${error.message}`);
-
-  if (existing) {
-    const windowExpired = new Date(existing.window_start) < dayAgo;
-    await supabase
-      .from('rate_limits')
-      .update(
-        windowExpired
-          ? { message_count: amount, window_start: now.toISOString(), updated_at: now.toISOString() }
-          : {
-            // Never let a refund drive the counter below zero.
-            message_count: Math.max(0, (existing.message_count ?? 0) + amount),
-            updated_at: now.toISOString(),
-          },
-      )
-      .eq('id', existing.id);
-    return;
-  }
-
-  if (amount <= 0) return; // nothing to refund against
-
-  await supabase.from('rate_limits').insert({
-    user_id: 'userId' in key ? key.userId : null,
-    ip_address: 'userId' in key ? null : key.ip,
-    persona,
-    message_count: amount,
-    window_start: now.toISOString(),
-  });
-}
-
-/**
- * Charge (or, with a negative amount, refund) quota for one generation.
- *
- * Call this only after a generation has actually succeeded. Charging up front
- * means a failed request silently costs the user a message — the behaviour
- * reported in production-check.md 0.4.
- */
-export async function incrementRateLimit(
-  userId: string | null,
-  ip: string,
-  persona: string,
-  options: { amount?: number; anonymousDeviceId?: string | null; provider?: string } = {},
-): Promise<void> {
-  const amount = options.amount ?? 1;
-  try {
-    if (userId) {
-      await bumpBucket(persona, { userId }, amount);
-    } else {
-      await bumpBucket(persona, { ip }, amount);
-      if (options.anonymousDeviceId) {
-        await bumpBucket(persona, { ip: `device:${options.anonymousDeviceId}` }, amount);
-      }
-    }
-
-    if (options.provider) {
-      await bumpBucket(`${PROVIDER_BUCKET_PREFIX}${options.provider}`, { ip: GLOBAL_BUCKET_IP }, amount);
-    }
-  } catch (error) {
-    console.error('rate_limit_increment_error', error instanceof Error ? error.message : error);
-  }
-}
+// Rate limiting lives in api/_lib/rateLimit.ts; re-exported so pro-generation,
+// the Trigger task and the tests keep importing it from here.
+export {
+  ANONYMOUS_PERSONA_LIMITS,
+  getAnonymousLimit,
+  resolveAnonymousDeviceId,
+  getRemainingQuota,
+  checkRateLimit,
+  incrementRateLimit,
+  type RateLimitOutcome,
+} from './_lib/rateLimit.js';
+import {
+  getAnonymousLimit,
+  resolveAnonymousDeviceId,
+  getRemainingQuota,
+  checkRateLimit,
+  incrementRateLimit,
+} from './_lib/rateLimit.js';
 
 /**
  * Transcribe images to text, for hops whose model cannot see (api/_lib/vision.ts).

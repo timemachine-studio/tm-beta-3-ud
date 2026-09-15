@@ -118,6 +118,9 @@ function markStreamingAsInterrupted(list: Message[]): Message[] {
   ));
 }
 
+/** Shown at the top of the transcript when a save was refused by the store. */
+const SAVE_FAILED_MESSAGE = "This chat couldn't be saved. Your messages are still here — check your connection, and copy anything important before leaving.";
+
 export function useChat(
   userId?: string | null,
   userProfile?: { nickname?: string | null; about_me?: string | null },
@@ -248,8 +251,12 @@ export function useChat(
         };
 
         await chatService.saveSession(session);
+        setError(prev => (prev === SAVE_FAILED_MESSAGE ? null : prev));
       } catch (error) {
+        // A local-only store makes a silent write failure unrecoverable, and
+        // the cloud path is no better while it is the only copy (A.4). Say so.
         console.error('Failed to save chat session:', error);
+        setError(SAVE_FAILED_MESSAGE);
       }
     };
 

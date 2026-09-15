@@ -1,8 +1,12 @@
 import { supabase, uploadImage as supabaseUpload } from '../../lib/supabase';
 
-// Fallback ImgBB config for anonymous users
-const IMAGEBB_API_KEY = 'de84a9bd2c699e89ebb4f2a9bbcda261';
-const IMAGEBB_API_URL = 'https://api.imgbb.com/1/upload';
+// There is deliberately no third-party fallback host here. The previous
+// version fell back to ImgBB with a key compiled into the public bundle, which
+// put every anonymous user's photo on a public image host that /privacy never
+// named (pre-launch-audit.md A.1). An anonymous image now travels inline in
+// the request body as a data URL — /api/ai-proxy already accepts and
+// transcribes that form — and a signed-in upload that fails is a failure the
+// composer reports, not one it papers over.
 
 export interface ImageUploadResponse {
   success: boolean;
@@ -34,44 +38,6 @@ async function urlToBase64(url: string): Promise<string> {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
-}
-
-// Upload to ImgBB (fallback for anonymous users)
-async function uploadToImgBB(base64Image: string): Promise<ImageUploadResponse> {
-  try {
-    const base64Data = base64Image.split(',')[1];
-
-    const formData = new FormData();
-    formData.append('key', IMAGEBB_API_KEY);
-    formData.append('image', base64Data);
-
-    const response = await fetch(IMAGEBB_API_URL, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`ImageBB upload failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (data.success && data.data && data.data.url) {
-      return {
-        success: true,
-        url: data.data.url,
-      };
-    } else {
-      throw new Error('Invalid response from ImageBB');
-    }
-  } catch (error) {
-    console.error('ImageBB upload error:', error);
-    return {
-      success: false,
-      url: '',
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
 }
 
 // Upload to Supabase Storage
@@ -110,20 +76,12 @@ async function uploadToSupabase(base64Image: string, userId: string, purpose: st
   }
 }
 
-// Main upload function - uses Supabase for logged in users, ImgBB for anonymous
+// Main upload function. Signed-in users only: anonymous images stay inline.
 export async function uploadImage(base64Image: string, userId?: string | null, purpose: string = 'chat'): Promise<ImageUploadResponse> {
-  if (userId) {
-    // Try Supabase first for logged in users
-    const supabaseResult = await uploadToSupabase(base64Image, userId, purpose);
-    if (supabaseResult.success) {
-      return supabaseResult;
-    }
-    // Fall back to ImgBB if Supabase fails
-    console.warn('Supabase upload failed, falling back to ImgBB');
+  if (!userId) {
+    return { success: false, url: '', error: 'Sign in to upload images' };
   }
-
-  // Use ImgBB for anonymous users or as fallback
-  return uploadToImgBB(base64Image);
+  return uploadToSupabase(base64Image, userId, purpose);
 }
 
 // Upload a generated image from URL to Supabase

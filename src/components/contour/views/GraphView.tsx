@@ -7,63 +7,13 @@
  * - Supports: scroll-to-zoom, drag-to-pan, discontinuity detection.
  */
 
+import { compileMathExpression } from '../../../utils/mathExpression';
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { ModuleData, MODULE_META } from '../moduleRegistry';
 import { AccentTheme, HintView } from './shared';
 
-// ─── Math expression parser (Desmos-like notation → JS) ────────────
-
-function parseMathExpr(input: string): string {
-  if (!input.trim()) return '';
-  let s = input.trim();
-
-  // Strip "y =", "f(x) =", "g(x) =" prefixes
-  s = s.replace(/^\s*[yfg]\s*(\(\s*x\s*\))?\s*=\s*/i, '');
-  if (!s.trim()) return '';
-
-  // Handle |expr| → abs(expr) iteratively
-  let prev = '';
-  while (prev !== s) { prev = s; s = s.replace(/\|([^|]+)\|/, 'abs($1)'); }
-
-  // ^ → **
-  s = s.replace(/\^/g, '**');
-
-  // Replace functions (longer/specific names first)
-  const fns: [RegExp, string][] = [
-    [/\bsqrt\b/g,  'Math.sqrt'],  [/\bcbrt\b/g,  'Math.cbrt'],
-    [/\bsinh\b/g,  'Math.sinh'],  [/\bcosh\b/g,  'Math.cosh'],  [/\btanh\b/g, 'Math.tanh'],
-    [/\basin\b/g,  'Math.asin'],  [/\bacos\b/g,  'Math.acos'],
-    [/\batan2\b/g, 'Math.atan2'], [/\batan\b/g,  'Math.atan'],
-    [/\bsin\b/g,   'Math.sin'],   [/\bcos\b/g,   'Math.cos'],   [/\btan\b/g,  'Math.tan'],
-    [/\babs\b/g,   'Math.abs'],   [/\bsign\b/g,  'Math.sign'],  [/\bhypot\b/g,'Math.hypot'],
-    [/\bln\b/g,    'Math.log'],   [/\blog10\b/g, 'Math.log10'], [/\blog2\b/g, 'Math.log2'],
-    [/\blog\b/g,   'Math.log10'], [/\bexp\b/g,   'Math.exp'],
-    [/\bceil\b/g,  'Math.ceil'],  [/\bfloor\b/g, 'Math.floor'], [/\bround\b/g,'Math.round'],
-    [/\btrunc\b/g, 'Math.trunc'], [/\bpow\b/g,   'Math.pow'],
-    [/\bmax\b/g,   'Math.max'],   [/\bmin\b/g,   'Math.min'],   [/\bmod\b/g,  '%'],
-  ];
-  for (const [re, rep] of fns) s = s.replace(re, rep);
-
-  // Constants
-  s = s.replace(/\bpi\b/gi, 'Math.PI');
-  s = s.replace(/π/g, 'Math.PI');
-  s = s.replace(/\be\b/g, 'Math.E');
-  s = s.replace(/∞/g, 'Infinity');
-
-  // Implicit multiplication
-  s = s.replace(/(\d)(x)(?!\w)/g, '$1*$2');
-  s = s.replace(/(\d)\s*\(/g, '$1*(');
-  s = s.replace(/\)\s*\(/g, ')*(');
-  s = s.replace(/\)\s*x(?!\w)/g, ')*x');
-  s = s.replace(/\)\s*(\d)/g, ')*$1');
-  s = s.replace(/x\s*\(/g, 'x*(');
-  s = s.replace(/(\d)\s*(Math\.)/g, '$1*$2');
-  s = s.replace(/\)\s*(Math\.)/g, ')*$2');
-  s = s.replace(/x\s*(Math\.)/g, 'x*$2');
-
-  return s;
-}
+// The expression parser lives in src/utils/mathExpression.ts (pre-launch-audit.md A.3).
 
 function formatTick(val: number): string {
   if (Math.abs(val) < 1e-10) return '0';
@@ -86,15 +36,9 @@ function GraphCanvas({ eq1, eq2 }: { eq1: string; eq2: string; accent: AccentThe
   const toMathX = useCallback((sx: number) => (sx - GW / 2) / view.scale + view.cx, [view]);
   const toMathY = useCallback((sy: number) => -(sy - GH / 2) / view.scale + view.cy, [view]);
 
-  const buildEval = useCallback((eq: string): ((x: number) => number | null) | null => {
-    const js = parseMathExpr(eq);
-    if (!js) return null;
-    try {
-       
-      const fn = new Function('x', `"use strict"; try { const _v=(${js}); return (typeof _v==='number'&&isFinite(_v))?_v:null; } catch(e){ return null; }`);
-      return fn as (x: number) => number | null;
-    } catch { return null; }
-  }, []);
+  const buildEval = useCallback((eq: string): ((x: number) => number | null) | null => (
+    compileMathExpression(eq)
+  ), []);
 
   const genPath = useCallback((evalFn: (x: number) => number | null): string => {
     const steps = 500;
@@ -272,13 +216,7 @@ export function GraphView({ module, accent }: { module: ModuleData; accent: Acce
   const handleEq2Change = (val: string) => {
     setEq2(val);
     if (!val.trim()) { setEq2Err(false); return; }
-    // Basic validation: try parsing
-    try {
-      const js = parseMathExpr(val);
-       
-      new Function('x', `"use strict"; return (${js || '0'})`);
-      setEq2Err(false);
-    } catch { setEq2Err(true); }
+    setEq2Err(compileMathExpression(val) === null);
   };
 
   return (

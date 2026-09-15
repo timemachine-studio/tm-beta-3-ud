@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { VercelRequest, VercelResponse } from '../vercelTypes.js';
 vi.mock('../auth.js', () => ({ getAuthenticatedRequestUser: async () => ({ id: 'synthetic-owner' }) }));
-vi.mock('../cors.js', () => ({ applyCors: vi.fn(), hasAcceptableOrigin: () => true, isSameOriginSubresource: () => true }));
+vi.mock('../cors.js', () => ({ applyCors: vi.fn(), hasAcceptableOrigin: () => true }));
+vi.mock('../rateLimit.js', () => ({ checkRateLimit: async () => ({ allowed: true, providers: [] }), incrementRateLimit: async () => undefined }));
 import image from '../../image';
 import music from '../../music';
 import cover from '../../musicCover';

@@ -71,9 +71,15 @@ function dbRowToSession(row: SessionRow, messages: Message[]): ChatSession {
   };
 }
 
-// Convert Message to database format
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Convert Message to database format. The row carries the message's own id so
+// a save is an upsert by id rather than a wipe-and-rewrite (A.4). Ids that
+// predate 1.12 are numeric strings, not uuids; those rows get a fresh id and
+// the message takes it on the next load.
 function messageToDbRow(message: Message, sessionId: string, userId: string) {
   return {
+    id: UUID.test(message.id) ? message.id : newId(),
     session_id: sessionId,
     user_id: userId,
     role: message.isAI ? 'assistant' : 'user',
@@ -186,7 +192,11 @@ export function saveLocalSession(session: ChatSession): void {
 
     localStorage.setItem('chatSessions', JSON.stringify(sessions));
   } catch (error) {
+    // Usually QuotaExceededError: the single localStorage blob is full (LS.2).
+    // There is no other copy of an anonymous chat, so this must reach the
+    // user rather than a console nobody reads (pre-launch-audit.md A.4).
     console.error('Failed to save local session:', error);
+    throw error instanceof Error ? error : new Error('local_save_failed');
   }
 }
 
@@ -291,42 +301,38 @@ export async function saveSupabaseSession(
         return activeSessionId;
       }
 
-      // Get existing messages to compare
-      const { data: existingMessages, error: fetchError } = await supabase
+      // Upsert first, delete after — never the other way round. The previous
+      // strategy deleted every row of the session and re-inserted the lot, so
+      // an insert that failed (network, RLS, an oversized row) left the chat
+      // empty in the database with nothing but a console.error to show for it
+      // (pre-launch-audit.md A.4). Now the rows are written by id; only once
+      // that has succeeded are rows the client no longer has removed.
+      const rows = validMessages.map(msg => messageToDbRow(msg, activeSessionId, userId));
+      const { error: upsertError } = await supabase
         .from('chat_messages')
-        .select('id, content, role, created_at')
-        .eq('session_id', activeSessionId)
-        .order('created_at', { ascending: true });
-
-      if (fetchError) {
-        console.error('Error fetching existing messages:', fetchError);
+        .upsert(rows, { onConflict: 'id' });
+      if (upsertError) {
+        console.error('Error saving messages:', upsertError);
+        throw upsertError;
       }
 
-      const existingCount = existingMessages?.length || 0;
-
-      // Strategy: Delete all existing messages and re-insert all valid messages
-      // This ensures updates to message content (like streaming completion) are saved
-      // and avoids complex diff logic that could miss updates
-      if (existingCount > 0) {
+      const keep = new Set(rows.map(row => row.id));
+      const { data: existing, error: fetchError } = await supabase
+        .from('chat_messages')
+        .select('id')
+        .eq('session_id', activeSessionId);
+      if (fetchError) {
+        // The messages are saved; only the prune of stale rows is skipped.
+        console.error('Error listing existing messages:', fetchError);
+        return activeSessionId;
+      }
+      const stale = (existing || []).map(row => String(row.id)).filter(id => !keep.has(id));
+      if (stale.length > 0) {
         const { error: deleteError } = await supabase
           .from('chat_messages')
           .delete()
-          .eq('session_id', activeSessionId);
-
-        if (deleteError) {
-          console.error('Error deleting old messages:', deleteError);
-        }
-      }
-
-      // Insert all valid messages
-      const messagesToInsert = validMessages.map(msg => messageToDbRow(msg, activeSessionId, userId));
-
-      const { error: msgError } = await supabase
-        .from('chat_messages')
-        .insert(messagesToInsert);
-
-      if (msgError) {
-        console.error('Error saving messages:', msgError);
+          .in('id', stale);
+        if (deleteError) console.error('Error pruning stale messages:', deleteError);
       }
 
       return activeSessionId;
@@ -426,11 +432,16 @@ export class ChatService {
     return getLocalSessions();
   }
 
+  /**
+   * Persist one session. Throws when the store refused the write — a caller
+   * must surface that, because there is no other copy to fall back on.
+   */
   async saveSession(session: ChatSession): Promise<void> {
     // Saving one is the moment an empty archive stops being empty.
     this.archiveKnown = null;
     if (this.userId) {
-      await saveSupabaseSession(session, this.userId);
+      const saved = await saveSupabaseSession(session, this.userId);
+      if (!saved) throw new Error('chat_save_failed');
     } else {
       saveLocalSession(session);
     }

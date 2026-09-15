@@ -732,6 +732,11 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
+      // supabase/migrations/rate_limits_atomic.sql
+      bump_rate_limit: {
+        Args: { p_persona: string; p_user_id: string | null; p_ip_address: string | null; p_amount: number };
+        Returns: number;
+      };
       // supabase/migrations/healthcare_search.sql
       search_drugs: {
         Args: { search_query: string };

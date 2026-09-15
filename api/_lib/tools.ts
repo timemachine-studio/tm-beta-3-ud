@@ -1,3 +1,5 @@
+import { randomInt } from 'node:crypto';
+import { IMAGE_URL_TTL_SECONDS, signMediaUrl } from './mediaGate.js';
 import type { ProviderTool } from './providerTypes.js';
 // Single source of truth for tool definitions, tool selection and tool execution.
 //
@@ -397,22 +399,34 @@ export function generateImageUrl(params: ImageGenerationParams): string {
     imageHeight
   } = params;
 
-  // Proxy URL pointing at our secure image endpoint. The real Pollinations URL
-  // (with the secret key) is constructed server-side in /api/image.
-  const encodedPrompt = encodeURIComponent(prompt);
-
-  let url = `/api/image?prompt=${encodedPrompt}&orientation=${orientation}&process=${process}&persona=${persona}`;
+  // Proxy URL pointing at our image endpoint. The real Pollinations URL (with
+  // the secret key) is constructed server-side in /api/image.
+  //
+  // Two things ride on the URL that a plain query string did not carry:
+  //  - a `seed`, so every load of this URL is the same picture. Without it
+  //    the display, the Supabase re-upload and the download were three
+  //    different generations (pre-launch-audit.md A.8);
+  //  - a signature, so the URL itself is the credential for /api/image and
+  //    the endpoint no longer has to guess from headers whether a browser
+  //    page of ours is asking (A.2).
+  const query: Record<string, string> = {
+    prompt,
+    orientation,
+    process,
+    persona,
+    seed: String(randomInt(0, 2_147_483_647)),
+  };
 
   if (process === 'edit' && imageWidth && imageHeight) {
-    url += `&width=${imageWidth}&height=${imageHeight}`;
+    query.width = String(imageWidth);
+    query.height = String(imageHeight);
   }
 
   if (inputImageUrls && inputImageUrls.length > 0) {
-    const imageUrls = inputImageUrls.slice(0, 4).map(encodeURIComponent).join(',');
-    url += `&inputImageUrls=${imageUrls}`;
+    query.inputImageUrls = inputImageUrls.slice(0, 4).join(',');
   }
 
-  return url;
+  return signMediaUrl('/api/image', query, IMAGE_URL_TTL_SECONDS);
 }
 
 export function createImageMarkdown(params: ImageGenerationParams): string {

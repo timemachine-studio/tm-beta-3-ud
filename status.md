@@ -1,6 +1,21 @@
 # Current status
 
-Updated 2026-09-14. Rewritten from scratch; the previous rounds (tool catalogue, providers, MCP, generated tools, light mode) are shipped and described in git history and `production-check.md`. This file is the state of things now and what is still owed.
+Updated 2026-09-15. Rewritten from scratch on 2026-09-14; the previous rounds (tool catalogue, providers, MCP, generated tools, light mode) are shipped and described in git history and `production-check.md`. This file is the state of things now and what is still owed.
+
+**The open-issues tracker is now `pre-launch-audit.md`.** It carries every still-open item from `production-check.md` (Gate E) plus the 2026-09-14 audit's new findings (Gates A–D), and a handoff note at the top for each fix pass. The tracker table at the top of `production-check.md` is stale in places and is no longer maintained.
+
+## Done on 2026-09-15 — pre-launch audit, first fix pass
+
+Full detail and file-by-file notes: handoff block at the top of `pre-launch-audit.md`. Gates after the pass: typecheck clean, lint 0/0, 64 files / 561 tests.
+
+- **A.1** ImgBB removed. The client-bundled key and the anonymous-photo upload to a public host are gone; anonymous images travel inline as data URLs. **Owner: revoke the key at imgbb.com — it is in public git history.**
+- **A.2** Media endpoints (`/api/image`, `/api/music`, `/api/musicCover`) no longer trust `Sec-Fetch-Site`/`Referer` (curl could forge both). Access is a server-signed URL or a bearer token, each rate limited (`api/_lib/mediaGate.ts`). Verified live: forged → 401, tampered → 401, valid → passes.
+- **A.3** `new Function` is gone from `src/`. Graph blocks (Notes and Contour) use a real expression parser, `src/utils/mathExpression.ts`. The Notes co-pilot can no longer set a block to `graph`/`table`/`image`/`doodle`. Verified live with the audit's payload.
+- **A.4** Signed-in chat save is upsert-by-id then prune, not delete-all then insert. A refused save (cloud or local quota) now shows a banner in the transcript.
+- **A.5** Limiter extracted to `api/_lib/rateLimit.ts`; duplicate rows no longer 503 a user; increments go through `bump_rate_limit()` when the DB has it. **Owner: run `supabase/migrations/rate_limits_atomic.sql`.** Parallel-request bypass still open pending a decision on reserve-then-refund.
+- **A.8** Every generated-image URL carries a seed and is privately cacheable; the music card fetches once and reuses the bytes. One generation per image instead of three or four.
+- Smaller: markdown images load only from our hosts (A.12 part); `safeUrl` refuses IPv4-mapped IPv6 and 100.64/10; group share ids are crypto-random; upload filenames are UUIDs; 8-character passwords; dead `SesamePanel` deleted; `/about` and `/help` privacy copy corrected (B.1 part); zoom lock removed (D.3 part).
+- Also committed: Air's Eaon route serves images via OCR (the route drops image parts).
 
 ## Where the product is
 
@@ -56,5 +71,5 @@ Full notes in `.env.example`.
 - The terminal's fixed-delay sync after Enter is not a completion protocol (harness doc, item 3).
 - Measure real tasks before touching the 12/24/40 round budgets (item 2).
 
-### 3. Launch blockers unchanged
-See `production-check.md`: Gate LS (device-only chat history; the signup copy promises it today), migrations that cannot recreate the schema, the provider-adapter refactor (3.5).
+### 3. Launch blockers
+See `pre-launch-audit.md`, in the order it suggests: A.5's remaining race (decision), A.7 (Vercel Pro), A.9 + D.4 (Sentry, `/api/health`, CI — this repo has no `.github/`), A.10 (schema pull) then A.6/A.11/A.15, A.13, A.14, rest of A.12, B.2, B.4, C.1 (Trigger deploy). Gate LS (device-only chat history) unchanged; the signup copy no longer promises it, but `/about` did until this pass.

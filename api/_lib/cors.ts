@@ -73,34 +73,3 @@ export function hasAcceptableOrigin(req: VercelRequest): boolean {
   if (!origin) return true;
   return isAllowedOrigin(origin, req);
 }
-
-/**
- * Gate for media endpoints that are loaded as `<img src>` / `<audio src>`.
- *
- * Those requests cannot carry an Authorization header, so a bearer token is not
- * an option. What they *can* be checked against is the browser's own fetch
- * metadata: a subresource loaded by our own page sends
- * `Sec-Fetch-Site: same-origin`, which no plain `curl` produces. A cross-site
- * page embedding the URL sends `cross-site` and is rejected.
- *
- * This is weaker than a token — it is a spend control, not an identity check —
- * so these endpoints must stay rate limited too.
- */
-export function isSameOriginSubresource(req: VercelRequest): boolean {
-  const header = (name: string): string | undefined => {
-    const value = req.headers[name];
-    return Array.isArray(value) ? value[0] : value;
-  };
-
-  const fetchSite = header('sec-fetch-site');
-  if (fetchSite) return fetchSite === 'same-origin' || fetchSite === 'same-site';
-
-  // Browsers that omit Sec-Fetch-Site still send Referer for a subresource.
-  const referer = header('referer');
-  if (!referer) return false;
-  try {
-    return isAllowedOrigin(new URL(referer).origin, req);
-  } catch {
-    return false;
-  }
-}

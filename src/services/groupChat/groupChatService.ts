@@ -77,11 +77,13 @@ export async function getUserGroupChats(userId: string): Promise<{
 
 // Generate a short shareable ID
 function generateShareId(): string {
+  // The id is the invite: anyone who has it can join. Cryptographic
+  // randomness and 12 characters of a 54-symbol alphabet (~69 bits), so it is
+  // not guessable (pre-launch-audit.md A.16).
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
   let result = '';
-  for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
+  for (const byte of bytes) result += chars.charAt(byte % chars.length);
   return result;
 }
 

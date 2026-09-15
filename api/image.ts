@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from './_lib/vercelTypes.js';
-import { getAuthenticatedRequestUser } from './_lib/auth.js';
-import { applyCors, hasAcceptableOrigin, isSameOriginSubresource } from './_lib/cors.js';
+import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
 import { apiErrorBody } from './_lib/errors.js';
+import { admitMediaRequest } from './_lib/mediaGate.js';
 import { promptQuerySchema, parseOrReject, isAllowedImageUrl, LIMITS } from './_lib/validation.js';
 
 // Pollinations API key from environment variable
@@ -19,6 +19,13 @@ interface ImageParams {
   inputImageUrls?: string[];
   width?: number;  // Original image width for edit operations
   height?: number; // Original image height for edit operations
+  /**
+   * Pollinations is non-deterministic without one. The tool puts a seed in
+   * every URL it hands out so that display, re-upload, download and reopening
+   * the chat all resolve to the same picture instead of four different ones
+   * (pre-launch-audit.md A.8).
+   */
+  seed?: number;
 }
 
 function constructPollinationsUrl(params: ImageParams): URL {
@@ -51,6 +58,7 @@ function constructPollinationsUrl(params: ImageParams): URL {
   url.searchParams.set('nologo', 'true');
   url.searchParams.set('model', model);
   url.searchParams.set('key', POLLINATIONS_API_KEY);
+  if (params.seed !== undefined) url.searchParams.set('seed', String(params.seed));
 
   if (process === 'edit') {
     // For edit process: use original image dimensions if provided, otherwise use defaults based on orientation
@@ -99,14 +107,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: 'Origin not allowed' });
   }
 
-  // These URLs are loaded as <img src> / <audio src>, so they cannot carry an
-  // Authorization header. The gate is the browser's own fetch metadata plus the
-  // origin allowlist — see isSameOriginSubresource. A bearer token is still
-  // accepted for non-browser callers we control.
-  const bearer = await getAuthenticatedRequestUser(req);
-  if (!bearer && !isSameOriginSubresource(req)) {
-    return res.status(401).json({ error: 'Not authorized' });
-  }
+  // Signed URL (minted by the generate_image tool) or a bearer token; both
+  // are rate limited. See api/_lib/mediaGate.ts for why the old
+  // Sec-Fetch-Site gate is gone.
+  const access = await admitMediaRequest(req, res, 'image', '/api/image');
+  if (!access) return;
 
   try {
     const {
@@ -116,7 +121,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       persona = 'default',
       inputImageUrls,
       width,
-      height
+      height,
+      seed,
     } = req.query;
 
     // Validate required parameters
@@ -150,6 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
     const parsedWidth = boundDimension(width);
     const parsedHeight = boundDimension(height);
+    const parsedSeed = typeof seed === 'string' && /^\d{1,10}$/.test(seed) ? Number(seed) : undefined;
 
     // Construct the Pollinations URL with secret key (server-side only)
     const pollinationsUrl = constructPollinationsUrl({
@@ -159,7 +166,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       persona: (persona as Persona) || 'default',
       inputImageUrls: parsedImageUrls,
       width: parsedWidth,
-      height: parsedHeight
+      height: parsedHeight,
+      seed: parsedSeed,
     });
 
 
@@ -184,9 +192,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const imageBuffer = await imageResponse.arrayBuffer();
     const contentType = imageResponse.headers.get('content-type') || 'image/png';
 
-    // Set response headers for image
+    // Charged only now that Pollinations actually answered.
+    await access.charge();
+
+    // Set response headers for image. Private (this browser only — the prompt
+    // is in the URL, so no shared cache may keep it) but cacheable, so the
+    // display, the re-upload and the download share one generation.
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Cache-Control', parsedSeed !== undefined ? 'private, max-age=86400' : 'no-store');
     res.setHeader('Content-Length', imageBuffer.byteLength);
 
     // Return the raw image bytes

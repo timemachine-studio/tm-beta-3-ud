@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from './_lib/vercelTypes.js';
-import { getAuthenticatedRequestUser } from './_lib/auth.js';
-import { applyCors, hasAcceptableOrigin, isSameOriginSubresource } from './_lib/cors.js';
+import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
 import { apiErrorBody } from './_lib/errors.js';
+import { admitMediaRequest } from './_lib/mediaGate.js';
 import { musicCoverQuerySchema, parseOrReject } from './_lib/validation.js';
 
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || '';
@@ -21,14 +21,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: 'Origin not allowed' });
   }
 
-  // These URLs are loaded as <img src> / <audio src>, so they cannot carry an
-  // Authorization header. The gate is the browser's own fetch metadata plus the
-  // origin allowlist — see isSameOriginSubresource. A bearer token is still
-  // accepted for non-browser callers we control.
-  const bearer = await getAuthenticatedRequestUser(req);
-  if (!bearer && !isSameOriginSubresource(req)) {
-    return res.status(401).json({ error: 'Not authorized' });
-  }
+  // Signed URL or bearer token, rate limited either way (api/_lib/mediaGate.ts).
+  const access = await admitMediaRequest(req, res, 'cover', '/api/musicCover');
+  if (!access) return;
 
   try {
     const parsed = parseOrReject(res, musicCoverQuerySchema, {
@@ -72,6 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const imageBuffer = await imageResponse.arrayBuffer();
+    await access.charge();
     const contentType = imageResponse.headers.get('content-type') || 'image/png';
 
     res.setHeader('Content-Type', contentType);
