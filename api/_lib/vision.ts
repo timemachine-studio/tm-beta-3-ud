@@ -59,8 +59,6 @@ export const MODEL_VISION: Record<string, VisionCapability> = {
   'moonshotai/kimi-k3': { vision: 'native' },
   'logfare/kimi-k3': { vision: 'native' },
   'kimi-k3-extended': { vision: 'native' },
-  // Verified through Eaon's route from the other dev machine; Air's primary.
-  'eaon/gemini-3.8-flash': { vision: 'native' },
   // The OCR transcriber itself, listed so a run that happens to route to it
   // does not transcribe an image in order to hand it to a model that could
   // have looked at it directly.
@@ -88,7 +86,16 @@ export const MODEL_VISION: Record<string, VisionCapability> = {
   // ids; same text-only statement applies.
   'eaon/minimax-m2.7-highspeed': { vision: 'ocr' },
   'eaon/minimax-m3': { vision: 'ocr' },
-  // Not tried with an image yet; OCR per the rule above.
+  // Gemini can see; the route cannot. ai.eaon.dev drops every image part
+  // shape (OpenAI `image_url` as string or object, hosted or base64, Responses
+  // `input_image`, Anthropic `image`, Gemini `inline_data`) and returns 200
+  // with a text-only turn — verified 2026-09-14 on both ids, streaming and
+  // not. That is the one failure this module cannot heal at runtime: the
+  // all-native retry in ai-proxy.ts keys on a thrown error, and a 200 with the
+  // image silently gone never throws. Keep these OCR until a probe with a real
+  // image comes back describing it.
+  'eaon/gemini-3.8-flash': { vision: 'ocr' },
+  'eaon/gemini-3-flash': { vision: 'ocr' },
   'eaon/gemini-3.1-flash-lite': { vision: 'ocr' },
   // Cerebras serves gpt-oss text-only, same as groq's 20b above.
   'gpt-oss-120b': { vision: 'ocr' },

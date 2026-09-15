@@ -81,9 +81,11 @@ export const AI_PERSONAS = {
     name: 'TimeMachine Air',
     provider: 'eaon', // allowed change to 'groq' or 'cerebras' or 'pollinations' or 'eaon' or 'nvidia'
     model: 'eaon/gemini-3.8-flash',
-    // Gemini Flash takes image parts through Eaon's route, so an image turn
-    // goes straight to it — no transcription in front. See api/_lib/vision.ts.
-    vision: 'native' as const,
+    // OCR, even though Gemini itself can see: ai.eaon.dev strips image parts
+    // and answers 200 as if the turn were text-only, so a `native` hop here
+    // makes the model tell the user "the image didn't come through". Measured
+    // 2026-09-14 against the live route — see MODEL_VISION in api/_lib/vision.ts.
+    vision: 'ocr' as const,
     // Air's fallback chain, in order. If the primary above fails for any
     // reason — 429, 5xx, timeout, missing key, unknown model — the run moves
     // to the next entry without the user seeing anything. Only when every
@@ -93,9 +95,9 @@ export const AI_PERSONAS = {
     // pointed at a model id the provider does not have fails worse than no
     // hop at all, so do not add one without a verified (provider, model) pair.
     //
-    // `vision` is per hop because the hops disagree: none of these can
-    // see, so a turn that falls through to one of them gets the image
-    // transcribed at that point — and only at that point.
+    // `vision` is per hop: every hop on this chain is OCR today, but the
+    // annotation stays on each entry so a hop that gains native vision can
+    // flip on its own without touching the others.
     fallbacks: [
       // The designated backup shares the primary's provider on purpose: it is
       // the model-level cushion (a Gemini-side outage or a 400 the route
