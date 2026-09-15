@@ -1,0 +1,309 @@
+/* Landing page only. The chat shell never loads this.
+
+   Browser-drawn surfaces (selection, caret, focus ring, scrollbar) take the
+   brand purple so the page reads as built, not assembled. */
+
+.tm-landing {
+  /* SF Pro for running text, as in the app. Text is the cut for body sizes,
+     Display for anything 20px and up; Apple devices have both locally, and
+     the rest of the world gets its own system face, never a web substitute
+     that would only look almost right. */
+  font-family: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  caret-color: #a855f7;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--tm-ink-rgb) / 0.14) transparent;
+}
+
+.tm-landing ::selection {
+  background: rgb(168 85 247 / 0.35);
+  color: rgb(var(--tm-ink-rgb));
+}
+
+.tm-landing :focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+/* The composer's own border is its focus ring. */
+.tm-landing textarea:focus-visible {
+  outline: none;
+}
+
+.tm-landing::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tm-landing::-webkit-scrollbar-thumb {
+  background: rgb(var(--tm-ink-rgb) / 0.14);
+  border-radius: 3px;
+}
+
+/* Headings and buttons take the Display cut. */
+.tm-landing h1,
+.tm-landing h2,
+.tm-landing .text-lg,
+.tm-landing .text-xl,
+.tm-landing button {
+  font-family: 'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', sans-serif;
+}
+
+/* The display voice: one sans, set tight, medium weight. Tracking stops
+   at -0.03em on purpose; tighter starts to clot at these sizes. */
+.tm-landing .tm-h {
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  text-wrap: balance;
+  color: rgb(var(--tm-ink-rgb));
+}
+
+/* Feedback lives on the press, and it is instant. */
+.tm-press {
+  transition: transform 120ms ease-out, background-color 160ms ease-out, color 160ms ease-out, opacity 160ms ease-out;
+}
+
+.tm-press:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ---- Liquid Glass ----
+   A lens, not a tint: deep blur with the colour pushed up so what is behind
+   reads as light, a specular rim that is brightest along the top edge and
+   fades down the sides (light from above), a soft inner sheen, and a real
+   drop shadow. Written with the theme primitives so light mode can flatten
+   it wholesale below. */
+.tm-glass {
+  isolation: isolate;
+  background:
+    linear-gradient(135deg, rgb(var(--tm-ink-rgb) / 0.06) 0%, rgb(var(--tm-ink-rgb) / 0.03) 45%, rgb(var(--tm-ink-rgb) / 0.04) 100%);
+  backdrop-filter: blur(28px) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(28px) saturate(190%) brightness(1.04);
+  border: 1px solid rgb(var(--tm-ink-rgb) / 0.12);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.22),
+    inset 1px 0 0 rgb(var(--tm-edge-rgb) / 0.07),
+    inset -1px 0 0 rgb(var(--tm-edge-rgb) / 0.04),
+    inset 0 -1px 0 rgb(var(--tm-edge-rgb) / 0.03),
+    inset 0 0 24px rgb(var(--tm-edge-rgb) / 0.015),
+    0 24px 60px -24px rgb(var(--tm-shadow-rgb) / 0.75);
+}
+
+/* Glass needs a containing box for its sheen; a utility that already
+   positions it (absolute, fixed) wins. */
+.tm-glass:not(.absolute):not(.fixed):not(.sticky) {
+  position: relative;
+}
+
+/* The sheen: a diagonal band of light caught in the glass. */
+.tm-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(115deg, rgb(var(--tm-edge-rgb) / 0.07) 0%, rgb(var(--tm-edge-rgb) / 0.015) 30%, transparent 55%, rgb(var(--tm-edge-rgb) / 0.025) 100%);
+  /* Below the content, above the glass ground: the panel isolates, so -1
+     never escapes it. No z-index on children — a screen-blended plate has
+     to blend with the glass, not with a stacking context of its own. */
+  z-index: -1;
+}
+
+/* A frame for pictures. Screenshots and illustrations are not glass: they
+   sit in a plain near-black window with one hairline and a shadow, so the
+   art is the only thing that glows. */
+.tm-panel {
+  position: relative;
+  background: rgb(var(--tm-paper-rgb) / 0.8);
+  border: 1px solid rgb(var(--tm-ink-rgb) / 0.1);
+  box-shadow: 0 30px 80px -40px rgb(var(--tm-shadow-rgb) / 0.8), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.06);
+}
+
+/* Small controls: same material, a touch brighter, and the rim reads as a
+   bevel because the radius is tight. */
+.tm-glass-pill {
+  background: linear-gradient(135deg, rgb(var(--tm-ink-rgb) / 0.08), rgb(var(--tm-ink-rgb) / 0.035));
+  box-shadow:
+    inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.26),
+    inset 1px 0 0 rgb(var(--tm-edge-rgb) / 0.08),
+    inset 0 -1px 0 rgb(var(--tm-edge-rgb) / 0.03),
+    0 10px 30px -12px rgb(var(--tm-shadow-rgb) / 0.7);
+}
+
+/* Glass inside glass stacks up; a nested pill stays fainter. */
+.tm-glass .tm-glass-pill {
+  background: linear-gradient(135deg, rgb(var(--tm-ink-rgb) / 0.05), rgb(var(--tm-ink-rgb) / 0.02));
+}
+
+.tm-glass-pill:hover {
+  background: linear-gradient(135deg, rgb(var(--tm-ink-rgb) / 0.11), rgb(var(--tm-ink-rgb) / 0.05));
+}
+
+/* The floating bar. It lives in the same fixed layer as the hero light, so
+   the glow drifts under it and the glass shows that. */
+.tm-nav {
+  border-radius: 9999px;
+}
+
+/* Light mode has no atmosphere: glass becomes a flat, calm card with one
+   hairline and one soft shadow, as every other surface does there. */
+:root[data-theme="light"] .tm-glass,
+:root[data-theme="light"] .tm-panel,
+:root[data-theme="light"] .tm-glass-pill {
+  background: rgb(var(--tm-ink-rgb) / 0.04);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 1px 2px rgb(var(--tm-shadow-rgb) / 0.06), 0 8px 24px -12px rgb(var(--tm-shadow-rgb) / 0.12);
+}
+
+:root[data-theme="light"] .tm-glass::before {
+  display: none;
+}
+
+/* Isometric figures: hairlines that stay one device pixel at any size. */
+.tm-fig {
+  stroke: rgb(var(--tm-ink-rgb) / 0.32);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  fill: rgb(var(--tm-paper-rgb));
+}
+
+.tm-fig-top {
+  fill: rgb(var(--tm-ink-rgb) / 0.035);
+}
+
+.tm-fig-guide {
+  stroke: rgb(var(--tm-ink-rgb) / 0.22);
+  stroke-dasharray: 2 3;
+  fill: none;
+}
+
+/* ---- hero atmosphere ---- */
+/* Three drifting orbs in the three minds' hues over the app's own Autumn
+   Ember ground. Compositor-only properties; the drift stops under reduced
+   motion. light.css switches the blur off wholesale, so in light mode the
+   orbs are flat tints on paper — intended. */
+
+.tm-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(120px);
+  will-change: transform;
+  animation: tm-drift 28s ease-in-out infinite alternate;
+}
+
+.tm-orb-a {
+  animation-duration: 26s;
+}
+
+.tm-orb-b {
+  animation-duration: 34s;
+  animation-delay: -9s;
+}
+
+.tm-orb-c {
+  animation-duration: 40s;
+  animation-delay: -17s;
+}
+
+@keyframes tm-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(6vw, -4vh, 0) scale(1.08);
+  }
+
+  100% {
+    transform: translate3d(-5vw, 5vh, 0) scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-orb {
+    animation: none;
+  }
+}
+
+/* Display voice for the hero and the sign-off. Newsreader carries an
+   optical-size axis, so at these sizes the browser serves the high-contrast
+   display cut and the hairlines stay crisp on black; the italic is where
+   the "from future" voice lives. */
+.tm-landing .tm-display {
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.tm-landing .tm-display em {
+  font-style: italic;
+  font-weight: 300;
+}
+
+.tm-fig-line {
+  stroke: rgb(var(--tm-ink-rgb) / 0.32);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  fill: none;
+}
+
+/* Pools of the hero's light under the sections. Light mode has no
+   atmosphere by design, so they simply do not render there. */
+.tm-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(120px);
+  pointer-events: none;
+}
+
+:root[data-theme="light"] .tm-glow {
+  display: none;
+}
+
+/* Generated illustrations are drawn on black. Screening them onto the near-
+   black panels makes that black vanish and only the light adds up, so a
+   plate never shows as a darker square inside its window. Light mode has
+   no dark ground to screen onto, so there they stay as plates. */
+.tm-art {
+  mix-blend-mode: screen;
+}
+
+:root[data-theme="light"] .tm-art {
+  mix-blend-mode: normal;
+  border-radius: 12px;
+}
+
+/* The live demo: a breathing dot on the session badge, a blinking caret at
+   the end of the replayed transcript. Both stop under reduced motion. */
+.tm-live-dot {
+  box-shadow: 0 0 0 0 rgb(34 211 238 / 0.6);
+  animation: tm-breathe 2.2s ease-out infinite;
+}
+
+.tm-caret {
+  animation: tm-blink 1s steps(2, start) infinite;
+}
+
+@keyframes tm-breathe {
+  0% { box-shadow: 0 0 0 0 rgb(34 211 238 / 0.6); }
+  70% { box-shadow: 0 0 0 8px rgb(34 211 238 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(34 211 238 / 0); }
+}
+
+@keyframes tm-blink {
+  to { visibility: hidden; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-live-dot,
+  .tm-caret {
+    animation: none;
+  }
+}

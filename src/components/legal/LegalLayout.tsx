@@ -1,12 +1,7 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
-
-const fadeUp = {
-  initial: { opacity: 0, y: 30 },
-  animate: { opacity: 1, y: 0 },
-};
+import { Display, MarketingShell } from '../landing/MarketingShell';
+import { useReveal } from '../landing/marketing';
 
 interface LegalLayoutProps {
   eyebrow: string;
@@ -17,67 +12,28 @@ interface LegalLayoutProps {
 
 /** Shared chrome for /privacy and /terms so the two pages stay in step. */
 export function LegalLayout({ eyebrow, title, lastUpdated, children }: LegalLayoutProps) {
-  const navigate = useNavigate();
-
+  const { reveal } = useReveal();
   return (
-    <div className="min-h-screen relative overflow-auto bg-black">
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-linear-to-b/srgb from-black via-black to-purple-950/30" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-purple-500/8 rounded-full blur-[150px]" />
-      </div>
-
-      <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 py-8 pb-24">
-        <motion.nav {...fadeUp} className="flex items-center justify-between mb-12">
-          <motion.button
-            whileHover={{ scale: 1.05, x: -3 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-white/50 hover:text-white transition-colors"
-          >
-            <ArrowLeft size={18} />
-            <span className="text-sm">Back</span>
-          </motion.button>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/privacy')}
-              className="text-sm text-white/40 hover:text-white/70 transition-colors"
-            >
-              Privacy
-            </button>
-            <button
-              onClick={() => navigate('/terms')}
-              className="text-sm text-white/40 hover:text-white/70 transition-colors"
-            >
-              Terms
-            </button>
-          </div>
-        </motion.nav>
-
-        <motion.header {...fadeUp} transition={{ delay: 0.1 }} className="mb-12">
-          <p className="text-purple-400/70 text-sm font-medium uppercase tracking-widest mb-4">{eyebrow}</p>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 tracking-tight">{title}</h1>
-          <p className="text-white/35 text-sm">Last updated {lastUpdated}</p>
+    <MarketingShell hue="52 211 153">
+      <div className="mx-auto max-w-3xl px-5 sm:px-8">
+        <motion.header {...reveal()} className="mb-12">
+          <p className="text-sm font-semibold text-emerald-300">{eyebrow}</p>
+          <Display className="mt-2 text-[2.6rem] leading-[1] sm:text-6xl">{title}</Display>
+          <p className="mt-4 text-sm text-white/40">Last updated {lastUpdated}</p>
         </motion.header>
-
-        <motion.div {...fadeUp} transition={{ delay: 0.15 }} className="space-y-8">
+        <motion.div {...reveal(0.06)} className="space-y-6">
           {children}
         </motion.div>
       </div>
-    </div>
+    </MarketingShell>
   );
 }
 
 export function LegalSection({ heading, children }: { heading: string; children: React.ReactNode }) {
   return (
-    <section
-      className="rounded-3xl p-6 sm:p-8"
-      style={{
-        background: 'var(--tm-pane-bg)',
-        border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
-      }}
-    >
-      <h2 className="text-xl font-bold text-white mb-4">{heading}</h2>
-      <div className="space-y-4 text-white/50 leading-relaxed text-[15px]">{children}</div>
+    <section className="tm-panel rounded-3xl p-6 sm:p-8">
+      <h2 className="mb-4 text-xl font-semibold text-white">{heading}</h2>
+      <div className="space-y-4 text-[15px] leading-relaxed text-white/55">{children}</div>
     </section>
   );
 }
