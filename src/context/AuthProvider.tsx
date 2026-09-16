@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import type { Profile } from '../types/database';
 import { syncProfileToMemory } from '../services/memory/memoryService';
 import { DEV_MOCK_AUTH, DEV_MOCK_PROFILE, DEV_MOCK_SESSION, DEV_MOCK_USER } from './devMockAuth';
+import { markRecovery } from '../lib/recoveryFlag';
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -224,13 +225,18 @@ const RealAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
 
-        // A password-reset link consumed on some other page (Supabase falls
-        // back to the Site URL when the redirect is not on its allowlist):
-        // the recovery session is already stored, so a plain navigation to
-        // the reset page finds it and shows the new-password form.
-        if (event === 'PASSWORD_RECOVERY' && window.location.pathname !== '/reset-password') {
-          window.location.assign('/reset-password');
-          return;
+        // A password-reset link. The event is this tab's proof of it (see
+        // lib/recoveryFlag.ts): /reset-password opens its form only against
+        // that proof, never for an ordinary signed-in session. A link consumed
+        // on some other page (Supabase falls back to the Site URL when the
+        // redirect is not on its allowlist) is forwarded; the flag survives
+        // the navigation, the event would not.
+        if (event === 'PASSWORD_RECOVERY') {
+          markRecovery();
+          if (window.location.pathname !== '/reset-password') {
+            window.location.assign('/reset-password');
+            return;
+          }
         }
 
         // Handle sign out
