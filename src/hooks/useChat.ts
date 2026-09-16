@@ -1,7 +1,7 @@
 import { getWorkspaceMeta } from '../services/workspace/workspaceStore';
 import { harnessTurnKey, prepareHarnessRecovery } from '../services/workspace/harnessRecovery';
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Message, ImageDimensions, MusicVariation, ChatErrorCode, RetryContext, type AttachedFile, type HarnessAction, type HarnessResume } from '../types/chat';
+import { Message, ImageDimensions, MusicVariation, ChatErrorCode, RetryContext, type AttachedFile, type HarnessAction, type HarnessResume, LoadingPhase } from '../types/chat';
 import type { MaxModeKind } from '../../shared/maxMode';
 import { createHarnessBridge, forgetHarnessResume, harnessDeviceApps, recallHarnessResume, rememberHarnessResume, rememberWorkspaceMode, workspaceModeFor } from '../services/workspace/harnessBridge';
 import { generateAIResponse, generateAIResponseStreaming, resolveMcpApproval, getActiveProRun, streamProRun, YouTubeMusicData, UserMemoryContext } from '../services/ai/aiProxyService';
@@ -148,7 +148,7 @@ export function useChat(
   const [useStreaming, setUseStreaming] = useState(true);
   const [youtubeMusic, setYoutubeMusic] = useState<YouTubeMusicData | null>(null);
   // Track loading phase for image pipeline UX: 'analyzing_photo' | 'thinking' | null
-  const [loadingPhase, setLoadingPhase] = useState<'analyzing_photo' | 'thinking' | null>(null);
+  const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>(null);
   // Pending remote music - music received from group chat that needs user action to play
   const [pendingRemoteMusic, setPendingRemoteMusic] = useState<YouTubeMusicData | null>(null);
   // PDF: cached extracted text for follow-up questions in this session
@@ -555,7 +555,7 @@ export function useChat(
           updateStreamingMessage(aiMessageId, chunk);
         },
         onStatusChange: (status: string) => {
-          setLoadingPhase(status as 'analyzing_photo' | 'thinking');
+          setLoadingPhase(status as LoadingPhase);
         },
         onComplete: (response) => {
           const emotion = extractEmotion(response.content);
@@ -975,7 +975,7 @@ export function useChat(
         // onStatusChange callback for image pipeline UX
         (status) => {
           if (wasStopped()) return;
-          setLoadingPhase(status as 'analyzing_photo' | 'thinking');
+          setLoadingPhase(status as LoadingPhase);
         },
         ctx.pdfData,
         ctx.pdfFileName,

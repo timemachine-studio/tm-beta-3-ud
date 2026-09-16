@@ -450,10 +450,11 @@ export function NotesPage() {
       } as React.CSSProperties}
     >
       {/* The weather, in the note's hue. */}
-      <div className="tm-atmosphere" aria-hidden="true">
-        <div className="tm-orb tm-orb-a left-[-12%] bottom-[-24%] h-[60vmax] w-[60vmax]" style={{ background: `rgb(${hue} / 0.22)` }} />
-        <div className="tm-orb tm-orb-b right-[-10%] bottom-[-16%] h-[46vmax] w-[46vmax]" style={{ background: `rgb(${activeTheme.secondaryRgb.replace(/,/g, ' ')} / 0.12)` }} />
-      </div>
+      <div
+        className="tm-atmosphere"
+        aria-hidden="true"
+        style={{ '--tm-atmo-2': activeTheme.secondaryRgb.replace(/,/g, ' '), '--tm-atmo-3': activeTheme.secondaryRgb.replace(/,/g, ' ') } as React.CSSProperties}
+      />
 
       <div className="relative z-[1] flex h-full">
         {/* Rail: inline on desktop, a slide-over on phones. */}

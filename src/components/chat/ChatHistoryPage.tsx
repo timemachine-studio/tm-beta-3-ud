@@ -1,11 +1,11 @@
 import { History } from 'lucide-react';
-import { AppAtmosphere } from '../shared/AppAtmosphere';
+import { AppShell } from '../shared/AppShell';
 import { parseChatImport } from '../../services/chat/storedChatValidation';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as Tabs from '@radix-ui/react-tabs';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Pencil, Trash2, ChevronLeft, ChevronRight, Download, Upload, Cloud, CloudOff, RefreshCw, Users, MessageCircle } from 'lucide-react';
+import { Pencil, Trash2, ChevronLeft, ChevronRight, Download, Upload, Cloud, CloudOff, RefreshCw, Users, MessageCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
   ChatSession,
@@ -293,44 +293,20 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
   const hasLocalSessions = user && getLocalSessions().length > 0;
 
   return (
-    <div
-      className="tm-workspace tm-page tm-history"
+    <AppShell
+      title="Chat history"
+      measure="wide"
+      actions={user ? (
+        <span className="tm-glass-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px]" style={{ border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)', color: 'rgb(var(--tm-ink-rgb) / 0.7)' }}>
+          <Cloud className="h-3.5 w-3.5" aria-hidden="true" /> Synced
+        </span>
+      ) : (
+        <span className="tm-glass-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px]" style={{ border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)', color: 'rgb(var(--tm-ink-rgb) / 0.7)' }}>
+          <CloudOff className="h-3.5 w-3.5" aria-hidden="true" /> On this device
+        </span>
+      )}
     >
-      <AppAtmosphere />
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="tm-history-header mb-8"
-        >
-          <motion.button
-            whileHover={{ scale: 1.05, x: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/')}
-            className="tm-glass tm-pill-action flex items-center gap-2 px-4 text-ink hover:text-white transition-colors"
-          >
-            <ArrowLeft size={20} />
-            <span className="text-sm font-medium">Back</span>
-          </motion.button>
-
-          <h1 className="tm-display tm-page-heading text-white">Chat History</h1>
-
-          {/* Cloud sync indicator */}
-          <div className="flex items-center gap-2">
-            {user ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/20 border border-green-500/30">
-                <Cloud className="w-4 h-4 text-green-400" />
-                <span className="text-xs text-green-400">Synced</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/20">
-                <CloudOff className="w-4 h-4 text-ink-muted" />
-                <span className="text-xs text-ink-muted">Local only</span>
-              </div>
-            )}
-          </div>
-        </motion.div>
+      <div>
 
         {/* Feedback Message */}
         <AnimatePresence>
@@ -673,6 +649,6 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
           </motion.div>
         </Tabs.Root>
       </div>
-    </div>
+    </AppShell>
   );
 }

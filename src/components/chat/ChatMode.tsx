@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, HeartPulse } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
-import { Message } from '../../types/chat';
+import { Message, LoadingPhase } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
 import { FlipWords } from '../ui/FlipWords';
@@ -25,7 +25,7 @@ interface ChatModeProps {
   onMessageAnimated: (messageId: string) => void;
   error?: string | null;
   streamingMessageId?: string | null;
-  loadingPhase?: 'analyzing_photo' | 'thinking' | null;
+  loadingPhase?: LoadingPhase;
   isGroupMode?: boolean;
   currentUserId?: string;
   onReply?: (message: ReplyTo) => void;

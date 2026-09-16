@@ -3,11 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import remarkMath from 'remark-math';
 import { escapeCurrencyAmounts } from './currencyMarkdown';
-import rehypeKatex from 'rehype-katex';
+import { useMathPlugins } from './mathPlugins';
 import { X } from 'lucide-react';
-import { MessageProps } from '../../types/chat';
+import { MessageProps, LoadingPhase } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { Brain } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
@@ -39,6 +38,16 @@ import { MusicComposeCard, SavedVariation } from './MusicComposeCard';
 import type { Components } from 'react-markdown';
 import { isMarkdownCodeComplete } from './markdownRuntime';
 
+/** The spinner's one line: what is happening, including a retry in progress. */
+function loadingLabel(phase: LoadingPhase | undefined): string {
+  if (phase === 'analyzing_photo') return 'Analyzing photo...';
+  if (typeof phase === 'string' && phase.startsWith('retrying:')) {
+    const [n, of] = phase.slice('retrying:'.length).split('/');
+    return `Retrying · ${n} of ${of}`;
+  }
+  return 'Initiating';
+}
+
 // MessageProps declares onAnimationComplete as `() => void`; the AI message
 // passes the id back, so it is redeclared rather than widened here.
 interface AIMessageProps extends Omit<MessageProps, 'onAnimationComplete'> {
@@ -50,7 +59,7 @@ interface AIMessageProps extends Omit<MessageProps, 'onAnimationComplete'> {
   isStreaming?: boolean;
   audioUrl?: string;
   isStreamingActive?: boolean;
-  loadingPhase?: 'analyzing_photo' | 'thinking' | null;
+  loadingPhase?: LoadingPhase;
   specialMode?: string;
   brandOverride?: BrandOverride;
   musicVariations?: SavedVariation[];
@@ -209,6 +218,8 @@ function AIMessageComponent({
 
   // Process content to handle memory tags
   const { cleanContent, hasSavedMemory } = processMemoryContent(content);
+  // Loaded on demand, and only for a message that actually has a formula.
+  const math = useMathPlugins(cleanContent + (reasoning ?? ''));
 
   const isSpecialLoadingPhase = !!(
     isStreamingActive &&
@@ -473,8 +484,8 @@ function AIMessageComponent({
                 </button>
                 <div className="text-sm text-zinc-400">
                   <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
+                    remarkPlugins={[remarkGfm, remarkBreaks, ...(math?.remark ?? [])]}
+                    rehypePlugins={math?.rehype ?? []}
                     components={ReasoningMarkdownComponents}
                   >
                     {reasoning}
@@ -598,8 +609,8 @@ function AIMessageComponent({
                             renderMarkdown={(text, key) => (
                               <ReactMarkdown
                                 key={key}
-                                remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-                                rehypePlugins={[rehypeKatex]}
+                                remarkPlugins={[remarkGfm, remarkBreaks, ...(math?.remark ?? [])]}
+                                rehypePlugins={math?.rehype ?? []}
                                 components={MarkdownComponents}
                               >
                                 {text}
@@ -608,8 +619,8 @@ function AIMessageComponent({
                           />
                         ) : (
                           <ReactMarkdown
-                            remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-                            rehypePlugins={[rehypeKatex]}
+                            remarkPlugins={[remarkGfm, remarkBreaks, ...(math?.remark ?? [])]}
+                            rehypePlugins={math?.rehype ?? []}
                             components={MarkdownComponents}
                           >
                             {cleanContent}
@@ -674,7 +685,7 @@ function AIMessageComponent({
                         transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                         className="w-4 h-4 border-2 border-current border-t-transparent rounded-full"
                       />
-                      {loadingPhase === 'analyzing_photo' ? 'Analyzing photo...' : 'Initiating'}
+                      {loadingLabel(loadingPhase)}
                     </div>
                   )
                 ) : null}
@@ -700,8 +711,8 @@ function AIMessageComponent({
                   <div className="tm-response-copy prose prose-invert max-w-none">
                     <MarkdownRuntimeContext.Provider value={markdownRuntime}>
                       <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
+                        remarkPlugins={[remarkGfm, remarkBreaks, ...(math?.remark ?? [])]}
+                        rehypePlugins={math?.rehype ?? []}
                         components={MarkdownComponents}
                       >
                         {cleanContent}
@@ -765,7 +776,7 @@ function AIMessageComponent({
                       transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                       className="w-6 h-6 border-2 border-current border-t-transparent rounded-full"
                     />
-                    {loadingPhase === 'analyzing_photo' ? 'Analyzing photo...' : 'Initiating'}
+                    {loadingLabel(loadingPhase)}
                   </div>
                 )
               ) : null}

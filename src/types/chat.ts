@@ -281,3 +281,10 @@ export interface MessageProps {
 
 // Additive compatibility names; legacy Message and wire framing stay intact.
 export type { AgentEvent, ArtifactRef, SourceRef, ToolResult } from "../../shared/agent";
+
+/**
+ * What the transcript shows while a reply is on its way. `retrying:n/m` is
+ * the n-th of m automatic retries after a transient failure — shown, because a
+ * silent retry looks like a hang.
+ */
+export type LoadingPhase = 'analyzing_photo' | 'thinking' | `retrying:${number}/${number}` | null;

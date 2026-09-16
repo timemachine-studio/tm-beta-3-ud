@@ -349,7 +349,10 @@ function backoffDelay(attemptIndex: number): number {
  * Never retries a request that already streamed tokens, and never retries a
  * user-caused failure (rate limit, expired session, oversized payload).
  */
-async function runWithRetries<T>(attempt: () => Promise<T>): Promise<T> {
+async function runWithRetries<T>(
+  attempt: () => Promise<T>,
+  onRetry?: (attempt: number, of: number) => void,
+): Promise<T> {
   let lastError: unknown;
 
   for (let i = 0; i <= MAX_RETRIES; i++) {
@@ -365,6 +368,9 @@ async function runWithRetries<T>(attempt: () => Promise<T>): Promise<T> {
       if (!chatError || alreadyStreamed || !isRetryableCode(chatError.code) || i === MAX_RETRIES) {
         throw error;
       }
+      // Said out loud: three silent retries with backoff is twenty-odd seconds
+      // of a spinner that looks hung (see LoadingPhase).
+      onRetry?.(i + 1, MAX_RETRIES);
       await new Promise(resolve => setTimeout(resolve, backoffDelay(i)));
     }
   }
@@ -966,7 +972,7 @@ export async function generateAIResponseStreaming(
           }
         };
 
-        const legResult = await runWithRetries(attempt);
+        const legResult = await runWithRetries(attempt, (n, of) => onStatusChange?.(`retrying:${n}/${of}`));
         legContent = legResult.content;
         legThinking = legResult.thinking;
       }

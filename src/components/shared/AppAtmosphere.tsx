@@ -15,13 +15,13 @@ export function AppAtmosphere({ variant, hue }: { variant?: 'healthcare'; hue?: 
   const colors = variant === 'healthcare'
     ? ['16 185 129', '20 184 166', '56 189 248']
     : hue ? [hue.replace(/,/g, ' '), '168 85 247', '34 211 238'] : seasons[season] || seasons.autumnDark;
+  // Gradients only (material.css): the pools are painted from these three
+  // hues, so a persona or season switch is a colour transition.
   return (
-    <div className="tm-atmosphere" aria-hidden="true" style={{ '--tm-atmo-rgb': colors[0] } as React.CSSProperties}>
-      {/* Low and wide, as under the landing composer: the light sits behind
-          the dock and reaches into both lower corners. */}
-      <div className="tm-orb tm-orb-a left-[-12%] bottom-[-24%] h-[60vmax] w-[60vmax]" style={{ background: 'rgb(' + colors[0] + ' / 0.28)' }} />
-      <div className="tm-orb tm-orb-b right-[-10%] bottom-[-16%] h-[46vmax] w-[46vmax]" style={{ background: 'rgb(' + colors[1] + ' / 0.16)' }} />
-      <div className="tm-orb tm-orb-c left-[34%] top-[-18%] h-[40vmax] w-[40vmax]" style={{ background: 'rgb(' + colors[2] + ' / 0.1)' }} />
-    </div>
+    <div
+      className="tm-atmosphere"
+      aria-hidden="true"
+      style={{ '--tm-atmo-rgb': colors[0], '--tm-atmo-2': colors[1], '--tm-atmo-3': colors[2] } as React.CSSProperties}
+    />
   );
 }

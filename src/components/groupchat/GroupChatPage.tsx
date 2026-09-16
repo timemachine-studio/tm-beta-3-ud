@@ -30,8 +30,17 @@ import { Message } from '../../types/chat';
 import { GroupChat, GroupChatMessage, GroupChatInvite } from '../../types/groupChat';
 import { AI_PERSONAS } from '../../config/constants';
 import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
+import { useMathPlugins } from '../chat/mathPlugins';
+
+/** One member's message, with the math plugins only when it has a formula. */
+function GroupMarkdown({ text }: { text: string }) {
+  const math = useMathPlugins(text);
+  return (
+    <ReactMarkdown remarkPlugins={math?.remark ?? []} rehypePlugins={math?.rehype ?? []}>
+      {text}
+    </ReactMarkdown>
+  );
+}
 import { newId } from '../../utils/id';
 export function GroupChatPage() {
   const { id } = useParams<{ id: string }>();
@@ -843,12 +852,7 @@ function GroupMessage({ message, isOwnMessage, persona, onReply }: GroupMessageP
               {AI_PERSONAS[persona].name}
             </p>
             <div className="text-white/90 prose prose-invert prose-sm max-w-none">
-              <ReactMarkdown
-                remarkPlugins={[remarkMath]}
-                rehypePlugins={[rehypeKatex]}
-              >
-                {message.content}
-              </ReactMarkdown>
+              <GroupMarkdown text={message.content} />
             </div>
           </div>
 

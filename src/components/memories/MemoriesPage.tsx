@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Plus, Trash2, Brain, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Brain, Sparkles } from 'lucide-react';
+import { AppShell } from '../shared/AppShell';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { getMemories, createMemory, deleteMemory, AIMemory } from '../../services/memory/memoryService';
@@ -109,39 +110,8 @@ export function MemoriesPage() {
   }
 
   return (
-    <div className={`min-h-screen ${theme.background} ${theme.text} relative overflow-hidden`}>
-      {/* Ambient background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-pink-500/15 rounded-full blur-[100px] animate-pulse delay-1000" />
-      </div>
-
-      <div className="relative z-10 max-w-2xl mx-auto px-4 py-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between mb-8"
-        >
-          <motion.button
-            whileHover={{ scale: 1.05, x: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
-          >
-            <ArrowLeft size={20} />
-            <span className="text-sm font-medium">Back</span>
-          </motion.button>
-
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-linear-to-br/srgb from-purple-500/20 to-pink-500/20 border border-purple-500/20">
-              <Brain className="w-5 h-5 text-purple-400" />
-            </div>
-            <h1 className="text-2xl font-bold text-white">Memories</h1>
-          </div>
-
-          <div className="w-16" />
-        </motion.div>
+    <AppShell title="Memories">
+      <div>
 
         {/* Add new memory */}
         <motion.div
@@ -232,6 +202,6 @@ export function MemoriesPage() {
           )}
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 }

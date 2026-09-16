@@ -10,7 +10,12 @@ import { searchMusic, getLyrics, Track as LyricsTrack, LyricLine } from './servi
 import LyricsDisplay from './components/music/LyricsDisplay';
 import LyricsYouTubePlayer from './components/music/LyricsYouTubePlayer';
 import { LyricsMiniPlayer } from './components/music/LyricsMiniPlayer';
-import { Users, Settings, Zap, PanelRightOpen } from 'lucide-react';
+import { Users, Settings, Zap, PanelRightOpen, PanelLeftOpen } from 'lucide-react';
+import { ChatSidebar } from './components/chat/ChatSidebar';
+import { useRail } from './hooks/useRail';
+
+/* The three minds' hues, as on the landing page. */
+const personaHues: Record<string, string> = { default: '168 85 247', girlie: '236 72 153', pro: '34 211 238' };
 import { motion } from 'framer-motion';
 import { useChat } from './hooks/useChat';
 import { useAnonymousRateLimit } from './hooks/useAnonymousRateLimit';
@@ -611,6 +616,30 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     navigate('/account');
   }, [navigate]);
 
+  const { railOpen, railWide, railInline, openRail } = useRail();
+
+  // "New chat" from a rail on another page arrives as router state, one-shot.
+  const newChatFromNav = (location.state as { newChat?: boolean } | null)?.newChat;
+  useEffect(() => {
+    if (!newChatFromNav) return;
+    startNewChat();
+    navigate(location.pathname, { replace: true, state: null });
+  }, [newChatFromNav, startNewChat, navigate, location.pathname]);
+
+  // The recents list refreshes when the archive may have changed: a chat
+  // switched, or a turn landed. Debounced so a streaming answer is one read.
+  const [archiveVersion, setArchiveVersion] = useState(0);
+  useEffect(() => {
+    const id = setTimeout(() => setArchiveVersion((n) => n + 1), 1500);
+    return () => clearTimeout(id);
+  }, [currentSessionId, messages.length]);
+
+  const openSession = useCallback(async (id: string) => {
+    if (id === currentSessionId) return;
+    const session = (await chatService.getSessions()).find((s) => s.id === id);
+    if (session) loadChat(session);
+  }, [currentSessionId, loadChat]);
+
   const handleOpenHistory = useCallback(() => {
     navigate('/history');
   }, [navigate]);
@@ -661,7 +690,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     <div
       id={brandOverride ? 'reveoule-theme' : undefined}
       className={`tm-chat-shell min-h-screen ${backgroundClass} ${theme.text} relative overflow-hidden transition-all duration-700`}
-      style={{ minHeight: 'calc(var(--vh, 1vh) * 100)' }}
+      style={{ minHeight: 'calc(var(--vh, 1vh) * 100)', '--tm-rail': railInline ? '272px' : '0px' } as React.CSSProperties}
     >
       {/* Max Mode: chat on the left, workspace on the right. The transform
           makes the column the containing block for the chat's own fixed
@@ -676,10 +705,38 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
         className={maxModeRoute ? `relative min-w-0 flex-1 h-full ${workspaceOpen ? 'hidden lg:block' : ''}` : undefined}
         style={maxModeRoute ? { transform: 'translateZ(0)' } : undefined}
       >
-      <main className="relative h-screen flex flex-col" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
-        {/* Independent floating controls leave the header open to the canvas. */}
-        <header className="tm-chat-header fixed inset-x-0 top-3 z-50 px-3 sm:top-4 sm:px-6 lg:px-8">
+      <div className="flex" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
+      <ChatSidebar
+        open={railOpen}
+        overlay={!railWide}
+        onClose={() => openRail(false)}
+        currentSessionId={currentSessionId}
+        archiveVersion={archiveVersion}
+        onNewChat={startNewChat}
+        onOpenSession={(id) => { void openSession(id); }}
+        onOpenAuth={handleOpenAuth}
+        onOpenAccount={handleOpenAccount}
+        onOpenSettings={handleOpenSettings}
+        hue={personaHues[currentPersona] || personaHues.default}
+      />
+      <main className="relative h-screen min-w-0 flex-1 flex flex-col" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
+        {/* Independent floating controls leave the header open to the canvas.
+            Both it and the dock start where the rail ends. */}
+        <header className="tm-chat-header fixed right-0 top-3 z-50 px-3 sm:top-4 sm:px-6 lg:px-8" style={{ left: 'var(--tm-rail, 0px)' }}>
           <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-1.5">
+            {!railInline && (
+              <button
+                type="button"
+                onClick={() => openRail(true)}
+                aria-label="Show sidebar"
+                className="tm-glass tm-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+                style={{ color: 'rgb(var(--tm-ink-rgb) / 0.85)' }}
+              >
+                <PanelLeftOpen className="h-4 w-4" />
+              </button>
+            )}
+            <div className="tm-chat-brand min-w-0">
             <BrandLogo
               currentPersona={currentPersona}
               onPersonaChange={handlePersonaChange}
@@ -690,7 +747,10 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
               onOpenHistory={handleOpenHistory}
               onOpenSettings={handleOpenSettings}
               brandOverride={brandOverride}
+              mindsOnly={railInline}
             />
+            </div>
+            </div>
             <div className="flex items-center gap-1.5">
               {isAnonymous && (
                 <span
@@ -1095,7 +1155,8 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
             ground before it reaches the glass; the wrapper passes clicks
             through so only the composer itself is interactive. */}
         <div
-          className="tm-chat-dock pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pt-12 sm:px-6"
+          className="tm-chat-dock pointer-events-none fixed right-0 bottom-0 z-40 px-3 pt-12 sm:px-6"
+          style={{ left: 'var(--tm-rail, 0px)' }}
         >
           <div className="pointer-events-auto mx-auto max-w-4xl">
             {maxModeRoute && (
@@ -1149,6 +1210,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
           onGroupChatCreated={handleGroupChatCreated}
         />
       </main>
+      </div>
       </div>
       {maxModeRoute && (
         <Suspense fallback={<div className={`${workspaceOpen ? 'flex' : 'hidden'} w-full lg:w-[720px] h-full items-center justify-center`}><RouteLoadingFallback /></div>}>
@@ -1287,7 +1349,6 @@ function RootRoute() {
 const MARKETING_PATHS = new Set(['/welcome', '/features', '/personas', '/about', '/help', '/contact']);
 
 function AppContent() {
-  const { theme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1334,10 +1395,10 @@ function AppContent() {
       } />
       <Route path="/home" element={<><SEOHead title="Home" description="TimeMachine — the everything app. Chat, Canvas, Education, Healthcare, Shopping, and more." path="/home" /><HomePage /></>} />
       <Route path="/account" element={
-        <div className={`min-h-screen ${theme.background} ${theme.text} relative overflow-hidden`}>
+        <>
           <SEOHead title="Account" description="Manage your TimeMachine Chat account settings and profile." path="/account" noIndex />
-          <AccountPage onBack={() => navigate('/')} />
-        </div>
+          <AccountPage />
+        </>
       } />
       <Route path="/history" element={
         <>

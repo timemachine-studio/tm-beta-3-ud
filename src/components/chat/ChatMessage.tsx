@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Reply, Smile, CornerDownRight } from 'lucide-react';
 import { AIMessage } from './AIMessage';
 import { UserMessage } from './UserMessage';
-import { Message } from '../../types/chat';
+import { Message, LoadingPhase } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { BrandOverride } from '../brand/BrandLogo';
 import type { SavedVariation } from './MusicComposeCard';
@@ -21,7 +21,7 @@ interface ChatMessageProps extends Message {
   previousMessage?: string | null;
   isStreaming?: boolean;
   streamingMessageId?: string | null;
-  loadingPhase?: 'analyzing_photo' | 'thinking' | null;
+  loadingPhase?: LoadingPhase;
   isGroupMode?: boolean;
   currentUserId?: string;
   onReply?: (message: { id: string; content: string; sender_nickname?: string; isAI: boolean }) => void;

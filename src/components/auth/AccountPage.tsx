@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mail,
   Camera,
-  ArrowLeft,
   LogOut,
   Crown,
   MessageSquare,
@@ -26,11 +25,9 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { supabase, uploadImage } from '../../lib/supabase';
 import { MemoriesModal } from './MemoriesModal';
+import { AppShell } from '../shared/AppShell';
 import { ImagesModal } from './ImagesModal';
 
-interface AccountPageProps {
-  onBack: () => void;
-}
 
 // TimeMachine Logo for default avatar
 const TimeMachineLogo = () => (
@@ -68,7 +65,7 @@ function StatCard({ icon, label, value, onClick }: {
   );
 }
 
-export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
+export const AccountPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile, updateProfile, signOut, changePassword } = useAuth();
   const [nickname, setNickname] = useState(profile?.nickname || '');
@@ -271,39 +268,17 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
   };
 
   return (
-    <div
-      className="h-screen overflow-hidden flex flex-col"
-      style={{
-        background: 'var(--tm-page-bg)'
-      }}
+    <AppShell
+      title="Account"
+      measure="narrow"
+      actions={profile?.is_pro ? (
+        <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold text-amber-400" style={{ background: 'rgb(245 158 11 / 0.12)', border: '1px solid rgb(245 158 11 / 0.3)' }}>
+          <Crown size={14} aria-hidden="true" /> PRO
+        </span>
+      ) : undefined}
     >
-
-      {/* Scrollable content */}
-      <div className="relative z-10 flex-1 overflow-y-auto">
-        <div className="max-w-lg mx-auto px-4 py-6 pb-24">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between mb-8"
-          >
-            <motion.button
-              whileHover={{ scale: 1.05, x: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onBack}
-              className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
-            >
-              <ArrowLeft size={20} />
-              <span className="text-sm font-medium">Back</span>
-            </motion.button>
-
-            {profile?.is_pro && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-linear-to-r/srgb from-amber-500/20 to-orange-500/20 border border-amber-500/30">
-                <Crown size={14} className="text-amber-400" />
-                <span className="text-amber-400 text-xs font-semibold">PRO</span>
-              </div>
-            )}
-          </motion.div>
+      <div>
+        <div>
 
           {/* Profile Card */}
           <motion.div
@@ -941,7 +916,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
           </>
         )}
       </AnimatePresence>
-    </div>
+    </AppShell>
   );
 };
 

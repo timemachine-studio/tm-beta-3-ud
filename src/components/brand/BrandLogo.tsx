@@ -26,6 +26,12 @@ interface BrandLogoProps {
   onOpenHistory?: () => void;
   onOpenSettings?: () => void;
   brandOverride?: BrandOverride;
+  /**
+   * The rail is beside the transcript and already carries the account, new
+   * chat, history, Flight Controls and settings; the menu then offers only
+   * what the rail does not — which mind answers.
+   */
+  mindsOnly?: boolean;
 }
 
 type MenuPersona = 'default' | 'girlie' | 'pro';
@@ -62,6 +68,7 @@ export function BrandLogo({
   onOpenHistory,
   onOpenSettings,
   brandOverride,
+  mindsOnly = false,
 }: BrandLogoProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
@@ -173,7 +180,7 @@ export function BrandLogo({
               animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
               exit={reduced ? undefined : { opacity: 0, y: -6, scale: 0.98, filter: 'blur(6px)' }}
               transition={settle}
-              className="tm-glass tm-chat-menu fixed z-[60] w-[19rem] origin-top-left rounded-[28px] p-1.5"
+              className={`tm-glass tm-chat-menu fixed z-[60] origin-top-left rounded-[28px] p-1.5 ${mindsOnly ? 'w-[16rem]' : 'w-[19rem]'}`}
               style={{ top: anchor.top, left: anchor.left, maxHeight: `calc(var(--tm-100dvh) - ${anchor.top + 12}px)` }}
               onKeyDown={(event) => {
                 const buttons = Array.from(event.currentTarget.querySelectorAll('button'));
@@ -190,6 +197,7 @@ export function BrandLogo({
               }}
             >
               {/* Account */}
+              {!mindsOnly && (
               <button type="button" role="menuitem" onClick={run(user ? onOpenAccount : onOpenAuth)} className={rowClass}>
                 <span
                   className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full"
@@ -216,8 +224,9 @@ export function BrandLogo({
                   </span>
                 </span>
               </button>
+              )}
 
-              <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />
+              {!mindsOnly && <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />}
 
               {/* The minds */}
               <div role="group" aria-label="Who answers">
@@ -257,10 +266,10 @@ export function BrandLogo({
                   })}
               </div>
 
-              <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />
+              {!mindsOnly && <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />}
 
               {/* Actions */}
-              {([
+              {!mindsOnly && ([
                 ['New chat', Plus, run(onStartNewChat)],
                 ['Chat history', History, run(onOpenHistory)],
                 ['Flight Controls', Wand2, run(() => setShowAgents(true))],

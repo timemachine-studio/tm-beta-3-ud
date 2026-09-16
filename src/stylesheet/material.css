@@ -113,10 +113,19 @@
 /* ---- atmosphere ---- */
 /* Drifting orbs in the three minds' hues over the Autumn Ember ground.
    Compositor-only properties; the drift stops under reduced motion. */
+/* The softness is a gradient mask, not a blur. Gecko caps the radius of
+   filter: blur() on surfaces this large and paints the orbs as soft-edged
+   discs — the blotchy look on a Mac running Zen or Firefox. A mask is the
+   same arithmetic in every engine, and cheaper to composite. */
+.tm-orb,
+.tm-glow {
+  -webkit-mask-image: radial-gradient(circle at center, rgb(0 0 0 / 0.9) 0%, rgb(0 0 0 / 0.55) 22%, rgb(0 0 0 / 0.26) 44%, rgb(0 0 0 / 0.1) 62%, rgb(0 0 0 / 0.03) 76%, transparent 88%);
+  mask-image: radial-gradient(circle at center, rgb(0 0 0 / 0.9) 0%, rgb(0 0 0 / 0.55) 22%, rgb(0 0 0 / 0.26) 44%, rgb(0 0 0 / 0.1) 62%, rgb(0 0 0 / 0.03) 76%, transparent 88%);
+}
+
 .tm-orb {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(120px);
   will-change: transform;
   animation: tm-drift 28s ease-in-out infinite alternate;
 }
@@ -153,7 +162,6 @@
 .tm-glow {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(120px);
   pointer-events: none;
 }
 
@@ -161,22 +169,24 @@
    whichever mind is answering. Hue and strength come from the shell as
    custom properties so a persona switch is a colour transition, not a
    remount. Light mode has no atmosphere by design. */
+/* The app's weather is gradients only — no orbs. Black at the top, the hue
+   pooling low and into both lower corners, a faint second hue overhead. Wide,
+   soft stops so nothing reads as a shape, and nothing here needs a blur, so
+   it paints the same in every engine. The three hues come from the shell:
+   --tm-atmo-rgb (the mind's), --tm-atmo-2 (the right pool), --tm-atmo-3 (the
+   glow overhead). */
 .tm-atmosphere {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  /* The landing hero's ground: black at the top, the hue pooling at the
-     bottom and in both lower corners, so no corner of the room goes dead. */
   background:
-    radial-gradient(70% 55% at 0% 100%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.24), transparent 70%),
-    radial-gradient(70% 55% at 100% 100%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.18), transparent 70%),
-    linear-gradient(to bottom, #030205 0%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.05) 30%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.16) 66%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.3) 100%),
+    radial-gradient(80% 62% at 8% 104%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.42) 0%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.16) 38%, transparent 72%),
+    radial-gradient(70% 56% at 96% 102%, rgb(var(--tm-atmo-2, 236 72 153) / 0.2) 0%, rgb(var(--tm-atmo-2, 236 72 153) / 0.08) 40%, transparent 72%),
+    radial-gradient(46% 34% at 50% -6%, rgb(var(--tm-atmo-3, 34 211 238) / 0.11) 0%, rgb(var(--tm-atmo-3, 34 211 238) / 0.04) 45%, transparent 75%),
+    linear-gradient(to bottom, #030205 0%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.04) 34%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.14) 66%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.26) 100%),
     #030205;
-}
-
-.tm-atmosphere .tm-orb {
-  transition: background-color 900ms ease-out;
+  transition: background 900ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -280,13 +290,74 @@
 
 .tm-chat-header { padding-top: env(safe-area-inset-top, 0px); }
 .tm-chat-header button { flex-shrink: 0; }
-.tm-chat-header > div > div:first-child { min-width: 0; }
-.tm-chat-header > div > div:first-child > button { max-width: 100%; }
-.tm-chat-header > div > div:first-child > button > span { min-width: 0; }
-.tm-chat-header > div > div:first-child > button > span > span:first-child {
+.tm-chat-brand > div > button { max-width: 100%; }
+.tm-chat-brand > div > button > span { min-width: 0; }
+.tm-chat-brand > div > button > span > span:first-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The top bar of a product page in the shell: the page's name and its
+   actions, on the same quiet glass as the Notes top bar. */
+.tm-shell-topbar {
+  min-height: 52px;
+  padding: 0 12px 0 8px;
+  border-bottom: 1px solid rgb(var(--tm-ink-rgb) / 0.06);
+  background: rgb(var(--tm-paper-rgb) / 0.18);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+.tm-shell-title {
+  padding: 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgb(var(--tm-ink-rgb) / 0.9);
+}
+
+:root[data-theme='light'] .tm-shell-topbar {
+  background: rgb(var(--tm-paper-rgb) / 0.6);
+}
+
+/* The rail: Claude's left column on the Notes rail's material. */
+.tm-rail {
+  background: rgb(var(--tm-paper-rgb) / 0.32);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border-right: 1px solid rgb(var(--tm-ink-rgb) / 0.08);
+}
+
+.tm-rail-row {
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: rgb(var(--tm-ink-rgb) / 0.75);
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+
+.tm-rail-row:hover,
+.tm-rail-row:focus-visible {
+  background-color: rgb(var(--tm-ink-rgb) / 0.06);
+  color: rgb(var(--tm-ink-rgb) / 0.95);
+}
+
+.tm-rail-row[data-active='true'] {
+  background-color: rgb(var(--tm-rail-hue, 168 85 247) / 0.14);
+  color: rgb(var(--tm-ink-rgb) / 0.96);
+}
+
+.tm-rail-section {
+  padding: 14px 12px 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(var(--tm-ink-rgb) / 0.42);
+}
+
+:root[data-theme='light'] .tm-rail {
+  background: rgb(var(--tm-paper-rgb) / 0.72);
 }
 
 .tm-chat-menu.tm-glass {

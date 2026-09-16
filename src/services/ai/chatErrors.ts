@@ -96,7 +96,7 @@ export const CHAT_ERROR_COPY: Record<ChatErrorCode, string> = {
   RETENTION_UNVERIFIED: 'That background PRO run could not be started. Try again, or use Air.',
   RATE_LIMITED: "You've used up your messages for now.",
   AUTH_EXPIRED: 'Your session expired. Sign in again to continue.',
-  PROVIDER_DOWN: 'The model is having a rough moment.',
+  PROVIDER_DOWN: "TimeMachine's servers are busy right now. Try again in a moment.",
   PAYLOAD_TOO_LARGE: 'That attachment is too large to send.',
   TIMEOUT: 'That took too long and timed out.',
   TRUNCATED: 'The response was cut off before it finished.',

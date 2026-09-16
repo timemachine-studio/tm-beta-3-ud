@@ -4,6 +4,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../types/database';
 import { syncProfileToMemory } from '../services/memory/memoryService';
+import { DEV_MOCK_AUTH, DEV_MOCK_PROFILE, DEV_MOCK_SESSION, DEV_MOCK_USER } from './devMockAuth';
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -61,7 +62,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
   }
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+const RealAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [cachedUser] = useState<User | null>(readCachedUser);
   const [user, setUser] = useState<User | null>(cachedUser);
   const [session, setSession] = useState<Session | null>(null);
@@ -451,5 +452,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+// See devMockAuth.ts. A static signed-in value with inert auth calls; the
+// real provider is not mounted at all, so nothing here touches Supabase auth.
+const DevMockAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [profile, setProfile] = useState<Profile>(DEV_MOCK_PROFILE);
+  const none = async () => ({ error: null });
+  const value: AuthContextType = {
+    user: DEV_MOCK_USER,
+    session: DEV_MOCK_SESSION,
+    profile,
+    loading: false,
+    profileLoading: false,
+    signUp: none,
+    signIn: none,
+    signOut: async () => { console.warn('[dev] mock auth: remove VITE_DEV_MOCK_USER from .env to sign out'); },
+    updateProfile: async (updates) => { setProfile((p) => ({ ...p, ...updates })); return { error: null }; },
+    updateLastPersona: async (persona) => { setProfile((p) => ({ ...p, last_persona: persona })); },
+    refreshProfile: async () => {},
+    isOnboarded: true,
+    needsOnboarding: false,
+    signUpWithOtp: none,
+    verifyOtp: none,
+    resetPassword: none,
+    updatePassword: none,
+    changePassword: none,
+  };
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const AuthProvider: React.FC<AuthProviderProps> = DEV_MOCK_AUTH ? DevMockAuthProvider : RealAuthProvider;
 
 export default AuthContext;

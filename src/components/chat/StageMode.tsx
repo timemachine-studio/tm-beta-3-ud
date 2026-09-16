@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChatMessage } from './ChatMessage';
-import { Message } from '../../types/chat';
+import { Message, LoadingPhase } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -9,7 +9,7 @@ interface StageModeProps {
   currentPersona: keyof typeof AI_PERSONAS;
   onMessageAnimated: (messageId: string) => void;
   streamingMessageId?: string | null;
-  loadingPhase?: 'analyzing_photo' | 'thinking' | null;
+  loadingPhase?: LoadingPhase;
 }
 
 export function StageMode({
