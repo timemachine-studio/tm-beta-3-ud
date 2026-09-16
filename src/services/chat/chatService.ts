@@ -77,6 +77,19 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // a save is an upsert by id rather than a wipe-and-rewrite (A.4). Ids that
 // predate 1.12 are numeric strings, not uuids; those rows get a fresh id and
 // the message takes it on the next load.
+/** Postgres: the row violates a row-level security policy. */
+const RLS_DENIED = '42501';
+
+let updatePolicyWarned = false;
+function warnUpdatePolicyMissing() {
+  if (updatePolicyWarned) return;
+  updatePolicyWarned = true;
+  console.warn(
+    'chat_messages has no UPDATE policy for the owner, so saving an existing message is refused. '
+    + 'Apply supabase/migrations/chat_messages_update_policy.sql. New messages are still being saved.',
+  );
+}
+
 function messageToDbRow(message: Message, sessionId: string, userId: string) {
   return {
     id: UUID.test(message.id) ? message.id : newId(),
@@ -308,9 +321,22 @@ export async function saveSupabaseSession(
       // (pre-launch-audit.md A.4). Now the rows are written by id; only once
       // that has succeeded are rows the client no longer has removed.
       const rows = validMessages.map(msg => messageToDbRow(msg, activeSessionId, userId));
-      const { error: upsertError } = await supabase
+      let { error: upsertError } = await supabase
         .from('chat_messages')
         .upsert(rows, { onConflict: 'id' });
+      if (upsertError && upsertError.code === RLS_DENIED) {
+        // The project has no UPDATE policy on chat_messages: the insert half
+        // of the upsert is allowed, the update half is refused, so every save
+        // after a chat's first one failed here. The fix is the migration in
+        // supabase/migrations/chat_messages_update_policy.sql; until it is
+        // applied, land the new rows (ON CONFLICT DO NOTHING never reaches
+        // the update policy) so the conversation itself is never lost. A row
+        // already stored keeps its earlier version until the policy exists.
+        warnUpdatePolicyMissing();
+        ({ error: upsertError } = await supabase
+          .from('chat_messages')
+          .upsert(rows, { onConflict: 'id', ignoreDuplicates: true }));
+      }
       if (upsertError) {
         console.error('Error saving messages:', upsertError);
         throw upsertError;

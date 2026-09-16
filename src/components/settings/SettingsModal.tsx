@@ -279,7 +279,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                         })}
                       </div>
                       <p className="text-xs text-ink-muted mt-3">
-                        Current keeps your chats in a sidebar. Legacy is the layout before it, at full size.
+                        Current keeps your chats in a sidebar. Legacy is the layout before it.
                       </p>
                     </section>
 

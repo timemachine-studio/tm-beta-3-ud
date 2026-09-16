@@ -211,43 +211,20 @@
   font-weight: 500;
 }
 
-/* The product at 80%: the density the chat shell was designed at, so a
-   1440-wide window reads like 1800. The marketing pages keep 100% — their
-   type is set for it.
+/* The product renders at 100%. It briefly shipped at 80% (a `zoom` on body,
+   "the density the chat shell was designed at"), and every page read as a
+   smaller copy of itself next to the legacy shell — so the zoom is 1
+   everywhere, marketing and app alike, and the same size in both shells.
 
-   CSS zoom relays out, so text stays crisp and fixed edges still reach the
-   viewport — but every length inside is multiplied, viewport units included:
-   100vh renders at 80% of the window. So no app style writes 100vh or 100dvh
-   directly; they use --tm-100vh / --tm-100dvh, which divide the zoom back
-   out, and the JS-measured --vh does the same (App.tsx). Code that places
-   fixed elements from pointer or rect coordinates divides too — see
-   utils/pageZoom.ts. */
+   The machinery stays because it is harmless at 1 and would be a large
+   removal: app styles write --tm-100vh / --tm-100dvh rather than 100vh,
+   the JS-measured --vh divides by the zoom (App.tsx), and code placing fixed
+   elements from rect coordinates goes through utils/pageZoom.ts. Setting
+   --tm-zoom to anything but 1 again would work, and would read as smaller. */
 :root {
   --tm-zoom: 1;
   --tm-100vh: 100vh;
   --tm-100dvh: 100dvh;
-}
-
-:root[data-tm-scale='app'] {
-  --tm-zoom: 0.8;
-  --tm-100vh: calc(100vh / 0.8);
-  --tm-100dvh: calc(100dvh / 0.8);
-}
-
-/* The legacy shell (Settings → Interface) was drawn at 100%, and a phone
-   has no density to spare: neither is zoomed. */
-:root[data-tm-scale='app'][data-tm-ui='legacy'] {
-  --tm-zoom: 1;
-  --tm-100vh: 100vh;
-  --tm-100dvh: 100dvh;
-}
-
-@media (max-width: 767px) {
-  :root[data-tm-scale='app'] {
-    --tm-zoom: 1;
-    --tm-100vh: 100vh;
-    --tm-100dvh: 100dvh;
-  }
 }
 
 :root[data-tm-scale='app'] body {

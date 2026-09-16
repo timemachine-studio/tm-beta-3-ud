@@ -38,6 +38,12 @@ interface BrandLogoProps {
    * its glass pill.
    */
   bare?: boolean;
+  /**
+   * A mode that recolours the room recolours the wordmark with it: in
+   * TM Healthcare the atmosphere is green, so the name is too. The menu's
+   * persona rows keep each mind's own hue.
+   */
+  accent?: 'healthcare';
 }
 
 type MenuPersona = 'default' | 'girlie' | 'pro';
@@ -76,6 +82,7 @@ export function BrandLogo({
   brandOverride,
   mindsOnly = false,
   bare = false,
+  accent,
 }: BrandLogoProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
@@ -88,7 +95,11 @@ export function BrandLogo({
 
   const hue = brandOverride?.glowColor
     ? undefined
-    : personaHues[(currentPersona in personaHues ? currentPersona : 'default') as MenuPersona];
+    : accent === 'healthcare'
+      ? '16 185 129'
+      : personaHues[(currentPersona in personaHues ? currentPersona : 'default') as MenuPersona];
+  const textClass = brandOverride?.textColorClass
+    || (accent === 'healthcare' ? 'text-emerald-400' : personaColors[(currentPersona in personaColors ? currentPersona : 'default') as MenuPersona]);
 
   // The menu renders in a portal: the nav it hangs from is glass, and a
   // backdrop-filter cannot see through its parent's backdrop-filter, so a
@@ -161,7 +172,7 @@ export function BrandLogo({
       >
         <span className="flex flex-col items-start">
           <span
-            className={`${bare ? 'text-lg sm:text-2xl' : 'text-[17px] tracking-tight sm:text-lg'} font-bold ${brandOverride?.textColorClass || personaColors[(currentPersona in personaColors ? currentPersona : 'default') as MenuPersona]} transition-colors duration-300`}
+            className={`${bare ? 'text-lg sm:text-2xl' : 'text-[17px] tracking-tight sm:text-lg'} font-bold ${textClass} transition-colors duration-300`}
             style={{
               fontFamily: 'Montserrat, var(--font-display)',
               textShadow: bare
@@ -179,7 +190,7 @@ export function BrandLogo({
         </span>
         <ChevronDown
           className={`shrink-0 transition-transform duration-300 ease-out ${isOpen ? 'rotate-180' : ''} ${bare
-            ? `h-4 w-4 sm:h-5 sm:w-5 ${brandOverride?.textColorClass || personaColors[(currentPersona in personaColors ? currentPersona : 'default') as MenuPersona]}`
+            ? `h-4 w-4 sm:h-5 sm:w-5 ${textClass}`
             : 'h-4 w-4'}`}
           style={bare ? undefined : { color: 'rgb(var(--tm-ink-rgb) / 0.5)' }}
           aria-hidden="true"

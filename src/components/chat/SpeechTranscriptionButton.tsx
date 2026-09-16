@@ -43,7 +43,32 @@ interface SpeechTranscriptionButtonProps {
   onTranscript: (value: string) => void;
   disabled?: boolean;
   currentPersona?: Persona;
+  /** TM Healthcare paints the bar green; the mic follows. */
+  accent?: 'healthcare';
 }
+
+/* The legacy bar's circle: the mic sits inside the field in the mind's hue
+   and turns red while it listens. Kept in step with ChatInput's. */
+const personaStyles = {
+  tintColors: {
+    default: 'rgba(168, 85, 247, 0.2)',
+    girlie: 'rgba(236, 72, 153, 0.15)',
+    pro: 'rgba(34, 211, 238, 0.15)',
+    healthcare: 'rgba(16, 185, 129, 0.18)'
+  },
+  borderColors: {
+    default: 'rgba(168, 85, 247, 0.4)',
+    girlie: 'rgba(236, 72, 153, 0.3)',
+    pro: 'rgba(34, 211, 238, 0.3)',
+    healthcare: 'rgba(52, 211, 153, 0.35)'
+  },
+  glowShadow: {
+    default: '0 0 15px rgba(168, 85, 247, 0.35)',
+    girlie: '0 0 12px rgba(236, 72, 153, 0.25)',
+    pro: '0 0 12px rgba(34, 211, 238, 0.25)',
+    healthcare: '0 0 12px rgba(16, 185, 129, 0.3)'
+  }
+} as const;
 
 const recognitionErrorMessage = (error: string) => {
   if (error === 'not-allowed' || error === 'service-not-allowed') {
@@ -58,11 +83,16 @@ export function SpeechTranscriptionButton({
   value,
   onTranscript,
   disabled,
+  currentPersona = 'default',
+  accent,
 }: SpeechTranscriptionButtonProps) {
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const startingTextRef = useRef('');
+  const stylePersona: keyof typeof personaStyles.tintColors = accent === 'healthcare'
+    ? 'healthcare'
+    : currentPersona === 'girlie' || currentPersona === 'pro' ? currentPersona : 'default';
 
   useEffect(() => () => recognitionRef.current?.abort(), []);
 
@@ -128,19 +158,23 @@ export function SpeechTranscriptionButton({
     <div className="relative">
       <motion.button
         aria-pressed={isListening}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={handleToggle}
         disabled={disabled && !isListening}
-        className="tm-press tm-composer-control relative disabled:cursor-not-allowed"
+        className="p-3 rounded-full transition-all duration-300 relative group disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
           background: isListening
             ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgb(var(--tm-ink-rgb) / 0.05))'
-            : 'transparent',
+            : `linear-gradient(135deg, ${personaStyles.tintColors[stylePersona]}, rgb(var(--tm-ink-rgb) / 0.05))`,
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
           border: isListening
             ? '1px solid rgba(239, 68, 68, 0.4)'
-            : '1px solid transparent',
+            : `1px solid ${personaStyles.borderColors[stylePersona]}`,
           boxShadow: isListening
             ? '0 0 12px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
-            : 'none'
+            : `${personaStyles.glowShadow[stylePersona]}, inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`
         }}
         type="button"
         aria-label={isListening ? 'Stop live transcription' : 'Start live transcription'}

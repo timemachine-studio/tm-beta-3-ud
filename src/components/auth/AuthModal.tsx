@@ -32,7 +32,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { signIn, signUp, signUpWithOtp, verifyOtp, updatePassword } = useAuth();
+  const { signIn, signUp, signUpWithOtp, verifyOtp, sendPasswordReset, verifyRecoveryCode, updatePassword } = useAuth();
 
   useEffect(() => {
     let cancelled = false;
@@ -114,17 +114,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             onClose();
           }
         } else if (step === 'forgot-password-email') {
-          // Send OTP for password reset
-          const { error } = await signUpWithOtp(email);
+          // Supabase's reset mail: a link to /reset-password, never the
+          // sign-up call (which sent a plain "Log In" magic link).
+          const { error } = await sendPasswordReset(email);
           if (error) {
             setError(error.message);
           } else {
-            setSuccess('Verification code sent to your email!');
+            setSuccess('Reset email sent — open the link in it to choose a new password.');
             setStep('forgot-password-otp');
           }
         } else if (step === 'forgot-password-otp') {
-          // Verify OTP for password reset
-          const { error } = await verifyOtp(email, otpCode);
+          // The code path, for a template that prints one.
+          const { error } = await verifyRecoveryCode(email, otpCode);
           if (error) {
             setError(error.message);
           } else {
@@ -147,14 +148,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           if (error) {
             setError(error.message);
           } else {
-            setSuccess('Password updated successfully!');
+            // Verifying the code signed them in; the new password is saved
+            // on that session. Nothing left to type.
+            setSuccess("Password updated — you're signed in.");
             setTimeout(() => {
               setStep('credentials');
               setPassword('');
               setNewPassword('');
               setConfirmNewPassword('');
               setOtpCode('');
-            }, 1500);
+              onClose();
+            }, 1200);
           }
         }
       }
@@ -188,7 +192,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const renderTitle = () => {
     if (step === 'otp-verify') return 'Verify Your Email';
     if (step === 'forgot-password-email') return 'Reset Password';
-    if (step === 'forgot-password-otp') return 'Enter Verification Code';
+    if (step === 'forgot-password-otp') return 'Check your email';
     if (step === 'forgot-password-new') return 'Set New Password';
     return mode === 'signup' ? 'Create a TimeMachine ID' : 'Sign in';
   };
@@ -196,7 +200,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const renderSubtitle = () => {
     if (step === 'otp-verify') return `Enter the 6-digit code sent to ${email}`;
     if (step === 'forgot-password-email') return 'Enter your email to receive a verification code';
-    if (step === 'forgot-password-otp') return `Enter the 6-digit code sent to ${email}`;
+    if (step === 'forgot-password-otp') return `We sent a reset link to ${email}. Open it to set a new password — or, if the email shows a 6-digit code, enter it here.`;
     if (step === 'forgot-password-new') return 'Create a new password for your account';
     return message || (mode === 'signup'
       ? 'Unified ID for everything at TimeMachine Mafia'
@@ -206,8 +210,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const renderButtonText = () => {
     if (loading) return null;
     if (step === 'otp-verify') return 'Verify Code';
-    if (step === 'forgot-password-email') return 'Send OTP';
-    if (step === 'forgot-password-otp') return 'Verify Code';
+    if (step === 'forgot-password-email') return 'Send reset email';
+    if (step === 'forgot-password-otp') return 'Verify code';
     if (step === 'forgot-password-new') return 'Update Password';
     if (mode === 'signup') return 'Continue';
     return 'Sign In';
@@ -483,17 +487,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       {/* Resend OTP option */}
                       {(step === 'otp-verify' || step === 'forgot-password-otp') && (
                         <p className="text-center text-ink-muted text-sm">
-                          Didn't receive the code?{' '}
+                          Didn't receive it?{' '}
                           <button
                             type="button"
                             onClick={async () => {
                               setLoading(true);
                               setError('');
-                              const { error } = await signUpWithOtp(email);
+                              // The sign-up code for a sign-up; the reset mail for a reset.
+                              const { error } = step === 'forgot-password-otp'
+                                ? await sendPasswordReset(email)
+                                : await signUpWithOtp(email);
                               if (error) {
                                 setError(error.message);
                               } else {
-                                setSuccess('New code sent!');
+                                setSuccess(step === 'forgot-password-otp' ? 'Reset email sent again.' : 'New code sent!');
                               }
                               setLoading(false);
                             }}

@@ -95,19 +95,10 @@
   color: rgb(var(--tm-ink-rgb) / 0.92);
 }
 
-/* The chat bar's field: the landing composer's lens with a transparent
-   textarea inside. Its own border is its focus ring (ChatInput colours it
-   in the answering mind's hue). */
-.tm-legacy-field {
-  transition: border-color 200ms ease-out;
-}
-
-.tm-legacy-field textarea:focus-visible {
+/* The chat bar's field. Its hairline brightens a touch on focus. */
+.tm-legacy-field:focus-visible {
   outline: none;
-}
-
-.tm-legacy-field textarea::placeholder {
-  color: rgb(var(--tm-ink-rgb) / 0.4);
+  border-color: rgb(var(--tm-ink-rgb) / 0.2) !important;
 }
 
 /* A row inside a glass menu: no material of its own, only a wash of the
@@ -407,8 +398,7 @@
 }
 
 .tm-welcome-heading {
-  /* vw does not shrink with the page zoom; 4.8vw is 6vw at 80%. */
-  font-size: clamp(2.5rem, 4.8vw, 4.5rem);
+  font-size: clamp(2rem, 3.85vw, 3.6rem);
   line-height: 1.08;
 }
 
@@ -417,11 +407,10 @@
   font-size: 0.66em;
 }
 
-/* A phone is not zoomed (index.css), so the floor above lands at its full
-   40px there; two lines of that fill the room. Step down. */
+/* Two lines of the floor above fill a phone's room. Step down. */
 @media (max-width: 639px) {
   .tm-welcome-heading {
-    font-size: 2.125rem;
+    font-size: 2rem;
   }
 }
 

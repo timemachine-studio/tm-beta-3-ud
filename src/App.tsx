@@ -72,6 +72,7 @@ const ChatHistoryPage = lazy(() => import('./components/chat/ChatHistoryPage').t
    Legacy* name, chosen per route by the setting. They are copies, not
    variants, so a fix to one shell never has to be reasoned about for the
    other. */
+const ResetPasswordPage = lazy(() => import('./components/auth/ResetPasswordPage').then((module) => ({ default: module.ResetPasswordPage })));
 const LegacyAccountPage = lazy(() => import('./components/auth/LegacyAccountPage').then((module) => ({ default: module.AccountPage })));
 const LegacyChatHistoryPage = lazy(() => import('./components/chat/LegacyChatHistoryPage').then((module) => ({ default: module.ChatHistoryPage })));
 const LegacyMemoriesPage = lazy(() => import('./components/memories/LegacyMemoriesPage').then((module) => ({ default: module.MemoriesPage })));
@@ -783,6 +784,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
               brandOverride={brandOverride}
               mindsOnly={railInline}
               bare={legacyUi}
+              accent={isHealthcareActive ? 'healthcare' : undefined}
             />
             </div>
             </div>
@@ -1153,6 +1155,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                 <ChatMode
                   messages={messages}
                   currentPersona={currentPersona}
+                  accent={isHealthcareActive ? 'healthcare' : undefined}
                   onMessageAnimated={markMessageAsAnimated}
                   error={error}
                   streamingMessageId={streamingMessageId}
@@ -1402,10 +1405,11 @@ function AppContent() {
   const location = useLocation();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // The product renders at 80% (index.css) — the density the chat was drawn
-  // at — and the marketing pages at 100%. Decided here, before paint, so a
-  // route change never flashes the other size. The root route counts as
-  // marketing only while it would show the landing page (see RootRoute).
+  // Which scale block index.css applies: the app's or the marketing site's.
+  // Both are 100% today; the attribute stays so the two can be tuned apart
+  // again. Decided here, before paint, so a route change never flashes. The
+  // root route counts as marketing only while it would show the landing page
+  // (see RootRoute).
   const marketing = MARKETING_PATHS.has(location.pathname)
     || (location.pathname === '/' && !user && !location.state && !hasEnteredApp());
   useLayoutEffect(() => {
@@ -1454,6 +1458,12 @@ function AppContent() {
             <AccountPage />
           </>
         )
+      } />
+      <Route path="/reset-password" element={
+        <>
+          <SEOHead title="Reset password" description="Set a new password for your TimeMachine ID." path="/reset-password" noIndex />
+          <ResetPasswordPage />
+        </>
       } />
       <Route path="/history" element={
         <>

@@ -1,4 +1,5 @@
 import { getWorkspaceMeta } from '../services/workspace/workspaceStore';
+import { DEV_MOCK_AUTH } from '../context/devMockAuth';
 import { harnessTurnKey, prepareHarnessRecovery } from '../services/workspace/harnessRecovery';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Message, ImageDimensions, MusicVariation, ChatErrorCode, RetryContext, type AttachedFile, type HarnessAction, type HarnessResume, LoadingPhase } from '../types/chat';
@@ -186,9 +187,12 @@ export function useChat(
   // Track PRO sessions we already tried to resume, to avoid duplicate reattach loops
   const proResumeAttemptedRef = useRef<Set<string>>(new Set());
 
-  // Update chatService with userId when it changes
+  // Update chatService with userId when it changes. The dev mock user
+  // (devMockAuth.ts) has no Supabase account, so a cloud save for it can only
+  // fail — and did, raising the "couldn't be saved" banner after every turn.
+  // It keeps its chats on the device, like an anonymous visitor.
   useEffect(() => {
-    chatService.setUserId(userId || null);
+    chatService.setUserId(DEV_MOCK_AUTH ? null : (userId || null));
   }, [userId]);
 
   // Set theme based on persona

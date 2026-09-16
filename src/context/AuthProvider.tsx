@@ -224,6 +224,15 @@ const RealAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
 
+        // A password-reset link consumed on some other page (Supabase falls
+        // back to the Site URL when the redirect is not on its allowlist):
+        // the recovery session is already stored, so a plain navigation to
+        // the reset page finds it and shows the new-password form.
+        if (event === 'PASSWORD_RECOVERY' && window.location.pathname !== '/reset-password') {
+          window.location.assign('/reset-password');
+          return;
+        }
+
         // Handle sign out
         if (event === 'SIGNED_OUT') {
           currentUserIdRef.current = null;
@@ -320,7 +329,26 @@ const RealAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return { error };
   };
 
-  // Reset password (sends reset link to email)
+  // The in-app reset. This is Supabase's own "Reset Password" mail, not the
+  // magic link: the forgot-password form used the sign-up OTP call before,
+  // which sent a "Log In" link that signed the person straight in with no
+  // password step (and, for a mistyped email, opened a brand-new account).
+  // The reset link carries a recovery session to /reset-password, where the
+  // new password is set. Should the project's template print {{ .Token }},
+  // the same mail also serves the code path (verifyRecoveryCode).
+  const sendPasswordReset = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    return { error };
+  };
+
+  const verifyRecoveryCode = async (email: string, token: string) => {
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'recovery' });
+    return { error };
+  };
+
+  // Reset password (sends reset link to email; lands on /reset-password)
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
@@ -445,6 +473,8 @@ const RealAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // OTP and password functions
     signUpWithOtp,
     verifyOtp,
+    sendPasswordReset,
+    verifyRecoveryCode,
     resetPassword,
     updatePassword,
     changePassword,
@@ -474,6 +504,8 @@ const DevMockAuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     needsOnboarding: false,
     signUpWithOtp: none,
     verifyOtp: none,
+    sendPasswordReset: none,
+    verifyRecoveryCode: none,
     resetPassword: none,
     updatePassword: none,
     changePassword: none,

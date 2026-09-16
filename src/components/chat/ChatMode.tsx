@@ -35,6 +35,8 @@ interface ChatModeProps {
   onOpenSesame?: () => void;
   onMcpApprovalDecision?: (messageId: string, decision: McpApprovalDecision) => void;
   onRetry?: (messageId: string) => void;
+  /** A mode that recolours the room (TM Healthcare) recolours the accent word too. */
+  accent?: 'healthcare';
   isRetrying?: boolean;
 }
 
@@ -55,6 +57,7 @@ export function ChatMode({
   onMcpApprovalDecision,
   onRetry,
   isRetrying,
+  accent,
 }: ChatModeProps) {
   const { theme, uiStyle } = useTheme();
   const legacyUi = uiStyle === 'legacy';
@@ -130,7 +133,8 @@ export function ChatMode({
     girlie: 'text-pink-400',
     pro: 'text-cyan-400'
   };
-  const flipWordsColor = personaColors[currentPersona] || personaColors.default;
+  // TM Healthcare paints the room green; the accent word follows.
+  const flipWordsColor = accent === 'healthcare' ? 'text-emerald-400' : personaColors[currentPersona] || personaColors.default;
 
   return (
     <div className={`min-h-full ${legacyUi ? 'pt-20' : 'pt-24'} ${showWelcomeText ? 'pb-24' : 'pb-48'} ${theme.text}`}>

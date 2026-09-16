@@ -24,6 +24,15 @@ export interface AuthContextType {
   // OTP and password functions
   signUpWithOtp: (email: string) => Promise<{ error: AuthError | null }>;
   verifyOtp: (email: string, token: string) => Promise<{ error: AuthError | null }>;
+  /**
+   * Emails Supabase's password-reset mail: a link that lands on
+   * /reset-password (and a 6-digit code, if the project's template prints
+   * one). Silent for an unknown email, by Supabase's design.
+   */
+  sendPasswordReset: (email: string) => Promise<{ error: AuthError | null }>;
+  /** Verifies a code from the reset email; signs the person in for the new password. */
+  verifyRecoveryCode: (email: string, token: string) => Promise<{ error: AuthError | null }>;
+  /** Emails a reset link that lands on /reset-password. */
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: AuthError | null }>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<{ error: Error | null }>;

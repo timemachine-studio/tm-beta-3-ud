@@ -2,7 +2,7 @@
  * Which shell the product wears. `current` is the rail-and-glass shell the
  * chat was redrawn into; `legacy` is the one before it — no rail, the brand
  * as bare glowing text in the corner, the welcome line in the UI face, and
- * the page at 100% rather than the shell's 80% density. The composer is the
+ * every page as its pre-rail file. Both render at 100%. The composer is the
  * legacy bar in both: it was brought back on request, not gated.
  *
  * Stored per device. The value lives on <html> as `data-tm-ui` so plain CSS

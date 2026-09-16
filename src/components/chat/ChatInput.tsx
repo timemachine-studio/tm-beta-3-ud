@@ -30,10 +30,43 @@ export interface ReplyTo {
   isAI: boolean;
 }
 
-/* The bar: the landing page's composer — one glass field, the send button a
-   white pill inside it — with a separate plus button in the same glass and
-   the mic beside send. The answering mind shows only in the focus ring. */
-const personaHues: Record<string, string> = { default: '168 85 247', girlie: '236 72 153', pro: '34 211 238' };
+/* The legacy bar: a tinted glass circle either side of a wide, quiet glass
+   field — plus on the left, mic and send inside on the right — each circle
+   lit in the answering mind's hue with a soft glow. */
+const personaStyles = {
+  tintColors: {
+    default: 'rgba(168, 85, 247, 0.2)',
+    girlie: 'rgba(236, 72, 153, 0.15)',
+    pro: 'rgba(34, 211, 238, 0.15)',
+    // TM Healthcare: the mode paints the room green, so the circles follow.
+    healthcare: 'rgba(16, 185, 129, 0.18)'
+  },
+  borderColors: {
+    default: 'rgba(168, 85, 247, 0.4)',
+    girlie: 'rgba(236, 72, 153, 0.3)',
+    pro: 'rgba(34, 211, 238, 0.3)',
+    healthcare: 'rgba(52, 211, 153, 0.35)'
+  },
+  glowShadow: {
+    default: '0 0 15px rgba(168, 85, 247, 0.35)',
+    girlie: '0 0 12px rgba(236, 72, 153, 0.25)',
+    pro: '0 0 12px rgba(34, 211, 238, 0.25)',
+    healthcare: '0 0 12px rgba(16, 185, 129, 0.3)'
+  }
+} as const;
+
+type StylePersona = keyof typeof personaStyles.tintColors;
+
+const controlGlass = (persona: string): React.CSSProperties => {
+  const key: StylePersona = persona in personaStyles.tintColors ? (persona as StylePersona) : 'default';
+  return {
+    background: `linear-gradient(135deg, ${personaStyles.tintColors[key]}, rgb(var(--tm-ink-rgb) / 0.05))`,
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    border: `1px solid ${personaStyles.borderColors[key]}`,
+    boxShadow: `${personaStyles.glowShadow[key]}, inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`
+  };
+};
 
 const convertImageToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -154,7 +187,6 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [showMentionCall, setShowMentionCall] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
-  const [focused, setFocused] = useState(false);
   const [selectedPlusOption, setSelectedPlusOption] = useState<PlusMenuOption | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
@@ -600,6 +632,10 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     'tm-healthcare': HeartPulse,
   };
 
+  // The circles take the mode's colour over the mind's while TM Healthcare
+  // is on, as the room does.
+  const glassKey = selectedPlusOption === 'tm-healthcare' ? 'healthcare' : currentPersona;
+
   const handlePlusButtonClick = () => {
     if (selectedPlusOption) {
       // Already has a selected option — reset and show card
@@ -862,7 +898,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
         </div>
       )}
       <div className="relative" onDragOver={handleDragOver} onDrop={handleDrop}>
-        <div className="relative flex items-end gap-2">
+        <div className="relative flex items-center gap-2">
           <input
             type="file"
             accept="image/jpeg,image/png,image/gif,image/webp"
@@ -879,13 +915,15 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
             ref={docInputRef}
           />
 
-          {/* The plus: its own piece of the same glass, the field's height. */}
           <div className="relative shrink-0" ref={plusMenuRef}>
-            <button
+            <motion.button
               type="button"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={handlePlusButtonClick}
               disabled={isLoading || isUploading}
-              className={`tm-glass tm-press flex h-14 w-14 items-center justify-center rounded-full ${theme.text} disabled:opacity-50`}
+              className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
+              style={controlGlass(glassKey)}
               aria-label="Attach or choose a mode"
               aria-expanded={showPlusMenu}
               onKeyDown={(event) => {
@@ -902,12 +940,12 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
               {selectedPlusOption ? (
                 (() => {
                   const IconComponent = plusOptionIcons[selectedPlusOption];
-                  return <IconComponent className="h-5 w-5" />;
+                  return <IconComponent className="w-5 h-5 relative z-10" />;
                 })()
               ) : (
-                <Plus className={`h-5 w-5 transition-transform duration-200 ${showPlusMenu ? 'rotate-45' : ''}`} />
+                <Plus className="w-5 h-5 relative z-10" />
               )}
-            </button>
+            </motion.button>
 
             <PlusMenu
               isVisible={showPlusMenu}
@@ -920,57 +958,69 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           </div>
 
           <div className="relative min-w-0 flex-1">
-            {/* The field: the landing composer's glass, the ring in the mind's hue. */}
-            <div
-              className="tm-glass tm-legacy-field relative flex items-end gap-1 rounded-[32px] p-1.5 pl-5"
-              style={{
-                borderColor: focused ? `rgb(${personaHues[currentPersona] || personaHues.default} / 0.5)` : undefined,
-              }}
-            >
+            <div className="relative flex items-center">
               <textarea
                 ref={textareaRef}
                 value={message}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
                 placeholder="Type / for contour"
                 aria-label="Message TimeMachine"
                 disabled={isLoading || isUploading}
-                className={`block w-full resize-none bg-transparent py-2.5 text-base sm:text-[17px]
-                  ${theme.input.text}
+                className={`tm-legacy-field w-full px-6 pr-28 rounded-[28px]
+                  ${theme.input.text} placeholder-gray-400
                   outline-hidden
                   disabled:opacity-50
+                  transition-all duration-300
+                  text-base resize-none
                   overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
-                style={{ minHeight: '44px', maxHeight: '150px', lineHeight: '24px' }}
+                style={{
+                  background: 'var(--tm-pane-bg)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  border: '1px solid var(--tm-pane-border)',
+                  boxShadow: 'var(--tm-input-shadow)',
+                  fontSize: '1rem',
+                  minHeight: '56px',
+                  maxHeight: '150px',
+                  paddingTop: '16px',
+                  paddingBottom: '16px',
+                  lineHeight: '24px'
+                }}
                 rows={1}
               />
 
-              <SpeechTranscriptionButton
-                value={message}
-                onTranscript={setMessage}
-                disabled={isLoading || isUploading}
-                currentPersona={currentPersona}
-              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <SpeechTranscriptionButton
+                  value={message}
+                  onTranscript={setMessage}
+                  disabled={isLoading || isUploading}
+                  currentPersona={currentPersona}
+                  accent={selectedPlusOption === 'tm-healthcare' ? 'healthcare' : undefined}
+                />
 
-              <button
-                type={canStop ? 'button' : 'submit'}
-                onClick={canStop ? onStop : undefined}
-                aria-label={canStop ? 'Stop generating' : 'Send message'}
-                title={canStop ? 'Stop generating' : undefined}
-                disabled={canStop
-                  ? false
-                  : (isLoading || isUploading || isFileReading || (!message.trim() && selectedImages.length === 0 && !selectedFile))}
-                className="tm-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-pill text-pill-ink disabled:opacity-30"
-              >
-                {canStop ? (
-                  <Square className="h-4 w-4 fill-current" />
-                ) : isLoading || isUploading ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <SendIcon className="h-5 w-5" />
-                )}
-              </button>
+                <motion.button
+                  type={canStop ? 'button' : 'submit'}
+                  onClick={canStop ? onStop : undefined}
+                  aria-label={canStop ? 'Stop generating' : 'Send message'}
+                  title={canStop ? 'Stop generating' : undefined}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  disabled={canStop
+                    ? false
+                    : (isLoading || isUploading || isFileReading || (!message.trim() && selectedImages.length === 0 && !selectedFile))}
+                  className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
+                  style={controlGlass(glassKey)}
+                >
+                  {canStop ? (
+                    <Square className="w-5 h-5 relative z-10 fill-current" />
+                  ) : isLoading || isUploading ? (
+                    <LoadingSpinner size="sm" />
+                  ) : (
+                    <SendIcon className="w-5 h-5 relative z-10" />
+                  )}
+                </motion.button>
+              </div>
             </div>
 
             <MentionCall
