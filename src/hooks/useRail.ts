@@ -12,8 +12,13 @@ export function useRail() {
   const [railWide, setRailWide] = useState(() => typeof window === 'undefined' || window.innerWidth >= WIDE);
   const [railOpen, setRailOpen] = useState(() => {
     if (typeof window === 'undefined') return true;
-    const stored = localStorage.getItem(KEY);
-    return stored === null ? window.innerWidth >= WIDE : stored === '1';
+    // A phone never opens on the rail: below the breakpoint it is a
+    // slide-over, and a slide-over that is already open on arrival hides
+    // the page the person came for.
+    if (window.innerWidth < WIDE) return false;
+    let stored: string | null = null;
+    try { stored = localStorage.getItem(KEY); } catch { /* private mode */ }
+    return stored === null ? true : stored === '1';
   });
 
   useEffect(() => {

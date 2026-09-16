@@ -2,8 +2,9 @@ import { createContext, useContext } from 'react';
 import { darkTheme } from '../themes/dark';
 import type { Theme } from '../types/theme';
 import type { SeasonTheme, ThemeMode } from '../themes/themeState';
+import type { UiStyle } from '../themes/uiStyle';
 
-export type { SeasonTheme, ThemeMode };
+export type { SeasonTheme, ThemeMode, UiStyle };
 
 interface ThemeContextType {
   theme: Theme;
@@ -11,16 +12,21 @@ interface ThemeContextType {
   /** The dark season currently painting. Meaningful in dark mode only. */
   season: SeasonTheme;
   /**
-   * `true` while the season tracks the active persona (Air → autumn,
-   * Girlie → spring, PRO → summer). Picking a season in Settings pins it
-   * and turns this off; picking "Auto" turns it back on.
+   * `true` while the season painting is the active persona's own (Air →
+   * autumn, Girlie → spring, PRO → summer). Picking a season in Settings
+   * recolours the room now and turns this off — until the next persona
+   * switch, which always brings that mind's colour back. "Auto" returns to
+   * the persona's colour straight away.
    */
   seasonFollowsPersona: boolean;
   /** 0 = white paper, 100 = cream beige. Light mode only. */
   lightWarmth: number;
+  /** The shell: the rail-and-glass `current` UI, or the `legacy` one before it. */
+  uiStyle: UiStyle;
   setMode: (mode: ThemeMode) => void;
   setSeason: (season: SeasonTheme | 'auto') => void;
   setLightWarmth: (warmth: number) => void;
+  setUiStyle: (style: UiStyle) => void;
 }
 
 export const ThemeContext = createContext<ThemeContextType>({
@@ -29,9 +35,11 @@ export const ThemeContext = createContext<ThemeContextType>({
   season: 'autumnDark',
   seasonFollowsPersona: true,
   lightWarmth: 40,
+  uiStyle: 'current',
   setMode: () => { },
   setSeason: () => { },
   setLightWarmth: () => { },
+  setUiStyle: () => { },
 });
 
 export function useTheme() {

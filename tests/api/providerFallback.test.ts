@@ -67,23 +67,30 @@ describe('Air provider chain', () => {
 
 describe('Girlie provider chain', () => {
   const girlie = AI_PERSONAS.girlie;
+  const air = AI_PERSONAS.default;
 
-  it('runs on a model groq actually serves, with thinking off', () => {
-    // llama-4-scout returned 404 model_not_found from groq, and Girlie had no
-    // fallbacks — every message failed on its first hop.
-    expect(girlie.model).toBe('openai/gpt-oss-120b');
-    expect(girlie.provider).toBe('groq');
-    // gpt-oss rejects 'none' with a 400 (low/medium/high only, verified), and
-    // refuses image parts, so it is text-only with reasoning at its lowest.
-    expect(girlie.reasoningEffort).toBe('low');
-    expect(girlie.vision).toBe('ocr');
+  it('is the same mind as Air: same primary, same capability, same switches', () => {
+    // Girlie is Air with a different voice (2026-09-16). The route is
+    // declared once (AIR_ROUTE in ai-proxy.ts) and spread into both, so a
+    // provider change for Air can never leave Girlie on a dead model — which
+    // is how she went down before (llama-4-scout 404'd on groq).
+    expect(girlie.provider).toBe(air.provider);
+    expect(girlie.model).toBe(air.model);
+    expect(girlie.vision).toBe(air.vision);
+    expect(girlie.reasoningEffort).toBe(air.reasoningEffort);
   });
 
-  it('has a chain of distinct providers behind it, like Air, ending on pollinations', () => {
+  it('runs Air\'s fallback chain behind her, ending on pollinations', () => {
     const chain = buildProviderChain(girlie.provider, girlie.model, personaFallbacks(girlie));
-    expect(chain.length).toBe(1 + girlie.fallbacks.length);
-    expect(new Set(chain.map(hop => hop.provider)).size).toBe(chain.length);
+    expect(chain).toEqual(buildProviderChain(air.provider, air.model, personaFallbacks(air)));
+    expect(chain.some(hop => hop.provider !== girlie.provider)).toBe(true);
     expect(chain[chain.length - 1].provider).toBe('pollinations');
+  });
+
+  it('keeps her own voice and warmth', () => {
+    expect(girlie.systemPrompt).not.toBe(air.systemPrompt);
+    expect(girlie.systemPrompt).toContain('TimeMachine Girlie');
+    expect(girlie.temperature).toBeGreaterThan(air.temperature);
   });
 });
 

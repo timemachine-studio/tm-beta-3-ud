@@ -32,6 +32,12 @@ interface BrandLogoProps {
    * what the rail does not — which mind answers.
    */
   mindsOnly?: boolean;
+  /**
+   * The legacy shell: the brand is bare glowing text in the corner, no
+   * glass around it, at the size it was drawn at. The current shell keeps
+   * its glass pill.
+   */
+  bare?: boolean;
 }
 
 type MenuPersona = 'default' | 'girlie' | 'pro';
@@ -69,6 +75,7 @@ export function BrandLogo({
   onOpenSettings,
   brandOverride,
   mindsOnly = false,
+  bare = false,
 }: BrandLogoProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
@@ -133,6 +140,11 @@ export function BrandLogo({
   const run = (fn?: () => void) => () => { close(); fn?.(); };
 
   const rowClass = 'tm-menu-row flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left';
+  const glow = brandOverride?.glowColor || `rgb(${hue} / 0.5)`;
+  // The legacy corner glow: three rings, fading out.
+  const glowAt = (a: number) => brandOverride?.glowColor
+    ? brandOverride.glowColor.replace(/[\d.]+\)$/, `${a})`)
+    : `rgb(${hue} / ${a})`;
 
   return (
     <div className="relative">
@@ -143,14 +155,18 @@ export function BrandLogo({
         aria-haspopup="menu"
         aria-expanded={isOpen}
         aria-controls={isOpen ? menuId : undefined}
-        className="tm-glass tm-press group flex min-h-11 items-center gap-2 rounded-full px-4 py-2 outline-hidden focus-visible:ring-2 focus-visible:ring-focus"
+        className={bare
+          ? 'tm-press group flex min-h-11 items-center gap-2 rounded-full py-2 outline-hidden focus-visible:ring-2 focus-visible:ring-focus'
+          : 'tm-glass tm-press group flex min-h-11 items-center gap-2 rounded-full px-3.5 py-2 outline-hidden focus-visible:ring-2 focus-visible:ring-focus sm:px-4'}
       >
         <span className="flex flex-col items-start">
           <span
-            className={`text-[17px] font-bold tracking-tight sm:text-lg ${brandOverride?.textColorClass || personaColors[(currentPersona in personaColors ? currentPersona : 'default') as MenuPersona]} transition-colors duration-300`}
+            className={`${bare ? 'text-lg sm:text-2xl' : 'text-[17px] tracking-tight sm:text-lg'} font-bold ${brandOverride?.textColorClass || personaColors[(currentPersona in personaColors ? currentPersona : 'default') as MenuPersona]} transition-colors duration-300`}
             style={{
               fontFamily: 'Montserrat, var(--font-display)',
-              textShadow: `0 0 20px ${brandOverride?.glowColor || `rgb(${hue} / 0.5)`}`,
+              textShadow: bare
+                ? `0 0 20px ${glowAt(0.6)}, 0 0 40px ${glowAt(0.3)}, 0 0 60px ${glowAt(0.1)}`
+                : `0 0 20px ${glow}`,
             }}
           >
             {brandOverride?.name || AI_PERSONAS[currentPersona].name}
@@ -162,8 +178,10 @@ export function BrandLogo({
           )}
         </span>
         <ChevronDown
-          className={`h-4 w-4 transition-transform duration-300 ease-out ${isOpen ? 'rotate-180' : ''}`}
-          style={{ color: 'rgb(var(--tm-ink-rgb) / 0.5)' }}
+          className={`shrink-0 transition-transform duration-300 ease-out ${isOpen ? 'rotate-180' : ''} ${bare
+            ? `h-4 w-4 sm:h-5 sm:w-5 ${brandOverride?.textColorClass || personaColors[(currentPersona in personaColors ? currentPersona : 'default') as MenuPersona]}`
+            : 'h-4 w-4'}`}
+          style={bare ? undefined : { color: 'rgb(var(--tm-ink-rgb) / 0.5)' }}
           aria-hidden="true"
         />
       </button>

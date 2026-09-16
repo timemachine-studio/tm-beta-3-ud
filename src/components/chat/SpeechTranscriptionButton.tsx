@@ -139,7 +139,7 @@ export function SpeechTranscriptionButton({
             ? '1px solid rgba(239, 68, 68, 0.4)'
             : '1px solid transparent',
           boxShadow: isListening
-            ? '0 0 12px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
+            ? '0 0 12px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
             : 'none'
         }}
         type="button"

@@ -84,6 +84,32 @@
   border-radius: 9999px;
 }
 
+/* The plus menu: a stack of the header's pills rising from the plus button,
+   each centred on it. Below 640px the button sits at the screen's edge, so
+   the stack hangs from its left instead. */
+.tm-plus-menu {
+  left: 50%;
+}
+
+.tm-plus-pill {
+  color: rgb(var(--tm-ink-rgb) / 0.92);
+}
+
+/* The chat bar's field: the landing composer's lens with a transparent
+   textarea inside. Its own border is its focus ring (ChatInput colours it
+   in the answering mind's hue). */
+.tm-legacy-field {
+  transition: border-color 200ms ease-out;
+}
+
+.tm-legacy-field textarea:focus-visible {
+  outline: none;
+}
+
+.tm-legacy-field textarea::placeholder {
+  color: rgb(var(--tm-ink-rgb) / 0.4);
+}
+
 /* A row inside a glass menu: no material of its own, only a wash of the
    accent on hover so the panel stays one lens. */
 .tm-menu-row {
@@ -167,8 +193,8 @@
 
 /* The chat's own weather: the landing ground, with the orbs tinted by
    whichever mind is answering. Hue and strength come from the shell as
-   custom properties so a persona switch is a colour transition, not a
-   remount. Light mode has no atmosphere by design. */
+   custom properties so a persona switch repaints in place, not a remount.
+   Light mode has no atmosphere by design. */
 /* The app's weather is gradients only — no orbs. Black at the top, the hue
    pooling low and into both lower corners, a faint second hue overhead. Wide,
    soft stops so nothing reads as a shape, and nothing here needs a blur, so
@@ -186,7 +212,9 @@
     radial-gradient(46% 34% at 50% -6%, rgb(var(--tm-atmo-3, 34 211 238) / 0.11) 0%, rgb(var(--tm-atmo-3, 34 211 238) / 0.04) 45%, transparent 75%),
     linear-gradient(to bottom, #030205 0%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.04) 34%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.14) 66%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.26) 100%),
     #030205;
-  transition: background 900ms ease-out;
+  /* No transition: the gradients share a structure, so the engine would
+     cross-fade them over the persona switch and the room would sit in the
+     old mind's colour for most of a second. The switch is a cut. */
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -290,12 +318,19 @@
 
 .tm-chat-header { padding-top: env(safe-area-inset-top, 0px); }
 .tm-chat-header button { flex-shrink: 0; }
+/* The header's one action: a pill with its label from 640px, a round
+   glass button below it. */
+.tm-header-action { min-width: 44px; justify-content: center; }
 .tm-chat-brand > div > button { max-width: 100%; }
 .tm-chat-brand > div > button > span { min-width: 0; }
 .tm-chat-brand > div > button > span > span:first-child {
+  white-space: nowrap;
+}
+/* The pill truncates a long name; the bare legacy wordmark must not clip
+   its own glow. */
+.tm-chat-brand:not(.tm-chat-brand-bare) > div > button > span > span:first-child {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* The top bar of a product page in the shell: the page's name and its
@@ -382,6 +417,20 @@
   font-size: 0.66em;
 }
 
+/* A phone is not zoomed (index.css), so the floor above lands at its full
+   40px there; two lines of that fill the room. Step down. */
+@media (max-width: 639px) {
+  .tm-welcome-heading {
+    font-size: 2.125rem;
+  }
+}
+
+/* The legacy welcome: no display voice, so no minimum height contract of
+   its own beyond centring in the room. */
+.tm-chat-welcome-legacy {
+  min-height: max(200px, calc(var(--vh, 1vh) * 100 - 16rem));
+}
+
 .tm-composer { position: relative; }
 .tm-chat-dock {
   padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
@@ -399,6 +448,13 @@
   border-radius: 32px;
   pointer-events: none;
   transition: border-color 180ms ease-out;
+  /* The lens recipe pushes the atmosphere's colour up until the field reads
+     as a purple slab, most of all on a phone where the pool sits right under
+     it. The Notes composer keeps the blur and the rim, not the saturation —
+     the same quiet field as the chat bar. */
+  background: var(--tm-pane-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 .tm-composer:focus-within .tm-composer-surface {
   border-color: rgb(var(--tm-composer-hue, 168 85 247) / 0.65);

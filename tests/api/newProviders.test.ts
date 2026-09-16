@@ -53,14 +53,16 @@ describe('AMD Radeon Cloud registration', () => {
 
   it('is text-only, so an image turn routed to it is transcribed first', () => {
     // Not a guess: the live endpoint returns 400 "Model DeepSeek-V4-Flash does
-    // not support image input" for an image_url part. Girlie still lists AMD
-    // in its chain, so a wrong annotation here breaks its image turns the
-    // moment the primary fails.
+    // not support image input" for an image_url part. No persona chain lists
+    // AMD today (Girlie moved onto Air's route, 2026-09-16), but the
+    // registration stays, so the annotation has to stay right with it.
     expect(resolveVisionMode({ provider: 'amd', model: 'DeepSeek-V4-Flash' })).toBe('ocr');
 
-    const girlieAmdHop = AI_PERSONAS.girlie.fallbacks.find(hop => hop.provider === 'amd');
-    expect(girlieAmdHop).toBeDefined();
-    expect(resolveVisionMode(girlieAmdHop as { provider: string; model: string })).toBe('ocr');
+    for (const persona of Object.values(AI_PERSONAS)) {
+      for (const hop of (persona as { fallbacks?: { provider: string; model: string }[] }).fallbacks ?? []) {
+        if (hop.provider === 'amd') expect(resolveVisionMode(hop)).toBe('ocr');
+      }
+    }
   });
 
   it('has its own dispatch branch rather than falling through to Cerebras', async () => {

@@ -51,7 +51,7 @@ export function MaxModeButton({ active, textColor, onEnter, onExit }: MaxModeBut
       title={active ? 'Leave Max Mode' : 'Turn on Max Mode'}
     >
       <MaxModeIcon size={17} style={{ color: styles.color }} />
-      <span style={{ fontSize: '14px', color: styles.color }}>Max Mode</span>
+      <span className="hidden sm:inline" style={{ fontSize: '14px', color: styles.color }}>Max Mode</span>
     </motion.button>
   );
 }

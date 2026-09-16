@@ -60,7 +60,8 @@ Remember: You are capable of extraordinary creative work. Don't hold back, show 
     },
 
     girlie: {
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      // Girlie runs Air's mind (api/ai-proxy.ts AIR_ROUTE); the mode keeps it.
+      model: 'eaon/gemini-3.8-flash',
       temperature: 0.8,
       maxTokens: 4000,
       tools: [],
@@ -202,7 +203,8 @@ Example output:
     },
 
     girlie: {
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      // Girlie runs Air's mind (api/ai-proxy.ts AIR_ROUTE); the mode keeps it.
+      model: 'eaon/gemini-3.8-flash',
       temperature: 0.8,
       maxTokens: 2000,
       tools: [],
@@ -345,7 +347,8 @@ Your responses will include a <database_context> block containing verified drug 
     },
 
     girlie: {
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      // Girlie runs Air's mind (api/ai-proxy.ts AIR_ROUTE); the mode keeps it.
+      model: 'eaon/gemini-3.8-flash',
       temperature: 0.8,
       maxTokens: 2000,
       tools: ['webSearch'],

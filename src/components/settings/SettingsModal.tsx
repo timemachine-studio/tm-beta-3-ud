@@ -1,7 +1,7 @@
 import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sun, Moon, Sparkles, Info, Mail, Check } from 'lucide-react';
+import { X, Sun, Moon, Sparkles, Info, Mail, Check, PanelLeft, Type } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { seasonThemes } from '../../themes/seasons';
@@ -40,7 +40,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps) => {
   const navigate = useNavigate();
-  const { mode, season, seasonFollowsPersona, lightWarmth, setMode, setSeason, setLightWarmth } = useTheme();
+  const { mode, season, seasonFollowsPersona, lightWarmth, uiStyle, setMode, setSeason, setLightWarmth, setUiStyle } = useTheme();
 
   const go = (path: string) => {
     onClose();
@@ -220,12 +220,68 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                             ))}
                           </div>
                           <p className="text-xs text-ink-muted mt-3">
-                            Auto lets each persona bring its own colour — Air, Girlie and PRO.
-                            Pick a season to keep it across all of them; Pure is black with no colour at all.
+                            Each persona brings its own colour — Air, Girlie and PRO. Pick a season to
+                            recolour the room now; switching persona brings its colour back. Pure is black with no colour at all.
                           </p>
                         </motion.section>
                       )}
                     </AnimatePresence>
+
+                    <section>
+                      <SectionLabel>Interface</SectionLabel>
+                      <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Interface">
+                        {([
+                          { value: 'current', label: 'Current', hint: 'Sidebar and glass', Icon: PanelLeft },
+                          { value: 'legacy', label: 'Legacy', hint: 'The classic layout', Icon: Type },
+                        ] as const).map(({ value, label, hint, Icon }) => {
+                          const selected = uiStyle === value;
+                          return (
+                            <motion.button
+                              key={value}
+                              role="radio"
+                              aria-checked={selected}
+                              whileHover={{ scale: 1.015 }}
+                              whileTap={{ scale: 0.985 }}
+                              onClick={() => setUiStyle(value)}
+                              className="relative flex flex-col items-start gap-3 p-4 rounded-2xl text-left transition-colors"
+                              style={selected ? paneSelected : pane}
+                            >
+                              {/* A miniature of each shell: the current one has a rail
+                                  and a pill for the brand; the legacy one is the brand
+                                  alone in the corner over an open room. */}
+                              <span
+                                aria-hidden
+                                className="relative block w-full h-14 rounded-xl overflow-hidden"
+                                style={{ background: '#0a0710', border: '1px solid rgb(255 255 255 / 0.12)' }}
+                              >
+                                {value === 'current' ? (
+                                  <>
+                                    <span className="absolute inset-y-0 left-0 w-[30%]" style={{ background: 'rgb(255 255 255 / 0.06)', borderRight: '1px solid rgb(255 255 255 / 0.08)' }} />
+                                    <span className="absolute top-2 left-[36%] h-2.5 w-10 rounded-full" style={{ background: 'rgb(168 85 247 / 0.35)', border: '1px solid rgb(168 85 247 / 0.5)' }} />
+                                    <span className="absolute bottom-2 left-[36%] right-2 h-2.5 rounded-full" style={{ background: 'rgb(255 255 255 / 0.1)' }} />
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="absolute top-2 left-2 h-2 w-10 rounded-full" style={{ background: '#c084fc', boxShadow: '0 0 8px rgb(168 85 247 / 0.7)' }} />
+                                    <span className="absolute bottom-2 left-2 h-2.5 w-2.5 rounded-full" style={{ background: 'rgb(168 85 247 / 0.4)' }} />
+                                    <span className="absolute bottom-2 left-6 right-2 h-2.5 rounded-full" style={{ background: 'rgb(255 255 255 / 0.1)', border: '1px solid rgb(255 255 255 / 0.1)' }} />
+                                  </>
+                                )}
+                              </span>
+                              <span className="flex items-center gap-2 w-full">
+                                <Icon className="w-4 h-4 text-ink" />
+                                <span className="text-sm font-medium text-white">{label}</span>
+                                {selected && <Check className="w-4 h-4 ml-auto text-purple-400" />}
+                              </span>
+                              <span className="text-xs text-ink-muted -mt-2">{hint}</span>
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-ink-muted mt-3">
+                        Current keeps your chats in a sidebar. Legacy is the layout before it, at full size.
+                      </p>
+                    </section>
 
                     <section>
                       <SectionLabel>More</SectionLabel>

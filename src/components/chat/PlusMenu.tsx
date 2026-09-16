@@ -1,7 +1,8 @@
 import { plusMenuItems, type PlusMenuOption } from './plusMenuItems';
 export type { PlusMenuOption } from './plusMenuItems';
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { toLayoutPx } from '../../utils/pageZoom';
 
 interface PlusMenuProps {
   isVisible: boolean;
@@ -9,46 +10,88 @@ interface PlusMenuProps {
   onClose?: () => void;
 }
 
+/* The gap the stack keeps from the screen's edge when the plus button is
+   too close to it for centring. */
+const EDGE = 12;
+
+/* The legacy menu: a stack of separate pills rising from the plus button,
+   one per mode, each its own piece of glass — not a card. The glass is the
+   header pill's (.tm-glass), so the stack, the bar and the nav read as one
+   material. The stack is centred on the button; where that would push it
+   off the left of the screen it slides right just enough to stay on. */
 export function PlusMenu({ isVisible, onSelect, onClose }: PlusMenuProps) {
   const reduced = useReducedMotion();
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [shift, setShift] = useState(0);
+
+  // Measured on the static anchor, not the animating stack, so the entrance
+  // transform cannot skew the number. Rects are real pixels; the layout is
+  // zoomed (utils/pageZoom). The anchor is measured with no correction
+  // applied, so re-measuring never compounds.
+  useLayoutEffect(() => {
+    if (!isVisible) return;
+    const place = () => {
+      const el = anchorRef.current;
+      if (!el) return;
+      el.style.translate = '-50% 0';
+      const left = toLayoutPx(el.getBoundingClientRect().left);
+      setShift(Math.max(0, EDGE - left));
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [isVisible]);
+
   return (
     <AnimatePresence>
       {isVisible && (
-        <motion.div
-          data-plus-menu
-          role="group"
-          aria-label="Attachments and modes"
-          initial={reduced ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={reduced ? undefined : { opacity: 0, y: 8 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="tm-glass tm-chat-menu absolute bottom-full left-0 z-50 mb-4 w-60 rounded-3xl p-1.5"
-          style={{ maxHeight: 'calc(var(--vh, 1vh) * 100 - 180px)' }}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') { event.stopPropagation(); onClose?.(); }
-            const buttons = Array.from(event.currentTarget.querySelectorAll('button'));
-            const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
-            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-              event.preventDefault();
-              buttons[(index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
-            }
-          }}
+        <div
+          ref={anchorRef}
+          className="tm-plus-menu absolute bottom-full z-50 mb-3"
+          style={{ translate: `calc(-50% + ${shift}px) 0` }}
         >
-          {plusMenuItems.map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                onSelect(key);
-              }}
-              className="tm-menu-row flex min-h-11 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm text-ink"
-            >
-              <Icon className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden="true" />
-              <span>{label}</span>
-            </button>
-          ))}
-        </motion.div>
+          <motion.div
+            data-plus-menu
+            role="group"
+            aria-label="Attachments and modes"
+            initial={reduced ? false : { opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={reduced ? undefined : { opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="flex flex-col items-center gap-1.5"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') { event.stopPropagation(); onClose?.(); }
+              const buttons = Array.from(event.currentTarget.querySelectorAll('button'));
+              const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                buttons[(index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
+              }
+            }}
+          >
+            {plusMenuItems.map(({ key, label, icon: Icon }, i) => (
+              <motion.button
+                key={key}
+                type="button"
+                initial={reduced ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18, delay: reduced ? 0 : i * 0.03, ease: 'easeOut' }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onSelect(key);
+                }}
+                className="tm-glass tm-glass-pill tm-press tm-plus-pill flex w-[200px] items-center gap-3 rounded-full px-4 py-2.5 text-left"
+              >
+                <span className="flex shrink-0 items-center" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.7)' }} aria-hidden="true">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="text-sm">{label}</span>
+              </motion.button>
+            ))}
+          </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );

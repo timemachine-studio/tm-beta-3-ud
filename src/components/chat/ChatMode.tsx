@@ -56,7 +56,8 @@ export function ChatMode({
   onRetry,
   isRetrying,
 }: ChatModeProps) {
-  const { theme } = useTheme();
+  const { theme, uiStyle } = useTheme();
+  const legacyUi = uiStyle === 'legacy';
   const reduced = useReducedMotion();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -132,7 +133,7 @@ export function ChatMode({
   const flipWordsColor = personaColors[currentPersona] || personaColors.default;
 
   return (
-    <div className={`min-h-full pt-24 ${showWelcomeText ? 'pb-24' : 'pb-48'} ${theme.text}`}>
+    <div className={`min-h-full ${legacyUi ? 'pt-20' : 'pt-24'} ${showWelcomeText ? 'pb-24' : 'pb-48'} ${theme.text}`}>
       <div className="w-full max-w-4xl mx-auto px-4">
         {error && (
           <div
@@ -144,10 +145,66 @@ export function ChatMode({
           </div>
         )}
 
-        {/* Welcome: the landing page's display voice, centred in the room
-            between the nav and the composer. */}
+        {/* Welcome. The current shell speaks in the landing page's display
+            voice, centred; the legacy shell keeps its two quiet lines in the
+            UI face, set to the left of a centred block. */}
         <AnimatePresence>
-          {showWelcomeText && (
+          {showWelcomeText && legacyUi && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+              className="tm-chat-welcome tm-chat-welcome-legacy flex items-center justify-center"
+            >
+              <div className="flex w-full max-w-[23rem] flex-col items-start px-2 sm:w-auto sm:max-w-none sm:px-4">
+                <div className="tm-welcome-text text-lg sm:text-xl font-normal text-neutral-400 text-left">
+                  <div className="flex items-center">
+                    <span>Start a</span>
+                    <FlipWords
+                      words={["better", "brighter", "dream", '"my"']}
+                      duration={2500}
+                      className={`px-2 ${flipWordsColor}`}
+                    />
+                  </div>
+                  <div>future with TimeMachine.</div>
+                </div>
+
+                {/* Quick access pills */}
+                <div className="mt-8 flex w-full items-center justify-center gap-2 sm:w-auto sm:justify-start sm:gap-2.5">
+                  {([
+                    { label: 'Notes', icon: BookOpen, onClick: () => navigate('/notes') },
+                    { label: 'Healthcare', icon: HeartPulse, onClick: () => navigate('/healthcare') },
+                    { label: 'Sesame', icon: SesameMark, onClick: onOpenSesame },
+                  ] as const).map((item, i) => (
+                    <motion.button
+                      key={item.label}
+                      type="button"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.3 + i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                      whileHover={{ scale: 1.04, y: -1 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={item.onClick}
+                      className="reveoule-action-pill flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 py-2.5 transition-colors duration-200 sm:gap-2 sm:px-4"
+                      style={{
+                        background: 'rgb(var(--tm-ink-rgb) / 0.04)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
+                        boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.06)',
+                        color: 'rgb(var(--tm-ink-rgb) / 0.55)',
+                      }}
+                    >
+                      <item.icon className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span className="text-xs font-medium tracking-wide">{item.label}</span>
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+          {showWelcomeText && !legacyUi && (
             <motion.div
               initial={reduced ? false : { opacity: 0, y: 16, filter: 'blur(8px)' }}
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
@@ -172,7 +229,7 @@ export function ChatMode({
                 </h1>
 
                 {/* Where else to go: three glass pills, as under the landing composer. */}
-                <div className="mt-9 flex flex-wrap items-center justify-center gap-1.5">
+                <div className="mt-7 flex flex-wrap items-center justify-center gap-1.5 sm:mt-9">
                   {([
                     { label: 'Notes', icon: BookOpen, onClick: () => navigate('/notes') },
                     { label: 'Healthcare', icon: HeartPulse, onClick: () => navigate('/healthcare') },
@@ -185,7 +242,7 @@ export function ChatMode({
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4, delay: 0.25 + i * 0.07, ease: [0.22, 1, 0.36, 1] }}
                       onClick={item.onClick}
-                      className="reveoule-action-pill tm-press tm-glass-pill inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-sm transition-colors"
+                      className="reveoule-action-pill tm-press tm-glass-pill inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] transition-colors sm:min-h-11 sm:gap-2 sm:px-4 sm:text-sm"
                       style={{ border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)', color: 'rgb(var(--tm-ink-rgb) / 0.7)' }}
                     >
                       <item.icon className="h-4 w-4" aria-hidden="true" />

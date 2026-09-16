@@ -16,6 +16,10 @@ import { useRail } from './hooks/useRail';
 
 /* The three minds' hues, as on the landing page. */
 const personaHues: Record<string, string> = { default: '168 85 247', girlie: '236 72 153', pro: '34 211 238' };
+/* The same minds in light mode. Air takes the deep purple that light.css's
+   one-accent ramp lands on; Girlie and PRO keep their exact colours in
+   both modes (see the brand-hue note in light.css). */
+const personaLightAccents: Record<string, string> = { default: '88 28 135', girlie: '236 72 153', pro: '34 211 238' };
 import { motion } from 'framer-motion';
 import { useChat } from './hooks/useChat';
 import { useAnonymousRateLimit } from './hooks/useAnonymousRateLimit';
@@ -32,7 +36,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ChatMode } from './components/chat/ChatMode';
 import { StageMode } from './components/chat/StageMode';
 import { WelcomeModal } from './components/modals/WelcomeModal';
-import { AuthModal } from './components/auth/AuthModal';
+import { AuthModal as CurrentAuthModal } from './components/auth/AuthModal';
+import { AuthModal as LegacyAuthModal } from './components/auth/LegacyAuthModal';
 import { OnboardingModal } from './components/auth/OnboardingModal';
 import { GroupChatModal } from './components/groupchat/GroupChatModal';
 import {
@@ -61,6 +66,17 @@ const LandingPage = lazy(() => import('./components/landing/LandingPage').then((
 const HomePage = lazy(() => import('./components/home/HomePage').then((module) => ({ default: module.HomePage })));
 const AccountPage = lazy(() => import('./components/auth/AccountPage').then((module) => ({ default: module.AccountPage })));
 const ChatHistoryPage = lazy(() => import('./components/chat/ChatHistoryPage').then((module) => ({ default: module.ChatHistoryPage })));
+
+/* The legacy shell (Settings → Interface) is the whole product as it was
+   before the rail: every page below has its pre-rail file kept whole under a
+   Legacy* name, chosen per route by the setting. They are copies, not
+   variants, so a fix to one shell never has to be reasoned about for the
+   other. */
+const LegacyAccountPage = lazy(() => import('./components/auth/LegacyAccountPage').then((module) => ({ default: module.AccountPage })));
+const LegacyChatHistoryPage = lazy(() => import('./components/chat/LegacyChatHistoryPage').then((module) => ({ default: module.ChatHistoryPage })));
+const LegacyMemoriesPage = lazy(() => import('./components/memories/LegacyMemoriesPage').then((module) => ({ default: module.MemoriesPage })));
+const LegacyNotesPage = lazy(() => import('./components/notes/LegacyNotesPage').then((module) => ({ default: module.NotesPage })));
+const LegacyHealthcarePage = lazy(() => import('./components/healthcare/LegacyHealthcarePage').then((module) => ({ default: module.HealthcarePage })));
 const AboutPage = lazy(() => import('./components/about/AboutPage').then((module) => ({ default: module.AboutPage })));
 const PersonasPage = lazy(() => import('./components/personas/PersonasPage').then((module) => ({ default: module.PersonasPage })));
 const FeaturesPage = lazy(() => import('./components/features/FeaturesPage').then((module) => ({ default: module.FeaturesPage })));
@@ -182,7 +198,10 @@ function freshProSession(sessionId: string): ChatSession {
 }
 
 function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackgroundClass, maxModeRoute }: MainChatPageProps = {}) {
-  const { theme } = useTheme();
+  const { theme, mode, uiStyle } = useTheme();
+  // Settings → Interface. The legacy shell has no rail and no glass around
+  // the brand; the composer is the legacy bar in both.
+  const legacyUi = uiStyle === 'legacy';
   const { user, profile, loading: authLoading, profileLoading, needsOnboarding, updateLastPersona } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -616,7 +635,11 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     navigate('/account');
   }, [navigate]);
 
-  const { railOpen, railWide, railInline, openRail } = useRail();
+  const rail = useRail();
+  const railOpen = rail.railOpen && !legacyUi;
+  const railWide = rail.railWide;
+  const railInline = rail.railInline && !legacyUi;
+  const openRail = rail.openRail;
 
   // "New chat" from a rail on another page arrives as router state, one-shot.
   const newChatFromNav = (location.state as { newChat?: boolean } | null)?.newChat;
@@ -689,8 +712,14 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   return (
     <div
       id={brandOverride ? 'reveoule-theme' : undefined}
-      className={`tm-chat-shell min-h-screen ${backgroundClass} ${theme.text} relative overflow-hidden transition-all duration-700`}
-      style={{ minHeight: 'calc(var(--vh, 1vh) * 100)', '--tm-rail': railInline ? '272px' : '0px' } as React.CSSProperties}
+      className={`tm-chat-shell min-h-screen ${backgroundClass} ${theme.text} relative overflow-hidden`}
+      style={{
+        minHeight: 'calc(var(--vh, 1vh) * 100)',
+        '--tm-rail': railInline ? '272px' : '0px',
+        // Light mode's inline accent follows the mind; dark keeps each
+        // style's own fallback hue, so the variable is left unset there.
+        ...(mode === 'light' && !brandOverride ? { '--tm-accent-rgb': personaLightAccents[currentPersona] || personaLightAccents.default } : {}),
+      } as React.CSSProperties}
     >
       {/* Max Mode: chat on the left, workspace on the right. The transform
           makes the column the containing block for the chat's own fixed
@@ -706,7 +735,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
         style={maxModeRoute ? { transform: 'translateZ(0)' } : undefined}
       >
       <div className="flex" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
-      <ChatSidebar
+      {!legacyUi && <ChatSidebar
         open={railOpen}
         overlay={!railWide}
         onClose={() => openRail(false)}
@@ -718,14 +747,19 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
         onOpenAccount={handleOpenAccount}
         onOpenSettings={handleOpenSettings}
         hue={personaHues[currentPersona] || personaHues.default}
-      />
+      />}
       <main className="relative h-screen min-w-0 flex-1 flex flex-col" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
         {/* Independent floating controls leave the header open to the canvas.
             Both it and the dock start where the rail ends. */}
-        <header className="tm-chat-header fixed right-0 top-3 z-50 px-3 sm:top-4 sm:px-6 lg:px-8" style={{ left: 'var(--tm-rail, 0px)' }}>
+        <header
+          className={legacyUi
+            ? 'tm-chat-header fixed right-0 top-0 z-50 px-4 py-3'
+            : 'tm-chat-header fixed right-0 top-3 z-50 px-3 sm:top-4 sm:px-6 lg:px-8'}
+          style={{ left: 'var(--tm-rail, 0px)' }}
+        >
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-1.5">
-            {!railInline && (
+            {!railInline && !legacyUi && (
               <button
                 type="button"
                 onClick={() => openRail(true)}
@@ -736,7 +770,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                 <PanelLeftOpen className="h-4 w-4" />
               </button>
             )}
-            <div className="tm-chat-brand min-w-0">
+            <div className={legacyUi ? 'tm-chat-brand tm-chat-brand-bare min-w-0' : 'tm-chat-brand min-w-0'}>
             <BrandLogo
               currentPersona={currentPersona}
               onPersonaChange={handlePersonaChange}
@@ -748,6 +782,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
               onOpenSettings={handleOpenSettings}
               brandOverride={brandOverride}
               mindsOnly={railInline}
+              bare={legacyUi}
             />
             </div>
             </div>
@@ -782,7 +817,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                 <button
                   type="button"
                   onClick={() => setFlowStateActive(!flowStateActive)}
-                  className={`tm-press inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm ${flowStateActive ? '' : 'tm-glass-pill'}`}
+                  className={`tm-press tm-header-action inline-flex min-h-11 items-center gap-2 rounded-full px-3 py-2 text-sm sm:px-4 ${flowStateActive ? '' : 'tm-glass-pill'}`}
                   style={{
                     background: flowStateButtonStyles.bg,
                     color: flowStateButtonStyles.text,
@@ -793,7 +828,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                   aria-label={flowStateActive ? "Disable Flow State" : "Enable Flow State"}
                 >
                   <Zap className="h-4 w-4" style={{ fill: flowStateActive ? 'currentColor' : 'none' }} />
-                  Flow State
+                  <span className="hidden sm:inline">Flow State</span>
                 </button>
               ) : currentPersona === 'girlie' && (
                 isCollaborative && collaborativeId ? (
@@ -801,24 +836,24 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                   <button
                     type="button"
                     onClick={() => navigate(`/groupchat/${collaborativeId}/settings`)}
-                    className="tm-press tm-glass-pill inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"
+                    className="tm-press tm-glass-pill tm-header-action inline-flex min-h-11 items-center gap-2 rounded-full px-3 py-2 text-sm sm:px-4"
                     style={{ border: '1px solid rgb(236 72 153 / 0.35)', color: 'rgb(var(--tm-ink-rgb) / 0.85)' }}
                     aria-label="Group Settings"
                   >
                     <Settings className="h-4 w-4" />
-                    Group Settings
+                    <span className="hidden sm:inline">Group Settings</span>
                   </button>
                 ) : (
                   // Create Group Chat
                   <button
                     type="button"
                     onClick={() => setShowGroupChatModal(true)}
-                    className="tm-press tm-glass-pill inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"
+                    className="tm-press tm-glass-pill tm-header-action inline-flex min-h-11 items-center gap-2 rounded-full px-3 py-2 text-sm sm:px-4"
                     style={{ border: '1px solid rgb(236 72 153 / 0.35)', color: 'rgb(var(--tm-ink-rgb) / 0.85)' }}
                     aria-label="Open Group Chat"
                   >
                     <Users className="h-4 w-4" />
-                    Group Chat
+                    <span className="hidden sm:inline">Group Chat</span>
                   </button>
                 )
               )}
@@ -1026,8 +1061,9 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
             <>
               {isLyricsMaximized && (lyricsTrack || lyricsIsLoading || lyricsError) ? (
                 <div className="flex-1 flex flex-col items-center justify-center p-4 relative min-h-[60vh] w-full">
-                  {/* Minimize Button */}
-                  <div className="absolute top-4 right-4 z-40">
+                  {/* Minimize: below the fixed header, so it never sits
+                      under Flow State. */}
+                  <div className="absolute right-4 z-40" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 72px)' }}>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -1155,7 +1191,9 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
             ground before it reaches the glass; the wrapper passes clicks
             through so only the composer itself is interactive. */}
         <div
-          className="tm-chat-dock pointer-events-none fixed right-0 bottom-0 z-40 px-3 pt-12 sm:px-6"
+          className={legacyUi
+            ? 'pointer-events-none fixed right-0 bottom-0 z-40 p-4'
+            : 'tm-chat-dock pointer-events-none fixed right-0 bottom-0 z-40 px-3 pt-12 sm:px-6'}
           style={{ left: 'var(--tm-rail, 0px)' }}
         >
           <div className="pointer-events-auto mx-auto max-w-4xl">
@@ -1190,11 +1228,19 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
           currentPersona={currentPersona}
         />
 
-        <AuthModal
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          message={authModalMessage}
-        />
+        {legacyUi ? (
+          <LegacyAuthModal
+            isOpen={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+            message={authModalMessage}
+          />
+        ) : (
+          <CurrentAuthModal
+            isOpen={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+            message={authModalMessage}
+          />
+        )}
 
         <OnboardingModal
           isOpen={showOnboarding}
@@ -1350,6 +1396,8 @@ const MARKETING_PATHS = new Set(['/welcome', '/features', '/personas', '/about',
 
 function AppContent() {
   const { user } = useAuth();
+  const { theme, uiStyle } = useTheme();
+  const legacyUi = uiStyle === 'legacy';
   const navigate = useNavigate();
   const location = useLocation();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -1395,18 +1443,31 @@ function AppContent() {
       } />
       <Route path="/home" element={<><SEOHead title="Home" description="TimeMachine — the everything app. Chat, Canvas, Education, Healthcare, Shopping, and more." path="/home" /><HomePage /></>} />
       <Route path="/account" element={
-        <>
-          <SEOHead title="Account" description="Manage your TimeMachine Chat account settings and profile." path="/account" noIndex />
-          <AccountPage />
-        </>
+        legacyUi ? (
+          <div className={`min-h-screen ${theme.background} ${theme.text} relative overflow-hidden`}>
+            <SEOHead title="Account" description="Manage your TimeMachine Chat account settings and profile." path="/account" noIndex />
+            <LegacyAccountPage onBack={() => navigate('/')} />
+          </div>
+        ) : (
+          <>
+            <SEOHead title="Account" description="Manage your TimeMachine Chat account settings and profile." path="/account" noIndex />
+            <AccountPage />
+          </>
+        )
       } />
       <Route path="/history" element={
         <>
           <SEOHead title="Chat History" description="View and continue your previous TimeMachine Chat conversations." path="/history" noIndex />
-          <ChatHistoryPage onLoadChat={(session) => {
-            // Pass session via navigation state so MainChatPage can load it
-            navigate('/', { state: { sessionToLoad: session } });
-          }} />
+          {legacyUi ? (
+            <LegacyChatHistoryPage onLoadChat={(session) => {
+              navigate('/', { state: { sessionToLoad: session } });
+            }} />
+          ) : (
+            <ChatHistoryPage onLoadChat={(session) => {
+              // Pass session via navigation state so MainChatPage can load it
+              navigate('/', { state: { sessionToLoad: session } });
+            }} />
+          )}
         </>
       } />
       <Route path="/settings" element={<SettingsRedirect />} />
@@ -1417,10 +1478,10 @@ function AppContent() {
       <Route path="/privacy" element={<><SEOHead title="Privacy Policy" description="How TimeMachine Chat collects, uses, and protects your data — including which third-party AI providers receive your prompts." path="/privacy" /><PrivacyPage /></>} />
       <Route path="/terms" element={<><SEOHead title="Terms of Service" description="The terms governing your use of TimeMachine Chat." path="/terms" /><TermsPage /></>} />
       <Route path="/album" element={<><SEOHead title="Album" path="/album" noIndex /><AlbumPage /></>} />
-      <Route path="/memories" element={<><SEOHead title="Memories" path="/memories" noIndex /><MemoriesPage /></>} />
+      <Route path="/memories" element={<><SEOHead title="Memories" path="/memories" noIndex />{legacyUi ? <LegacyMemoriesPage /> : <MemoriesPage />}</>} />
       <Route path="/help" element={<><SEOHead title="Help" description="Get help with TimeMachine — learn about AI personas, group chats, image generation, and all features." path="/help" /><HelpPage /></>} />
-      <Route path="/notes" element={<><SEOHead title="Notes" description="Capture your thoughts with TimeMachine Notes — a powerful Notion-like editor built right into TimeMachine." path="/notes" /><NotesPage /></>} />
-      <Route path="/healthcare" element={<><SEOHead title="Healthcare" description="Search medicines, brands, generics, and drug information — including dosage, side effects, and indications. Powered by TimeMachine Healthcare." path="/healthcare" /><HealthcarePage /></>} />
+      <Route path="/notes" element={<><SEOHead title="Notes" description="Capture your thoughts with TimeMachine Notes — a powerful Notion-like editor built right into TimeMachine." path="/notes" />{legacyUi ? <LegacyNotesPage /> : <NotesPage />}</>} />
+      <Route path="/healthcare" element={<><SEOHead title="Healthcare" description="Search medicines, brands, generics, and drug information — including dosage, side effects, and indications. Powered by TimeMachine Healthcare." path="/healthcare" />{legacyUi ? <LegacyHealthcarePage /> : <HealthcarePage />}</>} />
       <Route path="/shop" element={<><SEOHead title="Shop" description="Physical goods from the TimeMachine universe. Apparel, accessories, and more." path="/shop" /><ShopPage /></>} />
       <Route path="/lifestyle" element={<><SEOHead title="Lifestyle" description="Everyday essentials — calendar, shopping list, and expense tracker. All in one place with TimeMachine." path="/lifestyle" /><LifestyleLayout /></>}>
         <Route index element={<Navigate to="cookbook" replace />} />

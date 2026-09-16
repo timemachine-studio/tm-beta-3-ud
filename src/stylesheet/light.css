@@ -58,10 +58,12 @@
   /* ---- inline primitives (space-separated so the alpha is supplied at
      the call site: rgb(var(--tm-ink-rgb) / 0.05)) ---- */
   --tm-ink-rgb: 26 26 26;
-  /* The one accent, for inline styles that glow in a persona's own hue in
+  /* The accent for inline styles that glow in a persona's own hue in
      dark: write `rgb(var(--tm-accent-rgb, <dark hue>) / a)` and the dark
-     hue is the fallback there, the deep green takes over here. */
-  --tm-accent-rgb: 3 89 48;
+     hue is the fallback there. Here it is the deep purple by default, and
+     the chat shell sets it to the answering mind's own deep hue (App.tsx),
+     so Flow State glows purple and Max Mode blue, never green. */
+  --tm-accent-rgb: 88 28 135;
   --tm-paper-rgb: 253 241 225;
   /* Warm near-black: a neutral black shadow on warm paper reads as dirt. */
   --tm-shadow-rgb: 60 45 20;
@@ -137,13 +139,18 @@
   --color-slate-950: var(--color-canvas);
 }
 
-/* One accent. Mirrored purple, cyan and pink read as stickers on beige,
-   so in light every brand hue (persona colours, links, selected states,
-   the accent word) is the same deep purple ramp; step 400 is #581c87. Red, orange,
-   amber, yellow, green and emerald keep their meaning as status colours
-   — those stay on the mirrored, muted ramps from light-palette.css.
-   Steps 200–400 are the text steps; they sit darker than a pure mirror
-   so accent text on the canvas passes AA. */
+/* The brand hues. Mirrored accents read as stickers on beige, so in light
+   the purple/violet/indigo/blue/sky/teal/fuchsia/rose ramps all collapse to
+   one deep purple ramp (step 400 is #581c87). Cyan and pink are the
+   exceptions: they are PRO's and Girlie's own colours, and a persona keeps
+   its exact colour in both modes — so these two ramps are Tailwind's own,
+   unmirrored (PRO's cyan-400 is the same #22d3ee it is on black). That is a
+   decision to keep the brand over the contrast number; the text these
+   colour is a wordmark and one accent word, not body copy. Red, orange,
+   amber, yellow, green and emerald keep their meaning as status colours —
+   those stay on the mirrored, muted ramps from light-palette.css. Steps
+   200–400 of the purple ramp are the text steps; they sit darker than a
+   pure mirror so accent text on the canvas passes AA. */
 :root[data-theme="light"] {
   --color-purple-50: oklch(20% 0.10 303);
   --color-purple-100: oklch(26% 0.125 303);
@@ -200,17 +207,17 @@
   --color-sky-800: oklch(86% 0.06 303);
   --color-sky-900: oklch(92.5% 0.04 303);
   --color-sky-950: oklch(96.5% 0.02 303);
-  --color-cyan-50: oklch(20% 0.10 303);
-  --color-cyan-100: oklch(26% 0.125 303);
-  --color-cyan-200: oklch(31% 0.15 303);
-  --color-cyan-300: oklch(35% 0.165 303);
-  --color-cyan-400: oklch(38.5% 0.176 303);
-  --color-cyan-500: oklch(47% 0.16 303);
-  --color-cyan-600: oklch(60% 0.13 303);
-  --color-cyan-700: oklch(75% 0.09 303);
-  --color-cyan-800: oklch(86% 0.06 303);
-  --color-cyan-900: oklch(92.5% 0.04 303);
-  --color-cyan-950: oklch(96.5% 0.02 303);
+  --color-cyan-50: oklch(98.4% 0.019 200.873);
+  --color-cyan-100: oklch(95.6% 0.045 203.388);
+  --color-cyan-200: oklch(91.7% 0.08 205.041);
+  --color-cyan-300: oklch(86.5% 0.127 207.078);
+  --color-cyan-400: oklch(78.9% 0.154 211.53);
+  --color-cyan-500: oklch(71.5% 0.143 215.221);
+  --color-cyan-600: oklch(60.9% 0.126 221.723);
+  --color-cyan-700: oklch(52% 0.105 223.128);
+  --color-cyan-800: oklch(45% 0.085 224.283);
+  --color-cyan-900: oklch(39.8% 0.07 227.392);
+  --color-cyan-950: oklch(30.2% 0.056 229.695);
   --color-teal-50: oklch(20% 0.10 303);
   --color-teal-100: oklch(26% 0.125 303);
   --color-teal-200: oklch(31% 0.15 303);
@@ -233,17 +240,17 @@
   --color-fuchsia-800: oklch(86% 0.06 303);
   --color-fuchsia-900: oklch(92.5% 0.04 303);
   --color-fuchsia-950: oklch(96.5% 0.02 303);
-  --color-pink-50: oklch(20% 0.10 303);
-  --color-pink-100: oklch(26% 0.125 303);
-  --color-pink-200: oklch(31% 0.15 303);
-  --color-pink-300: oklch(35% 0.165 303);
-  --color-pink-400: oklch(38.5% 0.176 303);
-  --color-pink-500: oklch(47% 0.16 303);
-  --color-pink-600: oklch(60% 0.13 303);
-  --color-pink-700: oklch(75% 0.09 303);
-  --color-pink-800: oklch(86% 0.06 303);
-  --color-pink-900: oklch(92.5% 0.04 303);
-  --color-pink-950: oklch(96.5% 0.02 303);
+  --color-pink-50: oklch(97.1% 0.014 343.198);
+  --color-pink-100: oklch(94.8% 0.028 342.258);
+  --color-pink-200: oklch(89.9% 0.061 343.231);
+  --color-pink-300: oklch(82.3% 0.12 346.018);
+  --color-pink-400: oklch(71.8% 0.202 349.761);
+  --color-pink-500: oklch(65.6% 0.241 354.308);
+  --color-pink-600: oklch(59.2% 0.249 0.584);
+  --color-pink-700: oklch(52.5% 0.223 3.958);
+  --color-pink-800: oklch(45.9% 0.187 3.815);
+  --color-pink-900: oklch(40.8% 0.153 2.432);
+  --color-pink-950: oklch(28.4% 0.109 3.907);
   --color-rose-50: oklch(20% 0.10 303);
   --color-rose-100: oklch(26% 0.125 303);
   --color-rose-200: oklch(31% 0.15 303);

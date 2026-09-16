@@ -9,6 +9,7 @@ import { LoadingSpinner } from '../loading/LoadingSpinner';
 import { ImagePreview } from './ImagePreview';
 import { FilePreview } from './FilePreview';
 import { AI_PERSONAS } from '../../config/constants';
+import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { MentionCall } from './MentionCall';
 import { PlusMenu, PlusMenuOption } from './PlusMenu';
@@ -29,6 +30,9 @@ export interface ReplyTo {
   isAI: boolean;
 }
 
+/* The bar: the landing page's composer — one glass field, the send button a
+   white pill inside it — with a separate plus button in the same glass and
+   the mic beside send. The answering mind shows only in the focus ring. */
 const personaHues: Record<string, string> = { default: '168 85 247', girlie: '236 72 153', pro: '34 211 238' };
 
 const convertImageToBase64 = (file: File): Promise<string> => {
@@ -150,11 +154,13 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [showMentionCall, setShowMentionCall] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [selectedPlusOption, setSelectedPlusOption] = useState<PlusMenuOption | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
   const plusMenuRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { theme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
   const contour = useContour();
@@ -194,18 +200,24 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
   useEffect(() => {
     const textarea = textareaRef.current;
-    if (textarea) {
-      // Store scroll position before resize
-      const scrollTop = textarea.scrollTop;
-
-      // Reset height to measure content
-      textarea.style.height = 'auto';
-      const newHeight = Math.min(textarea.scrollHeight, 150);
-      textarea.style.height = `${newHeight}px`;
-
-      // Restore scroll position
-      textarea.scrollTop = scrollTop;
+    if (!textarea) return;
+    // Empty: one row, no measuring. On first paint the field can be measured
+    // before the dock has its width, and a wrapped placeholder then reads as
+    // several lines and pins the bar at its maximum height.
+    if (!message) {
+      textarea.style.height = '';
+      return;
     }
+    // Store scroll position before resize
+    const scrollTop = textarea.scrollTop;
+
+    // Reset height to measure content
+    textarea.style.height = 'auto';
+    const newHeight = Math.min(textarea.scrollHeight, 150);
+    textarea.style.height = `${newHeight}px`;
+
+    // Restore scroll position
+    textarea.scrollTop = scrollTop;
   }, [message]);
 
   // Close plus menu on outside click
@@ -849,14 +861,8 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           />
         </div>
       )}
-      <div
-        className="tm-composer"
-        style={{ '--tm-composer-hue': personaHues[currentPersona] || personaHues.default } as React.CSSProperties}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-      >
-        <div className="tm-glass tm-composer-surface" aria-hidden="true" />
-        <div className="relative flex items-end gap-1 p-2">
+      <div className="relative" onDragOver={handleDragOver} onDrop={handleDrop}>
+        <div className="relative flex items-end gap-2">
           <input
             type="file"
             accept="image/jpeg,image/png,image/gif,image/webp"
@@ -873,13 +879,13 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
             ref={docInputRef}
           />
 
-
+          {/* The plus: its own piece of the same glass, the field's height. */}
           <div className="relative shrink-0" ref={plusMenuRef}>
             <button
               type="button"
               onClick={handlePlusButtonClick}
               disabled={isLoading || isUploading}
-              className="tm-press tm-composer-control"
+              className={`tm-glass tm-press flex h-14 w-14 items-center justify-center rounded-full ${theme.text} disabled:opacity-50`}
               aria-label="Attach or choose a mode"
               aria-expanded={showPlusMenu}
               onKeyDown={(event) => {
@@ -888,36 +894,85 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                   event.preventDefault();
                   setShowPlusMenu(true);
                   requestAnimationFrame(() => {
-                    if (plusMenuRef.current?.querySelector('button')?.getAttribute('aria-expanded') === 'true') {
-                      plusMenuRef.current.querySelector<HTMLButtonElement>('[data-plus-menu] button')?.focus();
-                    }
+                    plusMenuRef.current?.querySelector<HTMLButtonElement>('[data-plus-menu] button')?.focus();
                   });
                 }
               }}
             >
-              {selectedPlusOption ? (() => {
-                const IconComponent = plusOptionIcons[selectedPlusOption];
-                return <IconComponent className="h-5 w-5" />;
-              })() : <Plus className={'h-5 w-5 transition-transform duration-200 ' + (showPlusMenu ? 'rotate-45' : '')} />}
+              {selectedPlusOption ? (
+                (() => {
+                  const IconComponent = plusOptionIcons[selectedPlusOption];
+                  return <IconComponent className="h-5 w-5" />;
+                })()
+              ) : (
+                <Plus className={`h-5 w-5 transition-transform duration-200 ${showPlusMenu ? 'rotate-45' : ''}`} />
+              )}
             </button>
-            <PlusMenu isVisible={showPlusMenu} onSelect={handlePlusMenuSelect} onClose={() => {
-              setShowPlusMenu(false);
-              plusMenuRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
-            }} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Message, or type /"
-              aria-label="Message TimeMachine"
-              disabled={isLoading || isUploading}
-              className="block w-full resize-none bg-transparent px-2 py-2.5 text-base text-ink outline-hidden disabled:opacity-50 sm:px-3"
-              style={{ minHeight: '44px', maxHeight: '150px', lineHeight: '24px', overflowY: 'auto' }}
-              rows={1}
+
+            <PlusMenu
+              isVisible={showPlusMenu}
+              onSelect={handlePlusMenuSelect}
+              onClose={() => {
+                setShowPlusMenu(false);
+                plusMenuRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+              }}
             />
+          </div>
+
+          <div className="relative min-w-0 flex-1">
+            {/* The field: the landing composer's glass, the ring in the mind's hue. */}
+            <div
+              className="tm-glass tm-legacy-field relative flex items-end gap-1 rounded-[32px] p-1.5 pl-5"
+              style={{
+                borderColor: focused ? `rgb(${personaHues[currentPersona] || personaHues.default} / 0.5)` : undefined,
+              }}
+            >
+              <textarea
+                ref={textareaRef}
+                value={message}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                placeholder="Type / for contour"
+                aria-label="Message TimeMachine"
+                disabled={isLoading || isUploading}
+                className={`block w-full resize-none bg-transparent py-2.5 text-base sm:text-[17px]
+                  ${theme.input.text}
+                  outline-hidden
+                  disabled:opacity-50
+                  overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
+                style={{ minHeight: '44px', maxHeight: '150px', lineHeight: '24px' }}
+                rows={1}
+              />
+
+              <SpeechTranscriptionButton
+                value={message}
+                onTranscript={setMessage}
+                disabled={isLoading || isUploading}
+                currentPersona={currentPersona}
+              />
+
+              <button
+                type={canStop ? 'button' : 'submit'}
+                onClick={canStop ? onStop : undefined}
+                aria-label={canStop ? 'Stop generating' : 'Send message'}
+                title={canStop ? 'Stop generating' : undefined}
+                disabled={canStop
+                  ? false
+                  : (isLoading || isUploading || isFileReading || (!message.trim() && selectedImages.length === 0 && !selectedFile))}
+                className="tm-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-pill text-pill-ink disabled:opacity-30"
+              >
+                {canStop ? (
+                  <Square className="h-4 w-4 fill-current" />
+                ) : isLoading || isUploading ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <SendIcon className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+
             <MentionCall
               isVisible={showMentionCall}
               onSelect={handleMentionSelect}
@@ -944,16 +999,6 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
               />
             </div>
           </div>
-          <SpeechTranscriptionButton value={message} onTranscript={setMessage} disabled={isLoading || isUploading} currentPersona={currentPersona} />
-          <button
-            type={canStop ? 'button' : 'submit'}
-            onClick={canStop ? onStop : undefined}
-            aria-label={canStop ? 'Stop generating' : 'Send message'}
-            disabled={canStop ? false : (isLoading || isUploading || isFileReading || (!message.trim() && selectedImages.length === 0 && !selectedFile))}
-            className="tm-press tm-composer-control tm-composer-send"
-          >
-            {canStop ? <Square className="h-4 w-4 fill-current" /> : isLoading || isUploading ? <LoadingSpinner size="sm" /> : <SendIcon className="h-5 w-5" />}
-          </button>
         </div>
       </div>
     </form>

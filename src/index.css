@@ -234,6 +234,22 @@
   --tm-100dvh: calc(100dvh / 0.8);
 }
 
+/* The legacy shell (Settings → Interface) was drawn at 100%, and a phone
+   has no density to spare: neither is zoomed. */
+:root[data-tm-scale='app'][data-tm-ui='legacy'] {
+  --tm-zoom: 1;
+  --tm-100vh: 100vh;
+  --tm-100dvh: 100dvh;
+}
+
+@media (max-width: 767px) {
+  :root[data-tm-scale='app'] {
+    --tm-zoom: 1;
+    --tm-100vh: 100vh;
+    --tm-100dvh: 100dvh;
+  }
+}
+
 :root[data-tm-scale='app'] body {
   zoom: var(--tm-zoom);
 }
