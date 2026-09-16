@@ -1,5 +1,8 @@
 @import 'tailwindcss' source(none);
 @import './stylesheet/UniversalGlassKit.css';
+@import './stylesheet/material.css';
+@import './stylesheet/workspace.css';
+@import './stylesheet/notes.css';
 @import './stylesheet/light-palette.css';
 @import './stylesheet/light.css';
 @source '../index.html';
@@ -89,6 +92,11 @@
   --tm-pane-shadow: 0 25px 50px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.15);
   /* The composer. In dark only the glass edge; in light the card shadow. */
   --tm-input-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
+  --tm-radius-panel: 28px;
+  --tm-radius-control: 9999px;
+  --tm-blur-glass: 28px;
+  --tm-blur-pane: 36px;
+  --tm-content-measure: 68ch;
 
   /* Near-opaque popover / sheet surfaces (Contour, shop cart, note tools).
      Dark is a solid near-black; light is frosted white — see --tm-pane-bg
@@ -203,12 +211,45 @@
   font-weight: 500;
 }
 
+/* The product at 80%: the density the chat shell was designed at, so a
+   1440-wide window reads like 1800. The marketing pages keep 100% — their
+   type is set for it.
+
+   CSS zoom relays out, so text stays crisp and fixed edges still reach the
+   viewport — but every length inside is multiplied, viewport units included:
+   100vh renders at 80% of the window. So no app style writes 100vh or 100dvh
+   directly; they use --tm-100vh / --tm-100dvh, which divide the zoom back
+   out, and the JS-measured --vh does the same (App.tsx). Code that places
+   fixed elements from pointer or rect coordinates divides too — see
+   utils/pageZoom.ts. */
+:root {
+  --tm-zoom: 1;
+  --tm-100vh: 100vh;
+  --tm-100dvh: 100dvh;
+}
+
+:root[data-tm-scale='app'] {
+  --tm-zoom: 0.8;
+  --tm-100vh: calc(100vh / 0.8);
+  --tm-100dvh: calc(100dvh / 0.8);
+}
+
+:root[data-tm-scale='app'] body {
+  zoom: var(--tm-zoom);
+}
+
+/* Tailwind's screen-height utilities, inside the zoom. Unlayered, so these
+   win over the utilities layer. */
+:root[data-tm-scale='app'] .h-screen { height: var(--tm-100vh); }
+:root[data-tm-scale='app'] .min-h-screen { min-height: var(--tm-100vh); }
+:root[data-tm-scale='app'] .max-h-screen { max-height: var(--tm-100vh); }
+
 /* Prevent white borders on iOS */
 html,
 body {
   margin: 0;
   padding: 0;
-  min-height: 100vh;
+  min-height: var(--tm-100vh);
   min-height: -webkit-fill-available;
   overflow: hidden;
   background: var(--color-canvas);
@@ -220,7 +261,7 @@ body {
 
 /* Fix iOS height issues */
 #root {
-  min-height: 100vh;
+  min-height: var(--tm-100vh);
   min-height: -webkit-fill-available;
 }
 

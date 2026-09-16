@@ -68,7 +68,7 @@ function HelpView({ accent }: { module: ModuleData; accent: AccentTheme }) {
         <IconBadge icon={HelpCircle} accent={accent} />
         <div>
           <div className="text-white text-base font-semibold">TimeMachine Contour</div>
-          <div className="text-white/30 text-xs">Your smart assist toolkit</div>
+          <div className="text-ink-muted text-xs">Your smart assist toolkit</div>
         </div>
       </div>
 
@@ -77,16 +77,16 @@ function HelpView({ accent }: { module: ModuleData; accent: AccentTheme }) {
         <div key={i}>
           <div className="flex items-center gap-2 mb-1.5">
             {section.icon && <section.icon className={`w-3.5 h-3.5 ${accent.text}`} />}
-            <span className="text-white/80 text-sm font-medium">{section.title}</span>
+            <span className="text-ink text-sm font-medium">{section.title}</span>
           </div>
-          <p className="text-white/40 text-xs leading-relaxed">{section.description}</p>
+          <p className="text-ink-muted text-xs leading-relaxed">{section.description}</p>
 
           {section.examples && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {section.examples.map((ex, j) => (
                 <span
                   key={j}
-                  className="text-[11px] px-2 py-1 rounded-lg font-mono"
+                  className="text-xs px-2 py-1 rounded-lg font-mono"
                   style={{ background: accent.bg, border: `1px solid ${accent.border}`, color: accent.solid }}
                 >
                   {ex}
@@ -103,13 +103,13 @@ function HelpView({ accent }: { module: ModuleData; accent: AccentTheme }) {
                     {sc.keys.map((k, ki) => (
                       <kbd
                         key={ki}
-                        className="px-1.5 py-0.5 rounded-sm text-[10px] font-mono bg-white/5 border border-white/10 text-white/40"
+                        className="px-1.5 py-0.5 rounded-sm text-xs font-mono bg-white/5 border border-white/10 text-ink-muted"
                       >
                         {k}
                       </kbd>
                     ))}
                   </div>
-                  <span className="text-white/30 text-[11px]">{sc.action}</span>
+                  <span className="text-ink-muted text-xs">{sc.action}</span>
                 </div>
               ))}
             </div>
@@ -121,7 +121,7 @@ function HelpView({ accent }: { module: ModuleData; accent: AccentTheme }) {
       <div>
         <div className="flex items-center gap-2 mb-2">
           <Type className={`w-3.5 h-3.5 ${accent.text}`} />
-          <span className="text-white/80 text-sm font-medium">Available Tools</span>
+          <span className="text-ink text-sm font-medium">Available Tools</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           {TOOL_CATEGORIES.map((cat, i) => (
@@ -131,12 +131,12 @@ function HelpView({ accent }: { module: ModuleData; accent: AccentTheme }) {
               style={{ background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
             >
               <div
-                className="text-[10px] font-medium tracking-wider uppercase mb-1"
+                className="text-xs font-medium tracking-wider uppercase mb-1"
                 style={{ color: accent.solid }}
               >
                 {cat.label}
               </div>
-              <div className="text-white/30 text-[11px] leading-relaxed">
+              <div className="text-ink-muted text-xs leading-relaxed">
                 {cat.tools.join(' \u00B7 ')}
               </div>
             </div>
@@ -146,7 +146,7 @@ function HelpView({ accent }: { module: ModuleData; accent: AccentTheme }) {
 
       {/* Footer */}
       <div className="pt-3" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
-        <span className="text-[10px] text-white/20">Press Esc to close</span>
+        <span className="text-xs text-ink-muted">Press Esc to close</span>
       </div>
     </div>
   );

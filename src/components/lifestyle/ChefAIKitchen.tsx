@@ -138,7 +138,7 @@ The JSON must perfectly match this structure:
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40, scale: 0.98 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full min-h-[calc(100vh-140px)] bg-black/40 border border-white/10 rounded-[40px] shadow-2xl overflow-hidden flex flex-col relative z-20 backdrop-blur-3xl"
+            className="w-full min-h-[calc(var(--tm-100vh)-140px)] bg-black/40 border border-white/10 rounded-[40px] shadow-2xl overflow-hidden flex flex-col relative z-20 backdrop-blur-3xl"
         >
             {/* Header */}
             <div className="flex items-center justify-between p-6 md:p-8 border-b border-white/5 bg-white/5 relative z-30 shrink-0">

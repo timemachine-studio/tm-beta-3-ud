@@ -25,7 +25,7 @@ export function WordCountView({ module, accent }: { module: ModuleData; accent: 
           <div className="text-white text-sm font-medium">
             {wc.words.toLocaleString()} {wc.words === 1 ? 'word' : 'words'}
           </div>
-          <div className="text-white/30 text-xs">
+          <div className="text-ink-muted text-xs">
             {wc.characters.toLocaleString()} characters
           </div>
         </div>
@@ -42,7 +42,7 @@ export function WordCountView({ module, accent }: { module: ModuleData; accent: 
             >
               <StatIcon className={`w-3.5 h-3.5 ${accent.text}`} />
               <span className="text-white text-xs font-semibold">{stat.value}</span>
-              <span className="text-white/25 text-[9px]">{stat.label}</span>
+              <span className="text-ink-muted text-[9px]">{stat.label}</span>
             </div>
           );
         })}

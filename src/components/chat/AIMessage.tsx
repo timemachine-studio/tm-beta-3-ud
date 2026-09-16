@@ -319,7 +319,7 @@ function AIMessageComponent({
       <li className={`leading-relaxed ${theme.text}`}>{children}</li>
     ),
     blockquote: ({ children }: { children?: React.ReactNode }) => (
-      <blockquote className={`border-l-4 border-purple-500/50 pl-4 my-4 italic opacity-70 ${theme.text}`}>
+      <blockquote className={`border-l-2 border-purple-500/50 pl-4 my-4 italic opacity-70 ${theme.text}`}>
         {children}
       </blockquote>
     ),
@@ -406,7 +406,7 @@ function AIMessageComponent({
       <li className="leading-relaxed text-zinc-400">{children}</li>
     ),
     blockquote: ({ children }: { children?: React.ReactNode }) => (
-      <blockquote className="border-l-4 border-zinc-600 pl-4 my-3 italic text-zinc-500">
+      <blockquote className="border-l-2 border-zinc-600 pl-4 my-3 italic text-zinc-500">
         {children}
       </blockquote>
     ),
@@ -589,7 +589,7 @@ function AIMessageComponent({
                     />
                   ) : (
                   <>
-                    <div className="prose prose-invert prose-sm max-w-none">
+                    <div className="tm-response-copy prose prose-invert prose-sm max-w-none">
                       <MarkdownRuntimeContext.Provider value={markdownRuntime}>
                         {harnessActions && harnessActions.length > 0 ? (
                           <HarnessTranscript
@@ -697,7 +697,7 @@ function AIMessageComponent({
                   />
                 ) : (
                 <>
-                  <div className="prose prose-invert max-w-none">
+                  <div className="tm-response-copy prose prose-invert max-w-none">
                     <MarkdownRuntimeContext.Provider value={markdownRuntime}>
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
@@ -786,7 +786,7 @@ function AIMessageComponent({
         ease: [0.25, 0.1, 0.25, 1],
       }}
       onAnimationComplete={() => !hasAnimated && onAnimationComplete(messageId)}
-      className={`w-full`}
+      className="tm-assistant-message w-full"
     >
       {messageContent}
     </motion.div>

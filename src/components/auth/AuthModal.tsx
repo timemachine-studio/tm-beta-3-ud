@@ -223,11 +223,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/80 backdrop-blur-md z-50"
+                className="tm-modal-scrim fixed inset-0 z-50"
               />
             </Dialog.Overlay>
 
-            <Dialog.Content asChild>
+            <Dialog.Content asChild aria-describedby={undefined}>
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -236,21 +236,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 className="fixed inset-0 z-50 flex items-center justify-center p-4"
               >
                 <div
-                  className="relative w-full max-w-[420px] overflow-hidden rounded-3xl"
-                  style={{
-                    background: 'var(--tm-pane-bg)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    border: '1px solid var(--tm-pane-border)',
-                    boxShadow: '0 4px 12px rgb(var(--tm-shadow-rgb) / 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
-                  }}
+                  className="tm-workspace tm-auth tm-glass tm-surface tm-dialog-card relative w-full max-w-[440px] rounded-[28px]"
                 >
                   {/* Content */}
-                  <div className="p-8">
+                  <div className="p-6 pt-12 sm:p-8 sm:pt-12">
                     {/* Close button */}
                     <Dialog.Close asChild>
-                      <button className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors">
-                        <X size={20} className="text-white/50" />
+                      <button aria-label="Close sign in" className="absolute top-3 right-3 p-3 rounded-full hover:bg-white/10 transition-colors">
+                        <X size={20} className="text-ink-muted" />
                       </button>
                     </Dialog.Close>
 
@@ -260,16 +253,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         onClick={handleBack}
                         className="absolute top-4 left-4 p-2 rounded-full hover:bg-white/10 transition-colors"
                       >
-                        <ArrowLeft size={20} className="text-white/50" />
+                        <ArrowLeft size={20} className="text-ink-muted" />
                       </button>
                     )}
 
                     {/* Header */}
                     <div className="text-center mb-8">
-                      <h2 className="text-2xl font-semibold text-white mb-2">
+                      <Dialog.Title className="tm-display tm-dialog-heading text-white mb-3">
                         {renderTitle()}
-                      </h2>
-                      <p className="text-white/50 text-sm">
+                      </Dialog.Title>
+                      <p className="text-ink-muted text-sm">
                         {renderSubtitle()}
                       </p>
                     </div>
@@ -278,8 +271,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <form onSubmit={handleSubmit} className="space-y-4">
                       {/* OTP Input (for verification steps) */}
                       {(step === 'otp-verify' || step === 'forgot-password-otp') && (
-                        <div className="relative">
-                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
+                        <div className="tm-auth-field relative">
+                          <div className="tm-auth-field-icon absolute left-4 top-1/2 -translate-y-1/2">
                             <KeyRound size={18} />
                           </div>
                           <input
@@ -289,7 +282,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             placeholder="Enter 6-digit code"
                             required
                             maxLength={6}
-                            className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px] text-center tracking-[0.5em] font-mono"
+                            className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-ink-muted focus:outline-hidden transition-all text-[15px] text-center tracking-[0.5em] font-mono"
                             style={{
                               background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                               backdropFilter: 'blur(20px)',
@@ -303,8 +296,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                       {/* Email Input */}
                       {(step === 'credentials' || step === 'forgot-password-email') && (
-                        <div className="relative">
-                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
+                        <div className="tm-auth-field relative">
+                          <div className="tm-auth-field-icon absolute left-4 top-1/2 -translate-y-1/2">
                             <Mail size={18} />
                           </div>
                           <input
@@ -313,7 +306,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="Email"
                             required
-                            className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
+                            className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-ink-muted focus:outline-hidden transition-all text-[15px]"
                             style={{
                               background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                               backdropFilter: 'blur(20px)',
@@ -327,8 +320,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                       {/* Password Input (Sign In and Sign Up) */}
                       {step === 'credentials' && (
-                        <div className="relative">
-                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
+                        <div className="tm-auth-field relative">
+                          <div className="tm-auth-field-icon absolute left-4 top-1/2 -translate-y-1/2">
                             <Lock size={18} />
                           </div>
                           <input
@@ -337,7 +330,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Password"
                             required
-                            className="w-full pl-12 pr-12 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
+                            className="w-full pl-12 pr-12 py-3.5 rounded-xl text-white placeholder-ink-muted focus:outline-hidden transition-all text-[15px]"
                             style={{
                               background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                               backdropFilter: 'blur(20px)',
@@ -349,7 +342,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/50 transition-colors"
+                            className="tm-auth-toggle absolute right-4 top-1/2 -translate-y-1/2"
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
                           >
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                           </button>
@@ -358,8 +352,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                       {/* Confirm Password (Sign Up only) */}
                       {step === 'credentials' && mode === 'signup' && (
-                        <div className="relative">
-                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
+                        <div className="tm-auth-field relative">
+                          <div className="tm-auth-field-icon absolute left-4 top-1/2 -translate-y-1/2">
                             <Lock size={18} />
                           </div>
                           <input
@@ -368,7 +362,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="Confirm password"
                             required
-                            className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
+                            className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-ink-muted focus:outline-hidden transition-all text-[15px]"
                             style={{
                               background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                               backdropFilter: 'blur(20px)',
@@ -383,8 +377,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       {/* New Password Fields (for forgot password flow) */}
                       {step === 'forgot-password-new' && (
                         <>
-                          <div className="relative">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
+                        <div className="tm-auth-field relative">
+                          <div className="tm-auth-field-icon absolute left-4 top-1/2 -translate-y-1/2">
                               <Lock size={18} />
                             </div>
                             <input
@@ -393,7 +387,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               onChange={(e) => setNewPassword(e.target.value)}
                               placeholder="New password"
                               required
-                              className="w-full pl-12 pr-12 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
+                              className="w-full pl-12 pr-12 py-3.5 rounded-xl text-white placeholder-ink-muted focus:outline-hidden transition-all text-[15px]"
                               style={{
                                 background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                                 backdropFilter: 'blur(20px)',
@@ -402,16 +396,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                                 boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                               }}
                             />
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/50 transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="tm-auth-toggle absolute right-4 top-1/2 -translate-y-1/2"
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
                             >
                               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                           </div>
-                          <div className="relative">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
+                        <div className="tm-auth-field relative">
+                          <div className="tm-auth-field-icon absolute left-4 top-1/2 -translate-y-1/2">
                               <Lock size={18} />
                             </div>
                             <input
@@ -420,7 +415,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               onChange={(e) => setConfirmNewPassword(e.target.value)}
                               placeholder="Confirm new password"
                               required
-                              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-white/30 focus:outline-hidden transition-all text-[15px]"
+                              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-ink-muted focus:outline-hidden transition-all text-[15px]"
                               style={{
                                 background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                                 backdropFilter: 'blur(20px)',
@@ -439,7 +434,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           <button
                             type="button"
                             onClick={handleForgotPassword}
-                            className="text-white/50 hover:text-white/70 text-sm transition-colors"
+                            className="text-ink-muted hover:text-ink text-sm transition-colors"
                           >
                             Forgot password?
                           </button>
@@ -476,14 +471,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         disabled={loading}
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.99 }}
-                        className="w-full py-3.5 rounded-xl text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed text-[15px]"
-                        style={{
-                          background: 'rgba(168, 85, 247, 0.3)',
-                          backdropFilter: 'blur(20px)',
-                          WebkitBackdropFilter: 'blur(20px)',
-                          border: '1px solid rgba(168, 85, 247, 0.5)',
-                          boxShadow: '0 4px 12px rgba(168, 85, 247, 0.2), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
-                        }}
+                        className="tm-press w-full min-h-12 py-3.5 rounded-full bg-pill text-pill-ink font-medium disabled:opacity-50 disabled:cursor-not-allowed text-base"
                       >
                         {loading ? (
                           <div className="w-5 h-5 border-2 border-white/20 border-t-white/70 rounded-full animate-spin mx-auto" />
@@ -494,7 +482,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                       {/* Resend OTP option */}
                       {(step === 'otp-verify' || step === 'forgot-password-otp') && (
-                        <p className="text-center text-white/40 text-sm">
+                        <p className="text-center text-ink-muted text-sm">
                           Didn't receive the code?{' '}
                           <button
                             type="button"
@@ -510,7 +498,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                               setLoading(false);
                             }}
                             disabled={loading}
-                            className="text-white/70 hover:text-white font-medium transition-colors"
+                            className="text-ink hover:text-white font-medium transition-colors"
                           >
                             Resend
                           </button>
@@ -520,14 +508,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                     {/* Toggle Mode - Only show on credentials step */}
                     {step === 'credentials' && (
-                      <p className="text-center text-white/40 text-sm mt-6">
+                      <p className="text-center text-ink-muted text-sm mt-6">
                         {mode === 'signup' ? (
                           <>
                             Already have a TimeMachine ID?{' '}
                             <button
                               type="button"
                               onClick={() => setMode('signin')}
-                              className="text-white/70 hover:text-white font-medium transition-colors"
+                              className="text-ink hover:text-white font-medium transition-colors"
                             >
                               Sign in
                             </button>
@@ -538,7 +526,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             <button
                               type="button"
                               onClick={() => setMode('signup')}
-                              className="text-white/70 hover:text-white font-medium transition-colors"
+                              className="text-ink hover:text-white font-medium transition-colors"
                             >
                               Create one
                             </button>
@@ -549,13 +537,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                     {/* Legal notice — required on the signup form (production-check.md 0.8) */}
                     {step === 'credentials' && mode === 'signup' && (
-                      <p className="text-center text-white/30 text-xs mt-4 leading-relaxed">
+                      <p className="text-center text-ink-muted text-xs mt-4 leading-relaxed">
                         By creating an account you agree to our{' '}
                         <a
                           href="/terms"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-white/50 hover:text-white/80 underline underline-offset-2 transition-colors"
+                          className="text-ink-muted hover:text-ink underline underline-offset-2 transition-colors"
                         >
                           Terms of Service
                         </a>{' '}
@@ -564,7 +552,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           href="/privacy"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-white/50 hover:text-white/80 underline underline-offset-2 transition-colors"
+                          className="text-ink-muted hover:text-ink underline underline-offset-2 transition-colors"
                         >
                           Privacy Policy
                         </a>
@@ -573,7 +561,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     )}
 
                     {step === 'credentials' && mode === 'signup' && (
-                      <p className="text-center text-white/30 text-xs mt-2 leading-relaxed">
+                      <p className="text-center text-ink-muted text-xs mt-2 leading-relaxed">
                         Signed-in chat history is currently stored in the cloud. Messages and attachments are sent to AI providers to generate replies.
                       </p>
                     )}

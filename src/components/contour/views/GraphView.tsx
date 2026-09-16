@@ -191,7 +191,7 @@ function GraphCanvas({ eq1, eq2 }: { eq1: string; eq2: string; accent: AccentThe
       {/* Reset view */}
       <button
         onClick={() => setView({ cx: 0, cy: 0, scale: 45 })}
-        className="absolute top-1.5 right-2 text-[9px] font-mono text-white/20 hover:text-white/50 transition-colors"
+        className="absolute top-1.5 right-2 text-[9px] font-mono text-ink-muted hover:text-ink-muted transition-colors"
       >reset</button>
     </div>
   );
@@ -227,7 +227,7 @@ export function GraphView({ module, accent }: { module: ModuleData; accent: Acce
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-purple-400 shrink-0" />
           <span className="text-xs font-mono shrink-0" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.3)' }}>y =</span>
-          <span className="text-sm font-mono text-white/80 truncate">{displayEq1}</span>
+          <span className="text-sm font-mono text-ink truncate">{displayEq1}</span>
         </div>
         {/* Eq 2 — user-editable */}
         <div className={`flex items-center gap-2 rounded-lg px-1 py-0.5 transition-colors ${eq2Err ? 'bg-red-500/10' : ''}`}>
@@ -239,7 +239,7 @@ export function GraphView({ module, accent }: { module: ModuleData; accent: Acce
             onChange={(e) => handleEq2Change(e.target.value)}
             placeholder="add 2nd equation…"
             spellCheck={false}
-            className={`flex-1 bg-transparent outline-hidden text-sm font-mono placeholder-white/20 min-w-0 ${eq2Err ? 'text-red-300' : 'text-white/55'}`}
+            className={`flex-1 bg-transparent outline-hidden text-sm font-mono placeholder-ink-muted min-w-0 ${eq2Err ? 'text-red-300' : 'text-ink-muted'}`}
             onMouseDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           />
@@ -252,7 +252,7 @@ export function GraphView({ module, accent }: { module: ModuleData; accent: Acce
 
       {/* Footer hints */}
       <div className="px-4 py-2">
-        <span className="text-[10px] font-mono" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.18)' }}>
+        <span className="text-xs font-mono" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.18)' }}>
           scroll to zoom · drag to pan &nbsp;·&nbsp; supports: x^2 · sin(x) · e^x · |x| · pi · ln(x)
         </span>
       </div>

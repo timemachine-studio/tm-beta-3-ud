@@ -1,0 +1,94 @@
+/* App pages share the landing material, with readable surfaces for tools. */
+:root {
+  --tm-tool-pane: linear-gradient(135deg, rgb(43 32 58 / 0.76), rgb(16 13 25 / 0.82));
+  --tm-tool-border: rgb(255 255 255 / 0.16);
+  --tm-tool-shadow: inset 0 1px 0 rgb(255 255 255 / 0.15), 0 24px 64px -20px rgb(0 0 0 / 0.55);
+}
+:root[data-theme="light"] {
+  --tm-tool-pane: var(--color-surface);
+  --tm-tool-border: var(--color-line-strong);
+  --tm-tool-shadow: 0 8px 28px -16px rgb(var(--tm-shadow-rgb) / 0.2);
+}
+.tm-workspace {
+  font-family: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', sans-serif;
+  color: var(--color-ink);
+  caret-color: var(--color-focus);
+}
+.tm-workspace :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+.tm-workspace ::selection { background: rgb(168 85 247 / 0.35); color: var(--color-ink); }
+.tm-workspace input::placeholder, .tm-workspace textarea::placeholder { color: var(--color-ink-muted); opacity: 1; }
+.tm-page {
+  position: relative;
+  isolation: isolate;
+  height: var(--tm-100dvh);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--color-canvas);
+}
+.tm-page > .tm-atmosphere { position: fixed; z-index: -1; }
+.tm-page-heading { font-size: clamp(2.5rem, 5vw, 4.5rem); line-height: 1.06; }
+.tm-surface.tm-glass {
+  background: var(--tm-tool-pane);
+  backdrop-filter: blur(var(--tm-blur-pane)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--tm-blur-pane)) saturate(150%);
+  border: 1px solid var(--tm-tool-border);
+  box-shadow: var(--tm-tool-shadow);
+}
+.tm-modal-scrim {
+  background: rgb(var(--tm-paper-rgb) / 0.46);
+  backdrop-filter: blur(24px) saturate(145%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+}
+.tm-auth-field-icon {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  color: rgb(var(--tm-ink-rgb) / 0.86);
+  border: 1px solid rgb(var(--tm-edge-rgb) / 0.12);
+  border-radius: 10px;
+  background: rgb(var(--tm-ink-rgb) / 0.07);
+  transition: color 160ms ease-out;
+}
+.tm-auth-field:focus-within .tm-auth-field-icon { color: var(--color-focus); }
+.tm-auth-field-icon svg { stroke-width: 1.8; }
+.tm-auth-toggle {
+  color: rgb(var(--tm-ink-rgb) / 0.7);
+  transition: color 160ms ease-out;
+}
+.tm-auth-toggle:hover { color: var(--color-ink); }
+.tm-dialog-card { max-height: calc(var(--tm-100dvh) - 32px); overflow-y: auto; overscroll-behavior: contain; }
+.tm-dialog-heading { font-size: clamp(2rem, 5vw, 2.6rem); line-height: 1.1; }
+.tm-pill-action { min-height: 44px; border-radius: 999px; }
+.tm-history-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.tm-history-header h1 { order: 3; flex-basis: 100%; margin-top: 36px; }
+.tm-history-empty { min-height: 280px; display: grid; place-content: center; }
+.tm-healthcare { --color-focus: #34d399; }
+.tm-healthcare .tm-glass { --tm-tool-border: rgb(52 211 153 / 0.22); }
+.tm-healthcare-results { max-width: 1200px; margin-inline: auto; width: 100%; }
+.tm-contour { font-size: 14px; }
+.tm-contour-scroll { max-height: min(440px, calc(var(--tm-100dvh) - 240px)); overflow-y: auto; overscroll-behavior: contain; }
+.tm-contour input:not([type="range"]):not([type="color"]):not([type="checkbox"]),
+.tm-contour textarea, .tm-contour select {
+  min-height: 40px;
+  font-size: 16px;
+  border-radius: 12px;
+}
+.tm-contour textarea { line-height: 1.5; }
+.tm-contour button { touch-action: manipulation; }
+.tm-contour button:focus-visible { outline-offset: -2px; }
+.tm-contour pre { overflow-x: auto; }
+.tm-contour select { color-scheme: dark; }
+:root[data-theme="light"] .tm-contour select { color-scheme: light; }
+
+.tm-auth input { font-size: 16px; min-height: 52px; }
+.tm-auth input:focus { border-color: var(--color-focus) !important; }
+.tm-auth input:autofill { box-shadow: inset 0 0 0 1000px var(--color-surface); -webkit-text-fill-color: var(--color-ink); }
+@media (max-width: 639px) {
+  .tm-contour-scroll { max-height: min(400px, calc(var(--tm-100dvh) - 220px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-workspace *, .tm-workspace *::before { animation-duration: 0s !important; transition-duration: 0s !important; scroll-behavior: auto !important; }
+}
+

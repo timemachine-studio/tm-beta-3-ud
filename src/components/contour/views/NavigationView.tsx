@@ -38,10 +38,10 @@ export function NavigationView({
             </div>
             <div className="flex-1">
                 <h3 className="text-lg font-bold text-white">Navigate to {nav.target.charAt(0).toUpperCase() + nav.target.slice(1)}</h3>
-                <p className="text-sm text-white/50 font-mono">Press ↵ to jump instantly</p>
+                <p className="text-sm text-ink-muted font-mono">Press ↵ to jump instantly</p>
             </div>
             <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                <ArrowRight className="w-4 h-4 text-white/40" />
+                <ArrowRight className="w-4 h-4 text-ink-muted" />
             </div>
         </div>
     );

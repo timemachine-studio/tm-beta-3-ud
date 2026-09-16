@@ -18,8 +18,8 @@ interface SettingsModalProps {
  */
 const pane = {
   background: 'rgb(var(--tm-ink-rgb) / 0.04)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
+  backdropFilter: 'blur(var(--tm-blur-glass))',
+  WebkitBackdropFilter: 'blur(var(--tm-blur-glass))',
   border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
   boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)',
 } as const;
@@ -32,7 +32,7 @@ const paneSelected = {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/45 mb-3">
+    <p className="text-sm font-medium text-ink-muted mb-3">
       {children}
     </p>
   );
@@ -61,7 +61,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md"
+                className="tm-modal-scrim fixed inset-0 z-50"
               />
             </Dialog.Overlay>
 
@@ -74,18 +74,11 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                 className="fixed inset-0 z-50 flex items-center justify-center p-4 outline-none"
               >
                 <div
-                  className="relative w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar rounded-3xl"
-                  style={{
-                    background: 'var(--tm-pane-bg)',
-                    backdropFilter: 'blur(30px) saturate(1.6)',
-                    WebkitBackdropFilter: 'blur(30px) saturate(1.6)',
-                    border: '1px solid var(--tm-pane-border)',
-                    boxShadow: 'var(--tm-pane-shadow)',
-                  }}
+                  className="tm-workspace tm-settings tm-glass tm-surface tm-dialog-card relative w-full max-w-lg rounded-[28px]"
                 >
                   <div className="relative p-6 space-y-7">
                     <div className="flex items-center justify-between">
-                      <Dialog.Title className="text-xl font-semibold text-white">Settings</Dialog.Title>
+                      <Dialog.Title className="tm-display tm-dialog-heading text-white">Settings</Dialog.Title>
                       <Dialog.Close asChild>
                         <motion.button
                           whileHover={{ scale: 1.08 }}
@@ -94,7 +87,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                           style={pane}
                           aria-label="Close settings"
                         >
-                          <X className="w-4.5 h-4.5 text-white/70" />
+                          <X className="w-4.5 h-4.5 text-ink" />
                         </motion.button>
                       </Dialog.Close>
                     </div>
@@ -145,11 +138,11 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                                 </span>
                               </span>
                               <span className="flex items-center gap-2 w-full">
-                                <Icon className="w-4 h-4 text-white/70" />
+                                <Icon className="w-4 h-4 text-ink" />
                                 <span className="text-sm font-medium text-white">{label}</span>
                                 {selected && <Check className="w-4 h-4 ml-auto text-purple-400" />}
                               </span>
-                              <span className="text-xs text-white/50 -mt-2">{hint}</span>
+                              <span className="text-xs text-ink-muted -mt-2">{hint}</span>
                             </motion.button>
                           );
                         })}
@@ -189,7 +182,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                               style={{ background: '#fdf1e1', border: '1px solid #e2d3b8' }}
                             />
                           </div>
-                          <p className="text-xs text-white/45 mt-3">White on the left, beige on the right.</p>
+                          <p className="text-xs text-ink-muted mt-3">White on the left, beige on the right.</p>
                         </motion.section>
                       )}
                       {mode === 'dark' && (
@@ -210,7 +203,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                               onSelect={() => setSeason('auto')}
                               swatch={
                                 <span className="flex items-center justify-center w-full h-full">
-                                  <Sparkles className="w-5 h-5 text-white/70" />
+                                  <Sparkles className="w-5 h-5 text-ink" />
                                 </span>
                               }
                               swatchClassName="bg-white/5"
@@ -226,7 +219,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                               />
                             ))}
                           </div>
-                          <p className="text-xs text-white/45 mt-3">
+                          <p className="text-xs text-ink-muted mt-3">
                             Auto lets each persona bring its own colour — Air, Girlie and PRO.
                             Pick a season to keep it across all of them; Pure is black with no colour at all.
                           </p>
@@ -242,7 +235,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                       </div>
                     </section>
 
-                    <p className="text-center text-white/25 text-[11px] tracking-wide">TimeMachine v1.0</p>
+                    <p className="text-center text-ink-muted text-xs tracking-wide">TimeMachine v1.0</p>
                   </div>
                 </div>
               </motion.div>
@@ -294,7 +287,7 @@ function SeasonSwatch({
       >
         {swatch}
       </span>
-      <span className={`text-[11px] font-medium ${selected ? 'text-white' : 'text-white/55'}`}>{label}</span>
+      <span className={`text-xs font-medium ${selected ? 'text-white' : 'text-ink-muted'}`}>{label}</span>
     </button>
   );
 }
@@ -321,7 +314,7 @@ function RowLink({
       <Icon className="w-4.5 h-4.5 text-purple-400" />
       <span className="flex flex-col">
         <span className="text-sm font-medium text-white">{title}</span>
-        <span className="text-xs text-white/50">{hint}</span>
+        <span className="text-xs text-ink-muted">{hint}</span>
       </span>
     </motion.button>
   );

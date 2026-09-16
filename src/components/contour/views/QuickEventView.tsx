@@ -27,7 +27,7 @@ export function QuickEventView({
                 </div>
                 <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-bold text-white truncate">{saved ? 'Added to Calendar' : 'New Event'}</h3>
-                    {!saved && <p className="text-xs text-white/50 font-mono">Press ↵ to schedule</p>}
+                    {!saved && <p className="text-xs text-ink-muted font-mono">Press ↵ to schedule</p>}
                 </div>
             </div>
 
@@ -35,7 +35,7 @@ export function QuickEventView({
                 <div className="text-base font-semibold text-white truncate">
                     {event.title}
                 </div>
-                <div className="flex items-center gap-2 text-xs text-white/60">
+                <div className="flex items-center gap-2 text-xs text-ink-muted">
                     <Clock className="w-3.5 h-3.5" />
                     <span>{event.date} • {event.startTime} - {event.endTime}</span>
                 </div>

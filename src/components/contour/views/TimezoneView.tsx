@@ -29,7 +29,7 @@ function TimezoneView({ module, accent, onCopyValue }: { module: ModuleData; acc
         <div className="flex items-center gap-3">
           <IconBadge icon={Globe} accent={accent} />
           <div className="flex-1 min-w-0">
-            <div className={`text-xl font-semibold tracking-tight ${tz.isPartial ? 'text-white/50' : 'text-white'}`}>
+            <div className={`text-xl font-semibold tracking-tight ${tz.isPartial ? 'text-ink-muted' : 'text-white'}`}>
               {tz.display}
             </div>
           </div>
@@ -118,8 +118,8 @@ function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult;
             <button
               key={label}
               onClick={() => { setHasInteracted(true); setToIana(entry.iana); }}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all ${
-                isActive ? 'text-white' : 'text-white/40 hover:text-white/60'
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                isActive ? 'text-white' : 'text-ink-muted hover:text-ink-muted'
               }`}
               style={isActive ? {
                 background: accent.bg,
@@ -144,7 +144,7 @@ function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult;
           onChange={e => handleHourChange(e.target.value)}
           className="w-[44px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-2 text-white text-sm font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
-        <span className="text-white/30 font-mono text-sm">:</span>
+        <span className="text-ink-muted font-mono text-sm">:</span>
         <input
           type="text"
           value={String(minutes).padStart(2, '0')}
@@ -156,19 +156,19 @@ function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult;
         <div className="flex rounded-lg overflow-hidden border border-white/10 shrink-0">
           <button
             onClick={() => { setHasInteracted(true); setIsPm(false); }}
-            className={`px-2 py-2 text-[11px] font-medium transition-colors ${!isPm ? 'text-white' : 'text-white/30'}`}
+            className={`px-2 py-2 text-xs font-medium transition-colors ${!isPm ? 'text-white' : 'text-ink-muted'}`}
             style={!isPm ? { background: accent.bg } : { background: 'rgb(var(--tm-ink-rgb) / 0.03)' }}
           >AM</button>
           <button
             onClick={() => { setHasInteracted(true); setIsPm(true); }}
-            className={`px-2 py-2 text-[11px] font-medium transition-colors ${isPm ? 'text-white' : 'text-white/30'}`}
+            className={`px-2 py-2 text-xs font-medium transition-colors ${isPm ? 'text-white' : 'text-ink-muted'}`}
             style={isPm ? { background: accent.bg } : { background: 'rgb(var(--tm-ink-rgb) / 0.03)' }}
           >PM</button>
         </div>
         {/* Now button */}
         <button
           onClick={handleNow}
-          className="px-2.5 py-2 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 transition-colors shrink-0"
+          className="px-2.5 py-2 rounded-lg text-xs font-medium text-ink-muted hover:text-ink transition-colors shrink-0"
           style={{ background: 'rgb(var(--tm-ink-rgb) / 0.04)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)' }}
         >
           <Clock className="w-3.5 h-3.5" />
@@ -194,7 +194,7 @@ function TimezoneInteractive({ tz, accent, onCopyValue }: { tz?: TimezoneResult;
 
         <button
           onClick={handleSwap}
-          className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors shrink-0"
+          className="p-2 rounded-lg text-ink-muted hover:text-ink transition-colors shrink-0"
           style={{ background: 'rgb(var(--tm-ink-rgb) / 0.04)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)' }}
         >
           <Shuffle className="w-3.5 h-3.5" />

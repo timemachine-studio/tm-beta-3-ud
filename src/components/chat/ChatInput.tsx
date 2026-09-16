@@ -9,7 +9,6 @@ import { LoadingSpinner } from '../loading/LoadingSpinner';
 import { ImagePreview } from './ImagePreview';
 import { FilePreview } from './FilePreview';
 import { AI_PERSONAS } from '../../config/constants';
-import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { MentionCall } from './MentionCall';
 import { PlusMenu, PlusMenuOption } from './PlusMenu';
@@ -30,24 +29,7 @@ export interface ReplyTo {
   isAI: boolean;
 }
 
-const personaStyles = {
-  // Subtle tint colors for glass buttons
-  tintColors: {
-    default: 'rgba(168, 85, 247, 0.2)',    // Purple tint (brighter)
-    girlie: 'rgba(236, 72, 153, 0.15)',    // Pink tint
-    pro: 'rgba(34, 211, 238, 0.15)'        // Cyan tint
-  },
-  borderColors: {
-    default: 'rgba(168, 85, 247, 0.4)',    // Purple border (brighter)
-    girlie: 'rgba(236, 72, 153, 0.3)',      // Pink border
-    pro: 'rgba(34, 211, 238, 0.3)'          // Cyan border
-  },
-  glowShadow: {
-    default: '0 0 15px rgba(168, 85, 247, 0.35)',  // Purple glow (brighter, larger)
-    girlie: '0 0 12px rgba(236, 72, 153, 0.25)',
-    pro: '0 0 12px rgba(34, 211, 238, 0.25)'
-  }
-} as const;
+const personaHues: Record<string, string> = { default: '168 85 247', girlie: '236 72 153', pro: '34 211 238' };
 
 const convertImageToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -173,7 +155,6 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const docInputRef = useRef<HTMLInputElement>(null);
   const plusMenuRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { theme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
   const contour = useContour();
@@ -804,7 +785,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto sticky bottom-4">
+    <form onSubmit={handleSubmit} className="mx-auto max-w-4xl">
       {/* Reply preview */}
       <AnimatePresence>
         {replyTo && (
@@ -868,8 +849,14 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
           />
         </div>
       )}
-      <div className="relative" onDragOver={handleDragOver} onDrop={handleDrop}>
-        <div className="relative flex items-center gap-2">
+      <div
+        className="tm-composer"
+        style={{ '--tm-composer-hue': personaHues[currentPersona] || personaHues.default } as React.CSSProperties}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        <div className="tm-glass tm-composer-surface" aria-hidden="true" />
+        <div className="relative flex items-end gap-1 p-2">
           <input
             type="file"
             accept="image/jpeg,image/png,image/gif,image/webp"
@@ -886,108 +873,51 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
             ref={docInputRef}
           />
 
-          <div className="relative" ref={plusMenuRef}>
-            <motion.button
+
+          <div className="relative shrink-0" ref={plusMenuRef}>
+            <button
               type="button"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
               onClick={handlePlusButtonClick}
               disabled={isLoading || isUploading}
-              className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
-              style={{
-                background: `linear-gradient(135deg, ${(personaStyles.tintColors as Record<string, string>)[currentPersona] || personaStyles.tintColors.default}, rgb(var(--tm-ink-rgb) / 0.05))`,
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: `1px solid ${(personaStyles.borderColors as Record<string, string>)[currentPersona] || personaStyles.borderColors.default}`,
-                boxShadow: `${(personaStyles.glowShadow as Record<string, string>)[currentPersona] || personaStyles.glowShadow.default}, inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`
+              className="tm-press tm-composer-control"
+              aria-label="Attach or choose a mode"
+              aria-expanded={showPlusMenu}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') setShowPlusMenu(false);
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  setShowPlusMenu(true);
+                  requestAnimationFrame(() => {
+                    if (plusMenuRef.current?.querySelector('button')?.getAttribute('aria-expanded') === 'true') {
+                      plusMenuRef.current.querySelector<HTMLButtonElement>('[data-plus-menu] button')?.focus();
+                    }
+                  });
+                }
               }}
             >
-              {selectedPlusOption ? (
-                (() => {
-                  const IconComponent = plusOptionIcons[selectedPlusOption];
-                  return <IconComponent className="w-5 h-5 relative z-10" />;
-                })()
-              ) : (
-                <Plus className="w-5 h-5 relative z-10" />
-              )}
-            </motion.button>
-
-            <PlusMenu
-              isVisible={showPlusMenu}
-              onSelect={handlePlusMenuSelect}
-            />
+              {selectedPlusOption ? (() => {
+                const IconComponent = plusOptionIcons[selectedPlusOption];
+                return <IconComponent className="h-5 w-5" />;
+              })() : <Plus className={'h-5 w-5 transition-transform duration-200 ' + (showPlusMenu ? 'rotate-45' : '')} />}
+            </button>
+            <PlusMenu isVisible={showPlusMenu} onSelect={handlePlusMenuSelect} onClose={() => {
+              setShowPlusMenu(false);
+              plusMenuRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+            }} />
           </div>
-
-          <div className="relative flex-1">
-            <div className="relative flex items-center">
-              <motion.textarea
-                ref={textareaRef}
-                value={message}
-                onChange={handleChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Type / for contour"
-                disabled={isLoading || isUploading}
-                className={`w-full px-6 pr-32 rounded-[28px]
-                  ${theme.input.text} placeholder-gray-400
-                  outline-hidden
-                  disabled:opacity-50
-                  transition-all duration-300
-                  text-base resize-none
-                  overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
-                style={{
-                  background: 'var(--tm-pane-bg)',
-                  backdropFilter: 'blur(20px)',
-                  WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid var(--tm-pane-border)',
-                  boxShadow: 'var(--tm-input-shadow)',
-                  fontSize: '1rem',
-                  minHeight: '56px',
-                  maxHeight: '150px',
-                  paddingTop: '16px',
-                  paddingBottom: '16px',
-                  lineHeight: '24px'
-                }}
-                rows={1}
-              />
-
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <SpeechTranscriptionButton
-                  value={message}
-                  onTranscript={setMessage}
-                  disabled={isLoading || isUploading}
-                  currentPersona={currentPersona}
-                />
-
-                <motion.button
-                  type={canStop ? 'button' : 'submit'}
-                  onClick={canStop ? onStop : undefined}
-                  aria-label={canStop ? 'Stop generating' : 'Send message'}
-                  title={canStop ? 'Stop generating' : undefined}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  disabled={canStop
-                    ? false
-                    : (isLoading || isUploading || isFileReading || (!message.trim() && selectedImages.length === 0 && !selectedFile))}
-                  className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
-                  style={{
-                    background: `linear-gradient(135deg, ${(personaStyles.tintColors as Record<string, string>)[currentPersona] || personaStyles.tintColors.default}, rgb(var(--tm-ink-rgb) / 0.05))`,
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    border: `1px solid ${(personaStyles.borderColors as Record<string, string>)[currentPersona] || personaStyles.borderColors.default}`,
-                    boxShadow: `${(personaStyles.glowShadow as Record<string, string>)[currentPersona] || personaStyles.glowShadow.default}, inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`
-                  }}
-                >
-                  {canStop ? (
-                    <Square className="w-5 h-5 relative z-10 fill-current" />
-                  ) : isLoading || isUploading ? (
-                    <LoadingSpinner size="sm" />
-                  ) : (
-                    <SendIcon className="w-5 h-5 relative z-10" />
-                  )}
-                </motion.button>
-              </div>
-            </div>
-
+          <div className="min-w-0 flex-1">
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Message, or type /"
+              aria-label="Message TimeMachine"
+              disabled={isLoading || isUploading}
+              className="block w-full resize-none bg-transparent px-2 py-2.5 text-base text-ink outline-hidden disabled:opacity-50 sm:px-3"
+              style={{ minHeight: '44px', maxHeight: '150px', lineHeight: '24px', overflowY: 'auto' }}
+              rows={1}
+            />
             <MentionCall
               isVisible={showMentionCall}
               onSelect={handleMentionSelect}
@@ -1014,6 +944,16 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
               />
             </div>
           </div>
+          <SpeechTranscriptionButton value={message} onTranscript={setMessage} disabled={isLoading || isUploading} currentPersona={currentPersona} />
+          <button
+            type={canStop ? 'button' : 'submit'}
+            onClick={canStop ? onStop : undefined}
+            aria-label={canStop ? 'Stop generating' : 'Send message'}
+            disabled={canStop ? false : (isLoading || isUploading || isFileReading || (!message.trim() && selectedImages.length === 0 && !selectedFile))}
+            className="tm-press tm-composer-control tm-composer-send"
+          >
+            {canStop ? <Square className="h-4 w-4 fill-current" /> : isLoading || isUploading ? <LoadingSpinner size="sm" /> : <SendIcon className="h-5 w-5" />}
+          </button>
         </div>
       </div>
     </form>

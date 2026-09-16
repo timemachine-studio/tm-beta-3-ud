@@ -67,7 +67,7 @@ function SearchResults({ query }: { query: string }) {
                     <div className="text-[13px] font-semibold text-blue-700 group-hover:underline truncate">
                         {result.title}
                     </div>
-                    <div className="text-[11px] text-green-800/70 truncate mt-0.5">{result.url}</div>
+                    <div className="text-xs text-green-800/70 truncate mt-0.5">{result.url}</div>
                     {result.snippet && (
                         <p className="text-xs text-[#111]/65 mt-1 line-clamp-3">{result.snippet}</p>
                     )}
@@ -110,19 +110,19 @@ export function WebViewerView({
             <div className="px-4 py-2 flex items-center justify-between bg-black/20 border-b border-white/5">
                 <div className="flex items-center gap-2 min-w-0">
                     {isSearch
-                        ? <Search className="w-4 h-4 text-white/50 shrink-0" />
-                        : <Globe className="w-4 h-4 text-white/50 shrink-0" />}
-                    <span className="text-xs font-medium text-white/70 truncate">
+                        ? <Search className="w-4 h-4 text-ink-muted shrink-0" />
+                        : <Globe className="w-4 h-4 text-ink-muted shrink-0" />}
+                    <span className="text-xs font-medium text-ink truncate">
                         {web.query ? `Searching: ${web.query}` : web.url}
                     </span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                    {!isSearch && loading && <Loader2 className="w-3.5 h-3.5 text-white/30 animate-spin" />}
+                    {!isSearch && loading && <Loader2 className="w-3.5 h-3.5 text-ink-muted animate-spin" />}
                     <a
                         href={web.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1 hover:bg-white/10 rounded-md text-white/40 hover:text-white transition-colors"
+                        className="p-1 hover:bg-white/10 rounded-md text-ink-muted hover:text-white transition-colors"
                         title="Open in new tab"
                     >
                         <ExternalLink className="w-3.5 h-3.5" />

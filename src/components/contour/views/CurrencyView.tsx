@@ -21,11 +21,11 @@ export function CurrencyView({ module, accent, onCopyValue }: { module: ModuleDa
         <div className="flex items-center gap-3">
           <IconBadge icon={DollarSign} accent={accent} />
           <div className="flex-1 min-w-0">
-            <div className={`text-xl font-semibold tracking-tight ${curr.isPartial || curr.isLoading ? 'text-white/50' : 'text-white'}`}>
+            <div className={`text-xl font-semibold tracking-tight ${curr.isPartial || curr.isLoading ? 'text-ink-muted' : 'text-white'}`}>
               {curr.display}
             </div>
             {curr.rate && !curr.isPartial && (
-              <div className="text-white/30 text-xs mt-1">
+              <div className="text-ink-muted text-xs mt-1">
                 1 {curr.fromCurrency} = {curr.rate.toFixed(4)} {curr.toCurrency}
               </div>
             )}
@@ -122,14 +122,14 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
     <div className="p-4 space-y-3" onKeyDown={handleKeyDown}>
       {/* Quick pick pills for "From" */}
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] text-white/20 font-medium uppercase tracking-wider mr-1">From</span>
+        <span className="text-xs text-ink-muted font-medium uppercase tracking-wider mr-1">From</span>
         <div className="flex gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden">
           {popularFrom.map(code => (
             <button
               key={code}
               onClick={() => { setHasInteracted(true); setFromCode(code); }}
-              className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-medium whitespace-nowrap transition-all ${
-                fromCode === code ? 'text-white' : 'text-white/35 hover:text-white/55'
+              className={`px-2 py-0.5 rounded-md text-xs font-mono font-medium whitespace-nowrap transition-all ${
+                fromCode === code ? 'text-white' : 'text-ink-muted hover:text-ink-muted'
               }`}
               style={fromCode === code ? {
                 background: accent.bg,
@@ -179,7 +179,7 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
         {/* Swap */}
         <button
           onClick={handleSwap}
-          className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors shrink-0"
+          className="p-2 rounded-lg text-ink-muted hover:text-ink transition-colors shrink-0"
           style={{ background: 'rgb(var(--tm-ink-rgb) / 0.04)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)' }}
         >
           <Shuffle className="w-3.5 h-3.5" />
@@ -208,14 +208,14 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
 
       {/* Quick pick pills for "To" */}
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] text-white/20 font-medium uppercase tracking-wider mr-1.5">To</span>
+        <span className="text-xs text-ink-muted font-medium uppercase tracking-wider mr-1.5">To</span>
         <div className="flex gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden">
           {popularTo.map(code => (
             <button
               key={code}
               onClick={() => { setHasInteracted(true); setToCode(code); }}
-              className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-medium whitespace-nowrap transition-all ${
-                toCode === code ? 'text-white' : 'text-white/35 hover:text-white/55'
+              className={`px-2 py-0.5 rounded-md text-xs font-mono font-medium whitespace-nowrap transition-all ${
+                toCode === code ? 'text-white' : 'text-ink-muted hover:text-ink-muted'
               }`}
               style={toCode === code ? {
                 background: accent.bg,
@@ -241,11 +241,11 @@ function CurrencyInteractive({ curr, accent, onCopyValue }: { curr?: CurrencyRes
         >
           <IconBadge icon={DollarSign} accent={accent} />
           <div className="flex-1 min-w-0">
-            <div className={`text-xl font-semibold tracking-tight ${isLoading ? 'text-white/50' : 'text-white'}`}>
+            <div className={`text-xl font-semibold tracking-tight ${isLoading ? 'text-ink-muted' : 'text-white'}`}>
               {isLoading ? `${formatCurrency(parseFloat(amount) || 0, fromCode)} = ...` : result?.display}
             </div>
             {result?.rate && !isLoading && (
-              <div className="text-white/30 text-xs mt-1">
+              <div className="text-ink-muted text-xs mt-1">
                 1 {result.fromCurrency} = {result.rate.toFixed(4)} {result.toCurrency}
               </div>
             )}

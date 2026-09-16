@@ -124,14 +124,14 @@ function TranslatorInteractive({ trans, accent, onCopyValue }: { trans?: Transla
         value={inputText}
         onChange={e => { setHasInteracted(true); setInputText(e.target.value); }}
         placeholder="Type text to translate..."
-        className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors mb-3"
+        className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-ink-muted focus:outline-hidden focus:border-white/25 transition-colors mb-3"
       />
 
       {/* Result */}
       {isLoading ? (
         <div className="flex items-center gap-2 py-2">
           <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-          <span className="text-white/40 text-sm">Translating...</span>
+          <span className="text-ink-muted text-sm">Translating...</span>
         </div>
       ) : result?.translatedText ? (
         <div className="py-2">
@@ -139,7 +139,7 @@ function TranslatorInteractive({ trans, accent, onCopyValue }: { trans?: Transla
           <div className="flex items-center gap-2 mt-2">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-ink-muted hover:text-ink hover:bg-white/[0.06] transition-colors"
             >
               {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
               {copied ? 'Copied!' : 'Copy'}
@@ -149,7 +149,7 @@ function TranslatorInteractive({ trans, accent, onCopyValue }: { trans?: Transla
       ) : result?.error ? (
         <div className="text-red-400/60 text-sm py-2">{result.error}</div>
       ) : !inputText.trim() ? (
-        <div className="text-white/20 text-xs py-2">Type text above to translate</div>
+        <div className="text-ink-muted text-xs py-2">Type text above to translate</div>
       ) : null}
 
       <FooterHint text="Type or paste text, pick languages, get instant translation" />
@@ -168,12 +168,12 @@ export function TranslatorView({ module, accent, onCopyValue }: { module: Module
         <div className="flex items-center gap-3">
           <IconBadge icon={Globe} accent={accent} />
           <div className="flex-1 min-w-0">
-            <div className="text-white/40 text-xs mb-1">
+            <div className="text-ink-muted text-xs mb-1">
               {trans.sourceLang !== 'Auto' ? trans.sourceLang : 'English'} → {trans.targetLang}
             </div>
             {trans.isLoading ? (
               <div className="flex items-center gap-2">
-                <div className="text-white/50 text-lg">Translating...</div>
+                <div className="text-ink-muted text-lg">Translating...</div>
                 <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
               </div>
             ) : trans.error ? (
@@ -183,7 +183,7 @@ export function TranslatorView({ module, accent, onCopyValue }: { module: Module
                 {trans.translatedText}
               </div>
             )}
-            <div className="text-white/25 text-xs mt-1">&ldquo;{trans.sourceText}&rdquo;</div>
+            <div className="text-ink-muted text-xs mt-1">&ldquo;{trans.sourceText}&rdquo;</div>
           </div>
         </div>
         {!trans.isLoading && trans.translatedText && (

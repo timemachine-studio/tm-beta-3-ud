@@ -234,10 +234,30 @@ const noteBlockSchema = z.object({
   checked: z.boolean().optional(),
 }).passthrough();
 
+/** Which mind edits the note: Air is fast, PRO reasons longer. */
+export const notesAiModelSchema = z.enum(['air', 'pro']);
+
+/**
+ * What the co-pilot can be handed alongside the instruction. Images arrive as
+ * data URLs the client has already downsized (the whole body must fit under
+ * maxBodyBytes); files arrive as text the client extracted, never as bytes.
+ */
+export const notesAiAttachmentsSchema = z.object({
+  images: z.array(
+    z.string().regex(/^data:image\/(?:png|jpeg|gif|webp);base64,/).max(LIMITS.maxImageDataBytes),
+  ).max(4).optional(),
+  files: z.array(z.object({
+    name: z.string().min(1).max(200),
+    text: z.string().max(60_000),
+  })).max(3).optional(),
+});
+
 export const notesAiBodySchema = z.object({
   title: z.string().max(500).optional(),
   blocks: z.array(noteBlockSchema).max(2_000),
   instruction: z.string().min(1).max(LIMITS.maxPromptChars),
+  model: notesAiModelSchema.optional(),
+  attachments: notesAiAttachmentsSchema.optional(),
 }).passthrough();
 
 /**

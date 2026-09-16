@@ -24,6 +24,20 @@ export interface NewBlock {
   content: string;
 }
 
+export type NotesAIModel = 'air' | 'pro';
+
+export interface NotesAIAttachments {
+  /** Data URLs, already downsized by the client. */
+  images?: string[];
+  /** Text the client extracted; the bytes never leave the device. */
+  files?: { name: string; text: string }[];
+}
+
+export interface NotesAIOptions {
+  model?: NotesAIModel;
+  attachments?: NotesAIAttachments;
+}
+
 export interface NotesAIResponse {
   edits: BlockEdit[];
   newBlocks: NewBlock[];
@@ -34,7 +48,8 @@ export interface NotesAIResponse {
 export async function sendNotesAIRequest(
   title: string,
   blocks: BlockContext[],
-  instruction: string
+  instruction: string,
+  options: NotesAIOptions = {},
 ): Promise<NotesAIResponse> {
   try {
     // /api/notes-ai requires a verified Supabase token (production-check.md 0.1).
@@ -50,7 +65,13 @@ export async function sendNotesAIRequest(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ title, blocks, instruction }),
+      body: JSON.stringify({
+        title,
+        blocks,
+        instruction,
+        model: options.model ?? 'air',
+        ...(options.attachments ? { attachments: options.attachments } : {}),
+      }),
     });
 
     if (!response.ok) {

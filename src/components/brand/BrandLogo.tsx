@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ChevronDown, Settings, Wand2, History, Plus, User, LogIn } from 'lucide-react';
 import { AI_PERSONAS } from '../../config/constants';
-import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { AgentsModal } from '../agents/AgentsModal';
 import { ChatSession } from '../../services/chat/chatService';
+import { toLayoutPx } from '../../utils/pageZoom';
 
 export interface BrandOverride {
   name: string;
@@ -27,23 +28,30 @@ interface BrandLogoProps {
   brandOverride?: BrandOverride;
 }
 
-const personaColors = {
+type MenuPersona = 'default' | 'girlie' | 'pro';
+
+const personaColors: Record<MenuPersona, string> = {
   default: 'text-purple-400',
   girlie: 'text-pink-400',
-  pro: 'text-cyan-400'
-} as const;
+  pro: 'text-cyan-400',
+};
 
-const personaDescriptions = {
-  default: 'Fastest intelligence in the world for everyday use',
-  girlie: 'The intelligence that gets the vibe check',
-  pro: 'Our most technologically advanced intelligence with human-like emotions and thinking capabilities'
-} as const;
+/* The three minds' hues, as on the landing page. */
+const personaHues: Record<MenuPersona, string> = {
+  default: '168 85 247',
+  girlie: '236 72 153',
+  pro: '34 211 238',
+};
 
-const personaGlowColors = {
-  default: 'rgba(168,85,247,0.6)',
-  girlie: 'rgba(255,20,147,0.8)',
-  pro: 'rgba(34,211,238,0.6)'
-} as const;
+const personaRoles: Record<MenuPersona, string> = {
+  default: 'Everyday, at speed',
+  girlie: 'Gets the vibe',
+  pro: 'Deep work',
+};
+
+const MENU_PERSONAS: MenuPersona[] = ['default', 'girlie', 'pro'];
+
+const settle = { duration: 0.28, ease: [0.22, 1, 0.36, 1] as const };
 
 export function BrandLogo({
   onPersonaChange,
@@ -53,241 +61,221 @@ export function BrandLogo({
   onOpenAccount,
   onOpenHistory,
   onOpenSettings,
-  brandOverride
+  brandOverride,
 }: BrandLogoProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
-  const { theme } = useTheme();
+  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  const reduced = useReducedMotion() ?? false;
   const { user, profile } = useAuth();
 
-  const toggleDropdown = () => setIsOpen(!isOpen);
+  const hue = brandOverride?.glowColor
+    ? undefined
+    : personaHues[(currentPersona in personaHues ? currentPersona : 'default') as MenuPersona];
 
-  const handlePersonaSelect = (persona: keyof typeof AI_PERSONAS) => {
-    onPersonaChange(persona);
-    setIsOpen(false);
-  };
+  // The menu renders in a portal: the nav it hangs from is glass, and a
+  // backdrop-filter cannot see through its parent's backdrop-filter, so a
+  // nested lens would show no blur. Anchored to the trigger on open and on
+  // every resize while open.
+  const place = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    // Rects are real pixels; the menu lives in the zoomed layout.
+    const r = el.getBoundingClientRect();
+    setAnchor({
+      top: toLayoutPx(r.bottom) + 14,
+      left: Math.max(12, Math.min(toLayoutPx(r.left) - 8, toLayoutPx(window.innerWidth) - 316)),
+    });
+  }, []);
 
-  const handleStartNewChat = () => {
-    onStartNewChat();
-    setIsOpen(false);
-  };
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [isOpen, place]);
 
-  const handleAuthClick = () => {
-    setIsOpen(false);
-    if (user) {
-      onOpenAccount?.();
-    } else {
-      onOpenAuth?.();
-    }
-  };
+  useEffect(() => {
+    if (!isOpen) return;
+    const frame = requestAnimationFrame(() => menuRef.current?.querySelector<HTMLButtonElement>('button')?.focus());
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    const onPointer = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (menuRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
+      setIsOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointer);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointer);
+    };
+  }, [isOpen]);
 
-  const handleHistoryClick = () => {
-    setIsOpen(false);
-    onOpenHistory?.();
-  };
+  const close = () => setIsOpen(false);
+  const pick = (persona: keyof typeof AI_PERSONAS) => { onPersonaChange(persona); close(); };
+  const run = (fn?: () => void) => () => { close(); fn?.(); };
 
-  const handleSettingsClick = () => {
-    setIsOpen(false);
-    onOpenSettings?.();
-  };
+  const rowClass = 'tm-menu-row flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left';
 
   return (
     <div className="relative">
-      <div className="flex items-center gap-2">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="relative z-50 flex items-center gap-2 cursor-pointer group"
-          onClick={toggleDropdown}
-        >
-          <div className="flex flex-col">
-            <h1
-              className={`text-xl sm:text-2xl font-bold ${brandOverride?.textColorClass || personaColors[currentPersona]} transition-colors duration-300`}
-              style={{
-                fontFamily: 'Montserrat, sans-serif',
-                textShadow: `
-                  0 0 20px ${brandOverride?.glowColor || personaGlowColors[currentPersona]},
-                  0 0 40px ${(brandOverride?.glowColor || personaGlowColors[currentPersona]).replace(/[\d.]+\)$/, '0.3)')},
-                  0 0 60px ${(brandOverride?.glowColor || personaGlowColors[currentPersona]).replace(/[\d.]+\)$/, '0.1)')}
-                `
-              }}
-            >
-              {brandOverride?.name || AI_PERSONAS[currentPersona].name}
-            </h1>
-            {brandOverride?.watermark && (
-              <span className="text-[10px] sm:text-xs text-white/50 -mt-1 tracking-wider uppercase" style={{ fontFamily: 'Inter, sans-serif' }}>
-                {brandOverride.watermark}
-              </span>
-            )}
-          </div>
-          <motion.div
-            animate={{ rotate: isOpen ? 180 : 0 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className={personaColors[currentPersona]}
-          >
-            <ChevronDown className="w-5 h-5" />
-          </motion.div>
-        </motion.div>
-      </div>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className={`absolute top-full left-0 mt-3 w-72 bg-black/10 backdrop-blur-3xl rounded-3xl z-50 overflow-hidden border`}
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setIsOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? menuId : undefined}
+        className="tm-glass tm-press group flex min-h-11 items-center gap-2 rounded-full px-4 py-2 outline-hidden focus-visible:ring-2 focus-visible:ring-focus"
+      >
+        <span className="flex flex-col items-start">
+          <span
+            className={`text-[17px] font-bold tracking-tight sm:text-lg ${brandOverride?.textColorClass || personaColors[(currentPersona in personaColors ? currentPersona : 'default') as MenuPersona]} transition-colors duration-300`}
             style={{
-              background: 'var(--tm-menu-bg)',
-              borderColor: 'var(--tm-menu-border)',
-              boxShadow: 'var(--tm-menu-shadow)',
+              fontFamily: 'Montserrat, var(--font-display)',
+              textShadow: `0 0 20px ${brandOverride?.glowColor || `rgb(${hue} / 0.5)`}`,
             }}
           >
-            {/* Sign In / My Account Button */}
-            <motion.button
-              whileHover={{
-                scale: 1.03,
-                background: user
-                  ? 'linear-gradient(90deg, rgba(34,197,94,0.2) 0%, transparent 100%)'
-                  : 'linear-gradient(90deg, rgba(168,85,247,0.3) 0%, transparent 100%)'
+            {brandOverride?.name || AI_PERSONAS[currentPersona].name}
+          </span>
+          {brandOverride?.watermark && (
+            <span className="-mt-0.5 text-[10px] uppercase tracking-wider" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.5)' }}>
+              {brandOverride.watermark}
+            </span>
+          )}
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 transition-transform duration-300 ease-out ${isOpen ? 'rotate-180' : ''}`}
+          style={{ color: 'rgb(var(--tm-ink-rgb) / 0.5)' }}
+          aria-hidden="true"
+        />
+      </button>
+
+      {createPortal(
+        <AnimatePresence>
+          {isOpen && anchor && (
+            <motion.div
+              ref={menuRef}
+              id={menuId}
+              role="menu"
+              aria-label="TimeMachine"
+              initial={reduced ? false : { opacity: 0, y: -8, scale: 0.98, filter: 'blur(6px)' }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+              exit={reduced ? undefined : { opacity: 0, y: -6, scale: 0.98, filter: 'blur(6px)' }}
+              transition={settle}
+              className="tm-glass tm-chat-menu fixed z-[60] w-[19rem] origin-top-left rounded-[28px] p-1.5"
+              style={{ top: anchor.top, left: anchor.left, maxHeight: `calc(var(--tm-100dvh) - ${anchor.top + 12}px)` }}
+              onKeyDown={(event) => {
+                const buttons = Array.from(event.currentTarget.querySelectorAll('button'));
+                const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  buttons[(index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
+                }
+                if (event.key === 'Home' || event.key === 'End') {
+                  event.preventDefault();
+                  buttons[event.key === 'Home' ? 0 : buttons.length - 1]?.focus();
+                }
+                if (event.key === 'Tab') setIsOpen(false);
               }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleAuthClick}
-              className={`w-full px-4 py-3 text-left transition-all duration-300 ${theme.text} flex items-center gap-3 border-b border-white/5`}
             >
-              {user ? (
-                <>
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden"
-                    style={{
-                      background: profile?.avatar_url
-                        ? 'transparent'
-                        : 'rgba(168, 85, 247, 0.15)',
-                      backdropFilter: 'blur(12px)',
-                      WebkitBackdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(168, 85, 247, 0.2)',
-                      boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
-                    }}
-                  >
-                    {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <User className="w-4 h-4 text-purple-400" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm">{profile?.nickname || 'My Account'}</div>
-                    <div className="text-xs opacity-50">View your profile</div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center"
-                    style={{
-                      background: 'rgba(168, 85, 247, 0.15)',
-                      backdropFilter: 'blur(12px)',
-                      WebkitBackdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(168, 85, 247, 0.2)',
-                      boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
-                    }}
-                  >
-                    <LogIn className="w-4 h-4 text-purple-400" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm">Sign In / Sign Up</div>
-                    <div className="text-xs opacity-50">Unlock unlimited chats</div>
-                  </div>
-                </>
-              )}
-            </motion.button>
-
-            {/* Divider */}
-            <div className="h-px bg-white/10" />
-
-            {Object.entries(AI_PERSONAS)
-              .filter(([key, persona]) => ['default', 'girlie', 'pro'].includes(key) && !('hiddenFromDropdown' in persona && persona.hiddenFromDropdown)) // Only show visible TimeMachine personas
-              .map(([key, persona]) => (
-                <motion.button
-                  key={key}
-                  whileHover={{
-                    scale: 1.03,
-                    background: `linear-gradient(90deg, ${personaGlowColors[key as keyof typeof personaGlowColors]} 0%, transparent 100%)`
-                  }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => handlePersonaSelect(key as keyof typeof AI_PERSONAS)}
-                  className={`w-full px-4 py-3 text-left transition-all duration-300
-                  ${currentPersona === key ? personaColors[key as keyof typeof personaColors] : theme.text}
-                  ${currentPersona === key ? `bg-linear-to-r/srgb from-[${personaGlowColors[key as keyof typeof personaGlowColors]}] to-black/10` : 'bg-transparent'}
-                  flex flex-col gap-1 border-b border-white/5 last:border-b-0`}
+              {/* Account */}
+              <button type="button" role="menuitem" onClick={run(user ? onOpenAccount : onOpenAuth)} className={rowClass}>
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full"
                   style={{
-                    background: currentPersona === key ?
-                      `linear-gradient(to right, ${personaGlowColors[key as keyof typeof personaGlowColors]}, rgb(var(--tm-paper-rgb) / 0.1))` :
-                      'transparent'
+                    background: profile?.avatar_url ? 'transparent' : `rgb(${hue ?? '168 85 247'} / 0.14)`,
+                    border: `1px solid rgb(${hue ?? '168 85 247'} / 0.28)`,
+                    boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.2)',
                   }}
                 >
-                  <div className="font-bold text-sm">{persona.name}</div>
-                  <div className={`text-xs opacity-70 ${theme.text}`}>
-                    {personaDescriptions[key as keyof typeof personaDescriptions]}
-                  </div>
-                </motion.button>
+                  {user && profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                  ) : user ? (
+                    <User className="h-4 w-4" style={{ color: `rgb(${hue ?? '168 85 247'})` }} />
+                  ) : (
+                    <LogIn className="h-4 w-4" style={{ color: `rgb(${hue ?? '168 85 247'})` }} />
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[15px] font-semibold" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.92)' }}>
+                    {user ? profile?.nickname || 'My account' : 'Log in or sign up'}
+                  </span>
+                  <span className="block text-[13px]" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.5)' }}>
+                    {user ? 'Profile, memories and images' : 'Unlimited chats with a TimeMachine ID'}
+                  </span>
+                </span>
+              </button>
+
+              <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />
+
+              {/* The minds */}
+              <div role="group" aria-label="Who answers">
+                {MENU_PERSONAS
+                  .filter((key) => !('hiddenFromDropdown' in AI_PERSONAS[key] && (AI_PERSONAS[key] as { hiddenFromDropdown?: boolean }).hiddenFromDropdown))
+                  .map((key) => {
+                    const active = currentPersona === key;
+                    const h = personaHues[key];
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={active}
+                        onClick={() => pick(key)}
+                        className={`${rowClass} justify-between`}
+                        style={active ? { background: `linear-gradient(90deg, rgb(${h} / 0.16), rgb(${h} / 0.03))` } : undefined}
+                      >
+                        <span className="min-w-0">
+                          <span
+                            className="block text-[15px] font-semibold"
+                            style={{ color: active ? `rgb(${h})` : 'rgb(var(--tm-ink-rgb) / 0.92)' }}
+                          >
+                            {AI_PERSONAS[key].name}
+                          </span>
+                          <span className="block text-[13px]" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.5)' }}>
+                            {personaRoles[key]}
+                          </span>
+                        </span>
+                        <span
+                          aria-hidden="true"
+                          className="h-2 w-2 shrink-0 rounded-full transition-opacity duration-200"
+                          style={{ background: `rgb(${h})`, boxShadow: `0 0 10px rgb(${h} / 0.7)`, opacity: active ? 1 : 0 }}
+                        />
+                      </button>
+                    );
+                  })}
+              </div>
+
+              <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />
+
+              {/* Actions */}
+              {([
+                ['New chat', Plus, run(onStartNewChat)],
+                ['Chat history', History, run(onOpenHistory)],
+                ['Flight Controls', Wand2, run(() => setShowAgents(true))],
+                ['Settings & theme', Settings, run(onOpenSettings)],
+              ] as const).map(([label, Icon, onClick]) => (
+                <button key={label} type="button" role="menuitem" onClick={onClick} className={rowClass}>
+                  <Icon className="h-4 w-4 shrink-0" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.55)' }} aria-hidden="true" />
+                  <span className="text-[15px] font-medium" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.88)' }}>{label}</span>
+                </button>
               ))}
-            <motion.button
-              whileHover={{
-                scale: 1.03,
-                background: 'linear-gradient(90deg, rgba(34,197,94,0.2) 0%, transparent 100%)'
-              }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleStartNewChat}
-              className={`w-full px-4 py-3 text-left transition-all duration-300 ${theme.text} flex items-center gap-2 border-b border-white/5`}
-            >
-              <Plus className="w-4 h-4" />
-              <div className="font-bold text-sm">Start New Chat</div>
-            </motion.button>
-            <motion.button
-              whileHover={{
-                scale: 1.03,
-                background: 'linear-gradient(90deg, rgba(168,85,247,0.2) 0%, transparent 100%)'
-              }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleHistoryClick}
-              className={`w-full px-4 py-3 text-left transition-all duration-300 ${theme.text} flex items-center gap-2 border-b border-white/5`}
-            >
-              <History className="w-4 h-4" />
-              <div className="font-bold text-sm">Chat History</div>
-            </motion.button>
-            <motion.button
-              whileHover={{
-                scale: 1.03,
-                background: 'linear-gradient(90deg, rgba(168,85,247,0.2) 0%, transparent 100%)'
-              }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => {
-                setShowAgents(true);
-                setIsOpen(false);
-              }}
-              className={`w-full px-4 py-3 text-left transition-all duration-300 ${theme.text} flex items-center gap-2 border-b border-white/5`}
-            >
-              <Wand2 className="w-4 h-4" />
-              <div className="font-bold text-sm">Flight Controls</div>
-            </motion.button>
-            <motion.button
-              whileHover={{
-                scale: 1.03,
-                background: 'linear-gradient(90deg, rgba(168,85,247,0.2) 0%, transparent 100%)'
-              }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleSettingsClick}
-              className={`w-full px-4 py-3 text-left transition-all duration-300 ${theme.text} flex items-center gap-2 last:rounded-b-3xl`}
-            >
-              <Settings className="w-4 h-4" />
-              <div className="font-bold text-sm">Settings & Theme</div>
-            </motion.button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
 
       <AgentsModal
         isOpen={showAgents}

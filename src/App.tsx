@@ -1,4 +1,5 @@
-import React, { Suspense, lazy, useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { AppAtmosphere } from './components/shared/AppAtmosphere';
+import React, { useLayoutEffect, Suspense, lazy, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import { ChatInput } from './components/chat/ChatInput';
 import { BrandLogo } from './components/brand/BrandLogo';
@@ -49,6 +50,7 @@ import { newId } from './utils/id';
 import { SEOHead } from './components/seo/SEOHead';
 import { RouteLoadingFallback } from './components/routing/RouteLoadingFallback';
 import { hasEnteredApp, markEnteredApp, type LandingHandoff } from './components/landing/entered';
+import { pageZoom } from './utils/pageZoom';
 
 const LandingPage = lazy(() => import('./components/landing/LandingPage').then((module) => ({ default: module.LandingPage })));
 const HomePage = lazy(() => import('./components/home/HomePage').then((module) => ({ default: module.HomePage })));
@@ -482,7 +484,9 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   useEffect(() => {
     const updateVH = () => {
       const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
+      // The layout is zoomed (index.css); a real pixel measure has to be
+      // divided by the zoom to render at its real size.
+      document.documentElement.style.setProperty('--vh', `${vh / pageZoom()}px`);
     };
 
     updateVH();
@@ -490,28 +494,17 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     return () => window.removeEventListener('resize', updateVH);
   }, []);
 
-  // Memoize button styles to prevent recalculation
-  const personaBackgroundColors: Record<string, string> = useMemo(() => ({
-    default: 'rgba(139,0,255,0.2)',
-    girlie: 'rgba(199,21,133,0.2)',
-    pro: 'rgba(30,144,255,0.2)'
-  }), []);
-
-  const buttonStyles = useMemo(() => ({
-    bg: personaBackgroundColors[currentPersona] || personaBackgroundColors.default,
-    text: theme.text,
-  }), [currentPersona, theme.text, personaBackgroundColors]);
-
+  // Flow State: the Air hue as a tinted glass pill, lit when it is on.
   const flowStateButtonStyles = useMemo(() => ({
-    border: flowStateActive ? '1px solid rgba(168, 85, 247, 0.5)' : '1px solid rgba(168, 85, 247, 0.4)',
+    border: flowStateActive ? '1px solid rgb(168 85 247 / 0.45)' : '1px solid rgb(var(--tm-ink-rgb) / 0.12)',
     bg: flowStateActive
-      ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgb(var(--tm-ink-rgb) / 0.05))'
-      : 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgb(var(--tm-ink-rgb) / 0.05))',
+      ? 'linear-gradient(135deg, rgb(168 85 247 / 0.22), rgb(168 85 247 / 0.1))'
+      : undefined,
     shadow: flowStateActive
-      ? '0 0 20px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
-      : '0 0 15px rgba(168, 85, 247, 0.35), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
-    text: flowStateActive ? 'rgb(var(--tm-accent-rgb, 216 180 254))' : theme.text,
-  }), [flowStateActive, theme.text]);
+      ? 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.35), 0 0 18px rgb(168 85 247 / 0.18)'
+      : undefined,
+    text: flowStateActive ? 'rgb(var(--tm-accent-rgb, 216 180 254))' : 'rgb(var(--tm-ink-rgb) / 0.85)',
+  }), [flowStateActive]);
 
   const handleAccessGranted = useCallback(() => {
     setShowWelcomeModal(false);
@@ -661,19 +654,20 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   const backgroundClass = customBackgroundClass
     ? customBackgroundClass
     : isHealthcareActive
-      ? 'bg-linear-to-t/srgb from-green-950 to-black to-50%'
+      ? 'bg-canvas'
       : theme.background;
 
   return (
     <div
       id={brandOverride ? 'reveoule-theme' : undefined}
-      className={`min-h-screen ${backgroundClass} ${theme.text} relative overflow-hidden transition-all duration-700`}
+      className={`tm-chat-shell min-h-screen ${backgroundClass} ${theme.text} relative overflow-hidden transition-all duration-700`}
       style={{ minHeight: 'calc(var(--vh, 1vh) * 100)' }}
     >
       {/* Max Mode: chat on the left, workspace on the right. The transform
           makes the column the containing block for the chat's own fixed
           header and composer, so they stay inside it instead of spanning the
           workspace too. */}
+      {!brandOverride && !customBackgroundClass && <AppAtmosphere variant={isHealthcareActive ? 'healthcare' : undefined} />}
       <div
         className={maxModeRoute ? 'flex h-screen' : undefined}
         style={maxModeRoute ? { height: 'calc(var(--vh, 1vh) * 100)' } : undefined}
@@ -683,8 +677,9 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
         style={maxModeRoute ? { transform: 'translateZ(0)' } : undefined}
       >
       <main className="relative h-screen flex flex-col" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
-        <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-transparent">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
+        {/* Independent floating controls leave the header open to the canvas. */}
+        <header className="tm-chat-header fixed inset-x-0 top-3 z-50 px-3 sm:top-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-3">
             <BrandLogo
               currentPersona={currentPersona}
               onPersonaChange={handlePersonaChange}
@@ -696,38 +691,25 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
               onOpenSettings={handleOpenSettings}
               brandOverride={brandOverride}
             />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {isAnonymous && (
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/50">
-                  <span>{getRemainingMessages(currentPersona)} free messages left</span>
-                </div>
+                <span
+                  className="tm-glass hidden min-h-11 items-center rounded-full px-3.5 py-2 text-[13px] sm:inline-flex"
+                  style={{ border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)', color: 'rgb(var(--tm-ink-rgb) / 0.6)' }}
+                >
+                  {getRemainingMessages(currentPersona)} free messages left
+                </span>
               )}
 
               {isAnonymous ? (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <button
+                  type="button"
                   onClick={handleOpenAuth}
-                  style={{
-                    background: buttonStyles.bg,
-                    color: buttonStyles.text,
-                    borderRadius: '9999px',
-                    backdropFilter: 'blur(10px)',
-                    outline: 'none',
-                    padding: '8px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.3s ease',
-                  }}
+                  className="tm-press min-h-11 rounded-full bg-pill px-5 py-2 text-sm font-medium text-pill-ink hover:opacity-90"
                   aria-label="Sign Up"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3.00006 7.63576C4.6208 4.29965 8.04185 2 12 2C17.5229 2 22 6.47715 22 12C22 17.5228 17.5229 22 12 22C8.04185 22 4.6208 19.7004 3.00006 16.3642" />
-                    <path d="M11 8C11 8 15 10.946 15 12C15 13.0541 11 16 11 16M14.5 12H2" />
-                  </svg>
-                  <span style={{ fontSize: '14px', color: buttonStyles.text }}>Sign Up</span>
-                </motion.button>
+                  Sign up
+                </button>
               ) : currentPersona === 'pro' ? (
                 <MaxModeButton
                   active={!!maxModeRoute}
@@ -736,80 +718,48 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                   onExit={maxModeRoute ? exitMaxMode : undefined}
                 />
               ) : currentPersona === 'default' ? (
-                // Flow State button for Air persona — liquid glass style
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                // Flow State for Air: a glass pill that takes the Air hue when on.
+                <button
+                  type="button"
                   onClick={() => setFlowStateActive(!flowStateActive)}
+                  className={`tm-press inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm ${flowStateActive ? '' : 'tm-glass-pill'}`}
                   style={{
                     background: flowStateButtonStyles.bg,
                     color: flowStateButtonStyles.text,
                     border: flowStateButtonStyles.border,
                     boxShadow: flowStateButtonStyles.shadow,
-                    borderRadius: '9999px',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    outline: 'none',
-                    padding: '8px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.3s ease',
                   }}
+                  aria-pressed={flowStateActive}
                   aria-label={flowStateActive ? "Disable Flow State" : "Enable Flow State"}
                 >
-                  <Zap style={{ width: '16px', height: '16px', color: flowStateButtonStyles.text, fill: flowStateActive ? flowStateButtonStyles.text : 'none' }} />
-                  <span style={{ fontSize: '14px', color: flowStateButtonStyles.text }}>
-                    Flow State
-                  </span>
-                </motion.button>
+                  <Zap className="h-4 w-4" style={{ fill: flowStateActive ? 'currentColor' : 'none' }} />
+                  Flow State
+                </button>
               ) : currentPersona === 'girlie' && (
                 isCollaborative && collaborativeId ? (
-                  // Group Settings button when in collaborative mode
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                  // Group Settings when in collaborative mode
+                  <button
+                    type="button"
                     onClick={() => navigate(`/groupchat/${collaborativeId}/settings`)}
-                    style={{
-                      background: buttonStyles.bg,
-                      color: buttonStyles.text,
-                      borderRadius: '9999px',
-                      backdropFilter: 'blur(10px)',
-                      outline: 'none',
-                      padding: '8px 16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'all 0.3s ease',
-                    }}
+                    className="tm-press tm-glass-pill inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"
+                    style={{ border: '1px solid rgb(236 72 153 / 0.35)', color: 'rgb(var(--tm-ink-rgb) / 0.85)' }}
                     aria-label="Group Settings"
                   >
-                    <Settings style={{ width: '16px', height: '16px', color: buttonStyles.text }} />
-                    <span style={{ fontSize: '14px', color: buttonStyles.text }}>Group Settings</span>
-                  </motion.button>
+                    <Settings className="h-4 w-4" />
+                    Group Settings
+                  </button>
                 ) : (
-                  // Create Group Chat button
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                  // Create Group Chat
+                  <button
+                    type="button"
                     onClick={() => setShowGroupChatModal(true)}
-                    style={{
-                      background: buttonStyles.bg,
-                      color: buttonStyles.text,
-                      borderRadius: '9999px',
-                      backdropFilter: 'blur(10px)',
-                      outline: 'none',
-                      padding: '8px 16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'all 0.3s ease',
-                    }}
+                    className="tm-press tm-glass-pill inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"
+                    style={{ border: '1px solid rgb(236 72 153 / 0.35)', color: 'rgb(var(--tm-ink-rgb) / 0.85)' }}
                     aria-label="Open Group Chat"
                   >
-                    <Users style={{ width: '16px', height: '16px', color: buttonStyles.text }} />
-                    <span style={{ fontSize: '14px', color: buttonStyles.text }}>Group Chat</span>
-                  </motion.button>
+                    <Users className="h-4 w-4" />
+                    Group Chat
+                  </button>
                 )
               )}
             </div>
@@ -1141,8 +1091,13 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
           )}
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-transparent">
-          <div className="max-w-4xl mx-auto">
+        {/* The dock. The transcript scrolls under it and fades into the
+            ground before it reaches the glass; the wrapper passes clicks
+            through so only the composer itself is interactive. */}
+        <div
+          className="tm-chat-dock pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pt-12 sm:px-6"
+        >
+          <div className="pointer-events-auto mx-auto max-w-4xl">
             {maxModeRoute && (
               <div className="mb-2 flex items-center justify-between px-1">
                 <MaxModePill mode={maxMode ?? 'auto'} onSelect={setMaxMode} />
@@ -1328,10 +1283,28 @@ function RootRoute() {
   return <><SEOHead /><MainChatPage /></>;
 }
 
+/** The routes that are the marketing site rather than the product. */
+const MARKETING_PATHS = new Set(['/welcome', '/features', '/personas', '/about', '/help', '/contact']);
+
 function AppContent() {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // The product renders at 80% (index.css) — the density the chat was drawn
+  // at — and the marketing pages at 100%. Decided here, before paint, so a
+  // route change never flashes the other size. The root route counts as
+  // marketing only while it would show the landing page (see RootRoute).
+  const marketing = MARKETING_PATHS.has(location.pathname)
+    || (location.pathname === '/' && !user && !location.state && !hasEnteredApp());
+  useLayoutEffect(() => {
+    document.documentElement.dataset.tmScale = marketing ? 'marketing' : 'app';
+    // --vh is measured on resize (MainChatPage); the zoom it divides by has
+    // just changed, so measure again.
+    window.dispatchEvent(new Event('resize'));
+  }, [marketing]);
   const settingsModal = useMemo(() => ({
     isSettingsOpen,
     openSettings: () => setIsSettingsOpen(true),

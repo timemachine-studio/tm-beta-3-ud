@@ -45,24 +45,6 @@ interface SpeechTranscriptionButtonProps {
   currentPersona?: Persona;
 }
 
-const personaStyles = {
-  tintColors: {
-    default: 'rgba(168, 85, 247, 0.2)',
-    girlie: 'rgba(236, 72, 153, 0.15)',
-    pro: 'rgba(34, 211, 238, 0.15)'
-  },
-  borderColors: {
-    default: 'rgba(168, 85, 247, 0.4)',
-    girlie: 'rgba(236, 72, 153, 0.3)',
-    pro: 'rgba(34, 211, 238, 0.3)'
-  },
-  glowShadow: {
-    default: '0 0 15px rgba(168, 85, 247, 0.35)',
-    girlie: '0 0 12px rgba(236, 72, 153, 0.25)',
-    pro: '0 0 12px rgba(34, 211, 238, 0.25)'
-  }
-} as const;
-
 const recognitionErrorMessage = (error: string) => {
   if (error === 'not-allowed' || error === 'service-not-allowed') {
     return 'Microphone permission is required';
@@ -76,13 +58,11 @@ export function SpeechTranscriptionButton({
   value,
   onTranscript,
   disabled,
-  currentPersona = 'default'
 }: SpeechTranscriptionButtonProps) {
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const startingTextRef = useRef('');
-  const stylePersona = currentPersona === 'girlie' || currentPersona === 'pro' ? currentPersona : 'default';
 
   useEffect(() => () => recognitionRef.current?.abort(), []);
 
@@ -147,30 +127,27 @@ export function SpeechTranscriptionButton({
   return (
     <div className="relative">
       <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        aria-pressed={isListening}
         onClick={handleToggle}
         disabled={disabled && !isListening}
-        className="p-3 rounded-full transition-all duration-300 relative group disabled:opacity-50 disabled:cursor-not-allowed"
+        className="tm-press tm-composer-control relative disabled:cursor-not-allowed"
         style={{
           background: isListening
             ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgb(var(--tm-ink-rgb) / 0.05))'
-            : `linear-gradient(135deg, ${personaStyles.tintColors[stylePersona]}, rgb(var(--tm-ink-rgb) / 0.05))`,
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
+            : 'transparent',
           border: isListening
             ? '1px solid rgba(239, 68, 68, 0.4)'
-            : `1px solid ${personaStyles.borderColors[stylePersona]}`,
+            : '1px solid transparent',
           boxShadow: isListening
             ? '0 0 12px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
-            : `${personaStyles.glowShadow[stylePersona]}, inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)`
+            : 'none'
         }}
         type="button"
         aria-label={isListening ? 'Stop live transcription' : 'Start live transcription'}
         title={isListening ? 'Stop transcription' : 'Transcribe speech'}
       >
         <span className="relative z-10 flex items-center justify-center w-5 h-5">
-          {isListening ? <Square className="w-4 h-4 text-white" /> : <AiMicIcon className="w-5 h-5 text-white" />}
+          {isListening ? <Square className="w-4 h-4" /> : <AiMicIcon className="w-5 h-5" color="currentColor" />}
         </span>
       </motion.button>
 
@@ -180,7 +157,7 @@ export function SpeechTranscriptionButton({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-linear-to-r/srgb from-red-900/90 to-pink-900/90 backdrop-blur-xl text-white text-sm px-4 py-2 rounded-lg whitespace-nowrap border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+            className="absolute bottom-full mb-2 right-0 bg-linear-to-r/srgb from-red-900/90 to-pink-900/90 backdrop-blur-xl text-white text-sm px-4 py-2 rounded-lg w-56 max-w-[70vw] border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
           >
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />

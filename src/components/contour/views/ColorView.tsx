@@ -118,7 +118,7 @@ function ColorInteractive({ color, accent: _accent, onCopyValue }: { color?: Col
       <div className="flex items-center gap-2">
         {(['r', 'g', 'b'] as const).map(ch => (
           <div key={ch} className="flex items-center gap-1.5 flex-1">
-            <span className="text-[11px] font-mono font-medium text-white/30 uppercase w-3">{ch}</span>
+            <span className="text-xs font-mono font-medium text-ink-muted uppercase w-3">{ch}</span>
             <input
               type="number"
               min={0} max={255}
@@ -129,7 +129,7 @@ function ColorInteractive({ color, accent: _accent, onCopyValue }: { color?: Col
           </div>
         ))}
         {/* HSL display */}
-        <div className="shrink-0 text-[10px] text-white/25 font-mono">
+        <div className="shrink-0 text-xs text-ink-muted font-mono">
           hsl({hsl.h},{hsl.s}%,{hsl.l}%)
         </div>
       </div>
@@ -148,8 +148,8 @@ function ColorInteractive({ color, accent: _accent, onCopyValue }: { color?: Col
         <div className="flex-1 min-w-0">
           <span className="text-white font-semibold text-lg font-mono">{hex}</span>
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-            <span className="text-white/40 text-xs font-mono">rgb({r}, {g}, {b})</span>
-            <span className="text-white/40 text-xs font-mono">hsl({hsl.h}, {hsl.s}%, {hsl.l}%)</span>
+            <span className="text-ink-muted text-xs font-mono">rgb({r}, {g}, {b})</span>
+            <span className="text-ink-muted text-xs font-mono">hsl({hsl.h}, {hsl.s}%, {hsl.l}%)</span>
           </div>
         </div>
       </motion.div>
@@ -173,8 +173,8 @@ export function ColorView({ module, accent, onCopyValue }: { module: ModuleData;
               <span className="text-white font-semibold text-lg font-mono">{color.hex}</span>
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-              <span className="text-white/40 text-xs font-mono">rgb({color.rgb.r}, {color.rgb.g}, {color.rgb.b})</span>
-              <span className="text-white/40 text-xs font-mono">hsl({color.hsl.h}, {color.hsl.s}%, {color.hsl.l}%)</span>
+              <span className="text-ink-muted text-xs font-mono">rgb({color.rgb.r}, {color.rgb.g}, {color.rgb.b})</span>
+              <span className="text-ink-muted text-xs font-mono">hsl({color.hsl.h}, {color.hsl.s}%, {color.hsl.l}%)</span>
             </div>
           </div>
         </div>

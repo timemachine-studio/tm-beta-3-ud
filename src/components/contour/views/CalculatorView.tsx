@@ -15,8 +15,8 @@ export function CalculatorView({ module, accent }: { module: ModuleData; accent:
       <div className="flex items-center gap-3">
         <IconBadge icon={Equal} accent={accent} />
         <div className="flex-1 min-w-0">
-          <div className="text-white/40 text-xs font-mono mb-1 truncate">{calc.expression}</div>
-          <div className={`text-xl font-semibold tracking-tight ${calc.isPartial ? 'text-white/50' : 'text-white'}`}>
+          <div className="text-ink-muted text-xs font-mono mb-1 truncate">{calc.expression}</div>
+          <div className={`text-xl font-semibold tracking-tight ${calc.isPartial ? 'text-ink-muted' : 'text-white'}`}>
             {calc.displayResult}
           </div>
         </div>

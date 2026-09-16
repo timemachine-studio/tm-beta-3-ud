@@ -1,0 +1,444 @@
+/* ---- Notes ----
+   Notion's workspace rhythm on TimeMachine's material: a quiet library rail
+   on the left, a left-weighted reading column, and an AI panel that opens on
+   the right when asked. The note's hue lives in the atmosphere behind the
+   glass and in focused controls, never in every surface at once. */
+
+.tm-notes {
+  isolation: isolate;
+  color: var(--color-ink);
+  font-family: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', sans-serif;
+  caret-color: rgb(var(--tm-notes-hue) / 1);
+  background: var(--color-canvas);
+}
+
+.tm-notes ::selection {
+  background: rgb(var(--tm-notes-hue) / 0.35);
+  color: var(--color-ink);
+}
+
+.tm-notes :focus-visible {
+  outline: 2px solid rgb(var(--tm-notes-hue) / 0.9);
+  outline-offset: 2px;
+}
+
+.tm-notes input:focus-visible,
+.tm-notes textarea:focus-visible {
+  outline: none;
+}
+
+.tm-notes > .tm-atmosphere {
+  z-index: -1;
+}
+
+/* ---- the three columns ---- */
+
+.tm-notes-rail,
+.tm-notes-ai {
+  background: rgb(var(--tm-paper-rgb) / 0.32);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+
+.tm-notes-rail {
+  border-right: 1px solid rgb(var(--tm-ink-rgb) / 0.08);
+}
+
+.tm-notes-ai {
+  border-left: 1px solid rgb(var(--tm-ink-rgb) / 0.08);
+}
+
+/* The rail's rows: no material of their own, a wash on hover, the note hue
+   when it is the open page. */
+.tm-notes-row {
+  min-height: 34px;
+  border-radius: 10px;
+  color: rgb(var(--tm-ink-rgb) / 0.72);
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+
+.tm-notes-row:hover,
+.tm-notes-row:focus-within {
+  background-color: rgb(var(--tm-ink-rgb) / 0.06);
+  color: rgb(var(--tm-ink-rgb) / 0.95);
+}
+
+.tm-notes-row[data-active='true'] {
+  background-color: rgb(var(--tm-notes-hue) / 0.13);
+  color: rgb(var(--tm-ink-rgb) / 0.96);
+}
+
+.tm-notes-row-actions {
+  opacity: 0;
+  transition: opacity 140ms ease-out;
+}
+
+.tm-notes-row:hover .tm-notes-row-actions,
+.tm-notes-row:focus-within .tm-notes-row-actions {
+  opacity: 1;
+}
+
+.tm-notes-section {
+  padding: 14px 12px 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(var(--tm-ink-rgb) / 0.42);
+}
+
+.tm-notes-search {
+  min-height: 36px;
+  background: rgb(var(--tm-ink-rgb) / 0.05);
+  border: 1px solid rgb(var(--tm-ink-rgb) / 0.08);
+  box-shadow: inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.05);
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.tm-notes-search:focus-within {
+  border-color: rgb(var(--tm-notes-hue) / 0.5);
+  box-shadow: 0 0 0 3px rgb(var(--tm-notes-hue) / 0.12);
+}
+
+/* An icon button in the chrome: 32px, quiet until hovered. */
+.tm-notes-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: rgb(var(--tm-ink-rgb) / 0.6);
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+
+.tm-notes-icon:hover,
+.tm-notes-icon[aria-expanded='true'],
+.tm-notes-icon[aria-pressed='true'] {
+  background-color: rgb(var(--tm-ink-rgb) / 0.07);
+  color: rgb(var(--tm-ink-rgb) / 0.95);
+}
+
+.tm-notes-icon[data-lit='true'] {
+  color: rgb(var(--tm-notes-hue) / 1);
+}
+
+/* ---- top bar ---- */
+
+.tm-notes-topbar {
+  min-height: 52px;
+  padding: 0 12px 0 8px;
+  border-bottom: 1px solid rgb(var(--tm-ink-rgb) / 0.06);
+  background: rgb(var(--tm-paper-rgb) / 0.18);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+.tm-notes-crumb {
+  max-width: 40vw;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgb(var(--tm-ink-rgb) / 0.9);
+}
+
+.tm-notes-crumb-muted {
+  font-size: 13px;
+  color: rgb(var(--tm-ink-rgb) / 0.45);
+}
+
+/* ---- the page ---- */
+
+/* Every scrolling thing in Notes, the slash menu included, gets the same
+   hairline scrollbar; the browser default belongs to no design. */
+.tm-notes,
+.tm-notes * {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--tm-ink-rgb) / 0.14) transparent;
+}
+
+.tm-notes ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.tm-notes ::-webkit-scrollbar-thumb {
+  background: rgb(var(--tm-ink-rgb) / 0.14);
+  border-radius: 3px;
+}
+
+/* Notion's column: 708px of text with room to its left for the block
+   handles, which hang 56px outside every block. */
+.tm-notes-column {
+  width: 100%;
+  max-width: 840px;
+  margin-inline: auto;
+  padding: 72px 40px 200px 72px;
+}
+
+.tm-notes-emoji {
+  font-size: 56px;
+  line-height: 1;
+  border-radius: 12px;
+  transition: background-color 140ms ease-out, transform 140ms ease-out;
+}
+
+.tm-notes-emoji:hover {
+  background-color: rgb(var(--tm-ink-rgb) / 0.06);
+}
+
+.tm-note-title {
+  width: 100%;
+  margin-top: 14px;
+  color: rgb(var(--tm-ink-rgb) / 0.95);
+  font-size: clamp(2.4rem, 4vw, 3.3rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+.tm-note-title::placeholder {
+  color: rgb(var(--tm-ink-rgb) / 0.3);
+}
+
+.tm-notes-block {
+  min-height: 34px;
+}
+
+.tm-notes-block textarea {
+  padding-block: 4px;
+  line-height: 1.6;
+}
+
+.tm-notes-block textarea::placeholder {
+  color: rgb(var(--tm-ink-rgb) / 0.28);
+}
+
+/* "Get started with": the row Notion puts at the foot of an empty page. */
+.tm-notes-starter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  color: rgb(var(--tm-ink-rgb) / 0.78);
+  border: 1px solid rgb(var(--tm-ink-rgb) / 0.12);
+}
+
+.tm-notes-starter:hover {
+  color: rgb(var(--tm-ink-rgb) / 0.98);
+}
+
+.tm-notes-starter svg {
+  color: rgb(var(--tm-ink-rgb) / 0.55);
+}
+
+.tm-notes-starter[data-ai='true'] svg {
+  color: rgb(var(--tm-notes-hue) / 1);
+}
+
+/* ---- the quick-ask dock ---- */
+
+/* The page fades into the ground before it reaches the lens; the bar sits
+   on the reading column's own left edge. */
+.tm-notes-dock {
+  padding: 48px 40px 20px 72px;
+  background: linear-gradient(to top, rgb(var(--tm-paper-rgb) / 0.6), rgb(var(--tm-paper-rgb) / 0.3) 50%, transparent);
+}
+
+.tm-notes-quick {
+  max-width: 768px;
+  margin-inline: auto;
+}
+
+/* ---- the AI panel ---- */
+
+.tm-notes-ai-greeting {
+  font-size: 1.85rem;
+  line-height: 1.1;
+  color: rgb(var(--tm-ink-rgb) / 0.95);
+}
+
+.tm-notes-ai-suggest {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 15px;
+  text-align: left;
+  color: rgb(var(--tm-ink-rgb) / 0.85);
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+
+.tm-notes-ai-suggest:hover {
+  background-color: rgb(var(--tm-ink-rgb) / 0.06);
+  color: rgb(var(--tm-ink-rgb) / 1);
+}
+
+.tm-notes-ai-suggest svg {
+  color: rgb(var(--tm-ink-rgb) / 0.5);
+}
+
+.tm-notes-ai-user {
+  align-self: flex-end;
+  max-width: 88%;
+  padding: 8px 14px;
+  border-radius: 18px 18px 6px 18px;
+  background: rgb(var(--tm-ink-rgb) / 0.1);
+  color: rgb(var(--tm-ink-rgb) / 0.95);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.tm-notes-ai-reply {
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgb(var(--tm-ink-rgb) / 0.82);
+}
+
+.tm-notes-ai-reply-who {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--tm-notes-hue) / 1);
+}
+
+.tm-notes-ai-composer {
+  border-radius: 22px;
+  background: rgb(var(--tm-ink-rgb) / 0.05);
+  border: 1px solid rgb(var(--tm-ink-rgb) / 0.12);
+  box-shadow: inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.14), 0 18px 40px -24px rgb(var(--tm-shadow-rgb) / 0.8);
+  transition: border-color 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.tm-notes-ai-composer:focus-within {
+  border-color: rgb(var(--tm-notes-hue) / 0.55);
+  box-shadow: inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.14), 0 0 0 3px rgb(var(--tm-notes-hue) / 0.12);
+}
+
+.tm-notes-ai-composer textarea::placeholder {
+  color: rgb(var(--tm-ink-rgb) / 0.42);
+}
+
+.tm-notes-ai-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: rgb(var(--tm-ink-rgb) / 0.7);
+  border: 1px solid rgb(var(--tm-ink-rgb) / 0.12);
+  background: rgb(var(--tm-ink-rgb) / 0.04);
+}
+
+.tm-notes-pending {
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgb(var(--tm-notes-hue) / 0.1);
+  border: 1px solid rgb(var(--tm-notes-hue) / 0.25);
+}
+
+.tm-notes-pending-accept {
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-pill-ink);
+  background: var(--color-pill);
+}
+
+.tm-notes-pending-reject {
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: rgb(var(--tm-ink-rgb) / 0.75);
+  border: 1px solid rgb(var(--tm-ink-rgb) / 0.14);
+}
+
+.tm-notes-pending-reject:hover {
+  color: rgb(252 165 165);
+  border-color: rgb(239 68 68 / 0.4);
+}
+
+/* A menu that hangs from the chrome: same lens as the chat's persona menu. */
+.tm-notes-menu {
+  padding: 6px;
+  border-radius: 18px;
+}
+
+/* ---- light mode: flat paper, the same layout ---- */
+
+:root[data-theme='light'] .tm-notes-rail,
+:root[data-theme='light'] .tm-notes-ai {
+  background: rgb(var(--tm-paper-rgb) / 0.72);
+}
+
+:root[data-theme='light'] .tm-notes-topbar {
+  background: rgb(var(--tm-paper-rgb) / 0.6);
+}
+
+:root[data-theme='light'] .tm-notes-ai-user {
+  background: rgb(var(--tm-ink-rgb) / 0.07);
+}
+
+/* ---- small screens ---- */
+
+@media (max-width: 1023px) {
+  .tm-notes-ai {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 40;
+    max-height: min(calc(var(--tm-100dvh) * 0.82), 720px);
+    border-left: 0;
+    border-top: 1px solid rgb(var(--tm-ink-rgb) / 0.1);
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -24px 60px -24px rgb(var(--tm-shadow-rgb) / 0.8);
+  }
+}
+
+@media (max-width: 767px) {
+  .tm-notes-rail {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    background: rgb(var(--tm-paper-rgb) / 0.88);
+  }
+
+  .tm-notes-column {
+    padding: 40px 20px 200px;
+  }
+
+  .tm-notes-dock {
+    padding: 40px 12px 12px;
+  }
+
+  .tm-notes-emoji {
+    font-size: 44px;
+  }
+
+  /* Block handles cannot hang in a margin that is not there. */
+  .tm-notes .group > .absolute.-left-14 {
+    position: static;
+    margin-bottom: 4px;
+    opacity: 1;
+  }
+
+  .tm-notes-crumb {
+    max-width: 34vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-notes *,
+  .tm-notes *::before {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
+}

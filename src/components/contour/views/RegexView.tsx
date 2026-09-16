@@ -45,14 +45,14 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
       <div className="p-4">
         <div className="flex items-center gap-3 mb-3">
           <IconBadge icon={FileSearch} accent={accent} />
-          <div className="text-white/30 text-sm">{MODULE_META.regex.placeholder}</div>
+          <div className="text-ink-muted text-sm">{MODULE_META.regex.placeholder}</div>
         </div>
         <div className="flex flex-wrap gap-1.5 mb-3">
           {REGEX_PRESETS.map(p => (
             <button
               key={p.name}
               onClick={() => handlePreset(p)}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-white/40 hover:text-white/60 transition-all"
+              className="px-2.5 py-1 rounded-lg text-xs font-medium text-ink-muted hover:text-ink-muted transition-all"
               style={{ background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
             >
               {p.name}
@@ -64,7 +64,7 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
           value={activePattern}
           onChange={e => { setHasInteracted(true); setPattern(e.target.value); }}
           placeholder="Enter regex pattern..."
-          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm font-mono placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors"
+          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm font-mono placeholder:text-ink-muted focus:outline-hidden focus:border-white/25 transition-colors"
         />
       </div>
     );
@@ -79,7 +79,7 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
               <button
                 key={p.name}
                 onClick={() => handlePreset(p)}
-                className="px-2 py-0.5 rounded-md text-[10px] font-medium text-white/35 hover:text-white/55 transition-all"
+                className="px-2 py-0.5 rounded-md text-xs font-medium text-ink-muted hover:text-ink-muted transition-all"
                 style={{ background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.05)' }}
               >
                 {p.name}
@@ -87,21 +87,21 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
             ))}
           </div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-white/20 text-xs font-mono">/</span>
+            <span className="text-ink-muted text-xs font-mono">/</span>
             <input
               type="text"
               value={activePattern}
               onChange={e => { setHasInteracted(true); setPattern(e.target.value); }}
               placeholder="pattern"
-              className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs font-mono placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors"
+              className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs font-mono placeholder:text-ink-muted focus:outline-hidden focus:border-white/25 transition-colors"
             />
-            <span className="text-white/20 text-xs font-mono">/</span>
+            <span className="text-ink-muted text-xs font-mono">/</span>
             <div className="flex gap-0.5">
               {REGEX_FLAGS.map(f => (
                 <button
                   key={f.flag}
                   onClick={() => toggleFlag(f.flag)}
-                  className={`w-6 h-6 rounded-sm text-[11px] font-mono font-medium transition-all ${activeFlags.includes(f.flag) ? 'text-white' : 'text-white/25'}`}
+                  className={`w-6 h-6 rounded-sm text-xs font-mono font-medium transition-all ${activeFlags.includes(f.flag) ? 'text-white' : 'text-ink-muted'}`}
                   style={activeFlags.includes(f.flag) ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
                   title={f.description}
                 >
@@ -115,7 +115,7 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
             value={activeTestStr}
             onChange={e => { setHasInteracted(true); setTestStr(e.target.value); }}
             placeholder="Test string..."
-            className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors mb-3"
+            className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-ink-muted focus:outline-hidden focus:border-white/25 transition-colors mb-3"
           />
         </>
       )}
@@ -131,7 +131,7 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
             </div>
           )}
           {result?.isValid && result.pattern && (
-            <div className="text-white/30 text-xs font-mono">/{result.pattern}/{result.flags}</div>
+            <div className="text-ink-muted text-xs font-mono">/{result.pattern}/{result.flags}</div>
           )}
         </div>
       </div>
@@ -140,29 +140,29 @@ function RegexView({ module, accent, onCopyValue }: { module: ModuleData; accent
         <div className="space-y-1 max-h-[80px] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10">
           {result.matches.slice(0, 10).map((m, i) => (
             <div key={i} className="flex items-center gap-2 text-xs">
-              <span className="text-white/20 font-mono w-4 text-right">{i + 1}</span>
+              <span className="text-ink-muted font-mono w-4 text-right">{i + 1}</span>
               <span className={`font-mono px-1.5 py-0.5 rounded-sm ${accent.text}`}
                 style={{ background: accent.bg, border: `1px solid ${accent.border}` }}
               >
                 {m.match}
               </span>
-              <span className="text-white/20 font-mono">@{m.index}</span>
+              <span className="text-ink-muted font-mono">@{m.index}</span>
             </div>
           ))}
           {result.matches.length > 10 && (
-            <div className="text-white/20 text-[10px] pl-6">...and {result.matches.length - 10} more</div>
+            <div className="text-ink-muted text-xs pl-6">...and {result.matches.length - 10} more</div>
           )}
         </div>
       )}
 
       <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
         <button onClick={handleCopy}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-ink-muted hover:text-ink hover:bg-white/[0.06] transition-colors"
         >
           {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
           {copied ? 'Copied!' : 'Copy regex'}
         </button>
-        <span className="text-[10px] text-white/20">Press Enter to copy</span>
+        <span className="text-xs text-ink-muted">Press Enter to copy</span>
       </div>
     </div>
   );

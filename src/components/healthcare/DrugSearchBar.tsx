@@ -123,9 +123,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
       <form onSubmit={handleSubmit}>
         <div
           className={`
-            flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 py-3 sm:px-5 sm:py-4 rounded-2xl
-            bg-white/8 border border-white/15
-            backdrop-blur-xl
+            tm-glass flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 py-3 sm:px-5 sm:py-4 rounded-[28px]
             transition-all duration-200
             ${isOpen ? 'border-emerald-400/50 shadow-[0_0_20px_rgba(52,211,153,0.15)]' : 'hover:border-white/25'}
           `}
@@ -133,6 +131,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
           {/* Category selector — full width on mobile, inline on sm+ */}
           <div className="shrink-0 relative">
             <select
+              aria-label="Search category"
               value={category}
               onChange={(e) => {
                 const newCat = e.target.value as SearchCategory;
@@ -150,7 +149,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
                 </option>
               ))}
             </select>
-            <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40 pointer-events-none" />
+            <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-muted pointer-events-none" />
           </div>
 
           {/* Divider — hidden on mobile */}
@@ -163,12 +162,13 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
               {isLoading ? (
                 <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
               ) : (
-                <Search className="w-5 h-5 text-white/40" />
+                <Search className="w-5 h-5 text-ink-muted" />
               )}
             </div>
 
             {/* Input */}
             <input
+              aria-label="Search medicines"
               ref={inputRef}
               type="text"
               value={query}
@@ -180,7 +180,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
                 category === 'generic' ? 'Search generic / ingredient...' :
                 'Search symptom or condition...'
               )}
-              className="flex-1 min-w-0 bg-transparent text-white placeholder-white/30 text-sm sm:text-base outline-hidden"
+              className="flex-1 min-w-0 bg-transparent text-white placeholder-ink-muted text-base outline-hidden"
               autoComplete="off"
               spellCheck={false}
             />
@@ -193,8 +193,9 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
+                  aria-label="Clear medicine search"
                   onClick={handleClear}
-                  className="shrink-0 p-1 rounded-full text-white/30 hover:text-white/70 transition-colors"
+                  className="shrink-0 p-1 rounded-full text-ink-muted hover:text-ink transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </motion.button>
@@ -205,7 +206,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
             <motion.button
               type="submit"
               whileTap={{ scale: 0.95 }}
-              className="shrink-0 px-3 sm:px-4 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/30 transition-colors"
+              className="tm-press min-h-11 shrink-0 px-4 rounded-full bg-pill text-pill-ink text-sm font-medium hover:opacity-90 transition-colors"
             >
               Search
             </motion.button>
@@ -221,7 +222,7 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="absolute z-50 top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden border border-white/10 backdrop-blur-xl bg-black/80 shadow-2xl"
+            className="tm-glass tm-surface absolute z-50 top-full left-0 right-0 mt-3 rounded-3xl max-h-80 overflow-y-auto"
           >
             {suggestions.map((drug, i) => (
               <motion.button
@@ -252,15 +253,15 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
                       <span className="text-emerald-400/80 text-xs">{drug.strength}</span>
                     )}
                     {drug.form && (
-                      <span className="text-white/40 text-xs">{drug.form}</span>
+                      <span className="text-ink-muted text-xs">{drug.form}</span>
                     )}
                   </div>
-                  <div className="text-white/40 text-xs mt-0.5 truncate">
+                  <div className="text-ink-muted text-xs mt-0.5 truncate">
                     {drug.generic_name}
                     {drug.manufacturer ? ` · ${drug.manufacturer}` : ''}
                   </div>
                   {drug.indication && (
-                    <div className="text-white/30 text-xs mt-0.5 truncate">
+                    <div className="text-ink-muted text-xs mt-0.5 truncate">
                       {drug.indication.slice(0, 80)}{drug.indication.length > 80 ? '…' : ''}
                     </div>
                   )}
@@ -277,8 +278,8 @@ export function DrugSearchBar({ onSelect, onSearch, placeholder }: DrugSearchBar
 
             {/* Footer hint */}
             <div className="px-5 py-2.5 border-t border-white/5 flex items-center justify-between">
-              <span className="text-white/20 text-xs">Press Enter to see all results</span>
-              <span className="text-white/20 text-xs">{suggestions.length} found</span>
+              <span className="text-ink-muted text-xs">Press Enter to see all results</span>
+              <span className="text-ink-muted text-xs">{suggestions.length} found</span>
             </div>
           </motion.div>
         )}

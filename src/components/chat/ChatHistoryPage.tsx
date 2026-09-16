@@ -1,9 +1,11 @@
+import { History } from 'lucide-react';
+import { AppAtmosphere } from '../shared/AppAtmosphere';
 import { parseChatImport } from '../../services/chat/storedChatValidation';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as Tabs from '@radix-ui/react-tabs';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Pencil, Trash2, ChevronLeft, ChevronRight, Download, Upload, Cloud, CloudOff, RefreshCw, Users } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, ChevronLeft, ChevronRight, Download, Upload, Cloud, CloudOff, RefreshCw, Users, MessageCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
   ChatSession,
@@ -292,29 +294,27 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
 
   return (
     <div
-      className="h-screen overflow-y-auto text-white"
-      style={{
-        background: 'var(--tm-page-bg)'
-      }}
+      className="tm-workspace tm-page tm-history"
     >
-      <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
+      <AppAtmosphere />
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between mb-8"
+          className="tm-history-header mb-8"
         >
           <motion.button
             whileHover={{ scale: 1.05, x: -2 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+            className="tm-glass tm-pill-action flex items-center gap-2 px-4 text-ink hover:text-white transition-colors"
           >
             <ArrowLeft size={20} />
             <span className="text-sm font-medium">Back</span>
           </motion.button>
 
-          <h1 className="text-2xl font-bold text-white">Chat History</h1>
+          <h1 className="tm-display tm-page-heading text-white">Chat History</h1>
 
           {/* Cloud sync indicator */}
           <div className="flex items-center gap-2">
@@ -325,8 +325,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
               </div>
             ) : (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/20">
-                <CloudOff className="w-4 h-4 text-white/50" />
-                <span className="text-xs text-white/50">Local only</span>
+                <CloudOff className="w-4 h-4 text-ink-muted" />
+                <span className="text-xs text-ink-muted">Local only</span>
               </div>
             )}
           </div>
@@ -380,12 +380,12 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
         )}
 
         {/* Export/Import Buttons */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleExportChats}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all duration-200"
+            className="tm-glass tm-pill-action flex items-center gap-2 px-4 py-2 rounded-full text-white transition-all duration-200"
             style={{
               background: 'rgb(var(--tm-ink-rgb) / 0.05)',
               border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
@@ -399,7 +399,7 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleImportChats}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all duration-200"
+            className="tm-glass tm-pill-action flex items-center gap-2 px-4 py-2 rounded-full text-white transition-all duration-200"
             style={{
               background: 'rgb(var(--tm-ink-rgb) / 0.05)',
               border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
@@ -414,7 +414,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
             whileTap={{ scale: 0.95 }}
             onClick={loadChatSessions}
             disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all duration-200 disabled:opacity-50"
+            aria-label="Refresh chat history"
+            className="tm-glass tm-pill-action flex items-center gap-2 px-4 py-2 rounded-full text-white transition-all duration-200 disabled:opacity-50"
             style={{
               background: 'rgb(var(--tm-ink-rgb) / 0.05)',
               border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
@@ -444,6 +445,7 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => handleTabChange('prev')}
+                aria-label="Previous history tab"
                 className="p-2 rounded-full transition-all duration-200"
                 style={{
                   background: 'rgb(var(--tm-ink-rgb) / 0.05)',
@@ -469,6 +471,7 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => handleTabChange('next')}
+                aria-label="Next history tab"
                 className="p-2 rounded-full transition-all duration-200"
                 style={{
                   background: 'rgb(var(--tm-ink-rgb) / 0.05)',
@@ -510,12 +513,12 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
             ) : selectedTab === 'groupChats' ? (
               // Render group chats
               groupChats.length === 0 ? (
-                <div className="text-center py-12 text-white opacity-70">
+                <div className="tm-history-empty text-center py-12 text-white">
                   <div className="flex flex-col items-center gap-4">
-                    <div className="text-6xl opacity-30">👥</div>
+                    <div className="mx-auto mb-2 text-ink-muted"><Users className="h-9 w-9" aria-hidden="true" /></div>
                     <div>
                       <p className="text-lg mb-2">No group chats found</p>
-                      <p className="text-sm opacity-50">
+                      <p className="text-sm text-ink-muted">
                         {user
                           ? 'Group chats will appear here when you create or join them'
                           : 'Sign in to access group chats'}
@@ -553,13 +556,22 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                 ))
               )
             ) : filteredSessions.length === 0 ? (
-              <div className="text-center py-12 text-white opacity-70">
+              <div className="tm-history-empty text-center py-12 text-white">
                 <div className="flex flex-col items-center gap-4">
-                  <div className="text-6xl opacity-30">💭</div>
+                  <div className="mx-auto mb-2 text-ink-muted"><History className="h-9 w-9" aria-hidden="true" /></div>
                   <div>
                     <p className="text-lg mb-2">No chats found for {HISTORY_TABS[selectedTab].name}</p>
-                    <p className="text-sm opacity-50">Start a conversation to see your chat history here</p>
+                    <p className="text-sm text-ink-muted">Start a conversation to see your chat history here</p>
                   </div>
+                  <motion.button
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate('/')}
+                    className="tm-glass tm-press tm-pill-action inline-flex items-center gap-2 px-4 text-sm font-medium text-ink"
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                    Start a chat
+                  </motion.button>
                 </div>
               </div>
             ) : (
@@ -626,6 +638,7 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                           e.stopPropagation();
                           handleRename(session.id);
                         }}
+                        aria-label={`Rename ${session.name || 'chat'}`}
                         className="p-2 rounded-full transition-all duration-200"
                         style={{
                           background: 'rgb(var(--tm-ink-rgb) / 0.05)',
@@ -642,6 +655,7 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
                           e.stopPropagation();
                           handleDelete(session.id);
                         }}
+                        aria-label={`Delete ${session.name || 'chat'}`}
                         className="p-2 rounded-full transition-all duration-200 hover:bg-red-500/20"
                         style={{
                           background: 'rgb(var(--tm-ink-rgb) / 0.05)',

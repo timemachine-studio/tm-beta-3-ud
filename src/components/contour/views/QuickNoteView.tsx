@@ -27,11 +27,11 @@ export function QuickNoteView({
                 </div>
                 <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-bold text-white truncate">{saved ? 'Saved to Quick Notes' : 'New Quick Note'}</h3>
-                    {!saved && <p className="text-xs text-white/50 font-mono">Press ↵ to save</p>}
+                    {!saved && <p className="text-xs text-ink-muted font-mono">Press ↵ to save</p>}
                 </div>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white/90">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-ink">
                 "{note.content}"
             </div>
 

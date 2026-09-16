@@ -17,7 +17,7 @@ export function UnitsView({ module, accent, onCopyValue }: { module: ModuleData;
         <div className="flex items-center gap-3">
           <IconBadge icon={ArrowLeftRight} accent={accent} />
           <div className="flex-1 min-w-0">
-            <div className={`text-xl font-semibold tracking-tight ${units.isPartial ? 'text-white/50' : 'text-white'}`}>
+            <div className={`text-xl font-semibold tracking-tight ${units.isPartial ? 'text-ink-muted' : 'text-white'}`}>
               {units.display}
             </div>
           </div>
@@ -90,8 +90,8 @@ function UnitsInteractive({ units, accent, onCopyValue }: { units?: UnitResult; 
           <button
             key={cat.id}
             onClick={() => handleCategoryChange(cat.id)}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all ${
-              activeCategoryId === cat.id ? 'text-white' : 'text-white/40 hover:text-white/60'
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+              activeCategoryId === cat.id ? 'text-white' : 'text-ink-muted hover:text-ink-muted'
             }`}
             style={activeCategoryId === cat.id ? {
               background: accent.bg,
@@ -128,7 +128,7 @@ function UnitsInteractive({ units, accent, onCopyValue }: { units?: UnitResult; 
         </select>
         <button
           onClick={handleSwap}
-          className="p-2 rounded-lg text-white/40 hover:text-white/70 transition-colors shrink-0"
+          className="p-2 rounded-lg text-ink-muted hover:text-ink transition-colors shrink-0"
           style={{ background: 'rgb(var(--tm-ink-rgb) / 0.04)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)' }}
         >
           <Shuffle className="w-3.5 h-3.5" />

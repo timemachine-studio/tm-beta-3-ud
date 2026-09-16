@@ -18,11 +18,11 @@ function DateView({ module, accent, onCopyValue }: { module: ModuleData; accent:
         <div className="flex items-center gap-3">
           <IconBadge icon={Calendar} accent={accent} />
           <div className="flex-1 min-w-0">
-            <div className={`text-xl font-semibold tracking-tight ${date.isPartial ? 'text-white/50' : 'text-white'}`}>
+            <div className={`text-xl font-semibold tracking-tight ${date.isPartial ? 'text-ink-muted' : 'text-white'}`}>
               {date.display}
             </div>
             {date.subtitle && (
-              <div className="text-white/30 text-xs mt-1">{date.subtitle}</div>
+              <div className="text-ink-muted text-xs mt-1">{date.subtitle}</div>
             )}
           </div>
         </div>
@@ -83,8 +83,8 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
           <button
             key={op.id}
             onClick={() => { setHasInteracted(true); setOperation(op.id); }}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all ${
-              activeOperation === op.id ? 'text-white' : 'text-white/40 hover:text-white/60'
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+              activeOperation === op.id ? 'text-white' : 'text-ink-muted hover:text-ink-muted'
             }`}
             style={activeOperation === op.id ? {
               background: accent.bg,
@@ -103,13 +103,13 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
       {/* Quick picks (for until/since) */}
       {needsDateInput && (
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-white/20 font-medium uppercase tracking-wider mr-1">Quick</span>
+          <span className="text-xs text-ink-muted font-medium uppercase tracking-wider mr-1">Quick</span>
           <div className="flex gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden">
             {DATE_QUICK_PICKS.map(qp => (
               <button
                 key={qp.value}
                 onClick={() => handleQuickPick(qp.value)}
-                className="px-2 py-0.5 rounded-md text-[10px] font-medium whitespace-nowrap transition-all text-white/35 hover:text-white/55"
+                className="px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap transition-all text-ink-muted hover:text-ink-muted"
                 style={{
                   background: 'rgb(var(--tm-ink-rgb) / 0.03)',
                   border: '1px solid rgb(var(--tm-ink-rgb) / 0.05)',
@@ -142,7 +142,7 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
               className="w-[80px] bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               placeholder="30"
             />
-            <span className="text-white/30 text-sm">days {activeOperation === 'from_now' ? 'from now' : 'ago'}</span>
+            <span className="text-ink-muted text-sm">days {activeOperation === 'from_now' ? 'from now' : 'ago'}</span>
           </>
         )}
         {needsTwoDates && (
@@ -154,7 +154,7 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
               className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-2 text-white text-sm focus:outline-hidden focus:border-white/25 transition-colors"
               placeholder="Start date"
             />
-            <span className="text-white/25 text-xs">to</span>
+            <span className="text-ink-muted text-xs">to</span>
             <input
               type="text"
               value={dateInput2}
@@ -180,7 +180,7 @@ function DateInteractive({ date, accent, onCopyValue }: { date?: DateResult; acc
               {result.display}
             </div>
             {result.subtitle && (
-              <div className="text-white/30 text-xs mt-1">{result.subtitle}</div>
+              <div className="text-ink-muted text-xs mt-1">{result.subtitle}</div>
             )}
           </div>
         </motion.div>

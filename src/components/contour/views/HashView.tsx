@@ -57,13 +57,13 @@ export function HashView({ module, accent, onCopyValue }: { module: ModuleData; 
           value={inputText}
           onChange={e => { setHasInteracted(true); setInputText(e.target.value); }}
           placeholder="Type text to hash..."
-          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors mb-3"
+          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-ink-muted focus:outline-hidden focus:border-white/25 transition-colors mb-3"
         />
       )}
       <div className="flex items-center gap-3 mb-3">
         <IconBadge icon={Hash} accent={accent} />
         <div className="flex-1 min-w-0">
-          <div className="text-white/40 text-xs">Hash of &ldquo;{displayResult.input.length > 30 ? displayResult.input.slice(0, 30) + '...' : displayResult.input}&rdquo;</div>
+          <div className="text-ink-muted text-xs">Hash of &ldquo;{displayResult.input.length > 30 ? displayResult.input.slice(0, 30) + '...' : displayResult.input}&rdquo;</div>
         </div>
         {displayResult.isLoading && (
           <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin shrink-0" />
@@ -72,13 +72,13 @@ export function HashView({ module, accent, onCopyValue }: { module: ModuleData; 
       <div className="space-y-2">
         {hashes.map(({ label, value }) => (
           <div key={label} className="flex items-start gap-2 group">
-            <span className="text-[10px] font-mono text-white/25 w-12 shrink-0 pt-0.5">{label}</span>
-            <div className="flex-1 min-w-0 text-xs font-mono text-white/60 break-all leading-relaxed">{value}</div>
+            <span className="text-xs font-mono text-ink-muted w-12 shrink-0 pt-0.5">{label}</span>
+            <div className="flex-1 min-w-0 text-xs font-mono text-ink-muted break-all leading-relaxed">{value}</div>
             <button
               onClick={() => handleCopy(value!, label)}
               className="p-1 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-white/[0.06] transition-all shrink-0"
             >
-              {copiedField === label ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3 text-white/30" />}
+              {copiedField === label ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3 text-ink-muted" />}
             </button>
           </div>
         ))}

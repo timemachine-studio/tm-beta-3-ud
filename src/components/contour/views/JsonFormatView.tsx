@@ -41,7 +41,7 @@ export function JsonFormatView({ module, accent, onCopyValue }: { module: Module
           value={inputText}
           onChange={e => { setHasInteracted(true); setInputText(e.target.value); }}
           placeholder="Paste JSON here..."
-          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-xs font-mono placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors mb-3 resize-none"
+          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-xs font-mono placeholder:text-ink-muted focus:outline-hidden focus:border-white/25 transition-colors mb-3 resize-none"
           rows={3}
         />
       )}
@@ -52,7 +52,7 @@ export function JsonFormatView({ module, accent, onCopyValue }: { module: Module
             {displayResult.isValid ? 'Valid JSON' : 'Invalid JSON'}
           </div>
           {displayResult.isValid && (
-            <div className="text-white/30 text-xs">{displayResult.keyCount} keys, depth {displayResult.depth}</div>
+            <div className="text-ink-muted text-xs">{displayResult.keyCount} keys, depth {displayResult.depth}</div>
           )}
           {displayResult.error && (
             <div className="text-red-400/60 text-xs">{displayResult.error}</div>
@@ -64,20 +64,20 @@ export function JsonFormatView({ module, accent, onCopyValue }: { module: Module
           <div className="flex gap-1.5 mb-2">
             <button
               onClick={() => setShowMinified(false)}
-              className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${!showMinified ? 'text-white' : 'text-white/35'}`}
+              className={`px-2 py-0.5 rounded-md text-xs font-medium transition-all ${!showMinified ? 'text-white' : 'text-ink-muted'}`}
               style={!showMinified ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.05)' }}
             >
               Formatted
             </button>
             <button
               onClick={() => setShowMinified(true)}
-              className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${showMinified ? 'text-white' : 'text-white/35'}`}
+              className={`px-2 py-0.5 rounded-md text-xs font-medium transition-all ${showMinified ? 'text-white' : 'text-ink-muted'}`}
               style={showMinified ? { background: accent.bg, border: `1px solid ${accent.border}` } : { background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.05)' }}
             >
               Minified
             </button>
           </div>
-          <div className="max-h-[140px] overflow-y-auto rounded-lg p-3 text-white/70 text-xs font-mono leading-relaxed [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10 whitespace-pre-wrap break-all"
+          <div className="max-h-[140px] overflow-y-auto rounded-lg p-3 text-ink text-xs font-mono leading-relaxed [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10 whitespace-pre-wrap break-all"
             style={{ background: 'rgb(var(--tm-ink-rgb) / 0.03)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}
           >
             {output}
@@ -87,12 +87,12 @@ export function JsonFormatView({ module, accent, onCopyValue }: { module: Module
       <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-ink-muted hover:text-ink hover:bg-white/[0.06] transition-colors"
         >
           {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
           {copied ? 'Copied!' : 'Copy'}
         </button>
-        <span className="text-[10px] text-white/20">Press Enter to copy</span>
+        <span className="text-xs text-ink-muted">Press Enter to copy</span>
       </div>
     </div>
   );

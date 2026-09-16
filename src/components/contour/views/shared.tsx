@@ -32,7 +32,7 @@ export function HintView({ icon: Icon, accent, text }: { icon: React.ComponentTy
     <div className="p-4">
       <div className="flex items-center gap-3">
         <IconBadge icon={Icon} accent={accent} />
-        <div className="text-white/30 text-sm">{text}</div>
+        <div className="text-ink-muted text-sm">{text}</div>
       </div>
     </div>
   );
@@ -41,7 +41,7 @@ export function HintView({ icon: Icon, accent, text }: { icon: React.ComponentTy
 export function FooterHint({ text }: { text: string }) {
   return (
     <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
-      <span className="text-[10px] text-white/20">{text}</span>
+      <span className="text-xs text-ink-muted">{text}</span>
     </div>
   );
 }

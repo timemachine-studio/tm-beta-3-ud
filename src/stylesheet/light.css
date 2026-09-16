@@ -70,6 +70,8 @@
   /* A card. Opaque, a step lighter than the canvas, one soft shadow. */
   --tm-pane-bg: #fffaf3;
   --tm-pane-border: #eadcc6;
+  --tm-blur-glass: 32px;
+  --tm-blur-pane: 44px;
   --tm-pane-shadow:
     0 1px 2px rgb(var(--tm-shadow-rgb) / 0.04),
     0 10px 28px -14px rgb(var(--tm-shadow-rgb) / 0.16);
@@ -287,6 +289,46 @@
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   text-shadow: none !important;
+}
+
+/* Settings is a focused sheet, so it gets the one intentional light-mode
+   glass exception. A nearly opaque warm pane keeps the active controls clear
+   while the blur preserves the landing page underneath as a soft material,
+   rather than letting its headline show through the form. */
+:root[data-theme="light"] .tm-settings {
+  background: color-mix(in srgb, var(--tm-pane-bg) 97%, transparent) !important;
+  backdrop-filter: blur(var(--tm-blur-pane)) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(var(--tm-blur-pane)) saturate(125%) !important;
+  border-color: color-mix(in srgb, var(--color-ink) 14%, transparent) !important;
+  box-shadow:
+    0 1px 2px rgb(var(--tm-shadow-rgb) / 0.06),
+    0 24px 60px -24px rgb(var(--tm-shadow-rgb) / 0.28),
+    inset 0 1px 0 rgb(255 255 255 / 0.72) !important;
+}
+
+:root[data-theme="light"] .tm-settings [style*="backdrop-filter"] {
+  background: color-mix(in srgb, var(--tm-pane-bg) 94%, transparent) !important;
+  backdrop-filter: blur(var(--tm-blur-glass)) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(var(--tm-blur-glass)) saturate(120%) !important;
+  border-color: color-mix(in srgb, var(--color-ink) 12%, transparent) !important;
+}
+
+:root[data-theme="light"] .tm-modal-scrim {
+  background: rgb(var(--tm-paper-rgb) / 0.34) !important;
+  backdrop-filter: blur(22px) saturate(112%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(112%) !important;
+}
+
+:root[data-theme="light"] .tm-user-bubble {
+  background: color-mix(in srgb, var(--tm-pane-bg) 92%, var(--color-purple-900)) !important;
+  border-color: color-mix(in srgb, var(--color-ink) 14%, transparent) !important;
+  backdrop-filter: blur(22px) saturate(115%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(115%) !important;
+  box-shadow: var(--tm-pane-shadow) !important;
+}
+
+:root[data-theme="light"] .tm-user-bubble-other {
+  background: color-mix(in srgb, var(--tm-pane-bg) 92%, var(--color-blue-900)) !important;
 }
 
 /* No glow, no glass edge. Every inline box-shadow in the app is one of

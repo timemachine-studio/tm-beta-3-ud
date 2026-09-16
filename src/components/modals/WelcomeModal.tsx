@@ -93,7 +93,7 @@ export function WelcomeModal({ isOpen, onAccessGranted }: WelcomeModalProps) {
                     bg-linear-to-b/srgb from-white/10 to-white/5 backdrop-blur-3xl
                     border border-white/20 shadow-[0_8px_32px_rgba(139,92,246,0.2)]
                     overflow-hidden
-                    max-h-[90vh] max-h-[90dvh] overflow-y-auto"
+                    max-h-[calc(var(--tm-100dvh)*0.9)] overflow-y-auto"
                 >
                   {/* Animated background elements */}
                   <div className="absolute inset-0 overflow-hidden">

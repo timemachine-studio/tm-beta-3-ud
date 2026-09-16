@@ -19,7 +19,7 @@ function DictionaryView({ module, accent, onCopyValue }: { module: ModuleData; a
           <div className="flex-1 min-w-0">
             {dict.isLoading ? (
               <div className="flex items-center gap-2">
-                <div className="text-white/50 text-lg">Looking up &ldquo;{dict.word}&rdquo;...</div>
+                <div className="text-ink-muted text-lg">Looking up &ldquo;{dict.word}&rdquo;...</div>
                 <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
               </div>
             ) : dict.error ? (
@@ -55,7 +55,7 @@ function DictHeader({ dict, accent }: { dict: DictionaryResult; accent: AccentTh
     <div className="flex items-baseline gap-2 mb-1">
       <span className="text-white text-lg font-semibold capitalize">{dict.word}</span>
       {dict.phonetic && (
-        <span className="text-white/30 text-xs font-mono">{dict.phonetic}</span>
+        <span className="text-ink-muted text-xs font-mono">{dict.phonetic}</span>
       )}
       {dict.phoneticAudio && (
         <button
@@ -79,7 +79,7 @@ function DictMeanings({ dict, accent, compact }: { dict: DictionaryResult; accen
       {dict.meanings.slice(0, maxMeanings).map((meaning, i) => (
         <div key={i}>
           <span
-            className="text-[10px] font-medium tracking-wider uppercase px-1.5 py-0.5 rounded-sm"
+            className="text-xs font-medium tracking-wider uppercase px-1.5 py-0.5 rounded-sm"
             style={{ background: accent.bg, color: accent.solid }}
           >
             {meaning.partOfSpeech}
@@ -87,26 +87,26 @@ function DictMeanings({ dict, accent, compact }: { dict: DictionaryResult; accen
           <div className="mt-1 space-y-1">
             {meaning.definitions.slice(0, maxDefs).map((def, j) => (
               <div key={j}>
-                <div className="text-white/80 text-sm">{def.definition}</div>
+                <div className="text-ink text-sm">{def.definition}</div>
                 {def.example && !compact && (
-                  <div className="text-white/30 text-xs italic ml-3 mt-0.5">&ldquo;{def.example}&rdquo;</div>
+                  <div className="text-ink-muted text-xs italic ml-3 mt-0.5">&ldquo;{def.example}&rdquo;</div>
                 )}
               </div>
             ))}
           </div>
           {!compact && meaning.synonyms.length > 0 && (
             <div className="mt-1 flex items-center gap-1 flex-wrap">
-              <span className="text-white/25 text-[10px]">Synonyms:</span>
+              <span className="text-ink-muted text-xs">Synonyms:</span>
               {meaning.synonyms.map((s, k) => (
-                <span key={k} className="text-[10px] px-1.5 py-0.5 rounded-sm bg-white/[0.04] text-white/40">{s}</span>
+                <span key={k} className="text-xs px-1.5 py-0.5 rounded-sm bg-white/[0.04] text-ink-muted">{s}</span>
               ))}
             </div>
           )}
           {!compact && meaning.antonyms.length > 0 && (
             <div className="mt-1 flex items-center gap-1 flex-wrap">
-              <span className="text-white/25 text-[10px]">Antonyms:</span>
+              <span className="text-ink-muted text-xs">Antonyms:</span>
               {meaning.antonyms.map((s, k) => (
-                <span key={k} className="text-[10px] px-1.5 py-0.5 rounded-sm bg-white/[0.04] text-white/40">{s}</span>
+                <span key={k} className="text-xs px-1.5 py-0.5 rounded-sm bg-white/[0.04] text-ink-muted">{s}</span>
               ))}
             </div>
           )}
@@ -168,7 +168,7 @@ function DictionaryInteractive({ dict, accent, onCopyValue }: { dict?: Dictionar
           value={inputWord}
           onChange={e => { setHasInteracted(true); setInputWord(e.target.value); }}
           placeholder="Type a word to look up..."
-          className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-hidden focus:border-white/25 transition-colors"
+          className="flex-1 bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-ink-muted focus:outline-hidden focus:border-white/25 transition-colors"
         />
       </div>
 
@@ -176,7 +176,7 @@ function DictionaryInteractive({ dict, accent, onCopyValue }: { dict?: Dictionar
       {isLoading ? (
         <div className="flex items-center gap-2 py-3">
           <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-          <span className="text-white/40 text-sm">Looking up...</span>
+          <span className="text-ink-muted text-sm">Looking up...</span>
         </div>
       ) : result ? (
         result.error ? (
@@ -188,7 +188,7 @@ function DictionaryInteractive({ dict, accent, onCopyValue }: { dict?: Dictionar
             <div className="mt-3 pt-2 flex items-center gap-2" style={{ borderTop: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-ink-muted hover:text-ink hover:bg-white/[0.06] transition-colors"
               >
                 {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                 {copied ? 'Copied!' : 'Copy definition'}
@@ -197,7 +197,7 @@ function DictionaryInteractive({ dict, accent, onCopyValue }: { dict?: Dictionar
           </div>
         ) : null
       ) : !inputWord.trim() ? (
-        <div className="text-white/20 text-xs py-2">Type a word above to see its definition</div>
+        <div className="text-ink-muted text-xs py-2">Type a word above to see its definition</div>
       ) : null}
 
       <FooterHint text="Type a word to see definitions, pronunciation, synonyms & antonyms" />

@@ -90,6 +90,13 @@ export default defineConfig(({ mode }) => {
       // tests run twice, once from source and once from a stale bundle.
       exclude: ['**/node_modules/**', '**/dist/**', '**/.vercel/**'],
     },
+    server: {
+      // 5173 unless a launcher hands us a port (the desktop preview does when
+      // another dev server already holds 5173). Only the GitHub OAuth callback
+      // for Max Mode is registered against 5173, and that flow is not part of
+      // an ordinary preview.
+      port: Number(process.env.PORT) || 5173,
+    },
     resolve: {
       dedupe: ['react', 'react-dom'],
     },

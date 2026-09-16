@@ -35,7 +35,7 @@ export function RandomView({ module, accent, onCopyValue }: { module: ModuleData
       <div className="p-4">
         <div className="flex items-center gap-3 mb-4">
           <IconBadge icon={Shuffle} accent={accent} />
-          <div className="text-white/30 text-sm">{MODULE_META.random.placeholder}</div>
+          <div className="text-ink-muted text-sm">{MODULE_META.random.placeholder}</div>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {QUICK_ACTIONS.map(action => {
@@ -47,7 +47,7 @@ export function RandomView({ module, accent, onCopyValue }: { module: ModuleData
                 className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-white/[0.06] transition-colors border border-transparent hover:border-white/10"
               >
                 <ActionIcon className={`w-4 h-4 ${accent.text}`} />
-                <span className="text-xs text-white/50">{action.label}</span>
+                <span className="text-xs text-ink-muted">{action.label}</span>
               </button>
             );
           })}
@@ -66,7 +66,7 @@ export function RandomView({ module, accent, onCopyValue }: { module: ModuleData
       <div className="flex items-center gap-3">
         <IconBadge icon={Shuffle} accent={accent} />
         <div className="flex-1 min-w-0">
-          <div className="text-white/40 text-xs font-mono mb-1">{current.label}</div>
+          <div className="text-ink-muted text-xs font-mono mb-1">{current.label}</div>
           <div className="flex items-center gap-2">
             {isHex && (
               <div className="w-6 h-6 rounded-md shrink-0 border border-white/10" style={{ background: current.value }} />
@@ -76,7 +76,7 @@ export function RandomView({ module, accent, onCopyValue }: { module: ModuleData
             </div>
           </div>
           {current.detail && (
-            <div className="text-white/25 text-xs mt-1 font-mono">{current.detail}</div>
+            <div className="text-ink-muted text-xs mt-1 font-mono">{current.detail}</div>
           )}
         </div>
       </div>
@@ -85,19 +85,19 @@ export function RandomView({ module, accent, onCopyValue }: { module: ModuleData
         <div className="flex items-center gap-2">
           <button
             onClick={handleRegenerate}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-ink-muted hover:text-ink hover:bg-white/[0.06] transition-colors"
           >
             <RefreshCw className="w-3 h-3" /> Regenerate
           </button>
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-ink-muted hover:text-ink hover:bg-white/[0.06] transition-colors"
           >
             {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
             {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>
-        <span className="text-[10px] text-white/20">Press Enter to copy</span>
+        <span className="text-xs text-ink-muted">Press Enter to copy</span>
       </div>
     </div>
   );

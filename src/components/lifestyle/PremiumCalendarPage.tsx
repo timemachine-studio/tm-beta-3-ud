@@ -191,7 +191,7 @@ export function PremiumCalendarPage() {
     }
 
     return (
-        <div className="flex h-[calc(100vh-140px)] w-full max-w-[1600px] mx-auto px-4 md:px-8 gap-6 -mt-4">
+        <div className="flex h-[calc(var(--tm-100vh)-140px)] w-full max-w-[1600px] mx-auto px-4 md:px-8 gap-6 -mt-4">
 
             {/* Sidebar */}
             <div className="hidden lg:flex flex-col w-72 shrink-0 gap-6">

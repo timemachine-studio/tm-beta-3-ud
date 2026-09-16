@@ -37,13 +37,7 @@ function UserMessageComponent({ content, imageData, inputImageUrls, pdfFileName,
           </div>
         )}
 
-        <div className={`px-4 py-2 rounded-2xl
-            ${isOtherUser
-              ? 'bg-blue-500/10 border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
-              : 'bg-purple-500/10 border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
-            }
-            backdrop-blur-xs border
-            ${theme.text} text-base`}
+        <div className={`tm-user-bubble ${isOtherUser ? 'tm-user-bubble-other' : ''} px-4 py-2 rounded-2xl ${theme.text} text-base`}
           >
           {/* Display images if present - prefer inputImageUrls (persistent URLs) over imageData (base64) */}
           {(inputImageUrls && inputImageUrls.length > 0) ? (

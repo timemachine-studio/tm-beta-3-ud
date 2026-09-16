@@ -52,7 +52,7 @@ function TimerDisplay({ timer, accent, onStart, onToggle, onReset }: {
       <div className="flex items-center gap-3 mb-3">
         <IconBadge icon={Timer} accent={accent} />
         <div className="flex-1 min-w-0">
-          <div className="text-white/30 text-xs mb-1">{timer.label} timer</div>
+          <div className="text-ink-muted text-xs mb-1">{timer.label} timer</div>
           <div className={`text-3xl font-mono font-bold tracking-tight ${timer.isComplete ? accent.text : 'text-white'}`}>
             {timer.display}
           </div>
@@ -72,7 +72,7 @@ function TimerDisplay({ timer, accent, onStart, onToggle, onReset }: {
         {!timer.isRunning && !timer.isComplete && timer.remainingSeconds === timer.totalSeconds && (
           <button
             onClick={onStart}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/80 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-ink transition-colors"
             style={{ background: accent.bg, border: `1px solid ${accent.border}` }}
           >
             <Play className="w-3 h-3" /> Start
@@ -81,7 +81,7 @@ function TimerDisplay({ timer, accent, onStart, onToggle, onReset }: {
         {(timer.isRunning || (timer.remainingSeconds < timer.totalSeconds && !timer.isComplete)) && (
           <button
             onClick={onToggle}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/80 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-ink transition-colors"
             style={{ background: accent.bg, border: `1px solid ${accent.border}` }}
           >
             {timer.isRunning ? <><Pause className="w-3 h-3" /> Pause</> : <><Play className="w-3 h-3" /> Resume</>}
@@ -90,7 +90,7 @@ function TimerDisplay({ timer, accent, onStart, onToggle, onReset }: {
         {(timer.remainingSeconds < timer.totalSeconds || timer.isComplete) && (
           <button
             onClick={onReset}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 hover:text-white/80 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-ink-muted hover:text-ink transition-colors"
             style={{ background: 'rgb(var(--tm-ink-rgb) / 0.04)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)' }}
           >
             <RotateCcw className="w-3 h-3" /> Reset
@@ -103,7 +103,7 @@ function TimerDisplay({ timer, accent, onStart, onToggle, onReset }: {
 
       {!timer.isRunning && !timer.isComplete && timer.remainingSeconds === timer.totalSeconds && (
         <div className="mt-2">
-          <span className="text-[10px] text-white/20">Press Start or Enter to begin</span>
+          <span className="text-xs text-ink-muted">Press Start or Enter to begin</span>
         </div>
       )}
     </div>
@@ -140,7 +140,7 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
         <div className="flex items-center gap-3">
           <IconBadge icon={Timer} accent={accent} />
           <div className="flex-1 min-w-0">
-            <div className="text-white/30 text-xs mb-1">{timer.label} timer</div>
+            <div className="text-ink-muted text-xs mb-1">{timer.label} timer</div>
             <div className={`text-3xl font-mono font-bold tracking-tight ${timer.isComplete ? accent.text : 'text-white'}`}>
               {timer.display}
             </div>
@@ -162,7 +162,7 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
           {!timer.isRunning && !timer.isComplete && timer.remainingSeconds === timer.totalSeconds && (
             <button
               onClick={onStart}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/80 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-ink transition-colors"
               style={{ background: accent.bg, border: `1px solid ${accent.border}` }}
             >
               <Play className="w-3 h-3" /> Start
@@ -171,7 +171,7 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
           {(timer.isRunning || (timer.remainingSeconds < timer.totalSeconds && !timer.isComplete)) && (
             <button
               onClick={onToggle}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/80 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-ink transition-colors"
               style={{ background: accent.bg, border: `1px solid ${accent.border}` }}
             >
               {timer.isRunning ? <><Pause className="w-3 h-3" /> Pause</> : <><Play className="w-3 h-3" /> Resume</>}
@@ -180,7 +180,7 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
           {(timer.remainingSeconds < timer.totalSeconds || timer.isComplete) && (
             <button
               onClick={onReset}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 hover:text-white/80 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-ink-muted hover:text-ink transition-colors"
               style={{ background: 'rgb(var(--tm-ink-rgb) / 0.04)', border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)' }}
             >
               <RotateCcw className="w-3 h-3" /> Reset
@@ -198,8 +198,8 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
               <button
                 key={p.label}
                 onClick={() => handlePreset(p.seconds)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all ${
-                  timer.totalSeconds === p.seconds ? 'text-white' : 'text-white/40 hover:text-white/60'
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                  timer.totalSeconds === p.seconds ? 'text-white' : 'text-ink-muted hover:text-ink-muted'
                 }`}
                 style={timer.totalSeconds === p.seconds ? {
                   background: accent.bg,
@@ -231,7 +231,7 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
           <button
             key={p.label}
             onClick={() => handlePreset(p.seconds)}
-            className="px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all text-white/40 hover:text-white/60"
+            className="px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all text-ink-muted hover:text-ink-muted"
             style={{
               background: 'rgb(var(--tm-ink-rgb) / 0.03)',
               border: '1px solid rgb(var(--tm-ink-rgb) / 0.06)',
@@ -244,7 +244,7 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
 
       {/* Custom H:M:S input */}
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] text-white/20 font-medium uppercase tracking-wider mr-1">Custom</span>
+        <span className="text-xs text-ink-muted font-medium uppercase tracking-wider mr-1">Custom</span>
         <div className="flex items-center gap-1">
           <input
             type="number"
@@ -253,7 +253,7 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
             onChange={e => setCustomH(e.target.value)}
             className="w-[40px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-1.5 text-white text-xs font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
-          <span className="text-white/20 text-[10px]">h</span>
+          <span className="text-ink-muted text-xs">h</span>
         </div>
         <div className="flex items-center gap-1">
           <input
@@ -263,7 +263,7 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
             onChange={e => setCustomM(e.target.value)}
             className="w-[40px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-1.5 text-white text-xs font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
-          <span className="text-white/20 text-[10px]">m</span>
+          <span className="text-ink-muted text-xs">m</span>
         </div>
         <div className="flex items-center gap-1">
           <input
@@ -273,11 +273,11 @@ function TimerInteractive({ timer, accent, onStart, onToggle, onReset, onSetDura
             onChange={e => setCustomS(e.target.value)}
             className="w-[40px] bg-white/[0.06] border border-white/10 rounded-lg px-1.5 py-1.5 text-white text-xs font-mono text-center focus:outline-hidden focus:border-white/25 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
-          <span className="text-white/20 text-[10px]">s</span>
+          <span className="text-ink-muted text-xs">s</span>
         </div>
         <button
           onClick={handleCustomSet}
-          className="ml-1 px-3 py-1.5 rounded-lg text-[11px] font-medium text-white/70 hover:text-white transition-colors"
+          className="ml-1 px-3 py-1.5 rounded-lg text-xs font-medium text-ink hover:text-white transition-colors"
           style={{ background: accent.bg, border: `1px solid ${accent.border}` }}
         >
           Set

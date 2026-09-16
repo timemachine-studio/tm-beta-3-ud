@@ -1,0 +1,356 @@
+/* ---- The material ----
+   Liquid Glass, the hero atmosphere and the display voice, shared by the
+   marketing pages and the chat shell so the app never looks like a
+   different product from the page that sold it. landing.css keeps only
+   what is specific to those pages. Written with the theme primitives so
+   light mode can flatten every surface below. */
+
+/* Feedback lives on the press, and it is instant. */
+.tm-press {
+  transition: transform 120ms ease-out, background-color 160ms ease-out, color 160ms ease-out, opacity 160ms ease-out, border-color 160ms ease-out;
+}
+
+.tm-press:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* A lens, not a tint: deep blur with the colour pushed up so what is behind
+   reads as light, a specular rim that is brightest along the top edge and
+   fades down the sides (light from above), a soft inner sheen, and a real
+   drop shadow. */
+.tm-glass {
+  isolation: isolate;
+  background:
+    linear-gradient(135deg, rgb(var(--tm-ink-rgb) / 0.06) 0%, rgb(var(--tm-ink-rgb) / 0.03) 45%, rgb(var(--tm-ink-rgb) / 0.04) 100%);
+  backdrop-filter: blur(var(--tm-blur-glass)) saturate(190%) brightness(1.04);
+  -webkit-backdrop-filter: blur(var(--tm-blur-glass)) saturate(190%) brightness(1.04);
+  border: 1px solid rgb(var(--tm-ink-rgb) / 0.12);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.22),
+    inset 1px 0 0 rgb(var(--tm-edge-rgb) / 0.07),
+    inset -1px 0 0 rgb(var(--tm-edge-rgb) / 0.04),
+    inset 0 -1px 0 rgb(var(--tm-edge-rgb) / 0.03),
+    inset 0 0 24px rgb(var(--tm-edge-rgb) / 0.015),
+    0 24px 60px -24px rgb(var(--tm-shadow-rgb) / 0.75);
+}
+
+/* Glass needs a containing box for its sheen; a utility that already
+   positions it (absolute, fixed) wins. */
+.tm-glass:not(.absolute):not(.fixed):not(.sticky) {
+  position: relative;
+}
+
+/* The sheen: a diagonal band of light caught in the glass. */
+.tm-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(115deg, rgb(var(--tm-edge-rgb) / 0.07) 0%, rgb(var(--tm-edge-rgb) / 0.015) 30%, transparent 55%, rgb(var(--tm-edge-rgb) / 0.025) 100%);
+  z-index: -1;
+}
+
+/* A frame for pictures: a plain near-black window with one hairline. */
+.tm-panel {
+  position: relative;
+  background: rgb(var(--tm-paper-rgb) / 0.8);
+  border: 1px solid rgb(var(--tm-ink-rgb) / 0.1);
+  box-shadow: 0 30px 80px -40px rgb(var(--tm-shadow-rgb) / 0.8), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.06);
+}
+
+/* Small controls: same material, a touch brighter, and the rim reads as a
+   bevel because the radius is tight. */
+.tm-glass-pill {
+  background: linear-gradient(135deg, rgb(var(--tm-ink-rgb) / 0.08), rgb(var(--tm-ink-rgb) / 0.035));
+  box-shadow:
+    inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.26),
+    inset 1px 0 0 rgb(var(--tm-edge-rgb) / 0.08),
+    inset 0 -1px 0 rgb(var(--tm-edge-rgb) / 0.03),
+    0 10px 30px -12px rgb(var(--tm-shadow-rgb) / 0.7);
+}
+
+/* Glass inside glass stacks up; a nested pill stays fainter. */
+.tm-glass .tm-glass-pill {
+  background: linear-gradient(135deg, rgb(var(--tm-ink-rgb) / 0.05), rgb(var(--tm-ink-rgb) / 0.02));
+}
+
+.tm-glass-pill:hover {
+  background: linear-gradient(135deg, rgb(var(--tm-ink-rgb) / 0.11), rgb(var(--tm-ink-rgb) / 0.05));
+}
+
+/* The floating bar. */
+.tm-nav {
+  border-radius: 9999px;
+}
+
+/* A row inside a glass menu: no material of its own, only a wash of the
+   accent on hover so the panel stays one lens. */
+.tm-menu-row {
+  transition: background-color 160ms ease-out, color 160ms ease-out;
+}
+
+.tm-menu-row:hover,
+.tm-menu-row:focus-visible {
+  background-color: rgb(var(--tm-ink-rgb) / 0.06);
+}
+
+/* Light mode has no atmosphere: glass becomes a flat, calm card with one
+   hairline and one soft shadow, as every other surface does there. */
+:root[data-theme="light"] .tm-glass,
+:root[data-theme="light"] .tm-panel,
+:root[data-theme="light"] .tm-glass-pill {
+  background: rgb(var(--tm-ink-rgb) / 0.04);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 1px 2px rgb(var(--tm-shadow-rgb) / 0.06), 0 8px 24px -12px rgb(var(--tm-shadow-rgb) / 0.12);
+}
+
+:root[data-theme="light"] .tm-glass::before {
+  display: none;
+}
+
+/* ---- atmosphere ---- */
+/* Drifting orbs in the three minds' hues over the Autumn Ember ground.
+   Compositor-only properties; the drift stops under reduced motion. */
+.tm-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(120px);
+  will-change: transform;
+  animation: tm-drift 28s ease-in-out infinite alternate;
+}
+
+.tm-orb-a {
+  animation-duration: 26s;
+}
+
+.tm-orb-b {
+  animation-duration: 34s;
+  animation-delay: -9s;
+}
+
+.tm-orb-c {
+  animation-duration: 40s;
+  animation-delay: -17s;
+}
+
+@keyframes tm-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(6vw, -4vh, 0) scale(1.08);
+  }
+
+  100% {
+    transform: translate3d(-5vw, 5vh, 0) scale(0.96);
+  }
+}
+
+/* Pools of the hero's light under the sections. */
+.tm-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(120px);
+  pointer-events: none;
+}
+
+/* The chat's own weather: the landing ground, with the orbs tinted by
+   whichever mind is answering. Hue and strength come from the shell as
+   custom properties so a persona switch is a colour transition, not a
+   remount. Light mode has no atmosphere by design. */
+.tm-atmosphere {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* The landing hero's ground: black at the top, the hue pooling at the
+     bottom and in both lower corners, so no corner of the room goes dead. */
+  background:
+    radial-gradient(70% 55% at 0% 100%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.24), transparent 70%),
+    radial-gradient(70% 55% at 100% 100%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.18), transparent 70%),
+    linear-gradient(to bottom, #030205 0%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.05) 30%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.16) 66%, rgb(var(--tm-atmo-rgb, 168 85 247) / 0.3) 100%),
+    #030205;
+}
+
+.tm-atmosphere .tm-orb {
+  transition: background-color 900ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-orb {
+    animation: none;
+  }
+}
+
+:root[data-theme="light"] .tm-glow,
+:root[data-theme="light"] .tm-atmosphere {
+  display: none;
+}
+
+/* ---- display voice ---- */
+/* Newsreader carries an optical-size axis, so at these sizes the browser
+   serves the high-contrast display cut and the hairlines stay crisp on
+   black; the italic is where the "from future" voice lives. */
+.tm-display,
+.tm-landing .tm-display {
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.tm-display em {
+  font-style: italic;
+  font-weight: 300;
+}
+
+/* Shared UI voice; the editorial face is reserved for the welcome heading. */
+.tm-chat-shell,
+.tm-chat-menu {
+  font-family: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', sans-serif;
+  caret-color: var(--color-focus);
+}
+
+.tm-chat-shell :focus-visible,
+.tm-chat-menu :focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.tm-chat-shell ::selection {
+  background: rgb(168 85 247 / 0.35);
+  color: var(--color-ink);
+}
+
+/* The transcript has its own reading measure. It keeps long answers from
+   becoming a wall of text while allowing cards and code to break out when
+   their content needs the room. */
+.tm-assistant-message {
+  color: var(--color-ink);
+}
+
+.tm-response-copy {
+  max-width: var(--tm-content-measure);
+  font-size: 1rem;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.tm-response-copy :where(h1, h2, h3, h4) {
+  text-wrap: balance;
+  line-height: 1.15;
+  margin-top: 1.5em;
+  margin-bottom: 0.65em;
+}
+
+.tm-response-copy :where(p) {
+  margin-bottom: 1em;
+}
+
+.tm-response-copy :where(ul, ol) {
+  padding-inline-start: 1.35em;
+  margin-block: 0.8em 1.1em;
+}
+
+.tm-response-copy :where(li + li) {
+  margin-top: 0.35em;
+}
+
+.tm-response-copy :where(pre) {
+  max-width: min(100%, 78ch);
+  overflow-x: auto;
+}
+
+.tm-user-bubble {
+  background: rgb(168 85 247 / 0.11);
+  border: 1px solid rgb(168 85 247 / 0.22);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.12), 0 12px 30px -22px rgb(var(--tm-shadow-rgb) / 0.8);
+}
+
+.tm-user-bubble-other {
+  background: rgb(59 130 246 / 0.1);
+  border-color: rgb(59 130 246 / 0.2);
+}
+
+.tm-chat-header { padding-top: env(safe-area-inset-top, 0px); }
+.tm-chat-header button { flex-shrink: 0; }
+.tm-chat-header > div > div:first-child { min-width: 0; }
+.tm-chat-header > div > div:first-child > button { max-width: 100%; }
+.tm-chat-header > div > div:first-child > button > span { min-width: 0; }
+.tm-chat-header > div > div:first-child > button > span > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tm-chat-menu.tm-glass {
+  background: linear-gradient(135deg, rgb(40 29 55 / 0.92), rgb(15 12 24 / 0.92));
+  max-width: calc(100vw - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.tm-chat-welcome {
+  min-height: max(200px, calc(var(--vh, 1vh) * 100 - 192px));
+}
+
+.tm-welcome-heading {
+  /* vw does not shrink with the page zoom; 4.8vw is 6vw at 80%. */
+  font-size: clamp(2.5rem, 4.8vw, 4.5rem);
+  line-height: 1.08;
+}
+
+.tm-welcome-heading > span:last-child {
+  margin-top: 0.3em;
+  font-size: 0.66em;
+}
+
+.tm-composer { position: relative; }
+.tm-chat-dock {
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  /* Just enough to settle the transcript under the composer; the glass does
+     the rest. Any darker and the lit corners go out again. */
+  background: linear-gradient(to top, rgb(var(--tm-paper-rgb) / 0.3), rgb(var(--tm-paper-rgb) / 0.12) 50%, transparent);
+}
+@media (min-width: 640px) {
+  .tm-chat-dock { padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)); }
+}
+.tm-chat-shell .ai-message { font-family: inherit; letter-spacing: normal; line-height: 1.6; }
+.tm-composer-surface {
+  position: absolute !important;
+  inset: 0;
+  border-radius: 32px;
+  pointer-events: none;
+  transition: border-color 180ms ease-out;
+}
+.tm-composer:focus-within .tm-composer-surface {
+  border-color: rgb(var(--tm-composer-hue, 168 85 247) / 0.65);
+}
+.tm-composer textarea:focus-visible { outline: none; }
+.tm-composer textarea::placeholder { color: rgb(var(--tm-ink-rgb) / 0.62); }
+.tm-composer-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: rgb(var(--tm-ink-rgb) / 0.85);
+}
+.tm-composer-control:hover:not(:disabled) { background-color: rgb(var(--tm-ink-rgb) / 0.08); }
+.tm-composer-send { background: var(--color-pill); color: var(--color-pill-ink); }
+.tm-composer-send:hover:not(:disabled) { background: var(--color-pill); opacity: 0.85; }
+.tm-composer-control:disabled { opacity: 0.35; cursor: not-allowed; }
+
+:root[data-theme="light"] .tm-chat-menu.tm-glass { background: var(--tm-popover-bg-solid); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-chat-shell *, .tm-chat-menu { transition-duration: 0s !important; }
+}

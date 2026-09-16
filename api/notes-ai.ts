@@ -2,7 +2,9 @@ import type { ProviderMessage } from './_lib/providerTypes.js';
 import type { VercelRequest, VercelResponse } from './_lib/vercelTypes.js';
 import { getAuthenticatedRequestUser } from './_lib/auth.js';
 import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
+import { providerFetch } from './_lib/providerResilience.js';
 import { notesAiBodySchema, parseOrReject, rejectIfTooLarge } from './_lib/validation.js';
+import { extractImageContent } from './ai-proxy.js';
 
 // ─── Notes AI Co-pilot API ──────────────────────────────────────────
 // Dedicated endpoint for the notes page AI assistant.
@@ -113,6 +115,51 @@ Block index 2 (id: "def") is a text block.
 Response:
 {"edits":[{"blockId":"def","newContent":"Same content","newType":"heading2"}],"newBlocks":[],"message":"Converted the third block to a heading."}`;
 
+// The two minds Notes can ask. Air is the fast edit; PRO is the same upstream
+// the chat's PRO persona runs on, for the asks that need more thought. Both
+// are text-only, so images are transcribed first (extractImageContent).
+type NotesModel = 'air' | 'pro';
+
+async function callEaonAPI(messages: ProviderMessage[]): Promise<string> {
+  const EAON_API_KEY = process.env.EAON_API_KEY;
+  if (!EAON_API_KEY) {
+    throw new Error('EAON_API_KEY not configured');
+  }
+
+  const response = await providerFetch('https://ai.eaon.dev/v1/chat/completions', {
+    providerLabel: 'eaon',
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${EAON_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'eaon/minimax-m3',
+      messages,
+      temperature: 0.4,
+      max_tokens: 6000,
+      stream: false,
+      // The answer must be the JSON object and nothing else; a visible
+      // reasoning preamble would break the parse below.
+      thinking_budget: 0,
+      reasoning_effort: 'none',
+      thinking: null,
+    }),
+  });
+
+  if (!response.ok) {
+    console.error('notes_provider_failed', response.status);
+    throw new Error(`Eaon API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
+async function callNotesModel(model: NotesModel, messages: ProviderMessage[]): Promise<string> {
+  return model === 'pro' ? callEaonAPI(messages) : callCerebrasAPI(messages);
+}
+
 async function callCerebrasAPI(messages: ProviderMessage[]): Promise<string> {
   const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY;
   if (!CEREBRAS_API_KEY) {
@@ -181,19 +228,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (rejectIfTooLarge(req, res)) return;
     const body = parseOrReject(res, notesAiBodySchema, req.body);
     if (!body) return;
-    const { title, blocks, instruction } = body;
+    const { title, blocks, instruction, attachments } = body;
+    const model: NotesModel = body.model ?? 'air';
 
     const noteContext = buildNoteContext(title || '', blocks);
+
+    // Attachments ride along as text. Images go through the same transcriber
+    // the chat uses for text-only hops; a failed transcription is said out
+    // loud rather than silently dropped, so the model does not answer as if
+    // there had been no image.
+    let attachmentContext = '';
+    const images = attachments?.images ?? [];
+    if (images.length > 0) {
+      try {
+        const extracted = await extractImageContent(images);
+        attachmentContext += `\n\n## Attached image${images.length > 1 ? 's' : ''} (content extracted):\n${extracted}`;
+      } catch {
+        attachmentContext += `\n\n## Attached image${images.length > 1 ? 's' : ''}: could not be read. Tell the user so in the message.`;
+      }
+    }
+    for (const file of attachments?.files ?? []) {
+      attachmentContext += `\n\n## Attached file: ${file.name}\n${file.text || '(no readable text)'}`;
+    }
 
     const messages = [
       { role: 'system', content: SYSTEM_PROMPT },
       {
         role: 'user',
-        content: `Here is the current note:\n\n${noteContext}\n\nUser instruction: ${instruction}`,
+        content: `Here is the current note:\n\n${noteContext}${attachmentContext}\n\nUser instruction: ${instruction}`,
       },
     ];
 
-    const aiResponse = await callCerebrasAPI(messages);
+    const aiResponse = await callNotesModel(model, messages);
 
     // Parse the JSON response from the AI
     // Strip markdown code fences if the model wraps them
