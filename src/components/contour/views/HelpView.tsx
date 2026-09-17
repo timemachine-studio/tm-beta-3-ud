@@ -16,14 +16,14 @@ const SECTIONS = [
     icon: Command,
     description:
       'Type / in the textbox to open the command palette. Search for any tool by name, then press Enter to open it.',
-    examples: ['/calculator', '/dictionary', '/settings'],
+    examples: ['/calculator', '/convert png', '/dictionary', '/settings'],
   },
   {
     title: 'Auto-Detect',
     icon: Zap,
     description:
       'Just type naturally. Contour automatically detects what you need and shows the right tool — no slash command required.',
-    examples: ['5km to miles', '#ff5733', 'hello in spanish', 'define serendipity'],
+    examples: ['5km to miles', 'heic to jpg', '#ff5733', 'hello in spanish', 'define serendipity'],
   },
   {
     title: 'Keyboard Shortcuts',
@@ -42,7 +42,7 @@ const SECTIONS = [
 const TOOL_CATEGORIES = [
   {
     label: 'Converters',
-    tools: ['Unit Converter', 'Currency', 'Timezone', 'Color'],
+    tools: ['File Converter', 'Unit Converter', 'Currency', 'Timezone', 'Color'],
   },
   {
     label: 'Utilities',

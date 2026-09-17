@@ -45,6 +45,8 @@ import {
   detectQuickEvent,
   detectWebViewer,
   toSafeExternalUrl,
+  detectFileConvert,
+  parseTarget,
 } from './moduleRegistry';
 
 export type { ModuleId, ModuleData, ContourState, ContourMode };
@@ -143,11 +145,16 @@ export function useContour() {
     const nav = detectNavigation(trimmed);
     if (nav) return { id: 'navigation', focused: false, navigation: nav };
 
-    // 18. Web Viewer (/search, /google, or raw URL)
+    // 18. File converter ("convert to png", "mp4 to mp3") — before the web
+    // viewer, so a pair of extensions is not searched for.
+    const convert = detectFileConvert(trimmed);
+    if (convert) return { id: 'file-convert', focused: false, fileConvert: convert };
+
+    // 19. Web Viewer (/search, /google, or raw URL)
     const web = detectWebViewer(trimmed);
     if (web) return { id: 'web-viewer', focused: false, webViewer: web };
 
-    // 19. Math (broadest match, lowest priority)
+    // 20. Math (broadest match, lowest priority)
     if (isMathExpression(trimmed)) {
       const calc = evaluateMath(trimmed);
       if (calc) return { id: 'calculator', focused: false, calculator: calc };
@@ -271,6 +278,10 @@ export function useContour() {
           || `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`;
         return { id: 'web-viewer', focused: true, webViewer: { url: finalUrl, query: isUrl ? undefined : trimmed } };
       }
+      case 'file-convert': {
+        // The textbox names the target; the files come through the panel.
+        return { id: 'file-convert', focused: true, fileConvert: { target: parseTarget(trimmed), sourceHint: null, query: trimmed } };
+      }
       case 'help': {
         return { id: 'help', focused: true };
       }
@@ -305,6 +316,11 @@ export function useContour() {
 
         const web = detectWebViewer(trimmed);
         if (web) return { mode: 'module' as const, module: { id: 'web-viewer', focused: false, webViewer: web }, commands: [], commandQuery: '', selectedIndex: 0 };
+
+        // /convert [format] opens the tool focused: it needs the panel open
+        // for files to be dropped into, not a one-shot result.
+        const convert = detectFileConvert(trimmed);
+        if (convert) return { mode: 'module' as const, module: { id: 'file-convert', focused: true, fileConvert: convert }, commands: [], commandQuery: '', selectedIndex: 0 };
 
         // 2. Normal "/" command palette search
         const query = trimmed.slice(1);

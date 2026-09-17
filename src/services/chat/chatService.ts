@@ -8,6 +8,8 @@ import {
   type ChatSummary,
   type ChatTranscript,
 } from './chatArchive';
+import { deleteCard, listCards, readCard, writeCard, type ChatCardMeta, type ChatCover } from './chatCards';
+import { CHAT_COVER_VERSION, coverContext, findWikipediaCover, needsChatCover, openingExchange, provisionalTitle, requestChatTitle, type CardTurn } from './chatTitleService';
 import { supabase } from '../../lib/supabase';
 import { Message } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
@@ -198,7 +200,8 @@ export function saveLocalSession(session: ChatSession): void {
     }
 
     if (existingIndex !== -1) {
-      sessions[existingIndex] = sessionToSave;
+      // A save is a snapshot of the messages, not of when the chat began.
+      sessions[existingIndex] = { ...sessionToSave, createdAt: sessions[existingIndex].createdAt || sessionToSave.createdAt };
     } else {
       sessions.push(sessionToSave);
     }
@@ -445,9 +448,28 @@ export class ChatService {
   private userId: string | null = null;
   /** Memoised hasArchive answer. Cleared when the user or the archive changes. */
   private archiveKnown: boolean | null = null;
+  private titles = new Map<string, string>();
+  private naming = new Map<string, Promise<string | null>>();
+  private revisions = new Map<string, number>();
+  private mutations = new Map<string, Promise<unknown>>();
+  private covering = new Map<string, Promise<ChatCardMeta | null>>();
+  private coverAttempts = new Map<string, number>();
+
+  private mutate<T>(id: string, work: () => Promise<T>): Promise<T> {
+    const result = (this.mutations.get(id) ?? Promise.resolve()).catch(() => undefined).then(work);
+    this.mutations.set(id, result);
+    void result.finally(() => {
+      if (this.mutations.get(id) === result) this.mutations.delete(id);
+    }).catch(() => undefined);
+    return result;
+  }
 
   setUserId(userId: string | null) {
-    if (userId !== this.userId) this.archiveKnown = null;
+    if (userId !== this.userId) {
+      this.archiveKnown = null;
+      this.titles.clear();
+      this.revisions.clear();
+    }
     this.userId = userId;
   }
 
@@ -465,23 +487,43 @@ export class ChatService {
   async saveSession(session: ChatSession): Promise<void> {
     // Saving one is the moment an empty archive stops being empty.
     this.archiveKnown = null;
-    if (this.userId) {
-      const saved = await saveSupabaseSession(session, this.userId);
-      if (!saved) throw new Error('chat_save_failed');
-    } else {
-      saveLocalSession(session);
-    }
+    const userId = this.userId;
+    await this.mutate(session.id, async () => {
+      if (this.userId !== userId) throw new Error('chat_account_changed');
+      const snapshot = { ...session, name: this.titles.get(session.id) ?? session.name };
+      if (userId) {
+        const saved = await saveSupabaseSession(snapshot, userId);
+        if (!saved) throw new Error('chat_save_failed');
+      } else saveLocalSession(snapshot);
+    });
   }
 
   async deleteSession(sessionId: string): Promise<boolean> {
-    if (this.userId) {
-      return deleteSupabaseSession(sessionId);
-    }
-    deleteLocalSession(sessionId);
-    return true;
+    this.revisions.set(sessionId, (this.revisions.get(sessionId) ?? 0) + 1);
+    const userId = this.userId;
+    return this.mutate(sessionId, async () => {
+      if (userId !== this.userId) return false;
+      if (userId) {
+        if (!await deleteSupabaseSession(sessionId)) return false;
+      } else deleteLocalSession(sessionId);
+      await deleteCard(sessionId);
+      this.titles.delete(sessionId);
+      return true;
+    });
   }
 
   async renameSession(sessionId: string, newName: string): Promise<boolean> {
+    this.revisions.set(sessionId, (this.revisions.get(sessionId) ?? 0) + 1);
+    const userId = this.userId;
+    return this.mutate(sessionId, async () => {
+      if (userId !== this.userId) return false;
+      const ok = await this.persistName(sessionId, newName);
+      if (ok) this.titles.set(sessionId, newName);
+      return ok;
+    });
+  }
+
+  private async persistName(sessionId: string, newName: string): Promise<boolean> {
     if (this.userId) {
       return renameSupabaseSession(sessionId, newName);
     }
@@ -494,6 +536,131 @@ export class ChatService {
       return true;
     }
     return false;
+  }
+
+  // ─── History cards ─────────────────────────────────────────────────────
+  // The picture and the pin a chat shows on the history page. Device-side
+  // (src/services/chat/chatCards.ts); the chat's name is the one field that
+  // lives with the chat itself.
+
+  /** Covers are independent of naming: imported, manual and already-named
+   * chats must be eligible without changing the person's chosen title. */
+  ensureChatCover(session: ChatSession): Promise<ChatCardMeta | null> {
+    const key = `${this.userId ?? 'local'}:${session.id}`;
+    const pending = this.covering.get(key);
+    if (pending) return pending;
+    const userId = this.userId;
+    const revision = this.revisions.get(session.id) ?? 0;
+    const current = () => userId === this.userId && revision === (this.revisions.get(session.id) ?? 0);
+    const work = async () => {
+      // Naming might already be obtaining a cover for this chat.
+      await this.naming.get(key)?.catch(() => null);
+      const card = await readCard(session.id);
+      if (!current() || !needsChatCover(card)) return card;
+      if (Date.now() - (this.coverAttempts.get(key) ?? 0) < 60_000) return card;
+      this.coverAttempts.set(key, Date.now());
+      const exchange = coverContext(session.messages);
+      if (!exchange.length) {
+        await this.setChatSubject(session.id, null, current);
+        return readCard(session.id);
+      }
+      let subject = card?.subject;
+      if (!subject || card?.coverVersion !== CHAT_COVER_VERSION) {
+        const result = await requestChatTitle([
+          { role: 'user', content: `Existing chat title: ${session.name}` }, ...exchange,
+        ]);
+        if (!result || !current()) return card;
+        subject = result.subject;
+      }
+      await this.setChatSubject(session.id, subject ?? null, current, exchange);
+      return readCard(session.id);
+    };
+    const result = work();
+    this.covering.set(key, result);
+    void result.finally(() => this.covering.delete(key)).catch(() => undefined);
+    return result;
+  }
+
+  /**
+   * Whether a chat still wears its opening words as a name. True for every
+   * chat saved before the namer existed, and for one whose naming failed.
+   */
+  isUnnamed(session: ChatSession): boolean {
+    const name = session.name?.trim();
+    return !name || name === 'New Chat' || name === provisionalTitle(session.messages);
+  }
+
+  /**
+   * Ask the namer for the chat's title and subject, then store both: the
+   * title with the chat, the subject (and its picture) on the card. Returns
+   * the title, or null when there was nothing to name or the namer declined.
+   */
+  nameChat(session: Pick<ChatSession, 'id' | 'messages'>): Promise<string | null> {
+    const key = `${this.userId ?? 'local'}:${session.id}`;
+    const pending = this.naming.get(key);
+    if (pending) return pending;
+    const result = this.generateName(session);
+    this.naming.set(key, result);
+    void result.finally(() => this.naming.delete(key)).catch(() => undefined);
+    return result;
+  }
+
+  private async generateName(session: Pick<ChatSession, 'id' | 'messages'>): Promise<string | null> {
+    const userId = this.userId;
+    const revision = this.revisions.get(session.id) ?? 0;
+    const exchange = openingExchange(session.messages);
+    if (!exchange) return null;
+    const result = await requestChatTitle(exchange);
+    if (!result) return null;
+    const renamed = await this.mutate(session.id, async () => {
+      // A manual rename, deletion or account switch takes priority over an
+      // answer that arrives after the person has already moved on.
+      if (userId !== this.userId || revision !== (this.revisions.get(session.id) ?? 0)) return false;
+      const ok = await this.persistName(session.id, result.title);
+      if (ok) this.titles.set(session.id, result.title);
+      return ok;
+    });
+    if (!renamed) return null;
+    await writeCard(session.id, { namedAt: new Date().toISOString() });
+    await this.setChatSubject(session.id, result.subject, () => userId === this.userId && revision === (this.revisions.get(session.id) ?? 0), exchange);
+    return result.title;
+  }
+
+  /**
+   * Record what the namer thought the chat was about and, if it named a
+   * thing, find that thing's picture. One lookup per chat: a miss is
+   * remembered so the page never asks Wikipedia again for it.
+   */
+  async setChatSubject(chatId: string, subject: string | null, current: () => boolean = () => true, context?: CardTurn[]): Promise<ChatCover | null> {
+    if (!current()) return null;
+    if (!subject) {
+      await writeCard(chatId, { subject: null, cover: null, coverLookedUp: true, coverVersion: CHAT_COVER_VERSION });
+      return null;
+    }
+    let cover: ChatCover | null;
+    try {
+      cover = await findWikipediaCover(subject, undefined, context);
+    } catch (error) {
+      // No picture this time; the card is text. Left unmarked so the next
+      // open can try again — this is a network failure, not a miss.
+      console.error('[ChatCards] cover lookup failed:', error instanceof Error ? error.message : error);
+      if (current()) await writeCard(chatId, { subject, coverLookedUp: false, coverVersion: CHAT_COVER_VERSION });
+      return null;
+    }
+    if (current()) await writeCard(chatId, { subject, cover, coverLookedUp: true, coverVersion: CHAT_COVER_VERSION });
+    return cover;
+  }
+
+  async setChatPinned(chatId: string, pinned: boolean): Promise<void> {
+    await writeCard(chatId, { pinned });
+  }
+
+  async getChatCard(chatId: string): Promise<ChatCardMeta | null> {
+    return readCard(chatId);
+  }
+
+  async listChatCards(): Promise<Map<string, ChatCardMeta>> {
+    return listCards();
   }
 
   // ─── Bounded archive reads ────────────────────────────────────────────

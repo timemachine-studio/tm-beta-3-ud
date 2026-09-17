@@ -122,9 +122,9 @@ export function NotesAiPanel({
                 ref={modelMenuRef}
                 role="menu"
                 aria-label="Model"
-                initial={{ opacity: 0, y: -6, scale: 0.98, filter: 'blur(6px)' }}
-                animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: -4, scale: 0.98, filter: 'blur(6px)' }}
+                initial={{ y: -6, scale: 0.96 }}
+                animate={{ y: 0, scale: 1 }}
+                exit={{ y: -4, scale: 0.96 }}
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 className="tm-glass tm-notes-menu absolute left-0 top-full z-50 mt-2 w-64 origin-top-left"
               >

@@ -2,7 +2,8 @@ import type { ProviderMessage } from './_lib/providerTypes.js';
 import type { VercelRequest, VercelResponse } from './_lib/vercelTypes.js';
 import { getAuthenticatedRequestUser } from './_lib/auth.js';
 import { applyCors, hasAcceptableOrigin } from './_lib/cors.js';
-import { providerFetch } from './_lib/providerResilience.js';
+import { providerFetch, runWithProviderFallback, type ProviderHop } from './_lib/providerResilience.js';
+import { AIR_ROUTE, PRO_ROUTE } from './_lib/personaRoutes.js';
 import { notesAiBodySchema, parseOrReject, rejectIfTooLarge } from './_lib/validation.js';
 import { extractImageContent } from './ai-proxy.js';
 
@@ -115,80 +116,93 @@ Block index 2 (id: "def") is a text block.
 Response:
 {"edits":[{"blockId":"def","newContent":"Same content","newType":"heading2"}],"newBlocks":[],"message":"Converted the third block to a heading."}`;
 
-// The two minds Notes can ask. Air is the fast edit; PRO is the same upstream
-// the chat's PRO persona runs on, for the asks that need more thought. Both
-// are text-only, so images are transcribed first (extractImageContent).
-type NotesModel = 'air' | 'pro';
+// The three minds Notes can ask, on the routes the chat runs them on
+// (api/_lib/personaRoutes.ts): Air and Girlie share Air's route, PRO has its
+// own. Girlie differs in voice alone — the edits are the same edits; the
+// message that comes back with them is hers. All hops are text-only here, so
+// images are transcribed first (extractImageContent).
+type NotesModel = 'air' | 'girlie' | 'pro';
 
-async function callEaonAPI(messages: ProviderMessage[]): Promise<string> {
-  const EAON_API_KEY = process.env.EAON_API_KEY;
-  if (!EAON_API_KEY) {
-    throw new Error('EAON_API_KEY not configured');
+function hopsOf(route: { provider: string; model: string; fallbacks: ReadonlyArray<{ provider: string; model: string }> }): ProviderHop[] {
+  return [{ provider: route.provider, model: route.model, vision: 'ocr' }, ...route.fallbacks.map(hop => ({ ...hop, vision: 'ocr' as const }))];
+}
+
+const ROUTES: Record<NotesModel, ProviderHop[]> = {
+  air: hopsOf(AIR_ROUTE),
+  girlie: hopsOf(AIR_ROUTE),
+  pro: hopsOf(PRO_ROUTE),
+};
+
+const GIRLIE_VOICE = `
+
+## Voice
+You are TimeMachine Girlie: the user's ride-or-die bestie — warm, quick, a little sassy, always on their side. The edits themselves stay exactly as careful and correct as ever; it is the "message" field that sounds like you. Keep it to a sentence or two, lowercase energy welcome, no emoji spam.`;
+
+const PROVIDER_URLS: Record<string, string> = {
+  eaon: 'https://ai.eaon.dev/v1/chat/completions',
+  nvidia: 'https://integrate.api.nvidia.com/v1/chat/completions',
+  pollinations: 'https://gen.pollinations.ai/v1/chat/completions',
+  cerebras: 'https://api.cerebras.ai/v1/chat/completions',
+};
+
+function providerKey(provider: string): string {
+  switch (provider) {
+    case 'eaon': return (process.env.EAON_API_KEY || '').trim();
+    case 'nvidia': return (process.env.NVIDIA_API_KEY || process.env.NIM_API_KEY || '').trim();
+    case 'pollinations': return (process.env.POLLINATIONS_API_KEY || '').trim();
+    case 'cerebras': return (process.env.CEREBRAS_API_KEY || '').trim();
+    default: return '';
+  }
+}
+
+/**
+ * One non-streaming completion on one hop. The answer has to be the JSON
+ * object and nothing else, so every provider's thinking switch is set off
+ * in the spelling it understands; a visible reasoning preamble would break
+ * the parse in the handler.
+ */
+async function callHop(hop: ProviderHop, messages: ProviderMessage[], maxTokens: number): Promise<string> {
+  const url = PROVIDER_URLS[hop.provider];
+  const key = providerKey(hop.provider);
+  if (!url || !key) throw new Error(`${hop.provider} is not configured`);
+
+  const body: Record<string, unknown> = {
+    model: hop.model,
+    messages,
+    temperature: 0.4,
+    stream: false,
+  };
+  if (hop.provider === 'cerebras') {
+    body.max_completion_tokens = maxTokens;
+    body.reasoning_effort = 'low';
+  } else {
+    body.max_tokens = maxTokens;
+    body.thinking_budget = 0;
+    body.reasoning_effort = 'none';
+    if (hop.provider === 'eaon') body.thinking = null;
   }
 
-  const response = await providerFetch('https://ai.eaon.dev/v1/chat/completions', {
-    providerLabel: 'eaon',
+  const response = await providerFetch(url, {
+    providerLabel: hop.provider,
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${EAON_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'eaon/minimax-m3',
-      messages,
-      temperature: 0.4,
-      max_tokens: 6000,
-      stream: false,
-      // The answer must be the JSON object and nothing else; a visible
-      // reasoning preamble would break the parse below.
-      thinking_budget: 0,
-      reasoning_effort: 'none',
-      thinking: null,
-    }),
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify(body),
   });
-
-  if (!response.ok) {
-    console.error('notes_provider_failed', response.status);
-    throw new Error(`Eaon API error: ${response.status}`);
-  }
-
   const data = await response.json();
-  return data.choices?.[0]?.message?.content || '';
+  const content = data.choices?.[0]?.message?.content;
+  if (typeof content !== 'string' || !content.trim()) throw new Error(`${hop.provider} returned no content`);
+  return content;
 }
 
 async function callNotesModel(model: NotesModel, messages: ProviderMessage[]): Promise<string> {
-  return model === 'pro' ? callEaonAPI(messages) : callCerebrasAPI(messages);
-}
-
-async function callCerebrasAPI(messages: ProviderMessage[]): Promise<string> {
-  const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY;
-  if (!CEREBRAS_API_KEY) {
-    throw new Error('CEREBRAS_API_KEY not configured');
-  }
-
-  const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${CEREBRAS_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-oss-120b',
-      messages,
-      temperature: 0.4,
-      max_completion_tokens: 4000,
-      top_p: 1,
-      stream: false,
-    }),
-  });
-
-  if (!response.ok) {
-    console.error('notes_provider_failed', response.status);
-    throw new Error(`Cerebras API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || '';
+  // PRO has room to rewrite a long note in one go; Air's tier is tighter.
+  const maxTokens = model === 'pro' ? 6000 : 4000;
+  const { value } = await runWithProviderFallback(
+    ROUTES[model],
+    hop => callHop(hop, messages, maxTokens),
+    message => console.error('notes_provider_failed', message),
+  );
+  return value;
 }
 
 interface BlockContext {
@@ -252,7 +266,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const messages = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: model === 'girlie' ? SYSTEM_PROMPT + GIRLIE_VOICE : SYSTEM_PROMPT },
       {
         role: 'user',
         content: `Here is the current note:\n\n${noteContext}${attachmentContext}\n\nUser instruction: ${instruction}`,

@@ -10,16 +10,18 @@ import { searchMusic, getLyrics, Track as LyricsTrack, LyricLine } from './servi
 import LyricsDisplay from './components/music/LyricsDisplay';
 import LyricsYouTubePlayer from './components/music/LyricsYouTubePlayer';
 import { LyricsMiniPlayer } from './components/music/LyricsMiniPlayer';
-import { Users, Settings, Zap, PanelRightOpen, PanelLeftOpen } from 'lucide-react';
-import { ChatSidebar } from './components/chat/ChatSidebar';
-import { useRail } from './hooks/useRail';
+import { Users, Settings, Zap, PanelRightOpen } from 'lucide-react';
 
-/* The three minds' hues, as on the landing page. */
-const personaHues: Record<string, string> = { default: '168 85 247', girlie: '236 72 153', pro: '34 211 238' };
 /* The same minds in light mode. Air takes the deep purple that light.css's
    one-accent ramp lands on; Girlie and PRO keep their exact colours in
    both modes (see the brand-hue note in light.css). */
 const personaLightAccents: Record<string, string> = { default: '88 28 135', girlie: '236 72 153', pro: '34 211 238' };
+/* The header action button's fill: the mind's hue at 20% behind the ink. */
+const personaBackgroundColors: Record<string, string> = {
+  default: 'rgba(139,0,255,0.2)',
+  girlie: 'rgba(199,21,133,0.2)',
+  pro: 'rgba(30,144,255,0.2)',
+};
 import { motion } from 'framer-motion';
 import { useChat } from './hooks/useChat';
 import { useAnonymousRateLimit } from './hooks/useAnonymousRateLimit';
@@ -68,13 +70,12 @@ const AccountPage = lazy(() => import('./components/auth/AccountPage').then((mod
 const ChatHistoryPage = lazy(() => import('./components/chat/ChatHistoryPage').then((module) => ({ default: module.ChatHistoryPage })));
 
 /* The legacy shell (Settings → Interface) is the whole product as it was
-   before the rail: every page below has its pre-rail file kept whole under a
-   Legacy* name, chosen per route by the setting. They are copies, not
+   before the glass shell: every page below has its earlier file kept whole
+   under a Legacy* name, chosen per route by the setting. They are copies, not
    variants, so a fix to one shell never has to be reasoned about for the
    other. */
 const ResetPasswordPage = lazy(() => import('./components/auth/ResetPasswordPage').then((module) => ({ default: module.ResetPasswordPage })));
 const LegacyAccountPage = lazy(() => import('./components/auth/LegacyAccountPage').then((module) => ({ default: module.AccountPage })));
-const LegacyChatHistoryPage = lazy(() => import('./components/chat/LegacyChatHistoryPage').then((module) => ({ default: module.ChatHistoryPage })));
 const LegacyMemoriesPage = lazy(() => import('./components/memories/LegacyMemoriesPage').then((module) => ({ default: module.MemoriesPage })));
 const LegacyNotesPage = lazy(() => import('./components/notes/LegacyNotesPage').then((module) => ({ default: module.NotesPage })));
 const LegacyHealthcarePage = lazy(() => import('./components/healthcare/LegacyHealthcarePage').then((module) => ({ default: module.HealthcarePage })));
@@ -200,8 +201,8 @@ function freshProSession(sessionId: string): ChatSession {
 
 function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackgroundClass, maxModeRoute }: MainChatPageProps = {}) {
   const { theme, mode, uiStyle } = useTheme();
-  // Settings → Interface. The legacy shell has no rail and no glass around
-  // the brand; the composer is the legacy bar in both.
+  // Settings → Interface. The legacy shell has no atmosphere and no glass
+  // around the brand; the composer is the legacy bar in both.
   const legacyUi = uiStyle === 'legacy';
   const { user, profile, loading: authLoading, profileLoading, needsOnboarding, updateLastPersona } = useAuth();
   const navigate = useNavigate();
@@ -302,6 +303,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
       // here lost the Retry row — and with it the resume — on every reload.
       messages: sessionToLoad.messages.filter(isPersistable),
       id: sessionToLoad.id,
+      name: sessionToLoad.name,
       maxMode: maxModeRoute?.mode ?? sessionToLoad.maxMode,
     } : null,
     flowStateActive
@@ -507,28 +509,67 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   }, [isGroupMode, groupChatId, isGroupParticipant, isCollaborative, joinCollaborativeChat]);
 
   useEffect(() => {
+    const viewport = window.visualViewport;
     const updateVH = () => {
-      const vh = window.innerHeight * 0.01;
+      // The soft keyboard shrinks the *visual* viewport. On Android Chrome
+      // 108+ and the in-app WebViews (Instagram, Facebook) the layout viewport
+      // stays full height behind the keys unless the viewport meta asks
+      // otherwise (index.html), and iOS never resizes it — so innerHeight is
+      // the wrong number while typing, and a fixed bottom:0 composer ends up
+      // under the keyboard. Measure the visual viewport instead, and publish
+      // how far its bottom edge sits above the layout viewport's so the dock
+      // can lift itself by that much.
+      const zoom = pageZoom();
+      const pinched = viewport ? viewport.scale > 1.01 : false;
+      // iOS answers a focused input by scrolling the whole document up under
+      // the keyboard instead: the header leaves the screen, the greeting
+      // slides under the clock, and when the keyboard closes the document
+      // stays where it was, leaving a black band beneath the composer. The
+      // body never scrolls by design (index.css), so any document offset is
+      // that, and the right place for it is zero — the dock lifts itself by
+      // --tm-keyboard, which keeps the input in view without the scroll.
+      if (!pinched && (window.scrollY > 0 || (viewport?.offsetTop ?? 0) > 0)) {
+        window.scrollTo(0, 0);
+      }
+      const height = viewport && !pinched ? viewport.height : window.innerHeight;
+      const keyboard = viewport && !pinched
+        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        : 0;
       // The layout is zoomed (index.css); a real pixel measure has to be
       // divided by the zoom to render at its real size.
-      document.documentElement.style.setProperty('--vh', `${vh / pageZoom()}px`);
+      document.documentElement.style.setProperty('--vh', `${(height * 0.01) / zoom}px`);
+      document.documentElement.style.setProperty('--tm-keyboard', `${keyboard / zoom}px`);
     };
 
     updateVH();
     window.addEventListener('resize', updateVH);
-    return () => window.removeEventListener('resize', updateVH);
+    viewport?.addEventListener('resize', updateVH);
+    viewport?.addEventListener('scroll', updateVH);
+    return () => {
+      window.removeEventListener('resize', updateVH);
+      viewport?.removeEventListener('resize', updateVH);
+      viewport?.removeEventListener('scroll', updateVH);
+    };
   }, []);
 
-  // Flow State: the Air hue as a tinted glass pill, lit when it is on.
+  // The header action buttons, as they were drawn before the shell was
+  // rebuilt: each mind's own hue at 20% behind the ink, with the label always
+  // on. The control on the right of the header is the same on a phone and a
+  // desktop, so nothing here is responsive.
+  const buttonStyles = useMemo(() => ({
+    bg: personaBackgroundColors[currentPersona] || personaBackgroundColors.default,
+    text: 'rgb(var(--tm-ink-rgb) / 0.92)',
+  }), [currentPersona]);
+
   const flowStateButtonStyles = useMemo(() => ({
-    border: flowStateActive ? '1px solid rgb(168 85 247 / 0.45)' : '1px solid rgb(var(--tm-ink-rgb) / 0.12)',
+    border: flowStateActive ? '1px solid rgba(168, 85, 247, 0.5)' : '1px solid rgba(168, 85, 247, 0.4)',
     bg: flowStateActive
-      ? 'linear-gradient(135deg, rgb(168 85 247 / 0.22), rgb(168 85 247 / 0.1))'
-      : undefined,
+      ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgb(var(--tm-ink-rgb) / 0.05))'
+      : 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgb(var(--tm-ink-rgb) / 0.05))',
     shadow: flowStateActive
-      ? 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.35), 0 0 18px rgb(168 85 247 / 0.18)'
-      : undefined,
-    text: flowStateActive ? 'rgb(var(--tm-accent-rgb, 216 180 254))' : 'rgb(var(--tm-ink-rgb) / 0.85)',
+      ? '0 0 20px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
+      : '0 0 15px rgba(168, 85, 247, 0.35), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
+    text: flowStateActive ? 'rgb(var(--tm-accent-rgb, 216 180 254))' : 'rgb(var(--tm-ink-rgb) / 0.92)',
   }), [flowStateActive]);
 
   const handleAccessGranted = useCallback(() => {
@@ -636,33 +677,14 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     navigate('/account');
   }, [navigate]);
 
-  const rail = useRail();
-  const railOpen = rail.railOpen && !legacyUi;
-  const railWide = rail.railWide;
-  const railInline = rail.railInline && !legacyUi;
-  const openRail = rail.openRail;
-
-  // "New chat" from a rail on another page arrives as router state, one-shot.
+  // "New chat" from another page (the history page's compose button) arrives
+  // as router state, one-shot.
   const newChatFromNav = (location.state as { newChat?: boolean } | null)?.newChat;
   useEffect(() => {
     if (!newChatFromNav) return;
     startNewChat();
     navigate(location.pathname, { replace: true, state: null });
   }, [newChatFromNav, startNewChat, navigate, location.pathname]);
-
-  // The recents list refreshes when the archive may have changed: a chat
-  // switched, or a turn landed. Debounced so a streaming answer is one read.
-  const [archiveVersion, setArchiveVersion] = useState(0);
-  useEffect(() => {
-    const id = setTimeout(() => setArchiveVersion((n) => n + 1), 1500);
-    return () => clearTimeout(id);
-  }, [currentSessionId, messages.length]);
-
-  const openSession = useCallback(async (id: string) => {
-    if (id === currentSessionId) return;
-    const session = (await chatService.getSessions()).find((s) => s.id === id);
-    if (session) loadChat(session);
-  }, [currentSessionId, loadChat]);
 
   const handleOpenHistory = useCallback(() => {
     navigate('/history');
@@ -716,7 +738,6 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
       className={`tm-chat-shell min-h-screen ${backgroundClass} ${theme.text} relative overflow-hidden`}
       style={{
         minHeight: 'calc(var(--vh, 1vh) * 100)',
-        '--tm-rail': railInline ? '272px' : '0px',
         // Light mode's inline accent follows the mind; dark keeps each
         // style's own fallback hue, so the variable is left unset there.
         ...(mode === 'light' && !brandOverride ? { '--tm-accent-rgb': personaLightAccents[currentPersona] || personaLightAccents.default } : {}),
@@ -736,42 +757,19 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
         style={maxModeRoute ? { transform: 'translateZ(0)' } : undefined}
       >
       <div className="flex" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
-      {!legacyUi && <ChatSidebar
-        open={railOpen}
-        overlay={!railWide}
-        onClose={() => openRail(false)}
-        currentSessionId={currentSessionId}
-        archiveVersion={archiveVersion}
-        onNewChat={startNewChat}
-        onOpenSession={(id) => { void openSession(id); }}
-        onOpenAuth={handleOpenAuth}
-        onOpenAccount={handleOpenAccount}
-        onOpenSettings={handleOpenSettings}
-        hue={personaHues[currentPersona] || personaHues.default}
-      />}
       <main className="relative h-screen min-w-0 flex-1 flex flex-col" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
-        {/* Independent floating controls leave the header open to the canvas.
-            Both it and the dock start where the rail ends. */}
+        {/* Independent floating controls leave the header open to the canvas. */}
         <header
           className={legacyUi
-            ? 'tm-chat-header fixed right-0 top-0 z-50 px-4 py-3'
-            : 'tm-chat-header fixed right-0 top-3 z-50 px-3 sm:top-4 sm:px-6 lg:px-8'}
-          style={{ left: 'var(--tm-rail, 0px)' }}
+            ? 'tm-chat-header fixed inset-x-0 top-0 z-50 px-4 py-3'
+            : 'tm-chat-header fixed inset-x-0 top-5 z-50 px-4 sm:top-4 sm:px-6 lg:px-8'}
         >
           <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-1.5">
-            {!railInline && !legacyUi && (
-              <button
-                type="button"
-                onClick={() => openRail(true)}
-                aria-label="Show sidebar"
-                className="tm-glass tm-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-                style={{ color: 'rgb(var(--tm-ink-rgb) / 0.85)' }}
-              >
-                <PanelLeftOpen className="h-4 w-4" />
-              </button>
-            )}
-            <div className={legacyUi ? 'tm-chat-brand tm-chat-brand-bare min-w-0' : 'tm-chat-brand min-w-0'}>
+            <div className="flex min-w-0 items-center gap-3">
+            {/* The brand is the legacy header's bare, glowing wordmark in
+                both shells; its menu carries the minds and the app's few
+                other places. */}
+            <div className="tm-chat-brand tm-chat-brand-bare min-w-0">
             <BrandLogo
               currentPersona={currentPersona}
               onPersonaChange={handlePersonaChange}
@@ -782,81 +780,126 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
               onOpenHistory={handleOpenHistory}
               onOpenSettings={handleOpenSettings}
               brandOverride={brandOverride}
-              mindsOnly={railInline}
-              bare={legacyUi}
+              bare
               accent={isHealthcareActive ? 'healthcare' : undefined}
             />
             </div>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               {isAnonymous && (
-                <span
-                  className="tm-glass hidden min-h-11 items-center rounded-full px-3.5 py-2 text-[13px] sm:inline-flex"
-                  style={{ border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)', color: 'rgb(var(--tm-ink-rgb) / 0.6)' }}
-                >
-                  {getRemainingMessages(currentPersona)} free messages left
-                </span>
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/50">
+                  <span>{getRemainingMessages(currentPersona)} free messages left</span>
+                </div>
               )}
 
               {isAnonymous ? (
-                <button
-                  type="button"
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleOpenAuth}
-                  className="tm-press min-h-11 rounded-full bg-pill px-5 py-2 text-sm font-medium text-pill-ink hover:opacity-90"
+                  style={{
+                    background: buttonStyles.bg,
+                    color: buttonStyles.text,
+                    borderRadius: '9999px',
+                    backdropFilter: 'blur(10px)',
+                    outline: 'none',
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.3s ease',
+                  }}
                   aria-label="Sign Up"
                 >
-                  Sign up
-                </button>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3.00006 7.63576C4.6208 4.29965 8.04185 2 12 2C17.5229 2 22 6.47715 22 12C22 17.5228 17.5229 22 12 22C8.04185 22 4.6208 19.7004 3.00006 16.3642" />
+                    <path d="M11 8C11 8 15 10.946 15 12C15 13.0541 11 16 11 16M14.5 12H2" />
+                  </svg>
+                  <span style={{ fontSize: '14px', color: buttonStyles.text }}>Sign Up</span>
+                </motion.button>
               ) : currentPersona === 'pro' ? (
                 <MaxModeButton
                   active={!!maxModeRoute}
-                  textColor={theme.text}
+                  textColor="rgb(var(--tm-ink-rgb) / 0.92)"
                   onEnter={enterMaxMode}
                   onExit={maxModeRoute ? exitMaxMode : undefined}
                 />
               ) : currentPersona === 'default' ? (
-                // Flow State for Air: a glass pill that takes the Air hue when on.
-                <button
-                  type="button"
+                // Flow State button for Air — liquid glass style
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => setFlowStateActive(!flowStateActive)}
-                  className={`tm-press tm-header-action inline-flex min-h-11 items-center gap-2 rounded-full px-3 py-2 text-sm sm:px-4 ${flowStateActive ? '' : 'tm-glass-pill'}`}
                   style={{
                     background: flowStateButtonStyles.bg,
                     color: flowStateButtonStyles.text,
                     border: flowStateButtonStyles.border,
                     boxShadow: flowStateButtonStyles.shadow,
+                    borderRadius: '9999px',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    outline: 'none',
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.3s ease',
                   }}
                   aria-pressed={flowStateActive}
                   aria-label={flowStateActive ? "Disable Flow State" : "Enable Flow State"}
                 >
-                  <Zap className="h-4 w-4" style={{ fill: flowStateActive ? 'currentColor' : 'none' }} />
-                  <span className="hidden sm:inline">Flow State</span>
-                </button>
+                  <Zap style={{ width: '16px', height: '16px', color: flowStateButtonStyles.text, fill: flowStateActive ? flowStateButtonStyles.text : 'none' }} />
+                  <span style={{ fontSize: '14px', color: flowStateButtonStyles.text }}>
+                    Flow State
+                  </span>
+                </motion.button>
               ) : currentPersona === 'girlie' && (
                 isCollaborative && collaborativeId ? (
-                  // Group Settings when in collaborative mode
-                  <button
-                    type="button"
+                  // Group Settings button when in collaborative mode
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => navigate(`/groupchat/${collaborativeId}/settings`)}
-                    className="tm-press tm-glass-pill tm-header-action inline-flex min-h-11 items-center gap-2 rounded-full px-3 py-2 text-sm sm:px-4"
-                    style={{ border: '1px solid rgb(236 72 153 / 0.35)', color: 'rgb(var(--tm-ink-rgb) / 0.85)' }}
+                    style={{
+                      background: buttonStyles.bg,
+                      color: buttonStyles.text,
+                      borderRadius: '9999px',
+                      backdropFilter: 'blur(10px)',
+                      outline: 'none',
+                      padding: '8px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.3s ease',
+                    }}
                     aria-label="Group Settings"
                   >
-                    <Settings className="h-4 w-4" />
-                    <span className="hidden sm:inline">Group Settings</span>
-                  </button>
+                    <Settings style={{ width: '16px', height: '16px', color: buttonStyles.text }} />
+                    <span style={{ fontSize: '14px', color: buttonStyles.text }}>Group Settings</span>
+                  </motion.button>
                 ) : (
-                  // Create Group Chat
-                  <button
-                    type="button"
+                  // Create Group Chat button
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setShowGroupChatModal(true)}
-                    className="tm-press tm-glass-pill tm-header-action inline-flex min-h-11 items-center gap-2 rounded-full px-3 py-2 text-sm sm:px-4"
-                    style={{ border: '1px solid rgb(236 72 153 / 0.35)', color: 'rgb(var(--tm-ink-rgb) / 0.85)' }}
+                    style={{
+                      background: buttonStyles.bg,
+                      color: buttonStyles.text,
+                      borderRadius: '9999px',
+                      backdropFilter: 'blur(10px)',
+                      outline: 'none',
+                      padding: '8px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.3s ease',
+                    }}
                     aria-label="Open Group Chat"
                   >
-                    <Users className="h-4 w-4" />
-                    <span className="hidden sm:inline">Group Chat</span>
-                  </button>
+                    <Users style={{ width: '16px', height: '16px', color: buttonStyles.text }} />
+                    <span style={{ fontSize: '14px', color: buttonStyles.text }}>Group Chat</span>
+                  </motion.button>
                 )
               )}
             </div>
@@ -1195,9 +1238,11 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
             through so only the composer itself is interactive. */}
         <div
           className={legacyUi
-            ? 'pointer-events-none fixed right-0 bottom-0 z-40 p-4'
-            : 'tm-chat-dock pointer-events-none fixed right-0 bottom-0 z-40 px-3 pt-12 sm:px-6'}
-          style={{ left: 'var(--tm-rail, 0px)' }}
+            ? 'pointer-events-none fixed inset-x-0 z-40 p-4'
+            : 'tm-chat-dock pointer-events-none fixed inset-x-0 z-40 px-3 pt-12 sm:px-6'}
+          // --tm-keyboard is the soft keyboard's height on the browsers that
+          // leave the layout viewport alone (see the --vh effect); 0 elsewhere.
+          style={{ bottom: 'var(--tm-keyboard, 0px)' }}
         >
           <div className="pointer-events-auto mx-auto max-w-4xl">
             {maxModeRoute && (
@@ -1468,16 +1513,9 @@ function AppContent() {
       <Route path="/history" element={
         <>
           <SEOHead title="Chat History" description="View and continue your previous TimeMachine Chat conversations." path="/history" noIndex />
-          {legacyUi ? (
-            <LegacyChatHistoryPage onLoadChat={(session) => {
-              navigate('/', { state: { sessionToLoad: session } });
-            }} />
-          ) : (
-            <ChatHistoryPage onLoadChat={(session) => {
-              // Pass session via navigation state so MainChatPage can load it
-              navigate('/', { state: { sessionToLoad: session } });
-            }} />
-          )}
+          <ChatHistoryPage onLoadChat={(session) => {
+            navigate('/', { state: { sessionToLoad: session } });
+          }} />
         </>
       } />
       <Route path="/settings" element={<SettingsRedirect />} />

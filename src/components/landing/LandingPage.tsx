@@ -357,8 +357,10 @@ export function LandingPage() {
               One chat. Three minds. A coding agent when you need one, and nothing about you for sale.
             </motion.p>
             <motion.div
-              initial={reduced ? false : { opacity: 0, y: 18, scale: 0.98, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+              // No CSS filter on the way in: the glass composer inside would
+              // flash black on iOS while the blur resolves.
+              initial={reduced ? false : { opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ ...settle, delay: reduced ? 0 : 0.42 }}
               className="mt-14 w-full max-w-2xl sm:mt-16"
             >

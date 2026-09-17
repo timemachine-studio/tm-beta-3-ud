@@ -1,8 +1,61 @@
 # Current status
 
-Updated 2026-09-15. Rewritten from scratch on 2026-09-14; the previous rounds (tool catalogue, providers, MCP, generated tools, light mode) are shipped and described in git history and `production-check.md`. This file is the state of things now and what is still owed.
+Updated 2026-09-17. Rewritten from scratch on 2026-09-14; the previous rounds (tool catalogue, providers, MCP, generated tools, light mode) are shipped and described in git history and `production-check.md`. This file is the state of things now and what is still owed.
 
 **The open-issues tracker is now `pre-launch-audit.md`.** It carries every still-open item from `production-check.md` (Gate E) plus the 2026-09-14 audit's new findings (Gates A–D), and a handoff note at the top for each fix pass. The tracker table at the top of `production-check.md` is stale in places and is no longer maintained.
+
+## Done on 2026-09-17
+
+- **Mobile keyboard** (D.7 in `pre-launch-audit.md`): the composer stays above
+  the soft keyboard and the page no longer scrolls under it. Built from
+  screenshots; a real-device pass is owed.
+- **Header and history**: restored the old labelled action controls for Air,
+  Girlie and PRO; removed the sidebar. The persona menu opens a dedicated
+  `/history` page in both shells, with staggered rounded cards matching the
+  owner's Apple reference in TM's theme. Search/filter, pin, rename, delete,
+  import/export and group chats remain available. Short automatic titles use
+  the opening exchange; suitable subjects get real Wikipedia/Wikimedia photos,
+  never generated art. Covers/pins live in IndexedDB on this device. Manual
+  titles survive later saves and in-flight title requests.
+  Follow-up: automatic image enrichment now covers already-named/imported
+  chats independently of naming, with two background workers and cached
+  decision versioning. Old no-image results are reconsidered; topic rules
+  include coding projects, recommendations and science. Live isolated chats
+  for Dhaka and Flappy Bird acquired and displayed real photos automatically;
+  a greeting correctly stayed text-only (no images manually seeded).
+  Relevance follow-up: persona welcome text is excluded even in old/misordered
+  messages. Version 3 hides old unreviewed covers and reassesses them. A second
+  model pass judges article description + image filename against the actual
+  conversation; low-confidence/incidental matches are rejected. Clinical scans,
+  generic diagrams and logos are filtered first. Live fixtures rejected the
+  medical/welcome, generic design and survival-training mismatches; Dhaka kept
+  a relevant skyline. This is metadata review, not image-pixel understanding.
+- **Notes AI**: Air/PRO share their main-chat route definitions; Girlie added
+  to the model picker with its own voice. Notes menus have denser glass.
+- **Verification for history/header**: typecheck and lint clean, 73 test files /
+  629 tests pass, production build succeeds (existing chunk-size and GitHub
+  dynamic-import warnings remain). Isolated browser fixtures at 375px and
+  1280px, light/dark layouts, all three mock signed-in header controls,
+  pin persistence and live public Wikipedia covers checked. Real iOS remains
+  unverified. No commit, push or deployment.
+- **Girlie is unlimited** for signed-in users (was 70/day); Air 400 and PRO
+  200 still cap, while the copy promises unlimited — decide. A reply no longer
+  shows the raw "retrying:1/2" phase while the chain retries.
+- **iOS glitches** (D.8): the black band in the installed app (status bar
+  now `black`), the cut-off plus menu (left-aligned on phones, no measuring),
+  and the black flashes on every glass popup and sent bubble (transform-only
+  entrances; blur halved on touch). Built from three screen recordings; a
+  real-device pass is owed.
+- **Skills from skills.sh and SkillsMP**: Flight Controls → Skills has a
+  "Your skills" section — search either directory, Install fetches the
+  SKILL.md from GitHub and stores it per user; toggle/remove like a catalog
+  skill. **Owner: run `supabase/migrations/user_skills.sql`** — the table does
+  not exist yet, and the panel says exactly that until it does.
+- **File Converter** in Contour (`/convert`, `heic to jpg`, "convert to
+  png"): images, audio, video and documents, converted on the device. Engines
+  load on first use — ImageMagick (~15 MB, our origin) and ffmpeg (~30 MB,
+  CDN); the common image conversions need no download. Handoff block in
+  `pre-launch-audit.md` has the file list and the licensing note.
 
 ## Done on 2026-09-15 — pre-launch audit, first fix pass
 

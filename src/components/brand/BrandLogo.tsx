@@ -27,12 +27,6 @@ interface BrandLogoProps {
   onOpenSettings?: () => void;
   brandOverride?: BrandOverride;
   /**
-   * The rail is beside the transcript and already carries the account, new
-   * chat, history, Flight Controls and settings; the menu then offers only
-   * what the rail does not — which mind answers.
-   */
-  mindsOnly?: boolean;
-  /**
    * The legacy shell: the brand is bare glowing text in the corner, no
    * glass around it, at the size it was drawn at. The current shell keeps
    * its glass pill.
@@ -80,7 +74,6 @@ export function BrandLogo({
   onOpenHistory,
   onOpenSettings,
   brandOverride,
-  mindsOnly = false,
   bare = false,
   accent,
 }: BrandLogoProps) {
@@ -205,11 +198,13 @@ export function BrandLogo({
               id={menuId}
               role="menu"
               aria-label="TimeMachine"
-              initial={reduced ? false : { opacity: 0, y: -8, scale: 0.98, filter: 'blur(6px)' }}
-              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-              exit={reduced ? undefined : { opacity: 0, y: -6, scale: 0.98, filter: 'blur(6px)' }}
+              // Transform only. A backdrop-filter panel animated through opacity
+              // or a CSS filter renders black on iOS for its first frames.
+              initial={reduced ? false : { y: -8, scale: 0.96 }}
+              animate={{ y: 0, scale: 1 }}
+              exit={reduced ? undefined : { y: -6, scale: 0.96 }}
               transition={settle}
-              className={`tm-glass tm-chat-menu fixed z-[60] origin-top-left rounded-[28px] p-1.5 ${mindsOnly ? 'w-[16rem]' : 'w-[19rem]'}`}
+              className={`tm-glass tm-chat-menu fixed z-[60] origin-top-left rounded-[28px] p-1.5 w-[19rem]`}
               style={{ top: anchor.top, left: anchor.left, maxHeight: `calc(var(--tm-100dvh) - ${anchor.top + 12}px)` }}
               onKeyDown={(event) => {
                 const buttons = Array.from(event.currentTarget.querySelectorAll('button'));
@@ -226,7 +221,6 @@ export function BrandLogo({
               }}
             >
               {/* Account */}
-              {!mindsOnly && (
               <button type="button" role="menuitem" onClick={run(user ? onOpenAccount : onOpenAuth)} className={rowClass}>
                 <span
                   className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full"
@@ -253,9 +247,8 @@ export function BrandLogo({
                   </span>
                 </span>
               </button>
-              )}
 
-              {!mindsOnly && <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />}
+              <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />
 
               {/* The minds */}
               <div role="group" aria-label="Who answers">
@@ -295,10 +288,10 @@ export function BrandLogo({
                   })}
               </div>
 
-              {!mindsOnly && <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />}
+              <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />
 
               {/* Actions */}
-              {!mindsOnly && ([
+              {([
                 ['New chat', Plus, run(onStartNewChat)],
                 ['Chat history', History, run(onOpenHistory)],
                 ['Flight Controls', Wand2, run(() => setShowAgents(true))],

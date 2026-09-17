@@ -101,7 +101,11 @@ export default defineConfig(({ mode }) => {
       dedupe: ['react', 'react-dom'],
     },
     optimizeDeps: {
-      include: ['lucide-react']
+      include: ['lucide-react'],
+      // ffmpeg.wasm spawns its worker with new URL('./worker.js',
+      // import.meta.url); pre-bundling rewrites that path and the worker
+      // 404s in dev. The production build handles it as-is.
+      exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
     }
   };
 });

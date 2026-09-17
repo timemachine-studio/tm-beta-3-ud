@@ -30,6 +30,7 @@ import { credentialsAvailable, encryptCredential, McpCredentialError } from './_
 import { assertPublicUrl } from './_lib/safeUrl.js';
 import { searchMcpRegistry } from './_lib/mcpRegistry.js';
 import { handleGithubRequest } from './_lib/githubRoute.js';
+import { handleSkillsRequest } from './_lib/skillsRoute.js';
 
 const createSchema = z.object({
   name: z.string().min(1).max(80),
@@ -97,6 +98,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // api/_lib/githubRoute.ts.
   if (typeof req.query?.github === 'string') {
     return handleGithubRequest(req, res, user, req.query.github);
+  }
+
+  // ─── Skills (skills.sh, SkillsMP) ───────────────────────────────────────
+  // The user's own skills, found on the public directories. Same Function,
+  // same reason. See api/_lib/skillsRoute.ts.
+  if (typeof req.query?.skills === 'string') {
+    return handleSkillsRequest(req, res, user, req.query.skills);
   }
 
   // ─── Registry search ────────────────────────────────────────────────────

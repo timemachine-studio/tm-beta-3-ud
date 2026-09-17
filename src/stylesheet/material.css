@@ -88,7 +88,11 @@
    each centred on it. Below 640px the button sits at the screen's edge, so
    the stack hangs from its left instead. */
 .tm-plus-menu {
-  left: 50%;
+  /* left-0 / left-1/2 is set by the component per breakpoint (PlusMenu.tsx). */
+  transform-origin: bottom left;
+}
+@media (min-width: 640px) {
+  .tm-plus-menu { transform-origin: bottom center; }
 }
 
 .tm-plus-pill {
@@ -309,9 +313,7 @@
 
 .tm-chat-header { padding-top: env(safe-area-inset-top, 0px); }
 .tm-chat-header button { flex-shrink: 0; }
-/* The header's one action: a pill with its label from 640px, a round
-   glass button below it. */
-.tm-header-action { min-width: 44px; justify-content: center; }
+/* The wordmark's button. */
 .tm-chat-brand > div > button { max-width: 100%; }
 .tm-chat-brand > div > button > span { min-width: 0; }
 .tm-chat-brand > div > button > span > span:first-child {
@@ -345,45 +347,6 @@
 
 :root[data-theme='light'] .tm-shell-topbar {
   background: rgb(var(--tm-paper-rgb) / 0.6);
-}
-
-/* The rail: Claude's left column on the Notes rail's material. */
-.tm-rail {
-  background: rgb(var(--tm-paper-rgb) / 0.32);
-  backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-  border-right: 1px solid rgb(var(--tm-ink-rgb) / 0.08);
-}
-
-.tm-rail-row {
-  min-height: 36px;
-  padding: 0 10px;
-  border-radius: 10px;
-  font-size: 14px;
-  color: rgb(var(--tm-ink-rgb) / 0.75);
-  transition: background-color 140ms ease-out, color 140ms ease-out;
-}
-
-.tm-rail-row:hover,
-.tm-rail-row:focus-visible {
-  background-color: rgb(var(--tm-ink-rgb) / 0.06);
-  color: rgb(var(--tm-ink-rgb) / 0.95);
-}
-
-.tm-rail-row[data-active='true'] {
-  background-color: rgb(var(--tm-rail-hue, 168 85 247) / 0.14);
-  color: rgb(var(--tm-ink-rgb) / 0.96);
-}
-
-.tm-rail-section {
-  padding: 14px 12px 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: rgb(var(--tm-ink-rgb) / 0.42);
-}
-
-:root[data-theme='light'] .tm-rail {
-  background: rgb(var(--tm-paper-rgb) / 0.72);
 }
 
 .tm-chat-menu.tm-glass {

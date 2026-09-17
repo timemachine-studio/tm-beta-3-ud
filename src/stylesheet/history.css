@@ -1,0 +1,294 @@
+/* ════════════════════════════════════════════════════════════
+   The history page: a wall of cards.
+   ─────────────────────────────────────────────────────────────
+   Two columns of tall rounded cards on a phone, more on a desk, laid as
+   a masonry so a card is as tall as what it holds — a title and a few
+   lines, or a title and a picture. The controls float in the corners on
+   glass; the cards themselves are a flat tint with no blur, because
+   twenty backdrop filters scrolling is what made the old pages feel
+   heavy on a phone, and a card is not a lens over anything.
+   ════════════════════════════════════════════════════════════ */
+
+.tm-history-grid {
+  display: grid;
+  align-items: start;
+  gap: 16px;
+}
+
+.tm-history-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* The offset leaves a pocket for the filter and gives the archive the
+   staggered rhythm of the reference, even before pictures have loaded. */
+.tm-history-column:nth-child(even) { padding-top: 52px; }
+
+@media (min-width: 640px) {
+  .tm-history-grid, .tm-history-column { gap: 20px; }
+  .tm-history-column:nth-child(even) { padding-top: 64px; }
+}
+
+.tm-history-card {
+  position: relative;
+  break-inside: avoid;
+  border-radius: 40px;
+  overflow: hidden;
+  background: linear-gradient(160deg, rgb(var(--tm-ink-rgb) / 0.085), rgb(var(--tm-ink-rgb) / 0.045));
+  box-shadow: 0 2px 5px rgb(var(--tm-shadow-rgb) / 0.12), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.16);
+  transition: transform 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.tm-history-card[data-pressed='true'] {
+  transform: scale(0.985);
+}
+
+@media (hover: hover) {
+  .tm-history-card:hover {
+    box-shadow:
+      inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.22),
+      inset 0 0 0 1px rgb(var(--tm-ink-rgb) / 0.1),
+      0 22px 48px -22px rgb(var(--tm-shadow-rgb) / 0.8);
+  }
+}
+
+/* The whole card is the button; its text is laid out inside. */
+.tm-history-card-open {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 22px 18px 24px;
+  min-height: 230px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tm-history-card-open:focus-visible {
+  outline: 2px solid rgb(var(--tm-accent-rgb, 168 85 247) / 0.7);
+  outline-offset: -2px;
+  border-radius: 40px;
+}
+
+.tm-history-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 16px;
+  padding-right: 24px;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: rgb(var(--tm-ink-rgb) / 0.48);
+}
+
+.tm-history-title {
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.022em;
+  color: rgb(var(--tm-ink-rgb) / 0.95);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .tm-history-title { font-size: 21px; }
+}
+
+.tm-history-preview {
+  margin-top: 10px;
+  font-size: 14.5px;
+  line-height: 1.34;
+  color: rgb(var(--tm-ink-rgb) / 0.5);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  overflow: hidden;
+}
+
+/* A picture under the title: its own rounding inside the card, flush
+   with the card's own corners at the bottom. */
+.tm-history-picture {
+  display: block;
+  max-width: none;
+  width: calc(100% + 20px);
+  margin: 14px -10px -24px;
+  border-radius: 26px 26px 34px 34px;
+  object-fit: cover;
+  background: rgb(var(--tm-ink-rgb) / 0.06);
+}
+
+/* The picture as the card: the title sits on it, in white whatever the
+   mode, over a scrim from the top. */
+.tm-history-card[data-bleed='true'] .tm-history-card-open {
+  position: relative;
+  padding: 0;
+  color: #fff;
+}
+
+.tm-history-bleed-picture {
+  display: block;
+  min-height: 230px;
+  width: 100%;
+  object-fit: cover;
+  background: rgb(var(--tm-ink-rgb) / 0.06);
+}
+
+.tm-history-bleed-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(0 0 0 / 0.62) 0%, rgb(0 0 0 / 0.28) 42%, rgb(0 0 0 / 0) 70%);
+  pointer-events: none;
+}
+
+.tm-history-bleed-text {
+  position: absolute;
+  inset: 22px 18px auto;
+}
+
+.tm-history-card[data-bleed='true'] .tm-history-meta { color: rgb(255 255 255 / 0.78); }
+.tm-history-card[data-bleed='true'] .tm-history-title {
+  color: #fff;
+  text-shadow: 0 1px 12px rgb(0 0 0 / 0.35);
+}
+
+/* The overflow control: a small round button in the card's corner. Shown
+   on hover where there is a pointer; always there, quiet, where there is
+   not — a long press opens the same menu. */
+.tm-history-more {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  color: rgb(var(--tm-ink-rgb) / 0.55);
+  background: rgb(var(--tm-ink-rgb) / 0.06);
+  transition: opacity 140ms ease-out, background-color 140ms ease-out;
+}
+
+.tm-history-card[data-bleed='true'] .tm-history-more {
+  color: rgb(255 255 255 / 0.85);
+  background: rgb(0 0 0 / 0.28);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tm-history-more { opacity: 0; }
+  .tm-history-card:hover .tm-history-more,
+  .tm-history-card:focus-within .tm-history-more,
+  .tm-history-more[aria-expanded='true'] { opacity: 1; }
+}
+
+.tm-history-more:hover { background: rgb(var(--tm-ink-rgb) / 0.12); }
+
+/* The floating controls: round glass in the corners. */
+.tm-history-fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 9999px;
+  color: rgb(var(--tm-ink-rgb) / 0.85);
+}
+
+/* The primary control — a new chat — is the same glass as the others,
+   only fuller: more of the ink in the lens and a brighter rim, so it reads
+   as the one to press without turning into a flat disc. */
+.tm-history-fab-primary.tm-glass {
+  background: linear-gradient(135deg, rgb(var(--tm-ink-rgb) / 0.22), rgb(var(--tm-ink-rgb) / 0.12));
+  border-color: rgb(var(--tm-ink-rgb) / 0.22);
+  color: rgb(var(--tm-ink-rgb) / 0.95);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.4),
+    inset 1px 0 0 rgb(var(--tm-edge-rgb) / 0.1),
+    0 16px 36px -16px rgb(var(--tm-shadow-rgb) / 0.85);
+}
+
+.tm-history-fab-primary.tm-glass:hover {
+  background: linear-gradient(135deg, rgb(var(--tm-ink-rgb) / 0.28), rgb(var(--tm-ink-rgb) / 0.16));
+}
+
+/* The search field, unfolded from its button. */
+.tm-history-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 8px 0 16px;
+  border-radius: 9999px;
+}
+
+.tm-history-search input {
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  font-size: 16px;
+  color: rgb(var(--tm-ink-rgb) / 0.92);
+  outline: none;
+}
+
+.tm-history-search input::placeholder { color: rgb(var(--tm-ink-rgb) / 0.4); }
+
+/* The rename field, in the title's place. */
+.tm-history-rename {
+  width: 100%;
+  margin-top: 6px;
+  padding: 4px 0;
+  background: transparent;
+  border-bottom: 1px solid rgb(var(--tm-ink-rgb) / 0.3);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.022em;
+  color: rgb(var(--tm-ink-rgb) / 0.95);
+  outline: none;
+}
+
+/* A menu row. */
+.tm-history-menu-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 14px;
+  text-align: left;
+  font-size: 14.5px;
+  color: rgb(var(--tm-ink-rgb) / 0.88);
+  transition: background-color 120ms ease-out;
+}
+
+.tm-history-menu-row:hover,
+.tm-history-menu-row:focus-visible { background: rgb(var(--tm-ink-rgb) / 0.07); }
+
+.tm-history-menu-row[data-danger='true'] { color: rgb(251 113 133); }
+
+.tm-history-skeleton {
+  break-inside: avoid;
+  border-radius: 40px;
+  background: rgb(var(--tm-ink-rgb) / 0.05);
+  animation: tm-history-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tm-history-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-history-skeleton { animation: none; }
+  .tm-history-card { transition: none; }
+}

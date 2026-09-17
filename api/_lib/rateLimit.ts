@@ -11,11 +11,21 @@ import { supabaseAdmin as supabase } from './supabaseAdmin.js';
 //  - It fails CLOSED. A backend error is a 503, never a free generation.
 //  - Quota is charged only after a generation succeeds (production-check.md 0.4).
 
-// Default rate limiting configuration (fallback when no custom limits set)
+/** A daily cap from the environment; unset or non-numeric means unlimited. */
+function limitFromEnv(value: string | undefined, fallback: number): number {
+  const parsed = parseInt(value ?? '', 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+// Default rate limiting configuration (fallback when no custom limits set).
+// Girlie is unlimited for signed-in users — the product says "Unlimited chats
+// with a TimeMachine ID", and her chain is the cheap one; the provider spend
+// ceiling (PROVIDER_DAILY_CEILING) is what protects the bill. Set
+// VITE_GIRLIE_PERSONA_LIMIT to put a number back.
 const DEFAULT_PERSONA_LIMITS: Record<string, number> = {
-  default: parseInt(process.env.VITE_DEFAULT_PERSONA_LIMIT || '400'),
-  girlie: parseInt(process.env.VITE_GIRLIE_PERSONA_LIMIT || '70'),
-  pro: parseInt(process.env.VITE_PRO_PERSONA_LIMIT || '200'),
+  default: limitFromEnv(process.env.VITE_DEFAULT_PERSONA_LIMIT, 400),
+  girlie: limitFromEnv(process.env.VITE_GIRLIE_PERSONA_LIMIT, Infinity),
+  pro: limitFromEnv(process.env.VITE_PRO_PERSONA_LIMIT, 200),
 };
 
 // Anonymous trial. These are the numbers the UI shows, and they are enforced
@@ -214,6 +224,9 @@ export async function getRemainingQuota(
   try {
     if (userId) {
       const limit = await getUserRateLimit(userId, persona);
+      // Infinity does not survive JSON; an unlimited persona reports a
+      // finite, obviously-large remainder instead.
+      if (!Number.isFinite(limit)) return { remaining: Number.MAX_SAFE_INTEGER, limit: Number.MAX_SAFE_INTEGER };
       const used = await readBucketCount(persona, { userId });
       return { remaining: Math.max(0, limit - used), limit };
     }
@@ -268,6 +281,9 @@ export async function checkRateLimit(
 
     if (userId) {
       const limit = await getUserRateLimit(userId, persona);
+      // Unlimited: nothing to count, so skip the read (one round trip fewer
+      // on the leg that produces the answer — pre-launch-audit.md C.3).
+      if (!Number.isFinite(limit)) return { allowed: true, providers: open };
       const used = await readBucketCount(persona, { userId });
       return used < limit
         ? { allowed: true, providers: open }

@@ -17,7 +17,7 @@ import {
   ColorView, DateView, TimerView, RandomView, WordCountView,
   TranslatorView, DictionaryView, LoremView, JsonFormatView,
   Base64View, UrlEncodeView, HashView, RegexView, HelpView,
-  GraphView,
+  GraphView, FileConvertView,
   getIcon,
 } from './views';
 import { SnippetsView } from './views/SnippetsView';
@@ -142,6 +142,8 @@ function ModuleContent({
       return <QuickEventView module={module} accent={accent} />;
     case 'web-viewer':
       return <WebViewerView module={module} accent={accent} />;
+    case 'file-convert':
+      return <FileConvertView module={module} accent={accent} />;
     case 'help':
       return <HelpView module={module} accent={accent} />;
     default:

@@ -2,7 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- interactive-widget=resizes-content: Chrome on Android (108+) and the
+         in-app WebViews stopped shrinking the layout viewport for the soft
+         keyboard, so a fixed bottom:0 composer sat under the keys while the
+         user typed. This restores the resize where it is honoured; App.tsx
+         measures the visual viewport for the browsers that ignore it. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
 
     <!-- Primary SEO Meta Tags -->
     <title>TimeMachine</title>
@@ -44,7 +49,14 @@
       } catch (e) {}
     </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- `black`, not `black-translucent`: with the translucent bar iOS sizes
+         the installed app's layout viewport short by the status bar's height
+         and anchors it at the top of the screen, so a fixed bottom:0 composer
+         sat above a black band with the home indicator in it, and top bars
+         without safe-area padding drew under the clock. An opaque bar gives a
+         viewport that is exactly the area below it, which is what the layout
+         measures. Dark-first, so the bar matches the canvas. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="TimeMachine" />
     <meta name="application-name" content="TimeMachine Chat" />
 

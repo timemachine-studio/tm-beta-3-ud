@@ -10,7 +10,7 @@ import React from 'react';
 import {
   Calculator, ArrowLeftRight, DollarSign, Globe, Palette,
   Timer, Calendar, Shuffle, Type, Braces, Lock, Link, Hash,
-  FileSearch, FileText, BookOpen, HelpCircle, TrendingUp,
+  FileSearch, FileText, BookOpen, HelpCircle, TrendingUp, Repeat,
 } from 'lucide-react';
 
 // ─── Result types (re-exported from individual modules) ────────
@@ -38,6 +38,7 @@ export type { NavigationResult } from './modules/appNavigation';
 export type { QuickNoteResult } from './modules/quickNote';
 export type { QuickEventResult } from './modules/quickEvent';
 export type { WebViewerResult } from './modules/webViewer';
+export type { FileConvertResult } from './modules/fileConverter';
 
 // ─── Detect functions (re-exported) ───────────────────────────
 
@@ -64,6 +65,7 @@ export { detectNavigation } from './modules/appNavigation';
 export { detectQuickNote } from './modules/quickNote';
 export { detectQuickEvent } from './modules/quickEvent';
 export { detectWebViewer, toSafeExternalUrl } from './modules/webViewer';
+export { detectFileConvert, parseTarget } from './modules/fileConverter';
 
 // ─── Core types ───────────────────────────────────────────────
 
@@ -90,6 +92,7 @@ import type { NavigationResult } from './modules/appNavigation';
 import type { QuickNoteResult } from './modules/quickNote';
 import type { QuickEventResult } from './modules/quickEvent';
 import type { WebViewerResult } from './modules/webViewer';
+import type { FileConvertResult } from './modules/fileConverter';
 
 import { ContourCommand, searchCommands, groupByCategory } from './modules/commands';
 export { searchCommands, groupByCategory };
@@ -105,6 +108,7 @@ export type ModuleId =
   | 'snippets' | 'navigation'
   | 'quick-note' | 'quick-event'
   | 'web-viewer'
+  | 'file-convert'
   | 'help';
 
 export type ContourMode = 'hidden' | 'commands' | 'module';
@@ -135,6 +139,7 @@ export interface ModuleData {
   quickNote?: QuickNoteResult;
   quickEvent?: QuickEventResult;
   webViewer?: WebViewerResult;
+  fileConvert?: FileConvertResult;
 }
 
 export interface ContourState {
@@ -170,6 +175,7 @@ export const HANDLER_TO_MODULE: Record<string, ModuleId> = {
   'web-viewer': 'web-viewer',
   'quick-note': 'quick-note',
   'quick-event': 'quick-event',
+  'file-convert': 'file-convert',
   'help': 'help',
 };
 
@@ -203,5 +209,6 @@ export const MODULE_META: Record<ModuleId, {
   'quick-note': { icon: FileText, label: 'Quick Note', placeholder: 'Type notes...' },
   'quick-event': { icon: Calendar, label: 'Quick Event', placeholder: 'Type event...' },
   'web-viewer': { icon: Globe, label: 'Web Viewer', placeholder: 'Search DuckDuckGo or go to URL...' },
+  'file-convert': { icon: Repeat, label: 'File Converter', placeholder: 'Drop files above, or type a format — e.g. png, mp3, docx' },
   help: { icon: HelpCircle, label: 'Help', placeholder: '' },
 };

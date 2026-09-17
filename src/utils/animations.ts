@@ -7,15 +7,18 @@ export const fadeInScale = {
       }
     };
 
+    // Transform only, no opacity: these carry the user bubble, whose glass is
+    // a backdrop-filter, and a backdrop-filter element fading in renders
+    // black on iOS for its first frames — the "flicker" on every sent message.
     export const slideInFromLeft = {
-      initial: { opacity: 0, x: -20 },
-      animate: { opacity: 1, x: 0 },
+      initial: { x: -20 },
+      animate: { x: 0 },
       transition: { duration: 0.3 }
     };
 
     export const slideInFromRight = {
-      initial: { opacity: 0, x: 20 },
-      animate: { opacity: 1, x: 0 },
+      initial: { x: 20 },
+      animate: { x: 0 },
       transition: { duration: 0.3 }
     };
 

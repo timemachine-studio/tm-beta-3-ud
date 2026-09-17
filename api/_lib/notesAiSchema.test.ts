@@ -8,6 +8,9 @@ const base = {
 };
 
 describe('notesAiBodySchema', () => {
+  it('accepts Girlie alongside Air and PRO', () => {
+    expect(notesAiBodySchema.safeParse({ ...base, model: 'girlie' }).success).toBe(true);
+  });
   it('accepts a model and device-prepared attachments', () => {
     const parsed = notesAiBodySchema.safeParse({
       ...base,

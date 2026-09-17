@@ -191,10 +191,10 @@ export function ChatMode({
                       whileTap={{ scale: 0.97 }}
                       onClick={item.onClick}
                       className="reveoule-action-pill flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 py-2.5 transition-colors duration-200 sm:gap-2 sm:px-4"
+                      // No backdrop-filter: under the block's opacity entrance a
+                      // blurred pill renders black on iOS for a frame or two.
                       style={{
-                        background: 'rgb(var(--tm-ink-rgb) / 0.04)',
-                        backdropFilter: 'blur(20px)',
-                        WebkitBackdropFilter: 'blur(20px)',
+                        background: 'rgb(var(--tm-ink-rgb) / 0.05)',
                         border: '1px solid rgb(var(--tm-ink-rgb) / 0.08)',
                         boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.06)',
                         color: 'rgb(var(--tm-ink-rgb) / 0.55)',
@@ -208,11 +208,14 @@ export function ChatMode({
               </div>
             </motion.div>
           )}
+          {/* No `filter: blur()` on this entrance: on iOS the whole block is
+              rasterised into the filtered layer and the pills, arriving on
+              their delays, flashed black while it resolved. */}
           {showWelcomeText && !legacyUi && (
             <motion.div
-              initial={reduced ? false : { opacity: 0, y: 16, filter: 'blur(8px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              exit={reduced ? undefined : { opacity: 0, y: -16, scale: 0.98, filter: 'blur(8px)' }}
+              initial={reduced ? false : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduced ? undefined : { opacity: 0, y: -16, scale: 0.98 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="tm-chat-welcome flex items-center justify-center"
             >

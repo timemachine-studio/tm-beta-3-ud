@@ -220,9 +220,9 @@ export const NotesComposer = forwardRef<NotesComposerHandle, NotesComposerProps>
           <motion.div
             role="menu"
             aria-label={isPanel ? 'Attachments' : 'Attachments and model'}
-            initial={reduced ? false : { opacity: 0, y: 8, scale: 0.98, filter: 'blur(6px)' }}
-            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-            exit={reduced ? undefined : { opacity: 0, y: 6, scale: 0.98, filter: 'blur(6px)' }}
+            initial={reduced ? false : { y: 8, scale: 0.96 }}
+            animate={{ y: 0, scale: 1 }}
+            exit={reduced ? undefined : { y: 6, scale: 0.96 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="tm-glass tm-chat-menu absolute bottom-full left-0 z-50 mb-3 w-64 origin-bottom-left rounded-3xl p-1.5"
             onKeyDown={(event) => {

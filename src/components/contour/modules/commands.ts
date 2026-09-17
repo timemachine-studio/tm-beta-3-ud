@@ -82,6 +82,15 @@ export const CONTOUR_COMMANDS: ContourCommand[] = [
     action: { type: 'inline', handler: 'timezone' },
   },
   {
+    id: 'convert-file',
+    name: 'File Converter',
+    description: 'Images, audio, video and documents — converted on your device',
+    icon: 'Repeat',
+    category: 'converter',
+    keywords: ['file', 'convert', 'converter', 'image', 'photo', 'png', 'jpg', 'jpeg', 'webp', 'heic', 'gif', 'tiff', 'svg', 'audio', 'mp3', 'wav', 'flac', 'video', 'mp4', 'mov', 'docx', 'word', 'markdown', 'pdf', 'csv', 'json', 'format'],
+    action: { type: 'inline', handler: 'file-convert' },
+  },
+  {
     id: 'convert-color',
     name: 'Color Converter',
     description: 'Convert between HEX, RGB, HSL',

@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getFlightControls, setFlightControlEnabled } from '../../services/flightControls/flightControlsService';
 import type { EffectiveFlightControl, FlightControlKind } from '../../types/flightControls';
 import { UserServersPanel } from './UserServersPanel';
+import { UserSkillsPanel } from './UserSkillsPanel';
 
 /** The catalog's two kinds, plus the user's own servers. */
 type FlightControlTab = FlightControlKind | 'mine';
@@ -158,7 +159,7 @@ export function AgentsModal({ isOpen, onClose, onSignIn }: AgentsModalProps) {
                         </button>
                       </div>
                     ) : visibleItems.length === 0 ? (
-                      <div className="flex min-h-[230px] items-center justify-center text-center text-sm text-white/45">
+                      <div className={`flex items-center justify-center text-center text-sm text-white/45 ${activeTab === 'skill' ? 'min-h-[80px]' : 'min-h-[230px]'}`}>
                         No {activeTab === 'skill' ? 'skills' : 'MCP servers'} have been published yet.
                       </div>
                     ) : (
@@ -202,6 +203,13 @@ export function AgentsModal({ isOpen, onClose, onSignIn }: AgentsModalProps) {
                     )}
                     {activeTab !== 'mine' && error && items.length > 0 && (
                       <p className="mt-4 text-center text-xs text-rose-300/80">{error}</p>
+                    )}
+                    {/* Below the published skills: the ones this user installed
+                        from skills.sh or SkillsMP, and the search that finds them. */}
+                    {activeTab === 'skill' && !loading && (
+                      <div className="mt-5">
+                        <UserSkillsPanel signedIn={!!user} />
+                      </div>
                     )}
                   </div>
 

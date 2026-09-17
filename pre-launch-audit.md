@@ -1,5 +1,141 @@
 # TimeMachine Chat — Pre-launch Audit (2026-09-14)
 
+> **2026-09-17 cover relevance follow-up:** PRO's welcome message was entering
+> fallback context for old chats, causing unrelated medical illustrations.
+> Filtered persona boilerplate (including old UUID/reordered greetings) from
+> both image context and card preview. Prior covers are hidden and reassessed
+> under version 3. Candidate article descriptions and PageImages filenames
+> now go through a separate bounded relevance decision on the existing title
+> endpoint; confidence below 0.85 or no good match yields a text card. Clinical
+> scans, generic diagrams and logos are prefiltered. No generated images and
+> no additional deployable Function. The review uses metadata, not pixels.
+> Live isolated fixtures: greeting and cinematic portfolio stayed text-only,
+> survival-training photo rejected, Dhaka skyline accepted. Typecheck/lint,
+> 73 files / 629 tests, and build pass; existing bundle warnings remain.
+
+
+> **2026-09-17 automatic-image follow-up:** The first history implementation
+> coupled cover lookup to title generation, skipping already-named chats and
+> permanently caching overly restrictive no-subject decisions. Fixed with
+> independent, deduplicated cover enrichment for all loaded sessions (two
+> workers), versioned decisions, and broader relevant public subjects for
+> games, recommendations, science and practical tasks. Existing names remain
+> untouched. Wikipedia lookup checks three ranked matches and accepts genuine
+> smaller thumbnails; network failures stay retryable. Live isolated browser
+> fixture: Dhaka and Flappy Bird obtained and rendered images automatically,
+> greeting stayed text-only, no cover records seeded manually. Typecheck,
+> lint, 73 files / 623 tests and production build pass. Not deployed.
+
+
+> ## Handoff — 2026-09-17 (history cards and restored action buttons)
+>
+> Supersedes the sidebar/header description in the earlier handoff below.
+> Sidebar component/hook removed; chat history now has a dedicated page in
+> both interface modes. The owner's Apple reference is reflected in staggered
+> columns, tall rounded cards, text/inset-photo/full-photo treatments and glass
+> corner controls, with TM's theme and typography. The old labelled Air,
+> Girlie and PRO action controls are restored at all widths.
+>
+> New `chatTitle.ts` rides on `ai-proxy?task=title` with bounded input and its
+> own rate-limit bucket. Opening exchanges receive short titles and optional
+> public subjects; browser Wikipedia lookups fetch real Wikimedia thumbnails.
+> No image generation. Card metadata uses device IndexedDB (`chatCards.ts`).
+> `ChatService` serializes title/save/delete mutations, deduplicates naming,
+> rejects stale automatic titles after manual rename/account switch, and only
+> removes metadata after successful deletion. Naming starts after persistence;
+> message timestamps determine history dates so naming old chats does not
+> move them to today. Popup portals clamp to the viewport; broken images fall
+> back to text. Existing history actions and group access are preserved.
+>
+> Notes model choices now share `personaRoutes.ts` with main chat; Girlie is
+> available alongside Air/PRO. Denser Notes popup glass and history compose
+> control are included.
+>
+> Checks: `npm run typecheck`, `npm run lint`, **72 files / 615 tests**, and
+> `npm run build` pass. Existing large-chunk / GitHub dynamic-import warnings
+> remain. Browser checks use an isolated local fixture, including 375px and
+> 1280px history, light/dark, pin persistence and public Wikipedia lookups;
+> header controls checked using dev mock auth (no real signed-in writes).
+> Real iOS/PWA and live Notes provider acceptance remain unverified. Nothing
+> committed, pushed or deployed.
+
+
+> ## Handoff — 2026-09-17 (mobile viewport, header, file converter)
+>
+> **Done this pass (uncommitted, on `main` working tree):** D.7 (new, below —
+> the soft-keyboard fix, code done, needs a real-device pass), the header in
+> the current shell (bare glowing wordmark; the rail opens from the persona
+> menu's "Sidebar" row, no corner button), and a Contour **File Converter**
+> (`/convert`). Gates: typecheck clean · lint 0/0 · **68 files / 589 tests** ·
+> `vite build` succeeds.
+>
+> **What changed, by file:**
+> - `index.html` — viewport meta gains `interactive-widget=resizes-content`.
+> - `App.tsx` — the `--vh` effect measures `visualViewport`, publishes
+>   `--tm-keyboard`, and scrolls the document back to 0 when iOS scrolls it
+>   under the keyboard; the dock lifts by `--tm-keyboard`. Header: `top-5
+>   px-4` on phones, the wordmark is `bare` in both shells, no rail button.
+> - `BrandLogo.tsx` — `onOpenSidebar` prop → "Sidebar" menu row, shown only
+>   when the rail is hidden.
+> - `src/services/convert/` **new** — the converter engines. Images through
+>   the canvas (PNG/JPEG/WebP, no download) or `@imagemagick/magick-wasm`
+>   (Apache-2.0, ~15 MB, served from our origin via Vite `?url`); audio and
+>   video through `@ffmpeg/ffmpeg` (MIT) with the **ESM** core fetched from
+>   jsdelivr at runtime (the core has GPL components — it is run as a separate
+>   program in a worker and is deliberately not bundled; see the header of
+>   `mediaEngine.ts`); documents through `mammoth` (BSD-2), `turndown` (MIT),
+>   `docx` (MIT) and the remark/rehype stack already under react-markdown.
+>   Nothing is uploaded. VERT (the reference) is AGPL-3.0 — none of its code
+>   was used, only the same engine choices.
+> - `contour/modules/fileConverter.ts`, `views/FileConvertView.tsx`,
+>   registrations in `moduleRegistry.ts`, `commands.ts`, `useContour.ts`,
+>   `ContourPanel.tsx`, `viewIcons.ts`, `HelpView.tsx`; `ChatInput.tsx`
+>   dispatches Enter to the converter; `vite.config.ts` excludes ffmpeg from
+>   dep pre-bundling (its worker URL breaks otherwise).
+> - `pdfService.ts` — `extractPdfText(file, { truncate: false })` for the
+>   converter; the model-facing default is unchanged.
+> - `tests/api/deployableSurface.test.ts` — `fileURLToPath` instead of
+>   `.pathname`; the file never ran on Windows.
+> - `AIMessage.tsx` — the shimmer printed the raw loading-phase id, so a reply
+>   read "retrying:1/2" while the provider chain retried; it now says
+>   "Retrying · 1 of 2" like the plain spinner.
+> - `api/_lib/rateLimit.ts` — signed-in **Girlie is unlimited** by default
+>   (`VITE_GIRLIE_PERSONA_LIMIT` puts a number back); Air 400 and PRO 200 are
+>   unchanged. The product copy says "Unlimited chats with a TimeMachine ID"
+>   (sidebar, persona menu, Help) — whether Air and PRO should follow is a
+>   product call, not made here. `.env.example` documents the three caps.
+>
+> **Verified live (dev server, in-app browser):** PNG→WebP and SVG→WebP
+> (canvas), PNG→TIFF (ImageMagick, real TIFF header), MD→DOCX (real zip),
+> CSV↔JSON, WAV→MP3 (ffmpeg core downloaded, ID3-tagged MP3 out). Header at
+> 375px and 1100px; "Sidebar" opens the rail.
+>
+> - **Skills from directories** (Flight Controls → Skills → "Your skills"):
+>   `api/_lib/skillsRegistry.ts` (skills.sh `/api/search` + skillsmp.com
+>   `/api/v1/skills/search`, SKILL.md fetched only from
+>   raw.githubusercontent.com at the folders `npx skills add` uses, tree-API
+>   fallback, 80k-char cap, front-matter parse), `api/_lib/skillsRoute.ts`
+>   (`/api/mcp-servers?skills=search|list|add|update|remove` — same Function,
+>   same reason as GitHub), `supabase/migrations/user_skills.sql` **new,
+>   unapplied**, `flightControls.ts` merges enabled rows into the resolved
+>   controls so they reach `list_skills` / `read_skill` like catalog skills,
+>   `UserSkillsPanel.tsx` + `userSkillsService.ts`. Installed content is
+>   untrusted text a stranger wrote; it is stored and rendered as text, read
+>   by the model only on request, and only in that user's chats (A.12
+>   applies to it as to any skill). 16 tests; both directories and a live
+>   fetch verified.
+>
+> - **D.8** (new, below): iOS black band, cut-off plus menu, black flashes on
+>   glass popups and bubbles — status bar `black`, deterministic menu
+>   placement on phones, transform-only entrances, half blur on touch.
+>
+> **Owner actions:** run `supabase/migrations/user_skills.sql` in the SQL
+> editor — until then the panel says so and Install cannot save. Optionally
+> set `SKILLSMP_API_KEY`. Then a real-device pass for D.7 and D.8 on iOS Safari, the iOS PWA,
+> Android Chrome, and the Instagram in-app browser — the fix was built from
+> the screenshots and the viewport spec, and the desktop preview cannot show
+> a soft keyboard.
+
 > ## Handoff — 2026-09-15 (first fix pass)
 >
 > **Done this pass (all uncommitted, on `main` working tree):** A.1, A.2, A.3,
@@ -743,6 +879,69 @@ still JS. `ai-proxy.ts` is now **3,955 lines** with eight near-duplicate provide
 blocks (the OpenAI-compatible adapter exists — `callOpenAiCompatibleStreaming` —
 but only AMD and LLM7 use it; migrating Groq/Cerebras/Eaon/NVIDIA/SecretsToAI/
 Pollinations onto it is the refactor 3.5 asked for).
+
+### D.7 — Mobile: the composer under the soft keyboard, the page scrolled, a black band ✅ *(code done 2026-09-17; real-device pass owed)*
+
+**Problem.** Three screenshots, one cause. In the Instagram in-app browser
+on Android the composer was hidden behind the keyboard while typing. On an
+iPhone, focusing the composer scrolled the whole document up: the header left
+the screen, the greeting slid under the clock, a large empty gap opened above
+the composer; and after the keyboard closed the document stayed scrolled,
+leaving a black band under the composer.
+
+**Evidence.** The dock is `position: fixed; bottom: 0` and `--vh` came from
+`window.innerHeight`. Chrome on Android 108+ and the in-app WebViews stopped
+resizing the layout viewport for the keyboard (only the visual viewport
+shrinks), so `innerHeight` does not change and `bottom: 0` is under the keys.
+iOS never resizes the layout viewport; it scrolls the document to reveal the
+focused input instead, and does not scroll it back.
+
+**Fix.** `index.html`: `interactive-widget=resizes-content` on the viewport
+meta, for the engines that honour it. `App.tsx`: the `--vh` effect measures
+`visualViewport.height` (not while pinch-zoomed), publishes `--tm-keyboard`
+= how far the visual viewport's bottom sits above the layout viewport's, and
+scrolls the document back to 0 whenever it finds it offset (the body never
+scrolls by design, so any offset is the keyboard's). The dock's `bottom` is
+`var(--tm-keyboard)`. The transcript's height already follows `--vh`, so it
+shrinks to the visible area and the greeting re-centres in it.
+
+**Done when.** On a real iPhone (Safari and the installed PWA), Android Chrome
+and the Instagram browser: tapping the composer keeps the header on screen,
+the composer sits directly above the keys, and dismissing the keyboard leaves
+no band under the composer. Not verifiable in the desktop preview.
+
+### D.8 — iOS: black band in the installed app, cut-off plus menu, black flashes on every glass popup ✅ *(code done 2026-09-17 from three screen recordings; real-device pass owed)*
+
+**Problem.** In the installed (home-screen) app the page ended ~60pt above the
+bottom of the screen with a black band under the composer; the composer's own
+safe-area padding sat *above* the band. The plus menu opened cut off at the
+left. Every glass popup — plus menu, persona menu, Notes menus — and the
+welcome pills flashed black for a frame or two as they animated in, and the
+user bubble did the same on every sent message. Notes' top bar drew under the
+clock.
+
+**Evidence.** The band is the status bar's height, not the home indicator's:
+with `apple-mobile-web-app-status-bar-style=black-translucent` and
+`viewport-fit=cover`, WebKit sizes the standalone layout viewport as if the
+bar were opaque but anchors it at the top of the screen — a long-standing
+bug, visible on any fixed `bottom: 0`. The plus menu measured how far it hung
+off the left and pushed itself back; on iOS the measurement landed before the
+transform did. The flashes are WebKit's known failure with a `backdrop-filter`
+element under an animating `opacity` or CSS `filter`.
+
+**Fix.** `index.html`: status bar `black` — the viewport is then exactly the
+area below the bar (light mode gets a black status bar over paper; the
+alternative is the band). `PlusMenu.tsx`: below 640px the stack is
+left-aligned to the button by construction, no measuring; centred above.
+Every glass entrance is transform-only (y + scale): `PlusMenu`, `BrandLogo`
+menu, `NotesAiPanel`, `NotesComposer`, `NotesPage` menus, the welcome block
+(no `filter: blur`), the legacy welcome pills (no backdrop-filter), the user
+bubble (`animations.ts`), and the landing hero's `filter`. `index.css`: blur
+radii halved on `(pointer: coarse)`.
+
+**Done when.** On the installed app and in Safari: no band, the plus menu
+fully on screen from the left padding, no black frame on any popup or sent
+message, Notes' top bar below the clock. Not verifiable in the desktop preview.
 
 ### D.6 — `production-check.md` is out of date in ways that will mislead the next person
 

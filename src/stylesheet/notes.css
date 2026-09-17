@@ -373,6 +373,19 @@
   border-radius: 18px;
 }
 
+/* The menus open over the note's own words, so the lens is denser here
+   than the shell's glass: the page tint at 80% under the ink sheen, and a
+   deeper blur, so a heading behind the menu is a glow rather than a line
+   of text competing with the rows. */
+.tm-notes-menu.tm-glass {
+  background:
+    linear-gradient(135deg, rgb(var(--tm-ink-rgb) / 0.11), rgb(var(--tm-ink-rgb) / 0.04) 60%, rgb(var(--tm-ink-rgb) / 0.06)),
+    rgb(var(--tm-paper-rgb) / 0.8);
+  backdrop-filter: blur(32px) saturate(170%) brightness(1.02);
+  -webkit-backdrop-filter: blur(32px) saturate(170%) brightness(1.02);
+  border-color: rgb(var(--tm-ink-rgb) / 0.16);
+}
+
 /* ---- light mode: flat paper, the same layout ---- */
 
 :root[data-theme='light'] .tm-notes-rail,

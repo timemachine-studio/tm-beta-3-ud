@@ -14,8 +14,12 @@ const MAX_CHARS = 80000; // ~20K tokens — safely within context window limits
 /**
  * Extract all text content from a PDF file.
  * Returns the extracted text and page count.
+ *
+ * The truncation exists for the model's context window. A caller that wants
+ * the whole document — the file converter writes it out, it does not prompt
+ * with it — passes `{ truncate: false }`.
  */
-export async function extractPdfText(file: File): Promise<{ text: string; pageCount: number }> {
+export async function extractPdfText(file: File, { truncate = true }: { truncate?: boolean } = {}): Promise<{ text: string; pageCount: number }> {
   const arrayBuffer = await file.arrayBuffer();
 
   const pdf = await pdfjsLib.getDocument({
@@ -60,7 +64,7 @@ export async function extractPdfText(file: File): Promise<{ text: string; pageCo
   }
 
   // Safety truncation for very large documents
-  if (text.length > MAX_CHARS) {
+  if (truncate && text.length > MAX_CHARS) {
     const keepEnd = Math.floor(MAX_CHARS * 0.15);
     const keepStart = MAX_CHARS - keepEnd;
     text = text.slice(0, keepStart)

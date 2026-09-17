@@ -1,8 +1,11 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const API_DIR = new URL('../../api/', import.meta.url).pathname;
+// fileURLToPath, not .pathname: on Windows the latter is "/D:/…", which join()
+// turns into "D:\D:\…" and the whole file fails to read anything.
+const API_DIR = fileURLToPath(new URL('../../api/', import.meta.url));
 
 /**
  * Vercel turns every file under `api/` into a deployed Function, one route per
@@ -68,7 +71,7 @@ function sourceFiles(dir: string): string[] {
 
 describe('server-side ESM imports', () => {
   it('names the extension on every relative import in shared/ and api/', () => {
-    const roots = [new URL('../../shared/', import.meta.url).pathname, API_DIR];
+    const roots = [fileURLToPath(new URL('../../shared/', import.meta.url)), API_DIR];
     const offenders: string[] = [];
     for (const file of roots.flatMap(sourceFiles)) {
       const source = readFileSync(file, 'utf8');

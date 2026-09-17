@@ -1,654 +1,777 @@
-import { History } from 'lucide-react';
-import { AppShell } from '../shared/AppShell';
-import { parseChatImport } from '../../services/chat/storedChatValidation';
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import * as Tabs from '@radix-ui/react-tabs';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Pencil, Trash2, ChevronLeft, ChevronRight, Download, Upload, Cloud, CloudOff, RefreshCw, Users, MessageCircle } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import {
-  ChatSession,
-  getLocalSessions,
-  getSupabaseSessions,
-  deleteSupabaseSession,
-  deleteLocalSession,
-  renameSupabaseSession,
-  migrateLocalSessionsToSupabase,
-  saveSupabaseSession,
-} from '../../services/chat/chatService';
-import { getUserGroupChats } from '../../services/groupChat/groupChatService';
+/**
+ * The history page: every chat as a card on a wall.
+ *
+ * Each card carries when the chat was last touched, the name the namer gave
+ * it and either the opening of the first answer or, when the chat was about
+ * a thing with a picture, that picture (src/services/chat/chatTitleService).
+ * Pinned cards come first. The controls float in the corners: back, filter,
+ * search, and a new chat. A card's own menu — pin, rename, delete — opens
+ * from the dots in its corner, a right click, or a long press.
+ *
+ * Storage goes through ChatService only; the page never knows which store
+ * a person is on.
+ */
 
-interface GroupChatItem {
-  id: string;
-  name: string;
-  persona: string;
-  owner_nickname: string;
-  updated_at: string;
-  participant_count: number;
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import {
+  ArrowLeft, Check, Download, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Search, SlidersHorizontal, SquarePen, Trash2, Upload, Users, X,
+} from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { DEV_MOCK_AUTH } from '../../context/devMockAuth';
+import { AppAtmosphere } from '../shared/AppAtmosphere';
+import { chatService, type ChatSession } from '../../services/chat/chatService';
+import type { ChatCardMeta } from '../../services/chat/chatCards';
+import { getUserGroupChats } from '../../services/groupChat/groupChatService';
+import { parseChatImport } from '../../services/chat/storedChatValidation';
+import { toLayoutPx } from '../../utils/pageZoom';
+import {
+  itemsFrom, matchesFilter, matchesQuery, whenLabel,
+  type GroupChatItem, type HistoryFilter, type HistoryItem,
+} from './historyCards';
+
+const FILTERS: Array<{ id: HistoryFilter; label: string }> = [
+  { id: 'all', label: 'All chats' },
+  { id: 'default', label: 'TimeMachine Air' },
+  { id: 'girlie', label: 'TimeMachine Girlie' },
+  { id: 'pro', label: 'TimeMachine PRO' },
+  { id: 'group', label: 'Group chats' },
+];
+
+/**
+ * Chats saved before the namer existed still wear their opening words. The
+ * page names a few of them each visit, newest first, one at a time — the
+ * whole archive gets there over a few visits without a burst of requests.
+ */
+const NAMINGS_PER_VISIT = 8;
+const LONG_PRESS_MS = 480;
+
+function columnCount() {
+  if (window.matchMedia('(min-width: 1024px)').matches) return 4;
+  if (window.matchMedia('(min-width: 640px)').matches) return 3;
+  return 2;
 }
 
-// Only show TimeMachine personas in tabs (not external AI)
-const HISTORY_TABS = {
-  default: { name: 'TimeMachine Air' },
-  girlie: { name: 'TimeMachine Girlie' },
-  pro: { name: 'TimeMachine PRO' },
-  groupChats: { name: 'Group Chats' }
-} as const;
-
-type HistoryTabKey = keyof typeof HISTORY_TABS;
+function subscribeColumns(changed: () => void) {
+  const queries = ['(min-width: 640px)', '(min-width: 1024px)'].map(query => window.matchMedia(query));
+  queries.forEach(query => query.addEventListener('change', changed));
+  return () => queries.forEach(query => query.removeEventListener('change', changed));
+}
 
 interface ChatHistoryPageProps {
   onLoadChat: (session: ChatSession) => void;
 }
 
+/** The card menu's width in layout pixels, for keeping it on screen. */
+const MENU_WIDTH = 216;
+
+const MENU_MOTION = {
+  initial: { y: -6, scale: 0.96 },
+  animate: { y: 0, scale: 1 },
+  exit: { y: -4, scale: 0.97 },
+  transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const },
+};
+
 export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [groupChats, setGroupChats] = useState<GroupChatItem[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState('');
-  const [selectedTab, setSelectedTab] = useState<HistoryTabKey>('default');
-  const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const tabKeys = Object.keys(HISTORY_TABS) as HistoryTabKey[];
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const reduced = useReducedMotion();
+  const columns = useSyncExternalStore(subscribeColumns, columnCount, () => 2);
 
-  const loadChatSessions = useCallback(async () => {
-    setIsLoading(true);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [groups, setGroups] = useState<GroupChatItem[]>([]);
+  const [cards, setCards] = useState<Map<string, ChatCardMeta>>(new Map());
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<HistoryFilter>('all');
+  const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const loadVersion = useRef(0);
+
+  const load = useCallback(async () => {
+    const version = ++loadVersion.current;
+    setLoading(true);
     try {
-      let sessions: ChatSession[];
+      // Arriving here directly, nothing has told the service who is signed
+      // in yet. The mock dev user keeps its chats on the device, as in useChat.
+      chatService.setUserId(DEV_MOCK_AUTH ? null : (user?.id ?? null));
+      const [list, cardMap, groupList] = await Promise.all([
+        chatService.getSessions(),
+        chatService.listChatCards(),
+        user ? getUserGroupChats(user.id).catch(() => [] as GroupChatItem[]) : Promise.resolve([] as GroupChatItem[]),
+      ]);
+      if (version !== loadVersion.current) return;
+      setSessions(list);
+      setCards(cardMap);
+      setGroups(groupList);
 
-      if (user) {
-        // Load regular chat sessions
-        sessions = await getSupabaseSessions(user.id);
-        // Load group chats
-        const userGroupChats = await getUserGroupChats(user.id);
-        setGroupChats(userGroupChats);
-      } else {
-        sessions = getLocalSessions();
-        setGroupChats([]);
-      }
-
-      setChatSessions(sessions.sort((a, b) =>
-        new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
-      ));
+      const unnamed = list
+        .filter(session => !cardMap.get(session.id)?.namedAt && chatService.isUnnamed(session))
+        .sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || ''))
+        .slice(0, NAMINGS_PER_VISIT);
+      void (async () => {
+        for (const session of unnamed) {
+          if (version !== loadVersion.current) return;
+          try {
+            const title = await chatService.nameChat(session);
+            if (version !== loadVersion.current) return;
+            if (!title) continue;
+            setSessions(current => current.map(s => s.id === session.id ? { ...s, name: title } : s));
+            const card = await chatService.getChatCard(session.id);
+            if (card) setCards(current => new Map(current).set(session.id, card));
+          } catch (error) {
+            // The card keeps its opening words; the next visit tries again.
+            console.error('[ChatTitle] naming failed:', error instanceof Error ? error.message : error);
+          }
+        }
+      })();
     } catch (error) {
-      console.error('Failed to load chat sessions:', error);
-      setChatSessions([]);
-      setGroupChats([]);
+      if (version !== loadVersion.current) return;
+      console.error('Failed to load chat history:', error);
+      setSessions([]);
+      setGroups([]);
+      setNotice("Couldn't load chat history");
     } finally {
-      setIsLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
     let cancelled = false;
-    queueMicrotask(() => { if (!cancelled) void loadChatSessions(); });
-    return () => { cancelled = true; };
-  }, [loadChatSessions]);
+    queueMicrotask(() => { if (!cancelled) void load(); });
+    return () => { cancelled = true; loadVersion.current += 1; };
+  }, [load]);
 
   useEffect(() => {
-    if (feedbackMessage) {
-      const timer = setTimeout(() => setFeedbackMessage(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [feedbackMessage]);
-
-  const handleMigrateToCloud = async () => {
-    if (!user) return;
-
-    setIsSyncing(true);
-    try {
-      const count = await migrateLocalSessionsToSupabase(user.id);
-      if (count > 0) {
-        setFeedbackMessage({ type: 'success', text: `Migrated ${count} chat(s) to cloud!` });
-        await loadChatSessions();
-      } else {
-        setFeedbackMessage({ type: 'success', text: 'No local chats to migrate.' });
+    let cancelled = false;
+    let next = 0;
+    // Every chat is considered, including old named chats. Two workers keep
+    // the page responsive without requiring repeated visits to fill it in.
+    const fillCovers = async () => {
+      while (!cancelled && next < sessions.length) {
+        const session = sessions[next++];
+        try {
+          const card = await chatService.ensureChatCover(session);
+          if (card && !cancelled) setCards(current => new Map(current).set(session.id, card));
+        } catch {
+          // Transient failures remain eligible on the next visit.
+        }
       }
-    } catch {
-      setFeedbackMessage({ type: 'error', text: 'Failed to migrate chats.' });
-    } finally {
-      setIsSyncing(false);
-    }
+    };
+    void fillCovers();
+    void fillCovers();
+    return () => { cancelled = true; };
+  }, [sessions]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 2800);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  // One menu at a time, and none once the page is clicked elsewhere.
+  useEffect(() => {
+    if (!menuFor && !filterOpen) return;
+    const close = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('[data-history-menu]')) return;
+      setMenuFor(null);
+      setFilterOpen(false);
+      setConfirmDelete(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setMenuFor(null); setFilterOpen(false); setConfirmDelete(false); }
+    };
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuFor, filterOpen]);
+
+  const items = useMemo(() => itemsFrom(sessions, groups, cards), [sessions, groups, cards]);
+  const shown = useMemo(
+    () => items.filter(item => matchesFilter(item, filter) && matchesQuery(item, query)),
+    [items, filter, query],
+  );
+
+  const open = (item: HistoryItem) => {
+    if (item.kind === 'group') navigate(`/groupchat/${item.id}`);
+    else if (item.session) onLoadChat(item.session);
   };
 
-  const handleRename = (sessionId: string) => {
-    const session = chatSessions.find(s => s.id === sessionId);
-    if (session) {
-      setEditingId(sessionId);
-      setEditingName(session.name);
-    }
+  const togglePin = async (item: HistoryItem) => {
+    setMenuFor(null);
+    const pinned = !item.pinned;
+    await chatService.setChatPinned(item.id, pinned);
+    const card = await chatService.getChatCard(item.id);
+    setCards(current => {
+      const next = new Map(current);
+      if (card) next.set(item.id, card);
+      return next;
+    });
   };
 
-  const handleSaveRename = async () => {
-    if (!editingId || !editingName.trim()) return;
+  const startRename = (item: HistoryItem) => {
+    setMenuFor(null);
+    setRenaming({ id: item.id, value: item.title });
+  };
 
+  const commitRename = async () => {
+    if (!renaming) return;
+    const name = renaming.value.trim();
+    const id = renaming.id;
+    setRenaming(null);
+    if (!name) return;
+    const ok = await chatService.renameSession(id, name).catch(() => false);
+    if (!ok) { setNotice("Couldn't rename that chat"); return; }
+    setSessions(current => current.map(session => session.id === id ? { ...session, name } : session));
+  };
+
+  const remove = async (item: HistoryItem) => {
+    setMenuFor(null);
+    setConfirmDelete(false);
+    const ok = await chatService.deleteSession(item.id).catch(() => false);
+    if (!ok) { setNotice("Couldn't delete that chat"); return; }
+    setSessions(current => current.filter(session => session.id !== item.id));
+    setNotice('Chat deleted');
+  };
+
+  const exportAll = () => {
     try {
-      if (user) {
-        await renameSupabaseSession(editingId, editingName.trim());
-      } else {
-        const sessions = getLocalSessions();
-        const updated = sessions.map(s =>
-          s.id === editingId ? { ...s, name: editingName.trim(), lastModified: new Date().toISOString() } : s
-        );
-        localStorage.setItem('chatSessions', JSON.stringify(updated));
-      }
-
-      setChatSessions(prev =>
-        prev.map(session =>
-          session.id === editingId
-            ? { ...session, name: editingName.trim(), lastModified: new Date().toISOString() }
-            : session
-        )
-      );
-      setEditingId(null);
-      setEditingName('');
-    } catch (error) {
-      console.error('Failed to rename chat session:', error);
-      setFeedbackMessage({ type: 'error', text: 'Failed to rename chat.' });
-    }
-  };
-
-  const handleDelete = async (sessionId: string) => {
-    if (!confirm('Are you sure you want to delete this chat session?')) return;
-
-    try {
-      if (user) {
-        await deleteSupabaseSession(sessionId);
-      } else {
-        deleteLocalSession(sessionId);
-      }
-
-      setChatSessions(prev => prev.filter(session => session.id !== sessionId));
-      setFeedbackMessage({ type: 'success', text: 'Chat deleted.' });
-    } catch (error) {
-      console.error('Failed to delete chat session:', error);
-      setFeedbackMessage({ type: 'error', text: 'Failed to delete chat.' });
-    }
-  };
-
-  const handleExportChats = () => {
-    try {
-      const exportData = {
-        exportDate: new Date().toISOString(),
-        version: '1.0',
-        sessions: chatSessions
-      };
-
-      const dataStr = JSON.stringify(exportData, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-
+      const blob = new Blob([JSON.stringify({ exportDate: new Date().toISOString(), version: '1.0', sessions }, null, 2)], { type: 'application/json' });
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(dataBlob);
+      link.href = URL.createObjectURL(blob);
       link.download = `timemachine_chat_history_${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
       URL.revokeObjectURL(link.href);
-      setFeedbackMessage({ type: 'success', text: 'Chat history exported successfully!' });
-    } catch (error) {
-      console.error('Failed to export chat history:', error);
-      setFeedbackMessage({ type: 'error', text: 'Failed to export chat history.' });
+      setNotice('Exported');
+    } catch {
+      setNotice("Couldn't export");
+    }
+    setFilterOpen(false);
+  };
+
+  const importFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      const imported = parseChatImport(JSON.parse(await file.text()));
+      if (imported.length === 0) throw new Error('empty');
+      for (const session of imported) await chatService.saveSession(session);
+      await load();
+      setNotice(`Imported ${imported.length} chat${imported.length === 1 ? '' : 's'}`);
+    } catch {
+      setNotice("Couldn't read that file");
     }
   };
 
-  const handleImportChats = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const content = e.target?.result as string;
-        const validSessions = parseChatImport(JSON.parse(content));
-
-        if (validSessions.length === 0) {
-          throw new Error('No valid chat sessions found in file');
-        }
-
-        if (user) {
-          for (const session of validSessions) {
-            await saveSupabaseSession(session, user.id);
-          }
-        } else {
-          const existingSessions = getLocalSessions();
-          const sessionMap = new Map();
-
-          existingSessions.forEach((session) => {
-            sessionMap.set(session.id, session);
-          });
-
-          validSessions.forEach((session: ChatSession) => {
-            const existing = sessionMap.get(session.id);
-            if (!existing || new Date(session.lastModified) > new Date(existing.lastModified)) {
-              sessionMap.set(session.id, session);
-            }
-          });
-
-          const mergedSessions = Array.from(sessionMap.values());
-          localStorage.setItem('chatSessions', JSON.stringify(mergedSessions));
-        }
-
-        await loadChatSessions();
-
-        setFeedbackMessage({
-          type: 'success',
-          text: `Successfully imported ${validSessions.length} chat session(s)!`
-        });
-      } catch (error) {
-        console.error('Failed to import chat history:', error);
-        setFeedbackMessage({
-          type: 'error',
-          text: 'Failed to import chat history. Please check the file format.'
-        });
-      }
-    };
-
-    reader.readAsText(file);
-    event.target.value = '';
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const handleLoadChat = (session: ChatSession) => {
-    onLoadChat(session);
-  };
-
-  const handleLoadGroupChat = (groupChatId: string) => {
-    // Navigate to the group chat URL
-    navigate(`/groupchat/${groupChatId}`);
-  };
-
-  const handleTabChange = (direction: 'next' | 'prev') => {
-    const currentIndex = tabKeys.indexOf(selectedTab);
-    const newIndex = direction === 'next'
-      ? (currentIndex + 1) % tabKeys.length
-      : (currentIndex - 1 + tabKeys.length) % tabKeys.length;
-    setSelectedTab(tabKeys[newIndex]);
-  };
-
-  // Filter sessions based on selected tab (excludes group chats - they're handled separately)
-  const filteredSessions = selectedTab === 'groupChats'
-    ? []
-    : chatSessions.filter(session => session.persona === selectedTab);
-
-  const hasLocalSessions = user && getLocalSessions().length > 0;
+  const fabGlass = 'tm-glass tm-press tm-history-fab';
+  const fabBorder = { border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)' };
 
   return (
-    <AppShell
-      title="Chat history"
-      measure="wide"
-      actions={user ? (
-        <span className="tm-glass-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px]" style={{ border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)', color: 'rgb(var(--tm-ink-rgb) / 0.7)' }}>
-          <Cloud className="h-3.5 w-3.5" aria-hidden="true" /> Synced
-        </span>
-      ) : (
-        <span className="tm-glass-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px]" style={{ border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)', color: 'rgb(var(--tm-ink-rgb) / 0.7)' }}>
-          <CloudOff className="h-3.5 w-3.5" aria-hidden="true" /> On this device
-        </span>
-      )}
-    >
-      <div>
+    <div className="tm-chat-shell relative min-h-screen overflow-hidden" style={{ minHeight: 'var(--tm-100vh)' }}>
+      <AppAtmosphere />
+      <h1 className="sr-only">Chat history</h1>
 
-        {/* Feedback Message */}
-        <AnimatePresence>
-          {feedbackMessage && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className={`mb-4 p-3 rounded-lg text-sm font-medium ${
-                feedbackMessage.type === 'success'
-                  ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                  : 'bg-red-500/20 text-red-300 border border-red-500/30'
-              }`}
-            >
-              {feedbackMessage.text}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Migration prompt */}
-        {hasLocalSessions && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-4 p-3 rounded-lg bg-purple-500/20 border border-purple-500/30"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-purple-200">
-                You have local chats. Migrate them to the cloud?
-              </p>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleMigrateToCloud}
-                disabled={isSyncing}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500 text-white text-sm font-medium disabled:opacity-50"
-              >
-                {isSyncing ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Cloud className="w-4 h-4" />
-                )}
-                Migrate
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Export/Import Buttons */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleExportChats}
-            className="tm-glass tm-pill-action flex items-center gap-2 px-4 py-2 rounded-full text-white transition-all duration-200"
-            style={{
-              background: 'rgb(var(--tm-ink-rgb) / 0.05)',
-              border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
-            }}
-          >
-            <Download className="w-4 h-4" />
-            <span className="text-sm font-medium">Export All</span>
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleImportChats}
-            className="tm-glass tm-pill-action flex items-center gap-2 px-4 py-2 rounded-full text-white transition-all duration-200"
-            style={{
-              background: 'rgb(var(--tm-ink-rgb) / 0.05)',
-              border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
-            }}
-          >
-            <Upload className="w-4 h-4" />
-            <span className="text-sm font-medium">Import</span>
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={loadChatSessions}
-            disabled={isLoading}
-            aria-label="Refresh chat history"
-            className="tm-glass tm-pill-action flex items-center gap-2 px-4 py-2 rounded-full text-white transition-all duration-200 disabled:opacity-50"
-            style={{
-              background: 'rgb(var(--tm-ink-rgb) / 0.05)',
-              border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
-            }}
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </motion.button>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-        </div>
-
-        {/* Tabs */}
-        <Tabs.Root
-          value={selectedTab}
-          onValueChange={(value) => setSelectedTab(value as HistoryTabKey)}
-          className="flex flex-col"
+      <div
+        className="tm-notes-scroll relative overflow-y-auto"
+        style={{ height: 'var(--tm-100vh)' }}
+        // A card menu is pinned to where its dots were; a scroll moves the dots.
+        onScroll={() => { if (menuFor) { setMenuFor(null); setConfirmDelete(false); } }}
+      >
+        <div
+          className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8"
+          style={{
+            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 76px)',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 112px)',
+          }}
         >
-          <Tabs.List className="mb-6">
-            <div className="sm:hidden flex items-center justify-between">
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => handleTabChange('prev')}
-                aria-label="Previous history tab"
-                className="p-2 rounded-full transition-all duration-200"
-                style={{
-                  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
-                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
-                }}
-              >
-                <ChevronLeft className="w-5 h-5 text-gray-200" />
-              </motion.button>
-              <motion.div
-                key={selectedTab}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="px-4 py-2 rounded-full text-white text-sm font-medium flex items-center gap-2"
-                style={{
-                  background: 'rgb(var(--tm-ink-rgb) / 0.1)',
-                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)'
-                }}
-              >
-                {selectedTab === 'groupChats' && <Users className="w-4 h-4" />}
-                {HISTORY_TABS[selectedTab].name}
-              </motion.div>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => handleTabChange('next')}
-                aria-label="Next history tab"
-                className="p-2 rounded-full transition-all duration-200"
-                style={{
-                  background: 'rgb(var(--tm-ink-rgb) / 0.05)',
-                  border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
-                }}
-              >
-                <ChevronRight className="w-5 h-5 text-gray-200" />
-              </motion.button>
-            </div>
-            <div className="hidden sm:flex space-x-2 overflow-x-auto">
-              {Object.entries(HISTORY_TABS).map(([key, tab]) => (
-                <Tabs.Trigger
-                  key={key}
-                  value={key}
-                  className="px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium whitespace-nowrap flex items-center gap-2"
-                  style={{
-                    background: selectedTab === key ? 'rgb(var(--tm-ink-rgb) / 0.15)' : 'rgb(var(--tm-ink-rgb) / 0.05)',
-                    border: selectedTab === key ? '1px solid rgb(var(--tm-ink-rgb) / 0.2)' : '1px solid rgb(var(--tm-ink-rgb) / 0.1)',
-                    color: selectedTab === key ? 'var(--color-ink)' : 'rgb(var(--tm-ink-rgb) / 0.7)'
-                  }}
-                >
-                  {key === 'groupChats' && <Users className="w-4 h-4" />}
-                  {tab.name}
-                </Tabs.Trigger>
+          {loading ? (
+            <div className="tm-history-grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} aria-busy="true" aria-label="Loading chats">
+              {Array.from({ length: columns }, (_, index) => (
+                <div key={index} className="tm-history-column">
+                  <div className="tm-history-skeleton" style={{ height: 240 }} />
+                  <div className="tm-history-skeleton" style={{ height: 280 }} />
+                </div>
               ))}
             </div>
-          </Tabs.List>
-
-          <motion.div
-            key={selectedTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-3"
-          >
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              </div>
-            ) : selectedTab === 'groupChats' ? (
-              // Render group chats
-              groupChats.length === 0 ? (
-                <div className="tm-history-empty text-center py-12 text-white">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="mx-auto mb-2 text-ink-muted"><Users className="h-9 w-9" aria-hidden="true" /></div>
-                    <div>
-                      <p className="text-lg mb-2">No group chats found</p>
-                      <p className="text-sm text-ink-muted">
-                        {user
-                          ? 'Group chats will appear here when you create or join them'
-                          : 'Sign in to access group chats'}
-                      </p>
-                    </div>
-                  </div>
+          ) : shown.length === 0 ? (
+            <Empty
+              query={query}
+              filter={filter}
+              signedIn={!!user}
+              onNewChat={() => navigate('/', { state: { newChat: true } })}
+              onClear={() => { setQuery(''); setFilter('all'); }}
+            />
+          ) : (
+            <div className="tm-history-grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+              {Array.from({ length: columns }, (_, column) => (
+                <div key={column} className="tm-history-column">
+                  {shown.filter((_, index) => index % columns === column).map(item => (
+                <HistoryCard
+                  key={`${item.kind}:${item.id}`}
+                  item={item}
+                  menuOpen={menuFor === item.id}
+                  confirmDelete={menuFor === item.id && confirmDelete}
+                  renaming={renaming?.id === item.id ? renaming.value : null}
+                  reduced={!!reduced}
+                  onOpen={() => open(item)}
+                  onMenu={(openIt) => { setMenuFor(openIt ? item.id : null); setConfirmDelete(false); setFilterOpen(false); }}
+                  onPin={() => togglePin(item)}
+                  onRename={() => startRename(item)}
+                  onRenameChange={(value) => setRenaming(current => current && { ...current, value })}
+                  onRenameCommit={commitRename}
+                  onRenameCancel={() => setRenaming(null)}
+                  onDelete={() => (confirmDelete ? remove(item) : setConfirmDelete(true))}
+                />
+                  ))}
                 </div>
-              ) : (
-                groupChats.map(chat => (
-                  <motion.div
-                    key={chat.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-4 rounded-xl cursor-pointer transition-all duration-300 hover:bg-white/10"
-                    style={{
-                      background: 'rgb(var(--tm-ink-rgb) / 0.05)',
-                      border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
-                    }}
-                    onClick={() => handleLoadGroupChat(chat.id)}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-purple-400" />
-                          <h3 className="font-semibold text-white truncate text-lg">
-                            {chat.name || 'Untitled Group'}
-                          </h3>
-                        </div>
-                        <p className="text-sm text-gray-300 opacity-70 mt-1">
-                          {chat.participant_count} participants • by {chat.owner_nickname} • {formatDate(chat.updated_at)}
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))
-              )
-            ) : filteredSessions.length === 0 ? (
-              <div className="tm-history-empty text-center py-12 text-white">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="mx-auto mb-2 text-ink-muted"><History className="h-9 w-9" aria-hidden="true" /></div>
-                  <div>
-                    <p className="text-lg mb-2">No chats found for {HISTORY_TABS[selectedTab].name}</p>
-                    <p className="text-sm text-ink-muted">Start a conversation to see your chat history here</p>
-                  </div>
-                  <motion.button
-                    whileHover={{ y: -1 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate('/')}
-                    className="tm-glass tm-press tm-pill-action inline-flex items-center gap-2 px-4 text-sm font-medium text-ink"
-                  >
-                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                    Start a chat
-                  </motion.button>
-                </div>
-              </div>
-            ) : (
-              filteredSessions.map(session => (
-                <motion.div
-                  key={session.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-4 rounded-xl cursor-pointer transition-all duration-300"
-                  style={{
-                    background: 'rgb(var(--tm-ink-rgb) / 0.05)',
-                    border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
-                  }}
-                  onClick={() => handleLoadChat(session)}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      {editingId === session.id ? (
-                        <div className="flex flex-col gap-2">
-                          <input
-                            type="text"
-                            value={editingName}
-                            onChange={(e) => setEditingName(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSaveRename()}
-                            className="w-full px-4 py-2 rounded-lg bg-white/10 text-white
-                              border border-white/20 focus:outline-hidden focus:ring-2 focus:ring-purple-400
-                              text-sm font-medium"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSaveRename();
-                            }}
-                            className="px-4 py-2 rounded-lg text-white text-sm font-medium self-start transition-all duration-200"
-                            style={{
-                              background: 'rgb(var(--tm-ink-rgb) / 0.15)',
-                              border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)'
-                            }}
-                          >
-                            Save
-                          </motion.button>
-                        </div>
-                      ) : (
-                        <>
-                          <h3 className="font-semibold text-white truncate text-lg">
-                            {session.name || 'Untitled Chat'}
-                          </h3>
-                          <p className="text-sm text-gray-300 opacity-70 mt-1">
-                            {session.messages?.length || 0} messages • {formatDate(session.lastModified)}
-                          </p>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRename(session.id);
-                        }}
-                        aria-label={`Rename ${session.name || 'chat'}`}
-                        className="p-2 rounded-full transition-all duration-200"
-                        style={{
-                          background: 'rgb(var(--tm-ink-rgb) / 0.05)',
-                          border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
-                        }}
-                        title="Rename"
-                      >
-                        <Pencil className="w-5 h-5 text-gray-200" />
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(session.id);
-                        }}
-                        aria-label={`Delete ${session.name || 'chat'}`}
-                        className="p-2 rounded-full transition-all duration-200 hover:bg-red-500/20"
-                        style={{
-                          background: 'rgb(var(--tm-ink-rgb) / 0.05)',
-                          border: '1px solid rgb(var(--tm-ink-rgb) / 0.1)'
-                        }}
-                        title="Delete"
-                      >
-                        <Trash2 className="w-5 h-5 text-gray-200" />
-                      </motion.button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </motion.div>
-        </Tabs.Root>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </AppShell>
+
+      {/* Corners. */}
+      <div className="pointer-events-none fixed inset-x-0 z-40 flex items-start justify-between px-3 sm:px-5" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 14px)' }}>
+        <button type="button" onClick={() => navigate('/')} aria-label="Back to chat" className={`pointer-events-auto ${fabGlass}`} style={fabBorder}>
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+
+        <div className="pointer-events-auto relative" data-history-menu>
+          <button
+            type="button"
+            onClick={() => { setFilterOpen(open => !open); setMenuFor(null); }}
+            aria-label="Filter chats"
+            aria-haspopup="menu"
+            aria-expanded={filterOpen}
+            className={fabGlass}
+            style={{ ...fabBorder, ...(filter !== 'all' ? { color: 'rgb(var(--tm-accent-rgb, 168 85 247))' } : {}) }}
+          >
+            <SlidersHorizontal className="h-5 w-5" />
+          </button>
+          <AnimatePresence>
+            {filterOpen && (
+              <motion.div
+                role="menu"
+                aria-label="Filter"
+                {...(reduced ? {} : MENU_MOTION)}
+                className="tm-glass tm-chat-menu absolute right-0 top-[56px] w-[15.5rem] origin-top-right rounded-[24px] p-1.5"
+              >
+                {FILTERS.map(option => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={filter === option.id}
+                    onClick={() => { setFilter(option.id); setFilterOpen(false); }}
+                    className="tm-history-menu-row justify-between"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      {option.id === 'group' && <Users className="h-4 w-4 shrink-0" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.55)' }} aria-hidden="true" />}
+                      {option.label}
+                    </span>
+                    {filter === option.id && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
+                  </button>
+                ))}
+                <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />
+                <button type="button" role="menuitem" onClick={exportAll} className="tm-history-menu-row">
+                  <Download className="h-4 w-4 shrink-0" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.55)' }} aria-hidden="true" /> Export all
+                </button>
+                <button type="button" role="menuitem" onClick={() => { setFilterOpen(false); fileInputRef.current?.click(); }} className="tm-history-menu-row">
+                  <Upload className="h-4 w-4 shrink-0" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.55)' }} aria-hidden="true" /> Import
+                </button>
+                <p className="px-3 pb-2 pt-1.5 text-[12px]" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.45)' }}>
+                  {user ? 'Chats are kept with your TimeMachine ID.' : 'Chats are kept on this device.'}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <div className="pointer-events-none fixed inset-x-0 z-40 flex items-end justify-between gap-3 px-3 sm:px-5" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
+        <div className="pointer-events-auto min-w-0 flex-1">
+          <AnimatePresence mode="wait" initial={false}>
+            {searchOpen ? (
+              <motion.form
+                key="field"
+                {...(reduced ? {} : { initial: { scale: 0.92, y: 6 }, animate: { scale: 1, y: 0 }, exit: { scale: 0.94, y: 4 }, transition: { duration: 0.16 } })}
+                onSubmit={event => event.preventDefault()}
+                className="tm-glass tm-history-search w-full max-w-md origin-bottom-left"
+                style={fabBorder}
+                role="search"
+              >
+                <Search className="h-4 w-4 shrink-0" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.5)' }} aria-hidden="true" />
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={event => setQuery(event.target.value)}
+                  onKeyDown={event => { if (event.key === 'Escape') { setQuery(''); setSearchOpen(false); } }}
+                  placeholder="Search chats"
+                  aria-label="Search chats"
+                  enterKeyHint="search"
+                />
+                <button
+                  type="button"
+                  onClick={() => { setQuery(''); setSearchOpen(false); }}
+                  aria-label="Close search"
+                  className="tm-notes-icon shrink-0 rounded-full"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </motion.form>
+            ) : (
+              <motion.button
+                key="button"
+                type="button"
+                {...(reduced ? {} : { initial: { scale: 0.9 }, animate: { scale: 1 }, exit: { scale: 0.9 }, transition: { duration: 0.14 } })}
+                onClick={() => setSearchOpen(true)}
+                aria-label="Search chats"
+                className={fabGlass}
+                style={fabBorder}
+              >
+                <Search className="h-5 w-5" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/', { state: { newChat: true } })}
+          aria-label="New chat"
+          className="tm-glass tm-press tm-history-fab tm-history-fab-primary pointer-events-auto shrink-0"
+        >
+          <SquarePen className="h-5 w-5" />
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {notice && (
+          <motion.div
+            role="status"
+            initial={{ y: 12, scale: 0.96 }}
+            animate={{ y: 0, scale: 1 }}
+            exit={{ y: 8, scale: 0.97 }}
+            className="tm-glass pointer-events-none fixed left-1/2 z-50 -translate-x-1/2 rounded-full px-4 py-2 text-[13px]"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)', ...fabBorder, color: 'rgb(var(--tm-ink-rgb) / 0.85)' }}
+          >
+            {notice}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importFile} className="hidden" />
+    </div>
+  );
+}
+
+// ─── A card ──────────────────────────────────────────────────────────────
+
+interface HistoryCardProps {
+  item: HistoryItem;
+  menuOpen: boolean;
+  confirmDelete: boolean;
+  /** The name being typed, when this card is being renamed. */
+  renaming: string | null;
+  reduced: boolean;
+  onOpen: () => void;
+  onMenu: (open: boolean) => void;
+  onPin: () => void;
+  onRename: () => void;
+  onRenameChange: (value: string) => void;
+  onRenameCommit: () => void;
+  onRenameCancel: () => void;
+  onDelete: () => void;
+}
+
+function HistoryCard({
+  item, menuOpen, confirmDelete, renaming, reduced,
+  onOpen, onMenu, onPin, onRename, onRenameChange, onRenameCommit, onRenameCancel, onDelete,
+}: HistoryCardProps) {
+  const [pressed, setPressed] = useState(false);
+  const [failedCover, setFailedCover] = useState<string | null>(null);
+  const cover = item.cover?.url === failedCover ? null : item.cover;
+  const renameFinished = useRef(false);
+  const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressed = useRef(false);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // The menu renders in a portal: the card clips its own overflow (its
+  // picture has to stop at its corners) and on a phone it is narrower than
+  // the menu. Anchored to the dots, kept inside the viewport, re-placed on
+  // resize. Rects are real pixels; the menu lives in the zoomed layout.
+  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
+  const place = useCallback(() => {
+    const el = moreRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const width = toLayoutPx(window.innerWidth);
+    const viewport = window.visualViewport;
+    const topEdge = toLayoutPx(viewport?.offsetTop ?? 0) + 10;
+    const bottomEdge = toLayoutPx((viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight)) - 10;
+    const height = menuRef.current?.offsetHeight ?? 210;
+    const right = Math.max(10, Math.min(width - toLayoutPx(r.right), width - 10 - MENU_WIDTH));
+    const below = toLayoutPx(r.bottom) + 6;
+    const top = Math.max(topEdge, Math.min(below + height <= bottomEdge ? below : toLayoutPx(r.top) - height - 6, bottomEdge - height));
+    setAnchor({ top, right });
+  }, []);
+  useLayoutEffect(() => {
+    if (!menuOpen) return;
+    place();
+    const frame = requestAnimationFrame(() => {
+      place();
+      menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
+    });
+    window.addEventListener('resize', place);
+    window.visualViewport?.addEventListener('resize', place);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', place);
+      window.visualViewport?.removeEventListener('resize', place);
+    };
+  }, [menuOpen, confirmDelete, place]);
+
+  useEffect(() => () => { if (longPress.current) clearTimeout(longPress.current); }, []);
+
+  // A long press opens the menu where there is no right button. The press is
+  // cancelled by any movement, so a scroll that starts on a card is a scroll.
+  const startPress = (event: React.PointerEvent) => {
+    if (event.pointerType === 'mouse' || renaming !== null) return;
+    longPressed.current = false;
+    longPress.current = setTimeout(() => {
+      longPressed.current = true;
+      onMenu(true);
+    }, LONG_PRESS_MS);
+  };
+  const endPress = () => {
+    if (longPress.current) clearTimeout(longPress.current);
+    longPress.current = null;
+    setPressed(false);
+  };
+
+  const label = whenLabel(item.updatedAt);
+  const ratio = cover ? Math.min(1.35, Math.max(0.78, cover.width / cover.height)) : 1;
+
+  const text = (
+    <>
+      <p className="tm-history-meta">
+        {item.pinned && <Pin className="h-3 w-3 shrink-0 fill-current" aria-label="Pinned" />}
+        {item.kind === 'group' && <Users className="h-3 w-3 shrink-0" aria-hidden="true" />}
+        <span>{label}</span>
+      </p>
+      {renaming !== null ? (
+        <input
+          autoFocus
+          value={renaming}
+          onFocus={() => { renameFinished.current = false; }}
+          onChange={event => onRenameChange(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === 'Enter') { event.preventDefault(); renameFinished.current = true; onRenameCommit(); }
+            if (event.key === 'Escape') { renameFinished.current = true; onRenameCancel(); }
+          }}
+          onBlur={() => { if (!renameFinished.current) onRenameCommit(); }}
+          onClick={event => event.stopPropagation()}
+          aria-label="Chat name"
+          className="tm-history-rename"
+          maxLength={80}
+        />
+      ) : (
+        <h2 className="tm-history-title">{item.title}</h2>
+      )}
+    </>
+  );
+
+  return (
+    <article
+      className="tm-history-card"
+      data-pressed={pressed ? 'true' : 'false'}
+      data-bleed={item.bleed && cover ? 'true' : 'false'}
+      onContextMenu={event => { event.preventDefault(); onMenu(true); }}
+    >
+      <div
+        role="button"
+        tabIndex={renaming !== null ? -1 : 0}
+        className="tm-history-card-open"
+        aria-label={`Open ${item.title}`}
+        onClick={() => {
+          if (renaming !== null) return;
+          if (longPressed.current) { longPressed.current = false; return; }
+          onOpen();
+        }}
+        onKeyDown={event => {
+          if (renaming !== null) return;
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(); }
+        }}
+        onPointerDown={event => { setPressed(true); startPress(event); }}
+        onPointerUp={endPress}
+        onPointerCancel={endPress}
+        onPointerMove={() => { if (longPress.current) endPress(); }}
+        onPointerLeave={endPress}
+      >
+        {item.bleed && cover ? (
+          <>
+            <img
+              src={cover.url}
+              onError={() => setFailedCover(cover.url)}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="tm-history-bleed-picture"
+              style={{ aspectRatio: String(Math.min(0.9, ratio)) }}
+            />
+            <div className="tm-history-bleed-scrim" aria-hidden="true" />
+            <div className="tm-history-bleed-text">{text}</div>
+          </>
+        ) : (
+          <>
+            {text}
+            {cover ? (
+              <img
+                src={cover.url}
+                onError={() => setFailedCover(cover.url)}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="tm-history-picture"
+                style={{ aspectRatio: String(ratio) }}
+              />
+            ) : item.preview ? (
+              <p className="tm-history-preview">{item.preview}</p>
+            ) : null}
+          </>
+        )}
+      </div>
+
+      <div data-history-menu>
+        <button
+          ref={moreRef}
+          type="button"
+          onClick={event => { event.stopPropagation(); onMenu(!menuOpen); }}
+          onPointerDown={event => event.stopPropagation()}
+          aria-label={`Options for ${item.title}`}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          className="tm-history-more"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+
+        {createPortal(
+          <AnimatePresence>
+            {menuOpen && anchor && (
+              <motion.div
+                ref={menuRef}
+                role="menu"
+                aria-label={item.title}
+                data-history-menu
+                {...(reduced ? {} : MENU_MOTION)}
+                className="tm-glass tm-chat-menu fixed z-[70] origin-top-right rounded-[22px] p-1.5"
+                style={{ top: anchor.top, right: anchor.right, width: MENU_WIDTH, maxHeight: 'calc(var(--tm-100dvh, 100dvh) - 20px)', overflowY: 'auto' }}
+                onKeyDown={event => {
+                  const rows = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+                  const index = rows.indexOf(document.activeElement as HTMLElement);
+                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    rows[(index + (event.key === 'ArrowDown' ? 1 : rows.length - 1)) % rows.length]?.focus();
+                  }
+                  if (event.key === 'Escape') moreRef.current?.focus();
+                }}
+              >
+                <button type="button" role="menuitem" onClick={onPin} className="tm-history-menu-row">
+                  {item.pinned
+                    ? <PinOff className="h-4 w-4 shrink-0" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.55)' }} aria-hidden="true" />
+                    : <Pin className="h-4 w-4 shrink-0" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.55)' }} aria-hidden="true" />}
+                  {item.pinned ? 'Unpin' : 'Pin'}
+                </button>
+                {item.kind === 'chat' && (
+                  <>
+                    <button type="button" role="menuitem" onClick={onRename} className="tm-history-menu-row">
+                      <Pencil className="h-4 w-4 shrink-0" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.55)' }} aria-hidden="true" /> Rename
+                    </button>
+                    <button type="button" role="menuitem" onClick={onDelete} data-danger="true" className="tm-history-menu-row">
+                      <Trash2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      {confirmDelete ? 'Delete for good?' : 'Delete'}
+                    </button>
+                  </>
+                )}
+                {item.kind === 'group' && (
+                  <button type="button" role="menuitem" onClick={onOpen} className="tm-history-menu-row">
+                    <MessageCircle className="h-4 w-4 shrink-0" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.55)' }} aria-hidden="true" /> Open
+                  </button>
+                )}
+                {item.cover && (
+                  <a
+                    href={item.cover.pageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    role="menuitem"
+                    className="block px-3 pb-2 pt-1.5 text-[11.5px] leading-snug"
+                    style={{ color: 'rgb(var(--tm-ink-rgb) / 0.42)' }}
+                  >
+                    Picture: Wikipedia, “{item.cover.pageTitle}”
+                  </a>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>,
+        document.body,
+        )}
+      </div>
+    </article>
+  );
+}
+
+// ─── Nothing to show ─────────────────────────────────────────────────────
+
+function Empty({ query, filter, signedIn, onNewChat, onClear }: {
+  query: string;
+  filter: HistoryFilter;
+  signedIn: boolean;
+  onNewChat: () => void;
+  onClear: () => void;
+}) {
+  // A filter with nothing behind it is a narrowing too — except group chats
+  // for a visitor, where the honest answer is "sign in".
+  const groupsNeedSignIn = filter === 'group' && !signedIn;
+  const narrowed = !groupsNeedSignIn && (!!query.trim() || filter !== 'all');
+  return (
+    <div className="flex flex-col items-center gap-4 px-6 pt-[18vh] text-center">
+      <MessageCircle className="h-9 w-9" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.35)' }} aria-hidden="true" />
+      <div>
+        <p className="text-[19px] font-semibold" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.9)' }}>
+          {narrowed ? 'Nothing matches' : groupsNeedSignIn ? 'Group chats' : 'No chats yet'}
+        </p>
+        <p className="mt-1 text-[14px]" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.5)' }}>
+          {narrowed
+            ? 'Try another word, or show every chat.'
+            : groupsNeedSignIn
+              ? 'Sign in to see your group chats.'
+              : 'Start one and it will show up here.'}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={narrowed ? onClear : onNewChat}
+        className="tm-glass tm-press inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[14px] font-medium"
+        style={{ border: '1px solid rgb(var(--tm-ink-rgb) / 0.12)', color: 'rgb(var(--tm-ink-rgb) / 0.9)' }}
+      >
+        {narrowed ? 'Show all chats' : <><SquarePen className="h-4 w-4" aria-hidden="true" /> Start a chat</>}
+      </button>
+    </div>
   );
 }

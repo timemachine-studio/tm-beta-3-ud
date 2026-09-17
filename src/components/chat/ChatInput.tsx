@@ -17,6 +17,7 @@ import { uploadImage } from '../../services/image/imageService';
 import { GroupChatParticipant } from '../../types/groupChat';
 import { useContour } from '../contour/useContour';
 import { ContourPanel } from '../contour/ContourPanel';
+import { CONVERT_EVENT } from '../contour/views/FileConvertView';
 import { ContourCommand, recordCommandUsage } from '../contour/modules/commands';
 import { saveQuickNote } from '../contour/modules/quickNote';
 import { saveQuickEvent } from '../contour/modules/quickEvent';
@@ -539,6 +540,13 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
         if (mod.id === 'timer' && mod.timer && !mod.timer.isRunning && !mod.timer.isComplete) {
           e.preventDefault();
           contour.startTimer();
+          return;
+        }
+
+        // File converter: Enter converts the queue; the view owns the files.
+        if (mod.id === 'file-convert') {
+          e.preventDefault();
+          window.dispatchEvent(new Event(CONVERT_EVENT));
           return;
         }
 

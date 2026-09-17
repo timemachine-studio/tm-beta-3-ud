@@ -10,6 +10,7 @@ import type { McpApprovalDecision, McpApprovalRequest } from '../types/flightCon
 import { ChatError } from '../services/ai/chatErrors';
 import { INITIAL_MESSAGE, AI_PERSONAS } from '../config/constants';
 import { chatService, ChatSession, isPersistable } from '../services/chat/chatService';
+import { openingExchange, provisionalTitle } from '../services/chat/chatTitleService';
 import { processGeneratedImages } from '../services/image/imageService';
 import {
   subscribeToGroupChat,
@@ -127,7 +128,7 @@ export function useChat(
   userProfile?: { nickname?: string | null; about_me?: string | null },
   initialPersona?: keyof typeof AI_PERSONAS,
   authLoading?: boolean,
-  initialSession?: { messages: Message[]; id: string; maxMode?: MaxModeKind } | null,
+  initialSession?: { messages: Message[]; id: string; name?: string; maxMode?: MaxModeKind } | null,
   flowStateActive?: boolean
 ) {
   // Start with empty state - will be initialized once we know the persona
@@ -184,6 +185,17 @@ export function useChat(
   // Track if there are unsaved changes in this session to prevent auto-saves on initial loads
   const isDirtyRef = useRef(false);
 
+  // The open chat's name. Null until it has one — a name the namer gave it,
+  // one the person typed on the history page, or the one a loaded chat came
+  // with — so a save falls back to the opening words. Before this, every
+  // save re-derived the name from the first message, which is why renaming
+  // a chat never stuck past its next reply.
+  const sessionNameRef = useRef<string | null>(initialSession?.name ?? null);
+  // Chats the namer has been asked about this page load. One ask each: a
+  // title that failed stays provisional rather than retrying on every render.
+  const namedSessionsRef = useRef<Set<string>>(new Set());
+  const currentSessionIdRef = useRef<string>(initialSession?.id || '');
+
   // Track PRO sessions we already tried to resume, to avoid duplicate reattach loops
   const proResumeAttemptedRef = useRef<Set<string>>(new Set());
 
@@ -228,21 +240,9 @@ export function useChat(
     const doSave = async () => {
       try {
         const now = new Date().toISOString();
-        const firstUserMessage = messagesToSave.find(msg => !msg.isAI);
-        let sessionName = 'New Chat';
-
-        if (firstUserMessage) {
-          if (firstUserMessage.content && firstUserMessage.content.trim() &&
-            firstUserMessage.content !== '[Image message]' &&
-            !firstUserMessage.content.startsWith('[PDF:') && !firstUserMessage.content.startsWith('[File:')) {
-            sessionName = firstUserMessage.content.slice(0, 50);
-          } else if (firstUserMessage.imageData || (firstUserMessage.inputImageUrls && firstUserMessage.inputImageUrls.length > 0)) {
-            sessionName = 'Image message';
-          } else if (firstUserMessage.pdfFileName) {
-            const isPdf = firstUserMessage.pdfFileName.toLowerCase().endsWith('.pdf');
-            sessionName = isPdf ? `PDF: ${firstUserMessage.pdfFileName}` : `File: ${firstUserMessage.pdfFileName}`;
-          }
-        }
+        // The name is read here, at the moment of the write, so a title that
+        // landed while the debounce was running is what gets saved.
+        const sessionName = (sessionId === currentSessionIdRef.current && sessionNameRef.current) || provisionalTitle(messagesToSave);
 
         const session: ChatSession = {
           id: sessionId,
@@ -255,6 +255,14 @@ export function useChat(
         };
 
         await chatService.saveSession(session);
+        if (!namedSessionsRef.current.has(sessionId) && chatService.isUnnamed(session) && openingExchange(messagesToSave)) {
+          namedSessionsRef.current.add(sessionId);
+          // Naming starts only after the session exists; a fast title must
+          // not rename a row that the debounced save has not created yet.
+          void chatService.nameChat(session).then(title => {
+            if (title && currentSessionIdRef.current === sessionId) sessionNameRef.current = title;
+          }).catch(() => { /* Keep the provisional title when naming is unavailable. */ });
+        }
         setError(prev => (prev === SAVE_FAILED_MESSAGE ? null : prev));
       } catch (error) {
         // A local-only store makes a silent write failure unrecoverable, and
@@ -310,6 +318,7 @@ export function useChat(
     // Start new chat with new persona
     const newSessionId = newId();
     setCurrentSessionId(newSessionId);
+    sessionNameRef.current = null;
 
     const initialMessage = cleanContent(AI_PERSONAS[persona].initialMessage);
     setMessages([{
@@ -349,6 +358,7 @@ export function useChat(
     // Start fresh chat with same persona
     const newSessionId = newId();
     setCurrentSessionId(newSessionId);
+    sessionNameRef.current = null;
     setActivePdfText(null); // Clear PDF context on new chat
 
     const initialMessage = cleanContent(AI_PERSONAS[currentPersona].initialMessage);
@@ -669,6 +679,11 @@ export function useChat(
       isDirtyRef.current = false; // Reset dirty flag after scheduling save
     }
   }, [messages, currentSessionId, currentPersona, saveChatSession, isCollaborative]);
+
+  // The session id as a ref, for work that finishes after a switch.
+  useEffect(() => {
+    currentSessionIdRef.current = currentSessionId;
+  }, [currentSessionId]);
 
   // Set theme when loaded from initial session (history).
   // The ref, not an empty dependency array, is what makes this run once —
@@ -1523,6 +1538,7 @@ export function useChat(
     setMessages(messagesToLoad);
     setChatMode(true);
     setCurrentSessionId(session.id);
+    sessionNameRef.current = session.name || null;
     setPersonaTheme(session.persona);
     setError(null);
     setActivePdfText(null); // Clear PDF context when loading a different chat

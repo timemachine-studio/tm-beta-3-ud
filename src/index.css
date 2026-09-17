@@ -3,6 +3,7 @@
 @import './stylesheet/material.css';
 @import './stylesheet/workspace.css';
 @import './stylesheet/notes.css';
+@import './stylesheet/history.css';
 @import './stylesheet/light-palette.css';
 @import './stylesheet/light.css';
 @source '../index.html';
@@ -97,6 +98,13 @@
   --tm-blur-glass: 28px;
   --tm-blur-pane: 36px;
   --tm-content-measure: 68ch;
+  /* Touch devices: half the radius. A backdrop blur is re-sampled on every
+     frame anything above it animates, and on a phone GPU the 28px glass was
+     most of the jank; at phone size the difference is not visible. */
+  @media (pointer: coarse) {
+    --tm-blur-glass: 14px;
+    --tm-blur-pane: 20px;
+  }
 
   /* Near-opaque popover / sheet surfaces (Contour, shop cart, note tools).
      Dark is a solid near-black; light is frosted white — see --tm-pane-bg

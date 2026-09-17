@@ -24,7 +24,7 @@ export interface NewBlock {
   content: string;
 }
 
-export type NotesAIModel = 'air' | 'pro';
+export type NotesAIModel = 'air' | 'girlie' | 'pro';
 
 export interface NotesAIAttachments {
   /** Data URLs, already downsized by the client. */

@@ -62,7 +62,7 @@ export async function resolveFlightControls(userId: string | null): Promise<Reso
   const empty: ResolvedFlightControls = { enabled: [], governedSkillSlugs: [] };
   if (!userId || !serviceKey) return empty;
 
-  const [{ data: catalog, error: catalogError }, { data: settings, error: settingsError }] = await Promise.all([
+  const [{ data: catalog, error: catalogError }, { data: settings, error: settingsError }, { data: installed, error: installedError }] = await Promise.all([
     flightControlsAdmin
       .from('flight_control_catalog')
       .select('*')
@@ -72,6 +72,17 @@ export async function resolveFlightControls(userId: string | null): Promise<Reso
       .from('user_flight_control_settings')
       .select('catalog_id,enabled')
       .eq('user_id', userId),
+    // Skills the user installed from a directory (api/_lib/skillsRoute.ts).
+    // They join the enabled set as `kind: 'skill'` and reach the model the
+    // same way — list_skills / read_skill — so nothing downstream tells them
+    // apart from a catalog skill except `owner`.
+    flightControlsAdmin
+      .from('user_skills')
+      .select('id,slug,name,description,content')
+      .eq('user_id', userId)
+      .eq('enabled', true)
+      .order('created_at', { ascending: true })
+      .limit(MAX_USER_SKILLS),
   ]);
 
   if (catalogError) {
@@ -79,12 +90,35 @@ export async function resolveFlightControls(userId: string | null): Promise<Reso
     return empty;
   }
   if (settingsError) console.error('[Flight Controls] Preference load failed:', settingsError.message);
+  // A missing table (migration not run) is not a reason to lose the catalog.
+  if (installedError) console.error('[Flight Controls] Installed skills load failed:', installedError.message);
 
   const preferences = new Map((settings || []).map(row => [row.catalog_id, row.enabled]));
   const rows = (catalog || []) as ServerFlightControl[];
+  const userSkills: ServerFlightControl[] = (installed || []).map(row => ({
+    id: row.id,
+    kind: 'skill',
+    owner: 'user',
+    slug: row.slug,
+    name: row.name,
+    description: row.description || '',
+    skill_content: row.content,
+    mcp_server_url: null,
+    mcp_auth_mode: null,
+    mcp_auth_env_var: null,
+    mcp_allowed_tools: [],
+    mcp_auto_approve_tools: [],
+    mcp_connect_timeout_ms: 0,
+    mcp_call_timeout_ms: 0,
+    mcp_result_char_limit: 0,
+    sort_order: 2000,
+    default_enabled: true,
+  }));
   return {
-    enabled: rows.filter(row => preferences.get(row.id) ?? row.default_enabled),
-    governedSkillSlugs: rows.filter(row => row.kind === 'skill').map(row => row.slug),
+    enabled: [...rows.filter(row => preferences.get(row.id) ?? row.default_enabled), ...userSkills],
+    // An installed skill governs its slug too: it is the user's pick over a
+    // built-in of the same name.
+    governedSkillSlugs: [...rows.filter(row => row.kind === 'skill').map(row => row.slug), ...userSkills.map(row => row.slug)],
   };
 }
 
@@ -205,6 +239,8 @@ export function enabledSkills(controls: ServerFlightControl[]) {
  * already the catalog's limit; user servers share it rather than adding to it.
  */
 export const MAX_USER_MCP_SERVERS = 10;
+/** Installed skills per user — see api/_lib/skillsRoute.ts. */
+export const MAX_USER_SKILLS = 30;
 const MAX_MCP_SERVERS_PER_TURN = 5;
 
 export function enabledMcpServers(controls: ServerFlightControl[]) {

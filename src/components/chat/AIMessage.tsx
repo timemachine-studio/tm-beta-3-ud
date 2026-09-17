@@ -38,7 +38,11 @@ import { MusicComposeCard, SavedVariation } from './MusicComposeCard';
 import type { Components } from 'react-markdown';
 import { isMarkdownCodeComplete } from './markdownRuntime';
 
-/** The spinner's one line: what is happening, including a retry in progress. */
+/**
+ * The spinner's one line: what is happening, including a retry in progress.
+ * Every place that shows a phase goes through here — the shimmer used to
+ * print the raw id, and a Girlie reply read "retrying:1/2" for a moment.
+ */
 function loadingLabel(phase: LoadingPhase | undefined): string {
   if (phase === 'analyzing_photo') return 'Analyzing photo...';
   if (typeof phase === 'string' && phase.startsWith('retrying:')) {
@@ -632,7 +636,7 @@ function AIMessageComponent({
                       <div className="w-full max-w-2xl my-2">
                         <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-xs w-fit">
                           <AnimatedShinyText
-                            text={loadingPhase as string}
+                            text={loadingLabel(loadingPhase)}
                             useShimmer={true}
                             baseColor={shimmerColors.baseColor}
                             shimmerColor={shimmerColors.shimmerColor}
@@ -664,7 +668,7 @@ function AIMessageComponent({
                     <div className="w-full max-w-2xl my-2">
                       <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-xs w-fit">
                         <AnimatedShinyText
-                          text={loadingPhase as string}
+                          text={loadingLabel(loadingPhase)}
                           useShimmer={true}
                           baseColor={shimmerColors.baseColor}
                           shimmerColor={shimmerColors.shimmerColor}
@@ -723,7 +727,7 @@ function AIMessageComponent({
                     <div className="w-full max-w-2xl mx-auto my-4">
                       <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
                         <AnimatedShinyText
-                          text={loadingPhase as string}
+                          text={loadingLabel(loadingPhase)}
                           useShimmer={true}
                           baseColor={shimmerColors.baseColor}
                           shimmerColor={shimmerColors.shimmerColor}
@@ -755,7 +759,7 @@ function AIMessageComponent({
                   <div className="w-full max-w-2xl mx-auto my-4">
                     <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
                       <AnimatedShinyText
-                        text={loadingPhase as string}
+                        text={loadingLabel(loadingPhase)}
                         useShimmer={true}
                         baseColor={shimmerColors.baseColor}
                         shimmerColor={shimmerColors.shimmerColor}

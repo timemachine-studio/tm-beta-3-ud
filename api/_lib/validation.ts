@@ -235,7 +235,7 @@ const noteBlockSchema = z.object({
 }).passthrough();
 
 /** Which mind edits the note: Air is fast, PRO reasons longer. */
-export const notesAiModelSchema = z.enum(['air', 'pro']);
+export const notesAiModelSchema = z.enum(['air', 'girlie', 'pro']);
 
 /**
  * What the co-pilot can be handed alongside the instruction. Images arrive as
