@@ -100,7 +100,7 @@
 }
 
 /* The chat bar's field. Its hairline brightens a touch on focus. */
-.tm-legacy-field:focus-visible {
+.tm-chat-shell .tm-legacy-field:focus-visible {
   outline: none;
   border-color: rgb(var(--tm-ink-rgb) / 0.2) !important;
 }
@@ -199,6 +199,7 @@
 .tm-atmosphere {
   position: absolute;
   inset: 0;
+  min-height: var(--tm-100dvh);
   overflow: hidden;
   pointer-events: none;
   background:
@@ -252,6 +253,12 @@
 .tm-chat-menu :focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 3px;
+}
+
+/* Menu rows use their background wash for focus; an extra outline doubles
+   the glass edge when the menu automatically focuses its first row. */
+.tm-chat-menu .tm-menu-row:focus-visible {
+  outline: none;
 }
 
 .tm-chat-shell ::selection {
@@ -329,8 +336,8 @@
 /* The top bar of a product page in the shell: the page's name and its
    actions, on the same quiet glass as the Notes top bar. */
 .tm-shell-topbar {
-  min-height: 52px;
-  padding: 0 12px 0 8px;
+  min-height: calc(52px + var(--tm-safe-top));
+  padding: var(--tm-safe-top) max(12px, var(--tm-safe-right)) 0 max(8px, var(--tm-safe-left));
   border-bottom: 1px solid rgb(var(--tm-ink-rgb) / 0.06);
   background: rgb(var(--tm-paper-rgb) / 0.18);
   backdrop-filter: blur(20px) saturate(140%);

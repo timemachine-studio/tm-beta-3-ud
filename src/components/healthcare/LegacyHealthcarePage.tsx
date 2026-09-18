@@ -325,7 +325,7 @@ function DrugDetailPanel({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 32 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="fixed inset-y-0 right-0 z-50 w-full max-w-lg overflow-y-auto
+      className="tm-safe-page fixed inset-y-0 right-0 z-50 w-full max-w-lg overflow-y-auto
                  bg-black/95 backdrop-blur-2xl border-l border-white/10 shadow-2xl"
     >
       {/* Header */}
@@ -463,7 +463,7 @@ export function HealthcarePage() {
   };
 
   return (
-    <div className={`h-screen overflow-y-auto bg-linear-to-t/srgb from-green-950 to-black to-50% ${theme.text} relative`}>
+    <div className={`tm-safe-page h-screen overflow-y-auto bg-linear-to-t/srgb from-green-950 to-black to-50% ${theme.text} relative`}>
       {/* Ambient blobs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full bg-emerald-500/6 blur-3xl" />

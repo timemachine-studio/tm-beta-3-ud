@@ -1,3 +1,4 @@
+import { popupExit } from '../../utils/popupMotion';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
@@ -464,7 +465,7 @@ function DoodleBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCon
             <motion.div
               initial={{ opacity: 0, y: 4, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.97 }}
+              exit={popupExit}
               className="absolute bottom-11 left-0 p-3 rounded-2xl z-30"
               style={{
                 background: 'var(--tm-popover-bg)',
@@ -1639,7 +1640,7 @@ function BlockEditor({ block, index, focused, noteTheme, dragControls, onFocus, 
             ref={menuRef}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            exit={popupExit}
             className="absolute left-0 top-full mt-1 z-50 rounded-xl overflow-hidden min-w-[180px]"
             style={glassCard}
           >
@@ -1679,7 +1680,7 @@ function BlockEditor({ block, index, focused, noteTheme, dragControls, onFocus, 
           <motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
+            exit={popupExit}
             className="absolute left-0 top-full mt-1 z-50 rounded-xl overflow-hidden min-w-[240px] max-h-[300px] overflow-y-auto"
             style={glassCard}
           >
@@ -1821,7 +1822,7 @@ export function NoteSidebar({ notes, activeId, onSelect, onNew, onDelete, onTogg
   );
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="tm-safe-frame flex flex-col">
       {/* Search */}
       <div className="px-3 pb-3">
         <div className="relative">
@@ -2334,7 +2335,7 @@ export function NotesPage() {
                 animate={{ x: 0 }}
                 exit={{ x: -280 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-                className="md:hidden fixed left-0 top-0 bottom-0 z-40 w-[280px] border-r border-white/5"
+                className="tm-safe-page md:hidden fixed left-0 top-0 bottom-0 z-40 w-[280px] border-r border-white/5"
                 style={{
                   background: 'rgb(var(--tm-paper-rgb) / 0.95)',
                   backdropFilter: 'blur(30px)',
@@ -2384,7 +2385,7 @@ export function NotesPage() {
                           <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: -4 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                            exit={popupExit}
                             className="absolute right-0 top-full mt-2 z-50 rounded-2xl overflow-hidden min-w-[160px]"
                             style={glassCard}
                           >
@@ -2431,7 +2432,7 @@ export function NotesPage() {
                           <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: -4 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                            exit={popupExit}
                             className="absolute left-0 top-full z-50 rounded-2xl overflow-hidden w-[320px] max-h-[340px] overflow-y-auto custom-scrollbar"
                             style={glassCard}
                           >

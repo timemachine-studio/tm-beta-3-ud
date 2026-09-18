@@ -1,4 +1,5 @@
 import { StrictMode } from 'react';
+import { MotionConfig } from 'framer-motion';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
@@ -11,7 +12,9 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary name="root">
       <HelmetProvider>
         <BrowserRouter>
-          <App />
+          <MotionConfig reducedMotion="user">
+            <App />
+          </MotionConfig>
         </BrowserRouter>
       </HelmetProvider>
     </ErrorBoundary>

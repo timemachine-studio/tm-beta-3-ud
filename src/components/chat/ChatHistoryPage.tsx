@@ -1,3 +1,4 @@
+import { popupExit } from '../../utils/popupMotion';
 /**
  * The history page: every chat as a card on a wall.
  *
@@ -69,8 +70,8 @@ const MENU_WIDTH = 216;
 
 const MENU_MOTION = {
   initial: { y: -6, scale: 0.96 },
-  animate: { y: 0, scale: 1 },
-  exit: { y: -4, scale: 0.97 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: popupExit,
   transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const },
 };
 
@@ -402,13 +403,13 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
         </div>
       </div>
 
-      <div className="pointer-events-none fixed inset-x-0 z-40 flex items-end justify-between gap-3 px-3 sm:px-5" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
+      <div className="pointer-events-none fixed inset-x-0 z-40 flex items-end justify-between gap-3 px-3 sm:px-5" style={{ bottom: 'calc(var(--tm-keyboard, 0px) + env(safe-area-inset-bottom, 0px) + 16px)' }}>
         <div className="pointer-events-auto min-w-0 flex-1">
           <AnimatePresence mode="wait" initial={false}>
             {searchOpen ? (
               <motion.form
                 key="field"
-                {...(reduced ? {} : { initial: { scale: 0.92, y: 6 }, animate: { scale: 1, y: 0 }, exit: { scale: 0.94, y: 4 }, transition: { duration: 0.16 } })}
+                {...(reduced ? {} : { initial: { scale: 0.92, y: 6 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: popupExit, transition: { duration: 0.16 } })}
                 onSubmit={event => event.preventDefault()}
                 className="tm-glass tm-history-search w-full max-w-md origin-bottom-left"
                 style={fabBorder}
@@ -437,7 +438,7 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
               <motion.button
                 key="button"
                 type="button"
-                {...(reduced ? {} : { initial: { scale: 0.9 }, animate: { scale: 1 }, exit: { scale: 0.9 }, transition: { duration: 0.14 } })}
+                {...(reduced ? {} : { initial: { scale: 0.9 }, animate: { opacity: 1, scale: 1 }, exit: popupExit, transition: { duration: 0.14 } })}
                 onClick={() => setSearchOpen(true)}
                 aria-label="Search chats"
                 className={fabGlass}
@@ -464,8 +465,8 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
           <motion.div
             role="status"
             initial={{ y: 12, scale: 0.96 }}
-            animate={{ y: 0, scale: 1 }}
-            exit={{ y: 8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={popupExit}
             className="tm-glass pointer-events-none fixed left-1/2 z-50 -translate-x-1/2 rounded-full px-4 py-2 text-[13px]"
             style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)', ...fabBorder, color: 'rgb(var(--tm-ink-rgb) / 0.85)' }}
           >

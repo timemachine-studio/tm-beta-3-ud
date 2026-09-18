@@ -1,3 +1,4 @@
+import { popupExit, scrimExit } from '../../utils/popupMotion';
 import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -60,7 +61,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                exit={scrimExit}
                 className="tm-modal-scrim fixed inset-0 z-50"
               />
             </Dialog.Overlay>
@@ -69,9 +70,9 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
               <motion.div
                 initial={{ opacity: 0, scale: 0.96, y: 8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                exit={popupExit}
                 transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                className="fixed inset-0 z-50 flex items-center justify-center p-4 outline-none"
+                className="tm-dialog-viewport fixed inset-0 z-50 flex items-center justify-center p-4 outline-none"
               >
                 <div
                   className="tm-workspace tm-settings tm-glass tm-surface tm-dialog-card relative w-full max-w-lg rounded-[28px]"

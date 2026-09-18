@@ -1,3 +1,4 @@
+import { popupExit } from '../../utils/popupMotion';
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import {
@@ -312,7 +313,7 @@ function DoodleBlock({ block, onChange, onDelete, onDuplicate, onResize, dragCon
             <motion.div
               initial={{ opacity: 0, y: 4, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.97 }}
+              exit={popupExit}
               className="absolute bottom-11 left-0 p-3 rounded-2xl z-30"
               style={{
                 background: 'var(--tm-popover-bg)',
@@ -1487,7 +1488,7 @@ function BlockEditor({ block, index, focused, noteTheme, dragControls, onFocus, 
             ref={menuRef}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            exit={popupExit}
             className="absolute left-0 top-full mt-1 z-50 rounded-xl overflow-hidden min-w-[180px]"
             style={glassCard}
           >
@@ -1527,7 +1528,7 @@ function BlockEditor({ block, index, focused, noteTheme, dragControls, onFocus, 
           <motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
+            exit={popupExit}
             className="absolute left-0 top-full mt-1 z-50 rounded-xl overflow-hidden min-w-[240px] max-h-[300px] overflow-y-auto"
             style={glassCard}
           >

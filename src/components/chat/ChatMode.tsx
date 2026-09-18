@@ -81,7 +81,10 @@ export function ChatMode({
 
         // Calculate scroll position to put the message at the top
         // Add a small offset (20px) for visual breathing room
-        const scrollOffset = messageRect.top - containerRect.top + container.scrollTop - 20;
+        // Keep the loaded message below the fixed header, including the notch.
+        const headerBottom = document.querySelector('.tm-chat-header')?.getBoundingClientRect().bottom ?? 0;
+        const clearance = Math.max(20, headerBottom - containerRect.top + 16);
+        const scrollOffset = messageRect.top - containerRect.top + container.scrollTop - clearance;
 
         container.scrollTo({
           top: Math.max(0, scrollOffset),

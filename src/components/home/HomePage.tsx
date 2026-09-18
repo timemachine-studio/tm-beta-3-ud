@@ -218,7 +218,7 @@ export function HomePage() {
       </div>
 
       {/* ── LAYOUT ──────────────────────────────────────────── */}
-      <div className="h-full flex overflow-hidden">
+      <div className="tm-safe-frame flex overflow-hidden">
 
         {/* ── Sidebar (desktop) ─────────────────────────────── */}
         <motion.aside

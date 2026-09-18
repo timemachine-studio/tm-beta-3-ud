@@ -1,3 +1,4 @@
+import { popupExit, scrimExit } from '../../utils/popupMotion';
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -34,7 +35,7 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
           ref={backdropRef}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          exit={scrimExit}
           transition={{ duration: 0.2 }}
           onClick={handleBackdropClick}
           className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-4 animate-none"
@@ -43,7 +44,7 @@ export function HtmlPreviewModal({ isOpen, onClose, htmlCode }: HtmlPreviewModal
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            exit={popupExit}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="relative w-full h-full sm:w-[96vw] sm:h-[92vh] max-w-none rounded-none sm:rounded-2xl overflow-hidden flex flex-col"
             style={{

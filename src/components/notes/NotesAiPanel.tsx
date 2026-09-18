@@ -1,3 +1,4 @@
+import { popupExit } from '../../utils/popupMotion';
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -123,8 +124,8 @@ export function NotesAiPanel({
                 role="menu"
                 aria-label="Model"
                 initial={{ y: -6, scale: 0.96 }}
-                animate={{ y: 0, scale: 1 }}
-                exit={{ y: -4, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={popupExit}
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 className="tm-glass tm-notes-menu absolute left-0 top-full z-50 mt-2 w-64 origin-top-left"
               >

@@ -1,3 +1,4 @@
+import { popupExit } from '../../utils/popupMotion';
 import { plusMenuItems, type PlusMenuOption } from './plusMenuItems';
 export type { PlusMenuOption } from './plusMenuItems';
 import React, { useLayoutEffect, useRef, useState } from 'react';
@@ -63,7 +64,7 @@ export function PlusMenu({ isVisible, onSelect, onClose }: PlusMenuProps) {
           className={`tm-plus-menu absolute bottom-full z-50 mb-3 ${placement.centred ? 'left-1/2' : 'left-0'}`}
           style={{ translate: placement.centred ? `calc(-50% + ${placement.shift}px) 0` : '0 0' }}
         >
-          {/* Transform only, no opacity: a backdrop-filter element under an
+          {/* Transform-only entrance: a backdrop-filter element under an
               animating opacity renders black on iOS for a frame or two
               (the "flicker" on open). The rise and settle carry the entrance. */}
           <motion.div
@@ -71,8 +72,8 @@ export function PlusMenu({ isVisible, onSelect, onClose }: PlusMenuProps) {
             role="group"
             aria-label="Attachments and modes"
             initial={reduced ? false : { y: 10, scale: 0.96 }}
-            animate={{ y: 0, scale: 1 }}
-            exit={reduced ? undefined : { y: 10, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={popupExit}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="flex flex-col items-center gap-1.5"
             onKeyDown={(event) => {

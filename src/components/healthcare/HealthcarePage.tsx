@@ -325,7 +325,7 @@ function DrugDetailPanel({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 32 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="fixed inset-y-0 right-0 z-50 w-full max-w-lg overflow-y-auto
+      className="tm-safe-page fixed inset-y-0 right-0 z-50 w-full max-w-lg overflow-y-auto
                  bg-black/95 backdrop-blur-2xl border-l border-white/10 shadow-2xl"
     >
       {/* Header */}
@@ -462,7 +462,7 @@ export function HealthcarePage() {
   };
 
   return (
-    <div className="tm-workspace tm-page tm-healthcare">
+    <div className="tm-workspace tm-page tm-safe-page tm-healthcare">
       <AppAtmosphere variant="healthcare" />
       <div className="relative z-10 w-full min-h-screen flex flex-col">
         {/* Top bar */}

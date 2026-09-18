@@ -1,3 +1,4 @@
+import { popupExit } from '../../utils/popupMotion';
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -198,11 +199,11 @@ export function BrandLogo({
               id={menuId}
               role="menu"
               aria-label="TimeMachine"
-              // Transform only. A backdrop-filter panel animated through opacity
+              // Transform-only entrance. A backdrop-filter panel animated through opacity
               // or a CSS filter renders black on iOS for its first frames.
               initial={reduced ? false : { y: -8, scale: 0.96 }}
-              animate={{ y: 0, scale: 1 }}
-              exit={reduced ? undefined : { y: -6, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={popupExit}
               transition={settle}
               className={`tm-glass tm-chat-menu fixed z-[60] origin-top-left rounded-[28px] p-1.5 w-[19rem]`}
               style={{ top: anchor.top, left: anchor.left, maxHeight: `calc(var(--tm-100dvh) - ${anchor.top + 12}px)` }}

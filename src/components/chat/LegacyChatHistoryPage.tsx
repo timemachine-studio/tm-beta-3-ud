@@ -292,7 +292,7 @@ export function ChatHistoryPage({ onLoadChat }: ChatHistoryPageProps) {
 
   return (
     <div
-      className="h-screen overflow-y-auto text-white"
+      className="tm-safe-page h-screen overflow-y-auto text-white"
       style={{
         background: 'var(--tm-page-bg)'
       }}

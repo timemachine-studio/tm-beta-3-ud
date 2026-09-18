@@ -1,3 +1,4 @@
+import { popupExit, scrimExit } from '../../utils/popupMotion';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Switch from '@radix-ui/react-switch';
@@ -108,7 +109,7 @@ export function AgentsModal({ isOpen, onClose, onSignIn }: AgentsModalProps) {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                exit={scrimExit}
                 className={`fixed inset-0 ${theme.modal.overlay} backdrop-blur-md z-50`}
               />
             </Dialog.Overlay>
@@ -117,8 +118,8 @@ export function AgentsModal({ isOpen, onClose, onSignIn }: AgentsModalProps) {
               <motion.div
                 initial={{ opacity: 0, scale: 0.96, y: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: 12 }}
-                className="fixed inset-0 flex items-center justify-center p-4 z-50"
+                exit={popupExit}
+                className="tm-dialog-viewport fixed inset-0 flex items-center justify-center p-4 z-50"
               >
                 <div className={`relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-black/55 shadow-2xl backdrop-blur-3xl ${theme.glow.secondary}`}>
                   <div className="border-b border-white/10 px-6 pb-4 pt-6 sm:px-8">

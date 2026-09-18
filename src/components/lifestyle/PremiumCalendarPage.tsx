@@ -1,3 +1,4 @@
+import { popupExit, scrimExit } from '../../utils/popupMotion';
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -371,7 +372,7 @@ export function PremiumCalendarPage() {
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
+                            exit={scrimExit}
                             className="absolute inset-0 bg-black/60 backdrop-blur-xs"
                             onClick={() => setIsEventModalOpen(false)}
                         />
@@ -379,7 +380,7 @@ export function PremiumCalendarPage() {
                             layoutId="event-modal"
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            exit={popupExit}
                             className="relative w-full max-w-[500px] rounded-[32px] bg-zinc-900 border border-white/10 shadow-2xl overflow-hidden"
                             style={{ background: 'var(--tm-popover-bg-solid)' }}
                         >

@@ -233,6 +233,37 @@
   --tm-zoom: 1;
   --tm-100vh: 100vh;
   --tm-100dvh: 100dvh;
+  --tm-safe-top: env(safe-area-inset-top, 0px);
+  --tm-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tm-safe-left: env(safe-area-inset-left, 0px);
+  --tm-safe-right: env(safe-area-inset-right, 0px);
+}
+
+@supports (height: 100dvh) {
+  :root { --tm-100vh: 100dvh; }
+}
+
+/* Backgrounds reach the screen edges; interactive content clears iOS chrome. */
+.tm-safe-page {
+  padding-top: var(--tm-safe-top);
+  padding-bottom: var(--tm-safe-bottom);
+  padding-left: var(--tm-safe-left);
+  padding-right: var(--tm-safe-right);
+}
+.tm-safe-page > .min-h-screen {
+  min-height: calc(var(--tm-100dvh) - var(--tm-safe-top) - var(--tm-safe-bottom));
+}
+.tm-safe-frame {
+  height: calc(var(--vh, 1dvh) * 100);
+  padding-top: var(--tm-safe-top);
+  padding-left: var(--tm-safe-left);
+  padding-right: var(--tm-safe-right);
+}
+.tm-dialog-viewport {
+  padding-top: max(16px, var(--tm-safe-top));
+  padding-bottom: max(16px, var(--tm-safe-bottom));
+  padding-left: max(16px, var(--tm-safe-left));
+  padding-right: max(16px, var(--tm-safe-right));
 }
 
 :root[data-tm-scale='app'] body {
@@ -251,7 +282,6 @@ body {
   margin: 0;
   padding: 0;
   min-height: var(--tm-100vh);
-  min-height: -webkit-fill-available;
   overflow: hidden;
   background: var(--color-canvas);
   font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
@@ -263,7 +293,6 @@ body {
 /* Fix iOS height issues */
 #root {
   min-height: var(--tm-100vh);
-  min-height: -webkit-fill-available;
 }
 
 /* Ensure proper touch handling on iOS */

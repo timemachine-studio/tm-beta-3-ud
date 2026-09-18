@@ -1,3 +1,4 @@
+import { popupExit, scrimExit } from '../../utils/popupMotion';
 import { parseChatImport } from '../../services/chat/storedChatValidation';
 import React, { useState, useEffect, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -312,7 +313,7 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                exit={scrimExit}
                 className={`fixed inset-0 ${theme.modal.overlay} backdrop-blur-xl z-50`}
               />
             </Dialog.Overlay>
@@ -321,9 +322,9 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                exit={popupExit}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
-                className="fixed inset-0 flex items-center justify-center p-4 z-50"
+                className="tm-dialog-viewport fixed inset-0 flex items-center justify-center p-4 z-50"
               >
                 <div
                   className="relative w-[95vw] max-w-[700px] h-[90vh] max-h-[85vh] p-6 sm:p-10 rounded-2xl flex flex-col"

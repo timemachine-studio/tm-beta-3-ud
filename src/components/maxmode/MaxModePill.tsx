@@ -1,3 +1,4 @@
+import { popupExit } from '../../utils/popupMotion';
 /**
  * The mode picker in Max Mode: a glass pill above the composer, on the left,
  * that names the current mode (Plan / Edit / Auto) and expands upward to
@@ -58,7 +59,7 @@ export function MaxModePill({ mode, onSelect }: MaxModePillProps) {
           <motion.div
             initial={{ opacity: 0, y: 8, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.96 }}
+            exit={popupExit}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             role="menu"
             className="absolute bottom-full left-0 mb-2 w-72 overflow-hidden rounded-3xl border border-white/5 backdrop-blur-3xl z-50"

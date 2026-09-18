@@ -62,7 +62,7 @@ import { newId } from './utils/id';
 import { SEOHead } from './components/seo/SEOHead';
 import { RouteLoadingFallback } from './components/routing/RouteLoadingFallback';
 import { hasEnteredApp, markEnteredApp, type LandingHandoff } from './components/landing/entered';
-import { pageZoom } from './utils/pageZoom';
+import { useAppViewport } from './hooks/useAppViewport';
 
 const LandingPage = lazy(() => import('./components/landing/LandingPage').then((module) => ({ default: module.LandingPage })));
 const HomePage = lazy(() => import('./components/home/HomePage').then((module) => ({ default: module.HomePage })));
@@ -508,49 +508,6 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     }
   }, [isGroupMode, groupChatId, isGroupParticipant, isCollaborative, joinCollaborativeChat]);
 
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    const updateVH = () => {
-      // The soft keyboard shrinks the *visual* viewport. On Android Chrome
-      // 108+ and the in-app WebViews (Instagram, Facebook) the layout viewport
-      // stays full height behind the keys unless the viewport meta asks
-      // otherwise (index.html), and iOS never resizes it — so innerHeight is
-      // the wrong number while typing, and a fixed bottom:0 composer ends up
-      // under the keyboard. Measure the visual viewport instead, and publish
-      // how far its bottom edge sits above the layout viewport's so the dock
-      // can lift itself by that much.
-      const zoom = pageZoom();
-      const pinched = viewport ? viewport.scale > 1.01 : false;
-      // iOS answers a focused input by scrolling the whole document up under
-      // the keyboard instead: the header leaves the screen, the greeting
-      // slides under the clock, and when the keyboard closes the document
-      // stays where it was, leaving a black band beneath the composer. The
-      // body never scrolls by design (index.css), so any document offset is
-      // that, and the right place for it is zero — the dock lifts itself by
-      // --tm-keyboard, which keeps the input in view without the scroll.
-      if (!pinched && (window.scrollY > 0 || (viewport?.offsetTop ?? 0) > 0)) {
-        window.scrollTo(0, 0);
-      }
-      const height = viewport && !pinched ? viewport.height : window.innerHeight;
-      const keyboard = viewport && !pinched
-        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
-        : 0;
-      // The layout is zoomed (index.css); a real pixel measure has to be
-      // divided by the zoom to render at its real size.
-      document.documentElement.style.setProperty('--vh', `${(height * 0.01) / zoom}px`);
-      document.documentElement.style.setProperty('--tm-keyboard', `${keyboard / zoom}px`);
-    };
-
-    updateVH();
-    window.addEventListener('resize', updateVH);
-    viewport?.addEventListener('resize', updateVH);
-    viewport?.addEventListener('scroll', updateVH);
-    return () => {
-      window.removeEventListener('resize', updateVH);
-      viewport?.removeEventListener('resize', updateVH);
-      viewport?.removeEventListener('scroll', updateVH);
-    };
-  }, []);
 
   // The header action buttons, as they were drawn before the shell was
   // rebuilt: each mind's own hue at 20% behind the ink, with the label always
@@ -1459,10 +1416,11 @@ function AppContent() {
     || (location.pathname === '/' && !user && !location.state && !hasEnteredApp());
   useLayoutEffect(() => {
     document.documentElement.dataset.tmScale = marketing ? 'marketing' : 'app';
-    // --vh is measured on resize (MainChatPage); the zoom it divides by has
+    // The shared viewport measurement divides by the scale, which has
     // just changed, so measure again.
     window.dispatchEvent(new Event('resize'));
   }, [marketing]);
+  useAppViewport(location.key, !marketing);
   const settingsModal = useMemo(() => ({
     isSettingsOpen,
     openSettings: () => setIsSettingsOpen(true),

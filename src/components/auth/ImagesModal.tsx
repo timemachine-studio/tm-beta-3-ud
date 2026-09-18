@@ -1,3 +1,4 @@
+import { popupExit, scrimExit } from '../../utils/popupMotion';
 import React, { useState, useEffect, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -144,7 +145,7 @@ export const ImagesModal: React.FC<ImagesModalProps> = ({ isOpen, onClose }) => 
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                exit={scrimExit}
                 className="fixed inset-0 bg-black/60 backdrop-blur-xl z-[60]"
               />
             </Dialog.Overlay>
@@ -153,9 +154,9 @@ export const ImagesModal: React.FC<ImagesModalProps> = ({ isOpen, onClose }) => 
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                exit={popupExit}
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className="fixed inset-0 flex items-center justify-center p-4 z-[60]"
+                className="tm-dialog-viewport fixed inset-0 flex items-center justify-center p-4 z-[60]"
               >
                 <div className="relative w-full max-w-md max-h-[85vh] overflow-hidden rounded-3xl">
                   {/* Glass background */}
@@ -267,14 +268,14 @@ export const ImagesModal: React.FC<ImagesModalProps> = ({ isOpen, onClose }) => 
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          exit={scrimExit}
           className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[70] flex items-center justify-center p-4"
           onClick={() => setSelectedImage(null)}
         >
           <motion.img
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
+            exit={popupExit}
             src={selectedImage.url}
             alt=""
             className="max-w-full max-h-full object-contain rounded-2xl"

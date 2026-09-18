@@ -1,3 +1,4 @@
+import { popupExit, scrimExit } from '../../utils/popupMotion';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -116,7 +117,7 @@ export function AlbumPage() {
 
   if (!user) {
     return (
-      <div className={`min-h-screen ${theme.background} ${theme.text} flex items-center justify-center`}>
+      <div className={`tm-safe-page min-h-screen ${theme.background} ${theme.text} flex items-center justify-center`}>
         <div className="text-center">
           <ImageIcon className="w-16 h-16 text-white/20 mx-auto mb-4" />
           <p className="text-white/60 text-lg">Sign in to view your albums</p>
@@ -134,7 +135,7 @@ export function AlbumPage() {
   }
 
   return (
-    <div className={`min-h-screen ${theme.background} ${theme.text} relative overflow-hidden`}>
+    <div className={`tm-safe-page min-h-screen ${theme.background} ${theme.text} relative overflow-hidden`}>
       {/* Ambient background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-[120px] animate-pulse" />
@@ -260,14 +261,14 @@ export function AlbumPage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={scrimExit}
             className="fixed inset-0 bg-black/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
             onClick={() => setSelectedImage(null)}
           >
             <motion.img
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              exit={popupExit}
               src={selectedImage.url}
               alt=""
               className="max-w-full max-h-full object-contain rounded-2xl"

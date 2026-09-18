@@ -1,3 +1,4 @@
+import { popupExit } from '../../utils/popupMotion';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, Square } from 'lucide-react';
@@ -190,7 +191,7 @@ export function SpeechTranscriptionButton({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            exit={popupExit}
             className="absolute bottom-full mb-2 right-0 bg-linear-to-r/srgb from-red-900/90 to-pink-900/90 backdrop-blur-xl text-white text-sm px-4 py-2 rounded-lg w-56 max-w-[70vw] border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
           >
             <div className="flex items-center gap-2">

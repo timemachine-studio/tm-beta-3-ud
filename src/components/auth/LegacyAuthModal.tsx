@@ -1,3 +1,4 @@
+import { popupExit, scrimExit } from '../../utils/popupMotion';
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -226,7 +227,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                exit={scrimExit}
                 className="fixed inset-0 bg-black/80 backdrop-blur-md z-50"
               />
             </Dialog.Overlay>
@@ -235,9 +236,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
+                exit={popupExit}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                className="tm-dialog-viewport fixed inset-0 z-50 flex items-center justify-center p-4"
               >
                 <div
                   className="relative w-full max-w-[420px] overflow-hidden rounded-3xl"

@@ -1,3 +1,4 @@
+import { popupExit, scrimExit } from '../../utils/popupMotion';
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -272,7 +273,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
 
   return (
     <div
-      className="h-screen overflow-hidden flex flex-col"
+      className="tm-safe-page h-screen overflow-hidden flex flex-col"
       style={{
         background: 'var(--tm-page-bg)'
       }}
@@ -782,7 +783,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              exit={scrimExit}
               className="fixed inset-0 bg-black/80 backdrop-blur-md z-50"
               onClick={() => {
                 setShowChangePassword(false);
@@ -796,7 +797,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ onBack }) => {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              exit={popupExit}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
               <div

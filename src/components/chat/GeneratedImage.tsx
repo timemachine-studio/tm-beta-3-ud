@@ -1,3 +1,4 @@
+import { popupExit, scrimExit } from '../../utils/popupMotion';
 import React, { useState, useCallback, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, ZoomIn } from 'lucide-react';
@@ -206,14 +207,14 @@ function GeneratedImageComponent({ src, alt, persona = 'default' }: GeneratedIma
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={scrimExit}
             className="fixed inset-0 bg-black/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
             onClick={handleCloseFullView}
           >
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
+              exit={popupExit}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="relative max-w-[95vw] max-h-[95vh]"
               onClick={(e) => e.stopPropagation()}

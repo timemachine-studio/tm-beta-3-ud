@@ -29,7 +29,7 @@ export function LifestyleLayout() {
   };
 
   return (
-    <div className={`h-screen overflow-y-auto custom-scrollbar ${getDynamicBackground()} ${theme.text} relative overflow-x-hidden`}>
+    <div className={`tm-safe-page h-screen overflow-y-auto custom-scrollbar ${getDynamicBackground()} ${theme.text} relative overflow-x-hidden`}>
       {/* Ambient background matching initial theme */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden transition-colors duration-1000">
         <div className={`absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full blur-3xl transition-colors duration-1000 ${currentTab.name === 'Kitchen' ? 'bg-orange-500/10' :

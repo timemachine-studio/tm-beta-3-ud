@@ -105,6 +105,7 @@
   justify-content: center;
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
   border-radius: 8px;
   color: rgb(var(--tm-ink-rgb) / 0.6);
   transition: background-color 140ms ease-out, color 140ms ease-out;
@@ -125,6 +126,7 @@
 
 .tm-notes-topbar {
   min-height: 52px;
+  flex-shrink: 0;
   padding: 0 12px 0 8px;
   border-bottom: 1px solid rgb(var(--tm-ink-rgb) / 0.06);
   background: rgb(var(--tm-paper-rgb) / 0.18);
@@ -241,7 +243,7 @@
 /* The page fades into the ground before it reaches the lens; the bar sits
    on the reading column's own left edge. */
 .tm-notes-dock {
-  padding: 48px 40px 20px 72px;
+  padding: 48px 40px max(20px, var(--tm-safe-bottom)) 72px;
   background: linear-gradient(to top, rgb(var(--tm-paper-rgb) / 0.6), rgb(var(--tm-paper-rgb) / 0.3) 50%, transparent);
 }
 
@@ -406,9 +408,10 @@
 @media (max-width: 1023px) {
   .tm-notes-ai {
     position: fixed;
-    inset: auto 0 0 0;
+    inset: auto var(--tm-safe-right) var(--tm-keyboard, 0px) var(--tm-safe-left);
     z-index: 40;
-    max-height: min(calc(var(--tm-100dvh) * 0.82), 720px);
+    max-height: min(calc(var(--vh, 1dvh) * 100 - var(--tm-safe-top) - 12px), calc(var(--tm-100dvh) * 0.82), 720px);
+    padding-bottom: var(--tm-safe-bottom);
     border-left: 0;
     border-top: 1px solid rgb(var(--tm-ink-rgb) / 0.1);
     border-radius: 24px 24px 0 0;
@@ -419,7 +422,10 @@
 @media (max-width: 767px) {
   .tm-notes-rail {
     position: fixed;
-    inset: 0 auto 0 0;
+    inset: 0 auto auto 0;
+    height: calc(var(--vh, 1dvh) * 100);
+    padding-top: var(--tm-safe-top);
+    padding-bottom: var(--tm-safe-bottom);
     z-index: 40;
     background: rgb(var(--tm-paper-rgb) / 0.88);
   }
@@ -429,8 +435,16 @@
   }
 
   .tm-notes-dock {
-    padding: 40px 12px 12px;
+    padding: 40px 12px max(12px, var(--tm-safe-bottom));
   }
+
+  .tm-notes-topbar .tm-notes-icon,
+  .tm-shell-topbar .tm-notes-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .tm-notes-topbar { padding-inline: 4px; gap: 0; }
 
   .tm-notes-emoji {
     font-size: 44px;

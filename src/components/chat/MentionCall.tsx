@@ -1,3 +1,4 @@
+import { popupExit } from '../../utils/popupMotion';
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from 'lucide-react';
@@ -56,7 +57,7 @@ export function MentionCall({ isVisible, onSelect, currentPersona, isGroupMode, 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
+          exit={popupExit}
           className="absolute bottom-full left-0 mb-2 z-50 flex max-h-[300px] flex-col gap-1.5 overflow-y-auto"
         >
           {/* Group chat mentions (TimeMachine + participants) */}

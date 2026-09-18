@@ -91,7 +91,7 @@ export function MemoriesPage() {
 
   if (!user) {
     return (
-      <div className={`min-h-screen ${theme.background} ${theme.text} flex items-center justify-center`}>
+      <div className={`tm-safe-page min-h-screen ${theme.background} ${theme.text} flex items-center justify-center`}>
         <div className="text-center">
           <Brain className="w-16 h-16 text-white/20 mx-auto mb-4" />
           <p className="text-white/60 text-lg">Sign in to view your memories</p>
@@ -109,7 +109,7 @@ export function MemoriesPage() {
   }
 
   return (
-    <div className={`min-h-screen ${theme.background} ${theme.text} relative overflow-hidden`}>
+    <div className={`tm-safe-page min-h-screen ${theme.background} ${theme.text} relative overflow-hidden`}>
       {/* Ambient background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[120px] animate-pulse" />

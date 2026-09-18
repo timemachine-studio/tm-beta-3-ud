@@ -49,14 +49,9 @@
       } catch (e) {}
     </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!-- `black`, not `black-translucent`: with the translucent bar iOS sizes
-         the installed app's layout viewport short by the status bar's height
-         and anchors it at the top of the screen, so a fixed bottom:0 composer
-         sat above a black band with the home indicator in it, and top bars
-         without safe-area padding drew under the clock. An opaque bar gives a
-         viewport that is exactly the area below it, which is what the layout
-         measures. Dark-first, so the bar matches the canvas. -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <!-- Let the canvas cover the entire PWA window. Shared safe-area tokens
+         keep controls below the status bar and above the home indicator. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="TimeMachine" />
     <meta name="application-name" content="TimeMachine Chat" />
 

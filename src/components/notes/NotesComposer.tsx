@@ -1,3 +1,4 @@
+import { popupExit } from '../../utils/popupMotion';
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Check, FileText, ImagePlus, Loader2, Plus, X } from 'lucide-react';
@@ -221,8 +222,8 @@ export const NotesComposer = forwardRef<NotesComposerHandle, NotesComposerProps>
             role="menu"
             aria-label={isPanel ? 'Attachments' : 'Attachments and model'}
             initial={reduced ? false : { y: 8, scale: 0.96 }}
-            animate={{ y: 0, scale: 1 }}
-            exit={reduced ? undefined : { y: 6, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={popupExit}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="tm-glass tm-chat-menu absolute bottom-full left-0 z-50 mb-3 w-64 origin-bottom-left rounded-3xl p-1.5"
             onKeyDown={(event) => {

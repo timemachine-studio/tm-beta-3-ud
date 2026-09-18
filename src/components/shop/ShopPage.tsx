@@ -1,3 +1,4 @@
+import { popupExit, scrimExit } from '../../utils/popupMotion';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -97,7 +98,7 @@ export function ShopPage() {
   });
 
   return (
-    <div className={`min-h-screen ${theme.background} ${theme.text} relative overflow-x-hidden`}>
+    <div className={`tm-safe-page min-h-screen ${theme.background} ${theme.text} relative overflow-x-hidden`}>
       {/* Ambient background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full bg-purple-500/6 blur-3xl" />
@@ -240,7 +241,7 @@ export function ShopPage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={scrimExit}
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
             onClick={() => setSelectedProduct(null)}
           >
@@ -249,7 +250,7 @@ export function ShopPage() {
             <motion.div
               initial={{ opacity: 0, y: 40, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 40, scale: 0.97 }}
+              exit={popupExit}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               onClick={(e) => e.stopPropagation()}
               className="relative w-full max-w-lg mx-4 mb-4 sm:mb-0 rounded-3xl overflow-hidden"

@@ -1,3 +1,4 @@
+import { popupExit } from '../../utils/popupMotion';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
@@ -91,8 +92,8 @@ function ChromeMenu({ open, onClose, anchorRef, align = 'right', children, label
           role="menu"
           aria-label={label}
           initial={{ y: -6, scale: 0.96 }}
-          animate={{ y: 0, scale: 1 }}
-          exit={{ y: -4, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={popupExit}
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           className={`tm-glass tm-notes-menu absolute top-full z-50 mt-2 ${align === 'right' ? 'right-0 origin-top-right' : 'left-0 origin-top-left'}`}
         >
@@ -456,7 +457,7 @@ export function NotesPage() {
         style={{ '--tm-atmo-2': activeTheme.secondaryRgb.replace(/,/g, ' '), '--tm-atmo-3': activeTheme.secondaryRgb.replace(/,/g, ' ') } as React.CSSProperties}
       />
 
-      <div className="relative z-[1] flex h-full">
+      <div className="tm-safe-frame relative z-[1] flex">
         {/* Rail: inline on desktop, a slide-over on phones. */}
         <AnimatePresence initial={false}>
           {showSidebar && (
@@ -624,7 +625,7 @@ export function NotesPage() {
                         aria-label="Choose an icon"
                         initial={{ opacity: 0, y: -6, scale: 0.98 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                        exit={popupExit}
                         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                         className="tm-glass tm-notes-scroll absolute left-0 top-full z-50 mt-2 max-h-[340px] w-[min(320px,calc(100vw-48px))] overflow-y-auto rounded-3xl p-3"
                       >
