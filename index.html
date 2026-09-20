@@ -49,9 +49,13 @@
       } catch (e) {}
     </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!-- Let the canvas cover the entire PWA window. Shared safe-area tokens
-         keep controls below the status bar and above the home indicator. -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- Keep the installed iOS app below the status bar. With
+         black-translucent, WebKit anchors its shortened layout viewport at
+         the physical top of the screen: the Legacy header lands beneath the
+         clock and the missing status-bar height reappears as a black strip
+         below the fixed composer. The opaque black bar matches the dark
+         canvas and restores the viewport geometry used by the Legacy app. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="TimeMachine" />
     <meta name="application-name" content="TimeMachine Chat" />
 
