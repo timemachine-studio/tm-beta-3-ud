@@ -11,7 +11,9 @@
 export type UiStyle = 'current' | 'legacy';
 
 export const UI_STYLE_KEY = 'tm-ui-style';
-export const DEFAULT_UI_STYLE: UiStyle = 'current';
+// First-time visitors start in the classic interface. Once they choose an
+// interface in Settings, the stored value below remains authoritative.
+export const DEFAULT_UI_STYLE: UiStyle = 'legacy';
 
 const UI_STYLES: readonly UiStyle[] = ['current', 'legacy'];
 

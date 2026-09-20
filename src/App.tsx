@@ -1,3 +1,6 @@
+import { BrandLogo as LegacyBrandLogo } from './components/brand/LegacyBrandLogo';
+import { ChatMode as LegacyChatMode } from './components/chat/LegacyChatMode';
+import { SettingsModal as LegacySettingsModal } from './components/settings/LegacySettingsModal';
 import { AppAtmosphere } from './components/shared/AppAtmosphere';
 import React, { useLayoutEffect, Suspense, lazy, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
@@ -11,6 +14,7 @@ import LyricsDisplay from './components/music/LyricsDisplay';
 import LyricsYouTubePlayer from './components/music/LyricsYouTubePlayer';
 import { LyricsMiniPlayer } from './components/music/LyricsMiniPlayer';
 import { Users, Settings, Zap, PanelRightOpen } from 'lucide-react';
+import { LEGACY_TOP_DELAY_MS, LEGACY_TOP_DURATION_MS } from './themes/legacyMotion';
 
 /* The same minds in light mode. Air takes the deep purple that light.css's
    one-accent ramp lands on; Girlie and PRO keep their exact colours in
@@ -22,7 +26,7 @@ const personaBackgroundColors: Record<string, string> = {
   girlie: 'rgba(199,21,133,0.2)',
   pro: 'rgba(30,144,255,0.2)',
 };
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useChat } from './hooks/useChat';
 import { useAnonymousRateLimit } from './hooks/useAnonymousRateLimit';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -67,6 +71,7 @@ import { useAppViewport } from './hooks/useAppViewport';
 const LandingPage = lazy(() => import('./components/landing/LandingPage').then((module) => ({ default: module.LandingPage })));
 const HomePage = lazy(() => import('./components/home/HomePage').then((module) => ({ default: module.HomePage })));
 const AccountPage = lazy(() => import('./components/auth/AccountPage').then((module) => ({ default: module.AccountPage })));
+const LegacyChatHistoryPage = lazy(() => import('./components/chat/LegacyChatHistoryPage').then(module => ({ default: module.ChatHistoryPage })));
 const ChatHistoryPage = lazy(() => import('./components/chat/ChatHistoryPage').then((module) => ({ default: module.ChatHistoryPage })));
 
 /* The legacy shell (Settings → Interface) is the whole product as it was
@@ -79,14 +84,19 @@ const LegacyAccountPage = lazy(() => import('./components/auth/LegacyAccountPage
 const LegacyMemoriesPage = lazy(() => import('./components/memories/LegacyMemoriesPage').then((module) => ({ default: module.MemoriesPage })));
 const LegacyNotesPage = lazy(() => import('./components/notes/LegacyNotesPage').then((module) => ({ default: module.NotesPage })));
 const LegacyHealthcarePage = lazy(() => import('./components/healthcare/LegacyHealthcarePage').then((module) => ({ default: module.HealthcarePage })));
+const LegacyAboutPage = lazy(() => import('./components/about/LegacyAboutPage').then(module => ({ default: module.AboutPage })));
 const AboutPage = lazy(() => import('./components/about/AboutPage').then((module) => ({ default: module.AboutPage })));
+const LegacyPersonasPage = lazy(() => import('./components/personas/LegacyPersonasPage').then(module => ({ default: module.PersonasPage })));
 const PersonasPage = lazy(() => import('./components/personas/PersonasPage').then((module) => ({ default: module.PersonasPage })));
+const LegacyFeaturesPage = lazy(() => import('./components/features/LegacyFeaturesPage').then(module => ({ default: module.FeaturesPage })));
 const FeaturesPage = lazy(() => import('./components/features/FeaturesPage').then((module) => ({ default: module.FeaturesPage })));
+const LegacyContactPage = lazy(() => import('./components/contact/LegacyContactPage').then(module => ({ default: module.ContactPage })));
 const ContactPage = lazy(() => import('./components/contact/ContactPage').then((module) => ({ default: module.ContactPage })));
 const PrivacyPage = lazy(() => import('./components/legal/PrivacyPage').then((module) => ({ default: module.PrivacyPage })));
 const TermsPage = lazy(() => import('./components/legal/TermsPage').then((module) => ({ default: module.TermsPage })));
 const AlbumPage = lazy(() => import('./components/album/AlbumPage').then((module) => ({ default: module.AlbumPage })));
 const MemoriesPage = lazy(() => import('./components/memories/MemoriesPage').then((module) => ({ default: module.MemoriesPage })));
+const LegacyHelpPage = lazy(() => import('./components/help/LegacyHelpPage').then(module => ({ default: module.HelpPage })));
 const HelpPage = lazy(() => import('./components/help/HelpPage').then((module) => ({ default: module.HelpPage })));
 const NotesPage = lazy(() => import('./components/notes/NotesPage').then((module) => ({ default: module.NotesPage })));
 const HealthcarePage = lazy(() => import('./components/healthcare/HealthcarePage').then((module) => ({ default: module.HealthcarePage })));
@@ -204,6 +214,8 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   // Settings → Interface. The legacy shell has no atmosphere and no glass
   // around the brand; the composer is the legacy bar in both.
   const legacyUi = uiStyle === 'legacy';
+  const ChatBrand = legacyUi ? LegacyBrandLogo : BrandLogo;
+  const ChatTranscript = legacyUi ? LegacyChatMode : ChatMode;
   const { user, profile, loading: authLoading, profileLoading, needsOnboarding, updateLastPersona } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -308,6 +320,17 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     } : null,
     flowStateActive
   );
+
+  // One delayed persona drives the complete top row. The brand and action
+  // therefore change on the same render and cannot drift onto separate clocks.
+  const [topPersona, setTopPersona] = useState(currentPersona);
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setTopPersona(currentPersona),
+      legacyUi ? LEGACY_TOP_DELAY_MS : 0,
+    );
+    return () => window.clearTimeout(timer);
+  }, [currentPersona, legacyUi]);
 
   // Synced Lyrics Player Integration States
   const [lyricsTrack, setLyricsTrack] = useState<LyricsTrack | null>(null);
@@ -526,8 +549,27 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     shadow: flowStateActive
       ? '0 0 20px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
       : '0 0 15px rgba(168, 85, 247, 0.35), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
-    text: flowStateActive ? 'rgb(var(--tm-accent-rgb, 216 180 254))' : 'rgb(var(--tm-ink-rgb) / 0.92)',
-  }), [flowStateActive]);
+    text: legacyUi
+      ? flowStateActive ? 'rgb(216, 180, 254)' : 'var(--color-gray-200)'
+      : flowStateActive ? 'rgb(var(--tm-accent-rgb, 216 180 254))' : 'rgb(var(--tm-ink-rgb) / 0.92)',
+  }), [flowStateActive, legacyUi]);
+
+  // Girlie's action uses the same legacy glass construction as Air and PRO:
+  // tinted lens, coloured rim, soft glow and the same 20px blur. Current
+  // keeps its existing treatment.
+  const girlieActionButtonStyles = useMemo(() => legacyUi ? ({
+    background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgb(var(--tm-ink-rgb) / 0.05))',
+    color: 'var(--color-gray-200)',
+    border: '1px solid rgba(236, 72, 153, 0.3)',
+    boxShadow: '0 0 12px rgba(236, 72, 153, 0.25), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+  }) : ({
+    background: buttonStyles.bg,
+    color: buttonStyles.text,
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+  }), [buttonStyles, legacyUi]);
 
   const handleAccessGranted = useCallback(() => {
     setShowWelcomeModal(false);
@@ -686,25 +728,60 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   const backgroundClass = customBackgroundClass
     ? customBackgroundClass
     : isHealthcareActive
-      ? 'bg-canvas'
+      ? legacyUi ? 'bg-linear-to-t/srgb from-green-950 to-black to-50%' : 'bg-canvas'
       : theme.background;
+  // Legacy backgrounds are Tailwind gradients, which CSS cannot interpolate.
+  // Keep the previous gradient in place while the next one is revealed from
+  // the bottom through a feathered mask. This makes persona changes feel like
+  // the new colour is rising through the page instead of flashing at once.
+  const shellBackgroundClass = legacyUi && !customBackgroundClass ? 'bg-black' : backgroundClass;
 
   return (
     <div
       id={brandOverride ? 'reveoule-theme' : undefined}
-      className={`tm-chat-shell min-h-screen ${backgroundClass} ${theme.text} relative overflow-hidden`}
+      className={`${legacyUi ? 'tm-legacy-chat-shell' : 'tm-chat-shell'} min-h-screen ${shellBackgroundClass} ${theme.text} relative overflow-hidden`}
       style={{
         minHeight: 'calc(var(--vh, 1vh) * 100)',
         // Light mode's inline accent follows the mind; dark keeps each
         // style's own fallback hue, so the variable is left unset there.
-        ...(mode === 'light' && !brandOverride ? { '--tm-accent-rgb': personaLightAccents[currentPersona] || personaLightAccents.default } : {}),
+        ...(!legacyUi && mode === 'light' && !brandOverride ? { '--tm-accent-rgb': personaLightAccents[currentPersona] || personaLightAccents.default } : {}),
       } as React.CSSProperties}
     >
+      {legacyUi && !customBackgroundClass && (
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          <AnimatePresence initial={false}>
+            <motion.div
+              key={backgroundClass}
+              className={`absolute inset-0 ${backgroundClass}`}
+              initial={{
+                maskPosition: '0% 0%',
+              }}
+              animate={{
+                maskPosition: '0% 100%',
+                transition: { duration: 1.45, ease: [0.65, 0, 0.35, 1] },
+              }}
+              exit={{
+                opacity: 0,
+                transition: { duration: 0.15, delay: 1.3 },
+              }}
+              style={{
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 8.333%, rgba(0, 0, 0, 0.05) 16.667%, rgba(0, 0, 0, 0.12) 25%, rgba(0, 0, 0, 0.22) 33.333%, rgba(0, 0, 0, 0.35) 41.667%, rgba(0, 0, 0, 0.5) 50%, rgba(0, 0, 0, 0.65) 58.333%, rgba(0, 0, 0, 0.78) 66.667%, rgba(0, 0, 0, 0.88) 75%, rgba(0, 0, 0, 0.95) 83.333%, #000 91.667%, #000 100%)',
+                maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 8.333%, rgba(0, 0, 0, 0.05) 16.667%, rgba(0, 0, 0, 0.12) 25%, rgba(0, 0, 0, 0.22) 33.333%, rgba(0, 0, 0, 0.35) 41.667%, rgba(0, 0, 0, 0.5) 50%, rgba(0, 0, 0, 0.65) 58.333%, rgba(0, 0, 0, 0.78) 66.667%, rgba(0, 0, 0, 0.88) 75%, rgba(0, 0, 0, 0.95) 83.333%, #000 91.667%, #000 100%)',
+                WebkitMaskSize: '100% 1200%',
+                maskSize: '100% 1200%',
+                WebkitMaskRepeat: 'no-repeat',
+                maskRepeat: 'no-repeat',
+                willChange: 'mask-position',
+              }}
+            />
+          </AnimatePresence>
+        </div>
+      )}
       {/* Max Mode: chat on the left, workspace on the right. The transform
           makes the column the containing block for the chat's own fixed
           header and composer, so they stay inside it instead of spanning the
           workspace too. */}
-      {!brandOverride && !customBackgroundClass && <AppAtmosphere variant={isHealthcareActive ? 'healthcare' : undefined} />}
+      {!legacyUi && !brandOverride && !customBackgroundClass && <AppAtmosphere variant={isHealthcareActive ? 'healthcare' : undefined} />}
       <div
         className={maxModeRoute ? 'flex h-screen' : undefined}
         style={maxModeRoute ? { height: 'calc(var(--vh, 1vh) * 100)' } : undefined}
@@ -718,17 +795,17 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
         {/* Independent floating controls leave the header open to the canvas. */}
         <header
           className={legacyUi
-            ? 'tm-chat-header fixed inset-x-0 top-0 z-50 px-4 py-3'
+            ? 'fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-transparent'
             : 'tm-chat-header fixed inset-x-0 top-5 z-50 px-4 sm:top-4 sm:px-6 lg:px-8'}
         >
-          <div className="flex items-center justify-between gap-3">
+          <div className={legacyUi ? "max-w-7xl mx-auto flex items-center justify-between" : "flex items-center justify-between gap-3"}>
             <div className="flex min-w-0 items-center gap-3">
             {/* The brand is the legacy header's bare, glowing wordmark in
                 both shells; its menu carries the minds and the app's few
                 other places. */}
-            <div className="tm-chat-brand tm-chat-brand-bare min-w-0">
-            <BrandLogo
-              currentPersona={currentPersona}
+            <div className={legacyUi ? undefined : "tm-chat-brand tm-chat-brand-bare min-w-0"}>
+            <ChatBrand
+              currentPersona={legacyUi ? topPersona : currentPersona}
               onPersonaChange={handlePersonaChange}
               onLoadChat={loadChat}
               onStartNewChat={startNewChat}
@@ -749,6 +826,27 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                 </div>
               )}
 
+              <div className="grid justify-items-end">
+              <AnimatePresence initial={false}>
+              <motion.div
+                key={isAnonymous ? 'anonymous-action' : topPersona}
+                className="col-start-1 row-start-1"
+                initial={legacyUi && !isAnonymous ? { opacity: 0, y: 3, filter: 'blur(4px)' } : false}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  filter: 'blur(0px)',
+                  transition: legacyUi && !isAnonymous
+                    ? { duration: LEGACY_TOP_DURATION_MS / 1000, ease: [0.65, 0, 0.35, 1] }
+                    : { duration: 0.2 },
+                }}
+                exit={legacyUi && !isAnonymous ? {
+                  opacity: 0,
+                  y: -3,
+                  filter: 'blur(4px)',
+                  transition: { duration: LEGACY_TOP_DURATION_MS / 1000, ease: [0.65, 0, 0.35, 1] },
+                } : { opacity: 0, transition: { duration: 0.2 } }}
+              >
               {isAnonymous ? (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -774,14 +872,15 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                   </svg>
                   <span style={{ fontSize: '14px', color: buttonStyles.text }}>Sign Up</span>
                 </motion.button>
-              ) : currentPersona === 'pro' ? (
+              ) : topPersona === 'pro' ? (
                 <MaxModeButton
+                  legacy={legacyUi}
                   active={!!maxModeRoute}
-                  textColor="rgb(var(--tm-ink-rgb) / 0.92)"
+                  textColor={legacyUi ? "var(--color-gray-200)" : "rgb(var(--tm-ink-rgb) / 0.92)"}
                   onEnter={enterMaxMode}
                   onExit={maxModeRoute ? exitMaxMode : undefined}
                 />
-              ) : currentPersona === 'default' ? (
+              ) : topPersona === 'default' ? (
                 // Flow State button for Air — liquid glass style
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -810,7 +909,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                     Flow State
                   </span>
                 </motion.button>
-              ) : currentPersona === 'girlie' && (
+              ) : topPersona === 'girlie' && (
                 isCollaborative && collaborativeId ? (
                   // Group Settings button when in collaborative mode
                   <motion.button
@@ -818,10 +917,8 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                     whileTap={{ scale: 0.95 }}
                     onClick={() => navigate(`/groupchat/${collaborativeId}/settings`)}
                     style={{
-                      background: buttonStyles.bg,
-                      color: buttonStyles.text,
+                      ...girlieActionButtonStyles,
                       borderRadius: '9999px',
-                      backdropFilter: 'blur(10px)',
                       outline: 'none',
                       padding: '8px 16px',
                       display: 'flex',
@@ -831,8 +928,8 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                     }}
                     aria-label="Group Settings"
                   >
-                    <Settings style={{ width: '16px', height: '16px', color: buttonStyles.text }} />
-                    <span style={{ fontSize: '14px', color: buttonStyles.text }}>Group Settings</span>
+                    <Settings style={{ width: '16px', height: '16px', color: girlieActionButtonStyles.color }} />
+                    <span style={{ fontSize: '14px', color: girlieActionButtonStyles.color }}>Group Settings</span>
                   </motion.button>
                 ) : (
                   // Create Group Chat button
@@ -841,10 +938,8 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowGroupChatModal(true)}
                     style={{
-                      background: buttonStyles.bg,
-                      color: buttonStyles.text,
+                      ...girlieActionButtonStyles,
                       borderRadius: '9999px',
-                      backdropFilter: 'blur(10px)',
                       outline: 'none',
                       padding: '8px 16px',
                       display: 'flex',
@@ -854,11 +949,14 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                     }}
                     aria-label="Open Group Chat"
                   >
-                    <Users style={{ width: '16px', height: '16px', color: buttonStyles.text }} />
-                    <span style={{ fontSize: '14px', color: buttonStyles.text }}>Group Chat</span>
+                    <Users style={{ width: '16px', height: '16px', color: girlieActionButtonStyles.color }} />
+                    <span style={{ fontSize: '14px', color: girlieActionButtonStyles.color }}>Group Chat</span>
                   </motion.button>
                 )
               )}
+              </motion.div>
+              </AnimatePresence>
+              </div>
             </div>
           </div>
         </header>
@@ -1152,7 +1250,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                     </div>
                   )}
                 >
-                <ChatMode
+                <ChatTranscript
                   messages={messages}
                   currentPersona={currentPersona}
                   accent={isHealthcareActive ? 'healthcare' : undefined}
@@ -1385,8 +1483,9 @@ function SettingsRedirect() {
 // handoff), so it counts as an entry too — see components/landing/entered.ts.
 function RootRoute() {
   const { user } = useAuth();
+  const { uiStyle } = useTheme();
   const location = useLocation();
-  const showLanding = !user && !location.state && !hasEnteredApp();
+  const showLanding = uiStyle !== 'legacy' && !user && !location.state && !hasEnteredApp();
   useEffect(() => {
     if (!showLanding) markEnteredApp();
   }, [showLanding]);
@@ -1405,6 +1504,7 @@ function AppContent() {
   const legacyUi = uiStyle === 'legacy';
   const navigate = useNavigate();
   const location = useLocation();
+  const HistoryPage = legacyUi ? LegacyChatHistoryPage : ChatHistoryPage;
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Which scale block index.css applies: the app's or the marketing site's.
@@ -1412,8 +1512,8 @@ function AppContent() {
   // again. Decided here, before paint, so a route change never flashes. The
   // root route counts as marketing only while it would show the landing page
   // (see RootRoute).
-  const marketing = MARKETING_PATHS.has(location.pathname)
-    || (location.pathname === '/' && !user && !location.state && !hasEnteredApp());
+  const marketing = !legacyUi && (MARKETING_PATHS.has(location.pathname)
+    || (location.pathname === '/' && !user && !location.state && !hasEnteredApp()));
   useLayoutEffect(() => {
     document.documentElement.dataset.tmScale = marketing ? 'marketing' : 'app';
     // The shared viewport measurement divides by the scale, which has
@@ -1429,7 +1529,7 @@ function AppContent() {
 
   return (
     <SettingsModalContext.Provider value={settingsModal}>
-    <SettingsModal isOpen={isSettingsOpen} onClose={settingsModal.closeSettings} />
+    {legacyUi ? <LegacySettingsModal isOpen={isSettingsOpen} onClose={settingsModal.closeSettings} /> : <SettingsModal isOpen={isSettingsOpen} onClose={settingsModal.closeSettings} />}
     <Suspense fallback={<RouteLoadingFallback />}>
       <Routes>
       <Route path="/" element={<RootRoute />} />
@@ -1471,21 +1571,21 @@ function AppContent() {
       <Route path="/history" element={
         <>
           <SEOHead title="Chat History" description="View and continue your previous TimeMachine Chat conversations." path="/history" noIndex />
-          <ChatHistoryPage onLoadChat={(session) => {
+          <HistoryPage onLoadChat={(session) => {
             navigate('/', { state: { sessionToLoad: session } });
           }} />
         </>
       } />
       <Route path="/settings" element={<SettingsRedirect />} />
-      <Route path="/about" element={<><SEOHead title="About" description="Learn about TimeMachine — the super app bringing AI personas, privacy-first design, and intelligent tools into one chat interface. Built by TimeMachine Mafia." path="/about" /><AboutPage /></>} />
-      <Route path="/personas" element={<><SEOHead title="Personas" description="Meet the TimeMachine AI personas — TimeMachine Air for everyday speed, TimeMachine Girlie for vibe-check conversations, and TimeMachine PRO for advanced intelligence." path="/personas" /><PersonasPage /></>} />
-      <Route path="/features" element={<><SEOHead title="Features" description="Explore TimeMachine features — Contour command palette with 30+ tools, group chat, TM Healthcare, image generation, music streaming, memory system, voice input, and more." path="/features" /><FeaturesPage /></>} />
-      <Route path="/contact" element={<><SEOHead title="Contact" description="Get in touch with the TimeMachine team for support, feedback, or collaboration." path="/contact" /><ContactPage /></>} />
+      <Route path="/about" element={<><SEOHead title="About" description="Learn about TimeMachine — the super app bringing AI personas, privacy-first design, and intelligent tools into one chat interface. Built by TimeMachine Mafia." path="/about" />{legacyUi ? <LegacyAboutPage /> : <AboutPage />}</>} />
+      <Route path="/personas" element={<><SEOHead title="Personas" description="Meet the TimeMachine AI personas — TimeMachine Air for everyday speed, TimeMachine Girlie for vibe-check conversations, and TimeMachine PRO for advanced intelligence." path="/personas" />{legacyUi ? <LegacyPersonasPage /> : <PersonasPage />}</>} />
+      <Route path="/features" element={<><SEOHead title="Features" description="Explore TimeMachine features — Contour command palette with 30+ tools, group chat, TM Healthcare, image generation, music streaming, memory system, voice input, and more." path="/features" />{legacyUi ? <LegacyFeaturesPage /> : <FeaturesPage />}</>} />
+      <Route path="/contact" element={<><SEOHead title="Contact" description="Get in touch with the TimeMachine team for support, feedback, or collaboration." path="/contact" />{legacyUi ? <LegacyContactPage /> : <ContactPage />}</>} />
       <Route path="/privacy" element={<><SEOHead title="Privacy Policy" description="How TimeMachine Chat collects, uses, and protects your data — including which third-party AI providers receive your prompts." path="/privacy" /><PrivacyPage /></>} />
       <Route path="/terms" element={<><SEOHead title="Terms of Service" description="The terms governing your use of TimeMachine Chat." path="/terms" /><TermsPage /></>} />
       <Route path="/album" element={<><SEOHead title="Album" path="/album" noIndex /><AlbumPage /></>} />
       <Route path="/memories" element={<><SEOHead title="Memories" path="/memories" noIndex />{legacyUi ? <LegacyMemoriesPage /> : <MemoriesPage />}</>} />
-      <Route path="/help" element={<><SEOHead title="Help" description="Get help with TimeMachine — learn about AI personas, group chats, image generation, and all features." path="/help" /><HelpPage /></>} />
+      <Route path="/help" element={<><SEOHead title="Help" description="Get help with TimeMachine — learn about AI personas, group chats, image generation, and all features." path="/help" />{legacyUi ? <LegacyHelpPage /> : <HelpPage />}</>} />
       <Route path="/notes" element={<><SEOHead title="Notes" description="Capture your thoughts with TimeMachine Notes — a powerful Notion-like editor built right into TimeMachine." path="/notes" />{legacyUi ? <LegacyNotesPage /> : <NotesPage />}</>} />
       <Route path="/healthcare" element={<><SEOHead title="Healthcare" description="Search medicines, brands, generics, and drug information — including dosage, side effects, and indications. Powered by TimeMachine Healthcare." path="/healthcare" />{legacyUi ? <LegacyHealthcarePage /> : <HealthcarePage />}</>} />
       <Route path="/shop" element={<><SEOHead title="Shop" description="Physical goods from the TimeMachine universe. Apparel, accessories, and more." path="/shop" /><ShopPage /></>} />

@@ -1,3 +1,6 @@
+import { SpeechTranscriptionButton as LegacySpeechTranscriptionButton } from './LegacySpeechTranscriptionButton';
+import { ContourPanel as LegacyContourPanel } from '../contour/LegacyContourPanel';
+import { PlusMenu as LegacyPlusMenu } from './LegacyPlusMenu';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Square, Plus, X, CornerDownRight, ImagePlus, Code, Music, HeartPulse, FileText } from 'lucide-react';
@@ -13,6 +16,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { MentionCall } from './MentionCall';
 import { PlusMenu, PlusMenuOption } from './PlusMenu';
+import { LEGACY_COMPOSER_TRANSITION } from '../../themes/legacyMotion';
 import { uploadImage } from '../../services/image/imageService';
 import { GroupChatParticipant } from '../../types/groupChat';
 import { useContour } from '../contour/useContour';
@@ -68,6 +72,11 @@ const controlGlass = (persona: string): React.CSSProperties => {
     boxShadow: `${personaStyles.glowShadow[key]}, inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`
   };
 };
+
+const syncedLegacyControlGlass = (persona: string, legacy: boolean): React.CSSProperties => ({
+  ...controlGlass(persona),
+  ...(legacy ? LEGACY_COMPOSER_TRANSITION : {}),
+});
 
 const convertImageToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -193,7 +202,11 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const docInputRef = useRef<HTMLInputElement>(null);
   const plusMenuRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { theme } = useTheme();
+  const { theme, uiStyle } = useTheme();
+  const legacyUi = uiStyle === 'legacy';
+  const ComposerPlusMenu = legacyUi ? LegacyPlusMenu : PlusMenu;
+  const ComposerContour = legacyUi ? LegacyContourPanel : ContourPanel;
+  const ComposerMicrophone = legacyUi ? LegacySpeechTranscriptionButton : SpeechTranscriptionButton;
   const { user } = useAuth();
   const navigate = useNavigate();
   const contour = useContour();
@@ -237,7 +250,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     // Empty: one row, no measuring. On first paint the field can be measured
     // before the dock has its width, and a wrapped placeholder then reads as
     // several lines and pins the bar at its maximum height.
-    if (!message) {
+    if (!message && !legacyUi) {
       textarea.style.height = '';
       return;
     }
@@ -251,7 +264,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
     // Restore scroll position
     textarea.scrollTop = scrollTop;
-  }, [message]);
+  }, [message, legacyUi]);
 
   // Close plus menu on outside click
   useEffect(() => {
@@ -642,7 +655,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
   // The circles take the mode's colour over the mind's while TM Healthcare
   // is on, as the room does.
-  const glassKey = selectedPlusOption === 'tm-healthcare' ? 'healthcare' : currentPersona;
+  const glassKey = !legacyUi && selectedPlusOption === 'tm-healthcare' ? 'healthcare' : currentPersona;
 
   const handlePlusButtonClick = () => {
     if (selectedPlusOption) {
@@ -841,7 +854,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-4xl">
+    <form onSubmit={handleSubmit} className={legacyUi ? "max-w-4xl mx-auto sticky bottom-4" : "mx-auto max-w-4xl"}>
       {/* Reply preview */}
       <AnimatePresence>
         {replyTo && (
@@ -931,7 +944,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
               onClick={handlePlusButtonClick}
               disabled={isLoading || isUploading}
               className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
-              style={controlGlass(glassKey)}
+              style={syncedLegacyControlGlass(glassKey, legacyUi)}
               aria-label="Attach or choose a mode"
               aria-expanded={showPlusMenu}
               onKeyDown={(event) => {
@@ -955,7 +968,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
               )}
             </motion.button>
 
-            <PlusMenu
+            <ComposerPlusMenu
               isVisible={showPlusMenu}
               onSelect={handlePlusMenuSelect}
               onClose={() => {
@@ -975,7 +988,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                 placeholder="Type / for contour"
                 aria-label="Message TimeMachine"
                 disabled={isLoading || isUploading}
-                className={`tm-legacy-field w-full px-6 pr-28 rounded-[28px]
+                className={`${legacyUi ? 'w-full px-6 pr-32' : 'tm-legacy-field w-full px-6 pr-28'} rounded-[28px]
                   ${theme.input.text} placeholder-gray-400
                   outline-hidden
                   disabled:opacity-50
@@ -999,12 +1012,12 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
               />
 
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <SpeechTranscriptionButton
+                <ComposerMicrophone
                   value={message}
                   onTranscript={setMessage}
                   disabled={isLoading || isUploading}
                   currentPersona={currentPersona}
-                  accent={selectedPlusOption === 'tm-healthcare' ? 'healthcare' : undefined}
+                  accent={!legacyUi && selectedPlusOption === 'tm-healthcare' ? 'healthcare' : undefined}
                 />
 
                 <motion.button
@@ -1018,7 +1031,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                     ? false
                     : (isLoading || isUploading || isFileReading || (!message.trim() && selectedImages.length === 0 && !selectedFile))}
                   className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
-                  style={controlGlass(glassKey)}
+                  style={syncedLegacyControlGlass(glassKey, legacyUi)}
                 >
                   {canStop ? (
                     <Square className="w-5 h-5 relative z-10 fill-current" />
@@ -1042,7 +1055,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
             {/* TimeMachine Contour - Smart Assist Overlay */}
             <div ref={contourRef}>
-              <ContourPanel
+              <ComposerContour
                 state={contour.state}
                 isVisible={contour.isVisible}
                 onCommandSelect={handleContourCommandSelect}

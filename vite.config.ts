@@ -88,7 +88,7 @@ export default defineConfig(({ mode }) => {
       // .vercel/output/functions, and Vitest's default excludes do not cover
       // that directory — so a local Vercel build would otherwise make the same
       // tests run twice, once from source and once from a stale bundle.
-      exclude: ['**/node_modules/**', '**/dist/**', '**/.vercel/**'],
+      exclude: ['**/node_modules/**', '**/dist/**', '**/.vercel/**', '**/legacy-tm/**'],
     },
     server: {
       // 5173 unless a launcher hands us a port (the desktop preview does when

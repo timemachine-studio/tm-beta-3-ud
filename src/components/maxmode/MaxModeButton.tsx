@@ -6,17 +6,19 @@
  * composer, not a decision to make first); on, it leaves.
  */
 
+import { Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { MaxModeIcon } from './MaxModeIcon';
 
 interface MaxModeButtonProps {
   active: boolean;
+  legacy?: boolean;
   textColor: string;
   onEnter: () => void;
   onExit?: () => void;
 }
 
-export function MaxModeButton({ active, textColor, onEnter, onExit }: MaxModeButtonProps) {
+export function MaxModeButton({ active, textColor, onEnter, onExit, legacy = false }: MaxModeButtonProps) {
   const styles = {
     border: active ? '1px solid rgba(34, 211, 238, 0.5)' : '1px solid rgba(34, 211, 238, 0.3)',
     background: active
@@ -26,7 +28,7 @@ export function MaxModeButton({ active, textColor, onEnter, onExit }: MaxModeBut
       ? '0 0 20px rgba(34, 211, 238, 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
       : '0 0 12px rgba(34, 211, 238, 0.25), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
     // The hue reads as a sticker on paper; light collapses it to the accent.
-    color: active ? 'rgb(var(--tm-accent-rgb, 135 206 250))' : textColor,
+    color: active ? legacy ? 'rgb(135,206,250)' : 'rgb(var(--tm-accent-rgb, 135 206 250))' : textColor,
   };
 
   return (
@@ -50,7 +52,7 @@ export function MaxModeButton({ active, textColor, onEnter, onExit }: MaxModeBut
       aria-label={active ? 'Leave Max Mode' : 'Turn on Max Mode'}
       title={active ? 'Leave Max Mode' : 'Turn on Max Mode'}
     >
-      <MaxModeIcon size={17} style={{ color: styles.color }} />
+      {legacy ? <Star style={{ width: '16px', height: '16px', color: styles.color }} /> : <MaxModeIcon size={17} style={{ color: styles.color }} />}
       <span style={{ fontSize: '14px', color: styles.color }}>Max Mode</span>
     </motion.button>
   );

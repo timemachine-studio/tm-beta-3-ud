@@ -6,6 +6,7 @@
 @import './stylesheet/history.css';
 @import './stylesheet/light-palette.css';
 @import './stylesheet/light.css';
+@import './stylesheet/legacy-light.css';
 @source '../index.html';
 @source './**/*.{js,ts,jsx,tsx}';
 @plugin '@tailwindcss/typography';

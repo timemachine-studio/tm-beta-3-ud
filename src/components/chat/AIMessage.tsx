@@ -218,7 +218,8 @@ function AIMessageComponent({
   const personaColor = getPersonaColor(displayPersona);
   const shimmerColors = getPersonaShimmerColors(displayPersona);
   const contentEndRef = useRef<HTMLDivElement>(null);
-  const { theme } = useTheme();
+  const { theme, uiStyle } = useTheme();
+  const legacyUi = uiStyle === 'legacy';
 
   // Process content to handle memory tags
   const { cleanContent, hasSavedMemory } = processMemoryContent(content);
@@ -334,7 +335,7 @@ function AIMessageComponent({
       <li className={`leading-relaxed ${theme.text}`}>{children}</li>
     ),
     blockquote: ({ children }: { children?: React.ReactNode }) => (
-      <blockquote className={`border-l-2 border-purple-500/50 pl-4 my-4 italic opacity-70 ${theme.text}`}>
+      <blockquote className={`${legacyUi ? 'border-l-4' : 'border-l-2'} border-purple-500/50 pl-4 my-4 italic opacity-70 ${theme.text}`}>
         {children}
       </blockquote>
     ),
@@ -389,7 +390,7 @@ function AIMessageComponent({
         </a>
       ) : null;
     },
-  }), [theme.text, personaColor, displayPersona]);
+  }), [theme.text, personaColor, displayPersona, legacyUi]);
 
   // Dedicated components for reasoning content to keep everything consistently grey/zinc-styled
   const ReasoningMarkdownComponents = useMemo<Components>(() => ({
@@ -421,7 +422,7 @@ function AIMessageComponent({
       <li className="leading-relaxed text-zinc-400">{children}</li>
     ),
     blockquote: ({ children }: { children?: React.ReactNode }) => (
-      <blockquote className="border-l-2 border-zinc-600 pl-4 my-3 italic text-zinc-500">
+      <blockquote className={`${legacyUi ? 'border-l-4' : 'border-l-2'} border-zinc-600 pl-4 my-3 italic text-zinc-500`}>
         {children}
       </blockquote>
     ),
@@ -440,7 +441,7 @@ function AIMessageComponent({
       );
     },
     img: () => null, // Don't render images inside reasoning
-  }), []);
+  }), [legacyUi]);
 
   // Inline the message content JSX - DO NOT use a function component here
   // as it would cause remounting on every parent re-render
@@ -604,7 +605,7 @@ function AIMessageComponent({
                     />
                   ) : (
                   <>
-                    <div className="tm-response-copy prose prose-invert prose-sm max-w-none">
+                    <div className={`${legacyUi ? '' : 'tm-response-copy '}prose prose-invert prose-sm max-w-none`}>
                       <MarkdownRuntimeContext.Provider value={markdownRuntime}>
                         {harnessActions && harnessActions.length > 0 ? (
                           <HarnessTranscript
@@ -712,7 +713,7 @@ function AIMessageComponent({
                   />
                 ) : (
                 <>
-                  <div className="tm-response-copy prose prose-invert max-w-none">
+                  <div className={`${legacyUi ? '' : 'tm-response-copy '}prose prose-invert max-w-none`}>
                     <MarkdownRuntimeContext.Provider value={markdownRuntime}>
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkBreaks, ...(math?.remark ?? [])]}
@@ -801,7 +802,7 @@ function AIMessageComponent({
         ease: [0.25, 0.1, 0.25, 1],
       }}
       onAnimationComplete={() => !hasAnimated && onAnimationComplete(messageId)}
-      className="tm-assistant-message w-full"
+      className={legacyUi ? 'w-full' : 'tm-assistant-message w-full'}
     >
       {messageContent}
     </motion.div>

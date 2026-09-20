@@ -1,3 +1,5 @@
+import { useTheme } from '../../context/ThemeContext';
+import { LegalLayout as LegacyLegalLayout, LegalSection as LegacyLegalSection } from './LegacyLegalLayout';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { LegalLayout, LegalSection, LegalList } from './LegalLayout';
@@ -8,9 +10,12 @@ const CONTACT_EMAIL = 'privacy@timemachinechat.com';
 // Supabase. Gate LS moves message storage on-device; when LS.1 lands this
 // document must be revised (see production-check.md 0.8 and LS.1).
 export function PrivacyPage() {
+  const { uiStyle } = useTheme();
+  const Section = uiStyle === 'legacy' ? LegacyLegalSection : LegalSection;
+  const Layout = uiStyle === 'legacy' ? LegacyLegalLayout : LegalLayout;
   return (
-    <LegalLayout eyebrow="Legal" title="Privacy Policy" lastUpdated="6 September 2026">
-      <LegalSection heading="The short version">
+    <Layout eyebrow="Legal" title="Privacy Policy" lastUpdated="6 September 2026">
+      <Section heading="The short version">
         <p>
           We collect the account details you give us, the conversations you have with TimeMachine,
           and a small amount of technical data needed to keep the service running. We do not sell
@@ -20,9 +25,9 @@ export function PrivacyPage() {
           To generate a reply, your messages are sent to third-party AI providers. That is how
           the product works, so treat anything you type as leaving your device.
         </p>
-      </LegalSection>
+      </Section>
 
-      <LegalSection heading="What we collect">
+      <Section heading="What we collect">
         <LegalList
           items={[
             <><span className="text-white/70">Account information</span> — your email address, password (stored hashed by our authentication provider), and any nickname or profile details you choose to add.</>,
@@ -33,9 +38,9 @@ export function PrivacyPage() {
             <><span className="text-white/70">Technical data</span> — your IP address, used to enforce rate limits and prevent abuse, and a signed cookie used for the same purpose when you are not signed in.</>,
           ]}
         />
-      </LegalSection>
+      </Section>
 
-      <LegalSection heading="Who receives your prompts">
+      <Section heading="Who receives your prompts">
         <p>
           TimeMachine does not run its own language models. When you send a message, its content —
           together with attached image or document text and relevant AI memories — is sent to one of the following processors, which generates the
@@ -68,9 +73,9 @@ export function PrivacyPage() {
           stores task data and output streams. Its retention and deletion settings are
           governed by that service; we do not control how long it keeps them.
         </p>
-      </LegalSection>
+      </Section>
 
-      <LegalSection heading="AI-generated content">
+      <Section heading="AI-generated content">
         <p>
           Replies are produced by a language model. They can be wrong, out of date, or misleading,
           and they are not professional advice — medical, legal, financial, or otherwise. The
@@ -81,9 +86,9 @@ export function PrivacyPage() {
           Do not send us information you would not want processed by a third-party AI provider —
           including anyone else's personal data, credentials, or payment details.
         </p>
-      </LegalSection>
+      </Section>
 
-      <LegalSection heading="How long we keep it">
+      <Section heading="How long we keep it">
         <LegalList
           items={[
             <>Account data and profile details are kept for as long as your account exists.</>,
@@ -92,9 +97,9 @@ export function PrivacyPage() {
             <>Account deletion attempts to remove supported account records and saved media. If removal cannot be completed, the app reports the failure and keeps your sign-in account available for retry or support. Shared-group records and processor-held data can require additional handling. Backup, hosting-log and provider retention depend on the service settings; we do not promise immediate deletion of every copy.</>,
           ]}
         />
-      </LegalSection>
+      </Section>
 
-      <LegalSection heading="Your choices">
+      <Section heading="Your choices">
         <LegalList
           items={[
             <><span className="text-white/70">See and delete your memories</span> — the Memories page lists everything the assistant has saved about you.</>,
@@ -106,17 +111,17 @@ export function PrivacyPage() {
         <p>
           We do not sell or share personal information for cross-context behavioural advertising.
         </p>
-      </LegalSection>
+      </Section>
 
-      <LegalSection heading="Children">
+      <Section heading="Children">
         <p>
           TimeMachine is not intended for children under 13, and we do not knowingly collect their
           personal information. If you believe a child has created an account, contact us and we
           will remove it.
         </p>
-      </LegalSection>
+      </Section>
 
-      <LegalSection heading="Changes and contact">
+      <Section heading="Changes and contact">
         <p>
           If we make a material change to this policy we will update the date at the top of this
           page and, where the change is significant, tell you in the app.
@@ -131,8 +136,8 @@ export function PrivacyPage() {
         <p className="text-white/35 text-sm">
           See also our <Link to="/terms" className="text-purple-400/80 hover:text-purple-300">Terms of Service</Link>.
         </p>
-      </LegalSection>
-    </LegalLayout>
+      </Section>
+    </Layout>
   );
 }
 

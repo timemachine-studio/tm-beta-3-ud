@@ -6,7 +6,7 @@ import { slideInFromRight, slideInFromLeft } from '../../utils/animations';
 import { useTheme } from '../../context/ThemeContext';
 
 function UserMessageComponent({ content, imageData, inputImageUrls, pdfFileName, sender_nickname, sender_avatar, isGroupMode }: MessageProps) {
-  const { theme } = useTheme();
+  const { theme, uiStyle } = useTheme();
 
   // Check if this is another user's message in group mode
   const isOtherUser = isGroupMode && sender_nickname;
@@ -37,7 +37,13 @@ function UserMessageComponent({ content, imageData, inputImageUrls, pdfFileName,
           </div>
         )}
 
-        <div className={`tm-user-bubble ${isOtherUser ? 'tm-user-bubble-other' : ''} px-4 py-2 rounded-2xl ${theme.text} text-base`}
+        <div className={uiStyle === 'legacy' ? `px-4 py-2 rounded-2xl
+            ${isOtherUser
+              ? 'bg-blue-500/10 border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
+              : 'bg-purple-500/10 border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
+            }
+            backdrop-blur-xs border
+            ${theme.text} text-base` : `tm-user-bubble ${isOtherUser ? 'tm-user-bubble-other' : ''} px-4 py-2 rounded-2xl ${theme.text} text-base`}
           >
           {/* Display images if present - prefer inputImageUrls (persistent URLs) over imageData (base64) */}
           {(inputImageUrls && inputImageUrls.length > 0) ? (
