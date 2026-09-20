@@ -20,7 +20,7 @@ export interface PersonaRoute extends VisionCapability {
    both Air and Girlie in ai-proxy's AI_PERSONAS. */
 export const AIR_ROUTE = {
   provider: 'eaon', // allowed change to 'groq' or 'cerebras' or 'pollinations' or 'eaon' or 'nvidia'
-  model: 'eaon/gemini-3.8-flash',
+  model: 'eaon/muse-spark-1.3  ',
   // OCR, even though Gemini itself can see: ai.eaon.dev strips image parts
   // and answers 200 as if the turn were text-only, so a `native` hop here
   // makes the model tell the user "the image didn't come through". Measured
@@ -45,10 +45,10 @@ export const AIR_ROUTE = {
     // provider, so once eaon itself is down for three turns both hops are
     // skipped together and the chain continues below. Text-only per the
     // catalog (same line as llm7's minimax-m2.7 in vision.ts), so `ocr`.
-    { provider: 'eaon', model: 'eaon/minimax-m2.7-highspeed', vision: 'ocr' as const },
+    { provider: 'eaon', model: 'eaon/qwen3.8-flash', vision: 'ocr' as const },
     // Lightest Gemini on the same route: a third model-level cushion before
     // the chain leaves eaon. OCR until an image has been sent through it.
-    { provider: 'eaon', model: 'eaon/gemini-3.1-flash-lite', vision: 'ocr' as const },
+    { provider: 'eaon', model: 'eaon/qwen3.7-flash', vision: 'ocr' as const },
     // The rest is ordered by how dependable each hop has actually been, not
     // by preference: the earlier a hop sits, the more often a stall on it
     // costs a user 45s before the chain moves on. nvidia is the one that
