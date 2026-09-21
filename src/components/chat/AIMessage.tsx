@@ -8,7 +8,6 @@ import { useMathPlugins } from './mathPlugins';
 import { X } from 'lucide-react';
 import { MessageProps, LoadingPhase } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
-import { Brain } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { GeneratedImage } from './GeneratedImage';
 import { AnimatedShinyText } from '../ui/AnimatedShinyText';
@@ -451,20 +450,21 @@ function AIMessageComponent({
         <div className="w-full max-w-4xl mx-auto mb-6">
           <motion.button
             onClick={() => setShowReasoning(!showReasoning)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full
-              bg-linear-to-r/srgb ${reasoningColors.gradient.replace('/90', '/20')}
-              backdrop-blur-xl border ${reasoningColors.border}
+            className={`flex items-center px-4 py-2 rounded-full overflow-hidden isolate
+              border ${reasoningColors.border}
               ${reasoningColors.shadow}
-              hover:${reasoningColors.shadow.replace('0.2', '0.4')}
               transition-all duration-300
               mx-auto
               relative
               group
-              animate-border-glow
               cursor-pointer`}
           >
-            <div className="relative z-10 flex items-center gap-2">
-              <Brain className="w-4 h-4" />
+            <span
+              aria-hidden="true"
+              className={`absolute inset-0 -z-10 rounded-[inherit]
+                bg-linear-to-r/srgb ${reasoningColors.gradient.replace('/90', '/55')}`}
+            />
+            <div className="relative z-10 flex items-center">
               <span className={`text-sm italic ${theme.text}`}>Thought to provide a better answer</span>
             </div>
           </motion.button>
@@ -475,14 +475,14 @@ function AIMessageComponent({
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className={`mt-2 p-4 relative
+                className={`mt-2 p-5 sm:p-6 relative overflow-hidden
                   bg-linear-to-r/srgb ${reasoningColors.gradient}
-                  backdrop-blur-xl rounded-lg border ${reasoningColors.border}
+                  backdrop-blur-xl rounded-3xl border ${reasoningColors.border}
                   ${reasoningColors.shadow}`}
               >
                 <button
                   onClick={() => setShowReasoning(false)}
-                  className="absolute top-2 right-2 p-1 rounded-full
+                  className="absolute top-3 right-3 p-1.5 rounded-full
                     bg-white/10 hover:bg-white/20 transition-colors"
                 >
                   <X className="w-4 h-4 text-white/80" />
