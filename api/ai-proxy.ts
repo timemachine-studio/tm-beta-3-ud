@@ -1322,6 +1322,47 @@ export async function callNvidiaAPIStreaming(
   });
 }
 
+/**
+ * Eaon's model routes do not all accept the same optional reasoning fields.
+ * MiniMax M3 accepts the plain OpenAI-compatible body (including tools), but
+ * returns 502 when the generic reasoning-disable controls are added. Keep the
+ * exception here so streaming and non-streaming requests cannot drift.
+ */
+export function buildEaonRequestBody(
+  messages: ProviderMessage[],
+  model: string,
+  temperature: number,
+  stream: boolean,
+  maxTokens?: number,
+  tools?: ProviderTool[],
+): ProviderRequest {
+  const cleanedMessages = messages.filter(msg =>
+    msg.role !== 'system' || (typeof msg.content === 'string' ? msg.content.trim() !== '' : !!msg.content)
+  );
+
+  const requestBody: ProviderRequest = {
+    model,
+    messages: cleanedMessages,
+    temperature,
+    stream,
+  };
+
+  if (!/^eaon\/minimax-/i.test(model)) {
+    requestBody.thinking_budget = 0;
+    requestBody.reasoning_effort = 'none';
+    requestBody.thinking = null;
+  }
+
+  if (maxTokens) requestBody.max_tokens = maxTokens;
+
+  if (tools && tools.length > 0) {
+    requestBody.tools = tools;
+    requestBody.tool_choice = 'auto';
+  }
+
+  return requestBody;
+}
+
 // Eaon API function (streaming)
 export async function callEaonAPIStreaming(
   messages: ProviderMessage[],
@@ -1334,37 +1375,11 @@ export async function callEaonAPIStreaming(
     throw new Error('EAON_API_KEY is not configured for Eaon requests');
   }
 
-  // Filter out empty system messages
-  const cleanedMessages = messages.filter(msg =>
-    // A system message is always plain text; the parts form only ever appears
-    // on the user turn a native-vision run attached images to, and that one is
-    // never empty.
-    msg.role !== 'system' || (typeof msg.content === 'string' ? msg.content.trim() !== '' : !!msg.content)
-  );
-
-  const requestBody: ProviderRequest = {
-    model: model,
-    messages: cleanedMessages,
-    temperature,
-    stream: true,
-    // --- Bulletproof Thinking/Reasoning Deactivation ---
-    thinking_budget: 0,          // Maps to Gemini / Open-source routers
-    reasoning_effort: "none",    // Maps to OpenAI-style routers
-    thinking: null               // Maps to Anthropic-style routers
-  };
-
-  if (maxTokens) {
-    requestBody.max_tokens = maxTokens;
-  }
-
-  if (tools && tools.length > 0) {
-    requestBody.tools = tools;
-    requestBody.tool_choice = "auto";
-  }
+  const requestBody = buildEaonRequestBody(messages, model, temperature, true, maxTokens, tools);
 
   console.log('Eaon API Request:', {
     model,
-    messageCount: cleanedMessages.length,
+    messageCount: requestBody.messages.length,
     url: EAON_API_URL,
     hasTools: !!(tools && tools.length > 0),
     toolCount: tools?.length || 0
@@ -2034,37 +2049,11 @@ async function callEaonAPI(
     throw new Error('EAON_API_KEY is not configured for Eaon requests');
   }
 
-  // Filter out empty system messages
-  const cleanedMessages = messages.filter(msg =>
-    // A system message is always plain text; the parts form only ever appears
-    // on the user turn a native-vision run attached images to, and that one is
-    // never empty.
-    msg.role !== 'system' || (typeof msg.content === 'string' ? msg.content.trim() !== '' : !!msg.content)
-  );
-
-  const requestBody: ProviderRequest = {
-    model: model,
-    messages: cleanedMessages,
-    temperature,
-    stream: false,
-    // --- Bulletproof Thinking/Reasoning Deactivation ---
-    thinking_budget: 0,          // Maps to Gemini / Open-source routers
-    reasoning_effort: "none",    // Maps to OpenAI-style routers
-    thinking: null               // Maps to Anthropic-style routers
-  };
-
-  if (maxTokens) {
-    requestBody.max_tokens = maxTokens;
-  }
-
-  if (tools && tools.length > 0) {
-    requestBody.tools = tools;
-    requestBody.tool_choice = "auto";
-  }
+  const requestBody = buildEaonRequestBody(messages, model, temperature, false, maxTokens, tools);
 
   console.log('Eaon API Request (non-streaming):', {
     model,
-    messageCount: cleanedMessages.length,
+    messageCount: requestBody.messages.length,
     url: EAON_API_URL,
     hasTools: !!(tools && tools.length > 0),
     toolCount: tools?.length || 0

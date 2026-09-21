@@ -177,9 +177,14 @@ async function callHop(hop: ProviderHop, messages: ProviderMessage[], maxTokens:
     body.reasoning_effort = 'low';
   } else {
     body.max_tokens = maxTokens;
-    body.thinking_budget = 0;
-    body.reasoning_effort = 'none';
-    if (hop.provider === 'eaon') body.thinking = null;
+    // Eaon's MiniMax route returns 502 when these generic reasoning-disable
+    // controls are present. Other routes still use them to keep the response
+    // parseable as a single JSON object.
+    if (!(hop.provider === 'eaon' && /^eaon\/minimax-/i.test(hop.model))) {
+      body.thinking_budget = 0;
+      body.reasoning_effort = 'none';
+      if (hop.provider === 'eaon') body.thinking = null;
+    }
   }
 
   const response = await providerFetch(url, {

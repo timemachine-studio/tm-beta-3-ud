@@ -20,11 +20,10 @@ export interface PersonaRoute extends VisionCapability {
    both Air and Girlie in ai-proxy's AI_PERSONAS. */
 export const AIR_ROUTE = {
   provider: 'eaon', // allowed change to 'groq' or 'cerebras' or 'pollinations' or 'eaon' or 'nvidia'
-  model: 'eaon/muse-spark-1.3  ',
-  // OCR, even though Gemini itself can see: ai.eaon.dev strips image parts
-  // and answers 200 as if the turn were text-only, so a `native` hop here
-  // makes the model tell the user "the image didn't come through". Measured
-  // 2026-09-14 against the live route — see MODEL_VISION in api/_lib/vision.ts.
+  model: 'eaon/minimax-m3',
+  // MiniMax M3 is text-only on this route. Transcribe image turns instead of
+  // handing it an image_url part and turning an otherwise valid chat into a
+  // provider error.
   vision: 'ocr' as const,
   // Air's fallback chain, in order. If the primary above fails for any
   // reason — 429, 5xx, timeout, missing key, unknown model — the run moves
