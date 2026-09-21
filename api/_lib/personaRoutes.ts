@@ -44,10 +44,10 @@ export const AIR_ROUTE = {
     // provider, so once eaon itself is down for three turns both hops are
     // skipped together and the chain continues below. Text-only per the
     // catalog (same line as llm7's minimax-m2.7 in vision.ts), so `ocr`.
-    { provider: 'eaon', model: 'eaon/qwen3.8-flash', vision: 'ocr' as const },
+    { provider: 'eaon', model: 'eaon/gemini-3.7-flash', vision: 'ocr' as const },
     // Lightest Gemini on the same route: a third model-level cushion before
     // the chain leaves eaon. OCR until an image has been sent through it.
-    { provider: 'eaon', model: 'eaon/qwen3.7-flash', vision: 'ocr' as const },
+    { provider: 'eaon', model: 'eaon/gemini-3.1-flash-lite', vision: 'ocr' as const },
     // The rest is ordered by how dependable each hop has actually been, not
     // by preference: the earlier a hop sits, the more often a stall on it
     // costs a user 45s before the chain moves on. nvidia is the one that
@@ -94,6 +94,8 @@ export const PRO_ROUTE = {
   // ai.eaon.dev catalog prefixes everything with `eaon/` — an id that route
   // does not serve fails worse than no hop at all.
   fallbacks: [
-    { provider: 'nvidia', model: 'deepseek-ai/deepseek-v4-flash-0731', vision: 'ocr' as const },
-  ],
+      { provider: 'eaon', model: 'eaon/gemini-3.8-flash', vision: 'ocr' as const },
+      { provider: 'eaon', model: 'eaon/deepseek-v4-flash', vision: 'ocr' as const },
+      { provider: 'pollinations', model: 'nvidia/nemotron-3.5-lightning', vision: 'ocr' as const },
+    ],
 } as const;
