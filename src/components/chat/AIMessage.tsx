@@ -12,6 +12,8 @@ import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
 import { GeneratedImage } from './GeneratedImage';
 import { AnimatedShinyText } from '../ui/AnimatedShinyText';
+import { LoadingPhaseIndicator } from './LoadingPhaseIndicator';
+import { loadingLabel } from './loadingLabel';
 import { HarnessTranscript } from './HarnessActionCard';
 import type { HarnessAction } from '../../types/chat';
 import { AudioPlayerBubble } from './AudioPlayerBubble';
@@ -37,26 +39,6 @@ function isTrustedImageSource(src: string): boolean {
 import { MusicComposeCard, SavedVariation } from './MusicComposeCard';
 import type { Components } from 'react-markdown';
 import { isMarkdownCodeComplete } from './markdownRuntime';
-
-/**
- * The spinner's one line: what is happening, including a retry in progress.
- * Every place that shows a phase goes through here — the shimmer used to
- * print the raw id, and a Girlie reply read "retrying:1/2" for a moment.
- */
-function loadingLabel(phase: LoadingPhase | undefined): string {
-  if (phase === 'analyzing_photo') return 'Analyzing photo...';
-  if (typeof phase === 'string' && phase.startsWith('retrying:')) {
-    const [n, of] = phase.slice('retrying:'.length).split('/');
-    return `Retrying · ${n} of ${of}`;
-  }
-  if (!phase || phase === 'thinking') return 'Thinking';
-  // Tool and coordinator phases are already short, user-facing sentences.
-  // Keep control characters out in case a provider returns a malformed marker.
-  return [...phase].filter(character => {
-    const code = character.charCodeAt(0);
-    return code >= 32 && code !== 127;
-  }).join('').slice(0, 120) || 'Working';
-}
 
 // MessageProps declares onAnimationComplete as `() => void`; the AI message
 // passes the id back, so it is redeclared rather than widened here.
@@ -641,18 +623,11 @@ function AIMessageComponent({
                     {isSpecialLoadingPhase && (
                       <div className="w-full max-w-2xl my-2">
                         <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-xs w-fit">
-                          <AnimatedShinyText
-                            text={loadingLabel(loadingPhase)}
-                            useShimmer={true}
+                          <LoadingPhaseIndicator
+                            phase={loadingPhase}
                             baseColor={shimmerColors.baseColor}
                             shimmerColor={shimmerColors.shimmerColor}
-                            gradientAnimationDuration={2}
-                            textClassName="text-sm"
-                            className="py-0.5"
-                            style={{
-                              fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
-                              fontSize: '14px'
-                            }}
+                            compact
                           />
                         </div>
                       </div>
@@ -673,18 +648,11 @@ function AIMessageComponent({
                   isSpecialLoadingPhase ? (
                     <div className="w-full max-w-2xl my-2">
                       <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-xs w-fit">
-                        <AnimatedShinyText
-                          text={loadingLabel(loadingPhase)}
-                          useShimmer={true}
+                        <LoadingPhaseIndicator
+                          phase={loadingPhase}
                           baseColor={shimmerColors.baseColor}
                           shimmerColor={shimmerColors.shimmerColor}
-                          gradientAnimationDuration={2}
-                          textClassName="text-sm"
-                          className="py-0.5"
-                          style={{
-                            fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
-                            fontSize: '14px'
-                          }}
+                          compact
                         />
                       </div>
                     </div>
@@ -732,18 +700,10 @@ function AIMessageComponent({
                   {isSpecialLoadingPhase && (
                     <div className="w-full max-w-2xl mx-auto my-4">
                       <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
-                        <AnimatedShinyText
-                          text={loadingLabel(loadingPhase)}
-                          useShimmer={true}
+                        <LoadingPhaseIndicator
+                          phase={loadingPhase}
                           baseColor={shimmerColors.baseColor}
                           shimmerColor={shimmerColors.shimmerColor}
-                          gradientAnimationDuration={2}
-                          textClassName="text-base"
-                          className="py-1"
-                          style={{
-                            fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
-                            fontSize: '16px'
-                          }}
                         />
                       </div>
                     </div>
@@ -764,18 +724,10 @@ function AIMessageComponent({
                 isSpecialLoadingPhase ? (
                   <div className="w-full max-w-2xl mx-auto my-4">
                     <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
-                      <AnimatedShinyText
-                        text={loadingLabel(loadingPhase)}
-                        useShimmer={true}
+                      <LoadingPhaseIndicator
+                        phase={loadingPhase}
                         baseColor={shimmerColors.baseColor}
                         shimmerColor={shimmerColors.shimmerColor}
-                        gradientAnimationDuration={2}
-                        textClassName="text-base"
-                        className="py-1"
-                        style={{
-                          fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
-                          fontSize: '16px'
-                        }}
                       />
                     </div>
                   </div>
