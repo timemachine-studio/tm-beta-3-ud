@@ -66,7 +66,7 @@ describe('device tool bridge, end to end through the transport', () => {
           toolCalls: [{
             id: 'call-1',
             name: 'notes_create',
-            arguments: JSON.stringify({ title: 'Assignment', markdown: '# Jobs and Musk' }),
+            arguments: JSON.stringify({ title: 'Assignment', markdown: '# Jobs and Musk', source_chat_ids: [] }),
           }],
           resolvedResults: [],
           deviceRounds: 1,
@@ -106,7 +106,7 @@ describe('device tool bridge, end to end through the transport', () => {
         tool_calls: [{
           id: 'call-1',
           type: 'function',
-          function: { name: 'notes_create', arguments: JSON.stringify({ title: 'Assignment', markdown: '# Jobs and Musk' }) },
+          function: { name: 'notes_create', arguments: JSON.stringify({ title: 'Assignment', markdown: '# Jobs and Musk', source_chat_ids: [] }) },
         }],
       },
       expect.objectContaining({ role: 'tool', tool_call_id: 'call-1', name: 'notes_create' }),
@@ -115,7 +115,7 @@ describe('device tool bridge, end to end through the transport', () => {
     // The note really exists, and the chat got a card pointing at it.
     const saved = readNotes();
     expect(saved).toHaveLength(1);
-    expect(objects).toEqual([{ kind: 'note', id: saved[0].id, title: 'Assignment', action: 'created' }]);
+    expect(objects).toEqual([{ kind: 'note', id: saved[0].id, title: 'Assignment', action: 'created', sourceChatIds: [] }]);
 
     // The user saw one answer being written, with the shimmer naming the app.
     expect(statuses).toContain('Saving a note');
@@ -255,6 +255,7 @@ describe('generated tools across legs', () => {
       title: 'Unit converter',
       description: spec.description,
       summary: spec.summary,
+      runtime: 'python',
       parameters: { ...spec.parameters, additionalProperties: false },
       terms: spec.terms,
     }]);

@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { escapeCurrencyAmounts } from './currencyMarkdown';
+import { stripPrivateModelMarkup } from '../../../shared/modelOutput';
 import { useMathPlugins } from './mathPlugins';
 import { X } from 'lucide-react';
 import { MessageProps, LoadingPhase } from '../../types/chat';
@@ -48,7 +49,13 @@ function loadingLabel(phase: LoadingPhase | undefined): string {
     const [n, of] = phase.slice('retrying:'.length).split('/');
     return `Retrying · ${n} of ${of}`;
   }
-  return 'Initiating';
+  if (!phase || phase === 'thinking') return 'Thinking';
+  // Tool and coordinator phases are already short, user-facing sentences.
+  // Keep control characters out in case a provider returns a malformed marker.
+  return [...phase].filter(character => {
+    const code = character.charCodeAt(0);
+    return code >= 32 && code !== 127;
+  }).join('').slice(0, 120) || 'Working';
 }
 
 // MessageProps declares onAnimationComplete as `() => void`; the AI message
@@ -157,12 +164,10 @@ const processMemoryContent = (content: string): { cleanContent: string; hasSaved
   const hasSavedMemory = content.includes('[MEMORY_SAVED]');
 
   // Remove memory tags and marker
-  const cleanContent = content
+  const cleanContent = stripPrivateModelMarkup(content
     .replace(/<memory>[\s\S]*?<\/memory>/gi, '') // Remove memory tags
-    .replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '') // Remove reasoning/thinking tags
     .replace(/\[MEMORY_SAVED\]/g, '') // Remove marker
-    .replace(/!\[Generated Image\]\([^)]*$/, '') // Hide incomplete image markdown during streaming
-    .trim();
+    .replace(/!\[Generated Image\]\([^)]*$/, '')); // Hide incomplete image markdown during streaming
 
   // "$45 … $220" is a price and a price, not a maths span. See currencyMarkdown.
   return { cleanContent: escapeCurrencyAmounts(cleanContent), hasSavedMemory };

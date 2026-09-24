@@ -21,6 +21,9 @@ import {
 import type { WorkspaceToolExecutor, DeviceToolOutcome } from '../agent/deviceToolRunner';
 import { resolveDeviceDataPresent, runDeviceTool } from '../agent/deviceToolRunner';
 import { MAX_SESSION_TOOLS, sessionToolSummary, type SessionTool } from '../../../shared/toolRegistry';
+import { recordRunEvent } from '../agent/runLedger';
+import { extractModelOutput } from '../../../shared/modelOutput';
+import { reconcileToolPublication } from '../tools/toolPublicationQueue';
 
 export interface YouTubeMusicData {
   videoId: string;
@@ -111,6 +114,20 @@ export function attachedFilesFor(messages: readonly Message[]): AttachedFile[] {
 }
 
 /**
+ * App objects are UI metadata, not prose, so old requests dropped them before
+ * the next model turn. Add a compact private context line: this is what lets
+ * “make the introduction shorter” edit the note just created instead of
+ * making a second note or asking which one.
+ */
+export function messageContentForModel(message: Message): string {
+  if (!message.isAI || !message.appObjects?.length) return message.content;
+  const refs = message.appObjects.map(object => object.kind === 'note'
+    ? `note id=${JSON.stringify(object.id)} title=${JSON.stringify(object.title)} sources=${JSON.stringify(object.sourceChatIds ?? [])}`
+    : `timer id=${JSON.stringify(object.id)} title=${JSON.stringify(object.title)} status=${object.status}`);
+  return `${message.content}\n\n<tm_objects private="true">${refs.join('; ')}</tm_objects>`;
+}
+
+/**
  * Device tool bridge (shared/deviceTools.ts).
  *
  * The server suspends a run when the model reaches for a tool only this
@@ -123,6 +140,8 @@ export interface DeviceBridgeOptions {
   deviceApps?: readonly DeviceApp[];
   /** Excluded from history search: this conversation is already in context. */
   currentChatSessionId?: string;
+  /** Stable user-turn identity, shared by retries and every device leg. */
+  runId?: string;
   /** A note the turn created or changed, for the chat to render as a card. */
   onAppObject?: (object: AppObjectRef) => void;
   /** Python this turn ran, with its charts, tables and generated files. */
@@ -378,12 +397,7 @@ async function runWithRetries<T>(
   throw lastError;
 }
 
-function extractReasoningFromContent(fullContent: string): { content: string; thinking?: string } {
-  const reasoningBlocks = [...fullContent.matchAll(/<(reason|think)>([\s\S]*?)<\/\1>/gi)].map(m => m[2].trim());
-  const thinking = reasoningBlocks.length > 0 ? reasoningBlocks.join('\n\n') : undefined;
-  const content = fullContent.replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
-  return { content, thinking };
-}
+const extractReasoningFromContent = extractModelOutput;
 
 // ─── TimeMachine PRO background generation client ───────────────────────────
 export interface ProRunCallbacks {
@@ -620,7 +634,7 @@ export async function generateAIResponseStreaming(
   const harness = currentPersona === 'pro' && maxMode && deviceBridge?.harness ? deviceBridge.harness : null;
   const attachedFiles = attachedFilesFor(messages);
   // Grows within the turn: a tool created on one leg is callable on the next.
-  const sessionTools = sessionToolsFor(messages);
+  const sessionTools = await Promise.all(sessionToolsFor(messages).map(reconcileToolPublication));
   // A resumed Max Mode turn starts where the failed one got to — see
   // HarnessResume. Everything the completed legs produced is shown again
   // through onChunk, so the new message carries it exactly as the old one did.
@@ -650,6 +664,7 @@ export async function generateAIResponseStreaming(
       throw new ChatError('UNKNOWN', 'The tool continuation was invalid. No device actions from this batch were executed.');
     }
 
+    if (deviceBridge?.runId) void recordRunEvent(deviceBridge.runId, 'waiting_device', 'Waiting for this device');
     if (request.priorTranscript?.length) toolTranscript.push(...request.priorTranscript);
     toolTranscript.push({
       role: 'assistant',
@@ -716,12 +731,14 @@ export async function generateAIResponseStreaming(
       const allowed = !harness || (isWorkspaceToolName(call.name)
         ? MAX_MODE_TOOLS[harness.mode].includes(call.name)
         : call.name === 'run_python' && harness.mode === 'auto');
+      if (deviceBridge?.runId) void recordRunEvent(deviceBridge.runId, 'executing', `Running ${call.name}`, call.name);
       const outcome: DeviceToolOutcome = signal?.aborted
         ? { content: 'Error: the user stopped this turn; this tool was not executed.' }
         : !allowed
           ? { content: `Error: ${call.name} is not allowed in this Max Mode turn.` }
           : await runDeviceTool(call, {
         currentChatSessionId: deviceBridge?.currentChatSessionId,
+        runId: deviceBridge?.runId,
         signal,
         onStatus: onStatusChange,
         attachedFiles,
@@ -729,6 +746,7 @@ export async function generateAIResponseStreaming(
         ...(harness ? { workspace: harness.executor, onHarnessAction: harness.onAction } : {}),
       });
       if (outcome.appObject) deviceBridge?.onAppObject?.(outcome.appObject);
+      if (deviceBridge?.runId) void recordRunEvent(deviceBridge.runId, 'verifying', `Finished ${call.name}`, call.name);
       if (outcome.pythonRun) deviceBridge?.onPythonRun?.(outcome.pythonRun);
       if (outcome.createdTool) {
         // Replace, not append: a repaired tool under the same slug is the
@@ -813,7 +831,7 @@ export async function generateAIResponseStreaming(
       if (currentPersona === 'pro' && !harness) {
         const runId = await startProRun({
           messages: messages.map(msg => ({
-            content: msg.content,
+            content: messageContentForModel(msg),
             isAI: msg.isAI
           })),
           persona: currentPersona,
@@ -855,7 +873,7 @@ export async function generateAIResponseStreaming(
           messages: messages.map(msg => ({
             // Earlier harness turns carry card markers; the model has no use
             // for them.
-            content: harness ? stripHarnessMarkers(msg.content) : msg.content,
+            content: harness ? stripHarnessMarkers(messageContentForModel(msg)) : messageContentForModel(msg),
             isAI: msg.isAI
           })),
           persona: currentPersona,

@@ -32,6 +32,23 @@ describe('harness loop boundaries', () => {
     expect(result.deviceSuspension).toBeUndefined();
     expect(result.hitMaxIterations).toBe(true);
   });
+
+  it('normalizes an offered MiniMax content-encoded device call', async () => {
+    const markup = 'I will check. <tool_call>\n]<]minimax[>[ <invoke name="read_file"><path>a.ts</path></invoke>\n</tool_call>';
+    const result = await runAgentLoop({
+      messages: [],
+      tools: [offered('read_file')],
+      toolContext: { persona: 'pro' },
+      emit: emit(),
+      deviceBridge: true,
+      callModel: async () => stream([encoded({ type: 'content', content: markup })]),
+    });
+    expect(result.content).toBe('I will check.');
+    expect(result.deviceSuspension?.pendingCalls[0]).toMatchObject({
+      name: 'read_file',
+      arguments: '{"path":"a.ts"}',
+    });
+  });
 });
 
 it('carries earlier server tool iterations into a later device suspension', async () => {

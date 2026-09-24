@@ -4,19 +4,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Tabs from '@radix-ui/react-tabs';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, Trash2, ChevronLeft, ChevronRight, Download, Upload, Cloud, CloudOff, RefreshCw, Users } from 'lucide-react';
+import { X, Pencil, Trash2, ChevronLeft, ChevronRight, Download, Upload, CloudOff, RefreshCw, Users } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import {
-  ChatSession,
-  getLocalSessions,
-  getSupabaseSessions,
-  deleteSupabaseSession,
-  deleteLocalSession,
-  renameSupabaseSession,
-  migrateLocalSessionsToSupabase,
-  saveSupabaseSession,
-} from '../../services/chat/chatService';
+import { DEV_MOCK_AUTH } from '../../context/devMockAuth';
+import { chatService, type ChatSession } from '../../services/chat/chatService';
 import { getUserGroupChats } from '../../services/groupChat/groupChatService';
 import { useNavigate } from 'react-router-dom';
 
@@ -56,26 +48,16 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
   const [selectedTab, setSelectedTab] = useState<HistoryTabKey>('default');
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const tabKeys = Object.keys(HISTORY_TABS) as HistoryTabKey[];
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const loadChatSessions = useCallback(async () => {
     setIsLoading(true);
     try {
-      let sessions: ChatSession[];
-
-      if (user) {
-        // Load from Supabase for logged in users
-        sessions = await getSupabaseSessions(user.id);
-        // Load group chats
-        const userGroupChats = await getUserGroupChats(user.id);
-        setGroupChats(userGroupChats);
-      } else {
-        // Load from localStorage for anonymous users
-        sessions = getLocalSessions();
-        setGroupChats([]);
-      }
+      chatService.setUserId(DEV_MOCK_AUTH ? null : (user?.id ?? null));
+      const sessions = await chatService.getSessions();
+      const userGroupChats = user ? await getUserGroupChats(user.id) : [];
+      setGroupChats(userGroupChats);
 
       setChatSessions(sessions.sort((a, b) =>
         new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
@@ -84,6 +66,7 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
       console.error('Failed to load chat sessions:', error);
       setChatSessions([]);
       setGroupChats([]);
+      setFeedbackMessage({ type: 'error', text: 'Chat history is unavailable on this device. Nothing was uploaded.' });
     } finally {
       setIsLoading(false);
     }
@@ -103,26 +86,6 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
     }
   }, [feedbackMessage]);
 
-  // Migrate local sessions when user logs in
-  const handleMigrateToCloud = async () => {
-    if (!user) return;
-
-    setIsSyncing(true);
-    try {
-      const count = await migrateLocalSessionsToSupabase(user.id);
-      if (count > 0) {
-        setFeedbackMessage({ type: 'success', text: `Migrated ${count} chat(s) to cloud!` });
-        await loadChatSessions();
-      } else {
-        setFeedbackMessage({ type: 'success', text: 'No local chats to migrate.' });
-      }
-    } catch {
-      setFeedbackMessage({ type: 'error', text: 'Failed to migrate chats.' });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   const handleRename = (sessionId: string) => {
     const session = chatSessions.find(s => s.id === sessionId);
     if (session) {
@@ -135,15 +98,8 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
     if (!editingId || !editingName.trim()) return;
 
     try {
-      if (user) {
-        await renameSupabaseSession(editingId, editingName.trim());
-      } else {
-        const sessions = getLocalSessions();
-        const updated = sessions.map(s =>
-          s.id === editingId ? { ...s, name: editingName.trim(), lastModified: new Date().toISOString() } : s
-        );
-        localStorage.setItem('chatSessions', JSON.stringify(updated));
-      }
+      const renamed = await chatService.renameSession(editingId, editingName.trim());
+      if (!renamed) throw new Error('chat_rename_failed');
 
       setChatSessions(prev =>
         prev.map(session =>
@@ -164,11 +120,8 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
     if (!confirm('Are you sure you want to delete this chat session?')) return;
 
     try {
-      if (user) {
-        await deleteSupabaseSession(sessionId);
-      } else {
-        deleteLocalSession(sessionId);
-      }
+      const deleted = await chatService.deleteSession(sessionId);
+      if (!deleted) throw new Error('chat_delete_failed');
 
       setChatSessions(prev => prev.filter(session => session.id !== sessionId));
       setFeedbackMessage({ type: 'success', text: 'Chat deleted.' });
@@ -222,30 +175,15 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
           throw new Error('No valid chat sessions found in file');
         }
 
-        // For logged in users, save to Supabase
-        if (user) {
-          for (const session of validSessions) {
-            await saveSupabaseSession(session, user.id);
-          }
-        } else {
-          // For anonymous users, merge with local storage
-          const existingSessions = getLocalSessions();
-          const sessionMap = new Map();
-
-          existingSessions.forEach((session) => {
+        const existingSessions = await chatService.getSessions();
+        const sessionMap = new Map(existingSessions.map(session => [session.id, session]));
+        validSessions.forEach((session: ChatSession) => {
+          const existing = sessionMap.get(session.id);
+          if (!existing || new Date(session.lastModified) > new Date(existing.lastModified)) {
             sessionMap.set(session.id, session);
-          });
-
-          validSessions.forEach((session: ChatSession) => {
-            const existing = sessionMap.get(session.id);
-            if (!existing || new Date(session.lastModified) > new Date(existing.lastModified)) {
-              sessionMap.set(session.id, session);
-            }
-          });
-
-          const mergedSessions = Array.from(sessionMap.values());
-          localStorage.setItem('chatSessions', JSON.stringify(mergedSessions));
-        }
+          }
+        });
+        for (const session of sessionMap.values()) await chatService.saveSession(session);
 
         await loadChatSessions();
 
@@ -301,9 +239,6 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
     ? []
     : chatSessions.filter(session => session.persona === selectedTab);
 
-  // Check if there are local sessions to migrate
-  const hasLocalSessions = user && getLocalSessions().length > 0;
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -342,19 +277,12 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
                       Chat History
                     </Dialog.Title>
 
-                    {/* Cloud sync indicator */}
+                    {/* Personal history is stored in this device's account workspace. */}
                     <div className="flex items-center gap-2">
-                      {user ? (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/20 border border-green-500/30">
-                          <Cloud className="w-4 h-4 text-green-400" />
-                          <span className="text-xs text-green-400">Synced</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/20">
-                          <CloudOff className="w-4 h-4 text-white/50" />
-                          <span className="text-xs text-white/50">Local only</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/20">
+                        <CloudOff className="w-4 h-4 text-white/50" />
+                        <span className="text-xs text-white/50">On this device</span>
+                      </div>
                     </div>
                   </div>
 
@@ -375,35 +303,6 @@ export function ChatHistoryModal({ isOpen, onClose, onLoadChat }: ChatHistoryMod
                       </motion.div>
                     )}
                   </AnimatePresence>
-
-                  {/* Migration prompt */}
-                  {hasLocalSessions && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mb-4 p-3 rounded-lg bg-purple-500/20 border border-purple-500/30"
-                    >
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-purple-200">
-                          You have local chats. Migrate them to the cloud?
-                        </p>
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={handleMigrateToCloud}
-                          disabled={isSyncing}
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500 text-white text-sm font-medium disabled:opacity-50"
-                        >
-                          {isSyncing ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Cloud className="w-4 h-4" />
-                          )}
-                          Migrate
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  )}
 
                   {/* Export/Import Buttons */}
                   <div className="flex gap-2 mb-6">

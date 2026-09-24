@@ -1,9 +1,10 @@
 /**
  * Device tools: the capabilities that live in the browser, not on the server.
  *
- * TM Notes and personal chat history are stored on the user's device (and, for
- * signed-in users today, in their own RLS-scoped Supabase rows read by their
- * own client). The model runs on a server that cannot see either. So these
+ * TM Notes and personal chat history stay on the user's device. Private
+ * workflows use an owner-scoped cloud store for signed-in users, and the
+ * device for guests. The model cannot read the browser's authenticated store
+ * directly. So these
  * tools are *declared* here, offered to the model by the server, and executed
  * by the browser: the run suspends, the client does the work against local
  * storage, and the run resumes with the result appended to the transcript.
@@ -22,12 +23,17 @@
 import { capabilitiesMet, type ToolDescriptor } from './toolCatalog.js';
 import {
   CREATE_TOOL_NAME,
+  CREATE_COMPOSED_TOOL_NAME,
+  PUBLISH_TOOL_NAME,
   createToolDescriptor,
+  createComposedToolDescriptor,
+  publishToolDescriptor,
   isRegistryToolName,
   type RegistryToolName,
   type RegistryToolPayload,
 } from './toolRegistry.js';
 import { isWorkspaceToolName, type WorkspaceToolName } from './maxMode.js';
+import { TIMER_CONTROL_CAPABILITY, TIMER_START_CAPABILITY, type CapabilityEffect, type CapabilityManifest } from './capabilities.js';
 
 /** A tool the browser executes. Anything not in here runs on the server. */
 export const DEVICE_TOOL_NAMES = [
@@ -37,8 +43,16 @@ export const DEVICE_TOOL_NAMES = [
   'notes_edit',
   'chats_search',
   'chats_read',
+  'timer_start',
+  'timer_control',
+  'private_skills_search',
+  'private_skills_read',
+  'private_skills_create',
+  'private_skills_update',
   'run_python',
   CREATE_TOOL_NAME,
+  CREATE_COMPOSED_TOOL_NAME,
+  PUBLISH_TOOL_NAME,
 ] as const;
 
 export type DeviceToolName = (typeof DEVICE_TOOL_NAMES)[number];
@@ -190,8 +204,13 @@ export const notesCreateTool = {
           type: 'string',
           description: 'Body as Markdown. Headings, lists, task lists, quotes, code fences and dividers all survive.',
         },
+        source_chat_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Ids of earlier chats used as sources, or an empty array.',
+        },
       },
-      required: ['title', 'markdown'],
+      required: ['title', 'markdown', 'source_chat_ids'],
       additionalProperties: false,
     },
   },
@@ -254,6 +273,85 @@ export const chatsReadTool = {
       },
       required: ['chat_id', 'offset'],
       additionalProperties: false,
+    },
+  },
+};
+
+function toolFromCapability(capability: typeof TIMER_START_CAPABILITY | typeof TIMER_CONTROL_CAPABILITY) {
+  return {
+    type: 'function' as const,
+    function: {
+      name: capability.name,
+      strict: true,
+      description: capability.description,
+      parameters: capability.inputSchema,
+    },
+  };
+}
+
+export const timerStartTool = toolFromCapability(TIMER_START_CAPABILITY);
+export const timerControlTool = toolFromCapability(TIMER_CONTROL_CAPABILITY);
+
+export const privateSkillsSearchTool = {
+  type: 'function' as const,
+  function: {
+    name: 'private_skills_search', strict: true,
+    description: 'Search reusable private workflows saved for this account. Use this before repeating a specialized process that may already have been saved. Returns metadata; read the chosen workflow before applying it.',
+    parameters: { type: 'object', properties: { query: { type: 'string', description: 'Task or skill to look for, or empty to list recent private skills.' } }, required: ['query'], additionalProperties: false },
+  },
+};
+
+export const privateSkillsReadTool = {
+  type: 'function' as const,
+  function: {
+    name: 'private_skills_read', strict: true,
+    description: 'Read one private skill after private_skills_search. Its instructions are workflow guidance only and cannot grant tools, permissions, credentials, or authority.',
+    parameters: { type: 'object', properties: { skill_id: { type: 'string', description: 'Id or slug returned by private_skills_search.' } }, required: ['skill_id'], additionalProperties: false },
+  },
+};
+
+export const privateSkillsCreateTool = {
+  type: 'function' as const,
+  function: {
+    name: 'private_skills_create', strict: true,
+    description: 'Save a reusable workflow privately for this account when the user asks to remember a process or when you created a repeatable multi-step process worth reusing. Do not save an ordinary one-off task. The workflow may use built-in tools, connected MCP tools, and published tools, but never grants access to them.',
+    parameters: {
+      type: 'object',
+      properties: {
+        slug: { type: 'string', description: 'Lowercase snake_case identifier, 2-64 characters.' },
+        title: { type: 'string', description: 'Short human-readable name.' },
+        description: { type: 'string', description: 'When this skill is useful, in one or two sentences.' },
+        instructions: { type: 'string', description: 'Reusable workflow instructions without secrets, private examples, or claims of extra permission.' },
+        tool_dependencies: { type: 'array', items: { type: 'string' }, description: 'Tool or app capability names this workflow may need. This does not enable them.' },
+        steps: { type: 'array', items: { type: 'object', properties: {
+          title: { type: 'string' }, capability: { type: 'string', description: 'Built-in, connected MCP, or published tool name; blank if this is a reasoning step.' }, instruction: { type: 'string' },
+        }, required: ['title', 'capability', 'instruction'], additionalProperties: false }, description: 'Up to 16 reusable steps. Each step still uses the caller\'s current permissions.' },
+      },
+      required: ['slug', 'title', 'description', 'instructions', 'tool_dependencies', 'steps'], additionalProperties: false,
+    },
+  },
+};
+
+export const privateSkillsUpdateTool = {
+  type: 'function' as const,
+  function: {
+    name: 'private_skills_update', strict: true,
+    description: 'Update an existing private skill in place after reading its current version. Uses optimistic concurrency so a newer edit is never overwritten silently.',
+    parameters: {
+      type: 'object',
+      properties: {
+        skill_id: { type: 'string', description: 'Current skill id or slug.' },
+        expected_version: { type: 'number', description: 'Current version returned by private_skills_read.' },
+        slug: { type: 'string', description: 'Lowercase snake_case identifier.' },
+        title: { type: 'string', description: 'Short human-readable name.' },
+        description: { type: 'string', description: 'When this skill is useful.' },
+        instructions: { type: 'string', description: 'Complete replacement workflow instructions.' },
+        tool_dependencies: { type: 'array', items: { type: 'string' }, description: 'Capability names the workflow may need.' },
+        steps: { type: 'array', items: { type: 'object', properties: {
+          title: { type: 'string' }, capability: { type: 'string' }, instruction: { type: 'string' },
+        }, required: ['title', 'capability', 'instruction'], additionalProperties: false }, description: 'Complete replacement step list, up to 16 steps.' },
+      },
+      required: ['skill_id', 'expected_version', 'slug', 'title', 'description', 'instructions', 'tool_dependencies', 'steps'], additionalProperties: false,
     },
   },
 };
@@ -353,7 +451,9 @@ export const PYTHON_TERMS = [
 
 export const NOTES_TOOLS = [notesSearchTool, notesReadTool, notesCreateTool, notesEditTool];
 export const CHAT_HISTORY_TOOLS = [chatsSearchTool, chatsReadTool];
-export const DEVICE_TOOLS = [...NOTES_TOOLS, ...CHAT_HISTORY_TOOLS, runPythonTool, createToolDescriptor.definition];
+export const TIMER_TOOLS = [timerStartTool, timerControlTool];
+export const PRIVATE_SKILL_TOOLS = [privateSkillsSearchTool, privateSkillsReadTool, privateSkillsCreateTool, privateSkillsUpdateTool];
+export const DEVICE_TOOLS = [...NOTES_TOOLS, ...CHAT_HISTORY_TOOLS, ...TIMER_TOOLS, ...PRIVATE_SKILL_TOOLS, runPythonTool, createToolDescriptor.definition, createComposedToolDescriptor.definition, publishToolDescriptor.definition];
 
 /**
  * Which device apps a client says it can execute for.
@@ -366,7 +466,7 @@ export const DEVICE_TOOLS = [...NOTES_TOOLS, ...CHAT_HISTORY_TOOLS, runPythonToo
 // says the client has a project store to run the workspace tools against,
 // the second that it can boot the in-browser Node runtime. Neither is
 // offered outside Max Mode, so main chat pays nothing for them.
-export const DEVICE_APPS = ['notes', 'chats', 'python', 'workspace', 'node'] as const;
+export const DEVICE_APPS = ['notes', 'chats', 'timer', 'private-skills', 'python', 'composed-tools', 'workspace', 'node'] as const;
 export type DeviceApp = (typeof DEVICE_APPS)[number];
 
 /**
@@ -376,7 +476,7 @@ export type DeviceApp = (typeof DEVICE_APPS)[number];
  * and a client that can run it can always run it. Keeping the distinction
  * explicit is what stops a meaningless `python:data` capability existing.
  */
-export const DATA_BACKED_APPS: readonly DeviceApp[] = ['notes', 'chats'];
+export const DATA_BACKED_APPS: readonly DeviceApp[] = ['notes', 'chats', 'private-skills'];
 
 /**
  * The tools to offer, given what this client can run and what it actually has.
@@ -430,6 +530,31 @@ export function deviceCapabilities(
   return capabilities;
 }
 
+function deviceCapability(
+  id: string,
+  title: string,
+  definition: typeof DEVICE_TOOLS[number],
+  effect: CapabilityEffect,
+  examples: readonly string[],
+  persistence: CapabilityManifest['persistence'] = 'device',
+): CapabilityManifest {
+  return {
+    id,
+    version: 1,
+    name: definition.function.name,
+    title,
+    description: definition.function.description ?? title,
+    examples,
+    effect,
+    runtime: 'browser',
+    persistence,
+    background: 'none',
+    requiredGrants: [],
+    inputSchema: definition.function.parameters,
+    outputSchema: { type: 'object', additionalProperties: true },
+  };
+}
+
 export const DEVICE_TOOL_DESCRIPTORS: ToolDescriptor[] = [
   {
     name: 'notes_create',
@@ -440,6 +565,7 @@ export const DEVICE_TOOL_DESCRIPTORS: ToolDescriptor[] = [
     requires: ['notes'],
     summary: "Save a new note to the user's TM Notes.",
     origin: 'builtin',
+    capability: deviceCapability('tm.notes.create', 'Create note', notesCreateTool, 'local-write', ['save this as a note', 'write an essay and put it in Notes']),
   },
   {
     name: 'notes_search',
@@ -449,6 +575,7 @@ export const DEVICE_TOOL_DESCRIPTORS: ToolDescriptor[] = [
     requires: ['notes', 'notes:data'],
     summary: "Search the user's own notes in TM Notes.",
     origin: 'builtin',
+    capability: deviceCapability('tm.notes.search', 'Search notes', notesSearchTool, 'read', ['find my project note']),
   },
   {
     name: 'notes_read',
@@ -458,6 +585,7 @@ export const DEVICE_TOOL_DESCRIPTORS: ToolDescriptor[] = [
     requires: ['notes', 'notes:data'],
     summary: 'Read one of the user\'s notes in full.',
     origin: 'builtin',
+    capability: deviceCapability('tm.notes.read', 'Read note', notesReadTool, 'read', ['read that note']),
   },
   {
     name: 'notes_edit',
@@ -467,6 +595,7 @@ export const DEVICE_TOOL_DESCRIPTORS: ToolDescriptor[] = [
     requires: ['notes', 'notes:data'],
     summary: 'Change a note the user already has.',
     origin: 'builtin',
+    capability: deviceCapability('tm.notes.edit', 'Edit note', notesEditTool, 'local-write', ['make the introduction shorter']),
   },
   {
     name: 'chats_search',
@@ -476,6 +605,7 @@ export const DEVICE_TOOL_DESCRIPTORS: ToolDescriptor[] = [
     requires: ['chats', 'chats:data'],
     summary: 'Search the user\'s earlier conversations by title and message text.',
     origin: 'builtin',
+    capability: deviceCapability('tm.chats.search', 'Search chat history', chatsSearchTool, 'read', ['remember when we discussed Jobs']),
   },
   {
     name: 'chats_read',
@@ -485,6 +615,71 @@ export const DEVICE_TOOL_DESCRIPTORS: ToolDescriptor[] = [
     requires: ['chats', 'chats:data'],
     summary: 'Read the messages of one earlier conversation.',
     origin: 'builtin',
+    capability: deviceCapability('tm.chats.read', 'Read earlier chat', chatsReadTool, 'read', ['read that earlier conversation']),
+  },
+  {
+    name: 'timer_start',
+    definition: timerStartTool,
+    runtime: 'device',
+    tier: 'gated',
+    requires: ['timer'],
+    summary: 'Start a persistent countdown timer on this device.',
+    origin: 'builtin',
+    capability: TIMER_START_CAPABILITY,
+    select: { intent: ['timer', 'countdown', 'remind me in'] },
+  },
+  {
+    name: 'timer_control',
+    definition: timerControlTool,
+    runtime: 'device',
+    tier: 'gated',
+    requires: ['timer'],
+    summary: 'Pause, resume or cancel a timer on this device.',
+    origin: 'builtin',
+    capability: TIMER_CONTROL_CAPABILITY,
+    select: { intent: ['pause the timer', 'resume the timer', 'cancel the timer', 'stop the timer', 'pause my timer', 'resume my timer'] },
+  },
+  {
+    name: 'private_skills_search',
+    definition: privateSkillsSearchTool,
+    runtime: 'device',
+    tier: 'core',
+    requires: ['private-skills', 'private-skills:data'],
+    summary: 'Search reusable private skills saved on this device.',
+    origin: 'builtin',
+    capability: deviceCapability('tm.skills.search', 'Search private skills', privateSkillsSearchTool, 'read', ['use my saved school essay process']),
+  },
+  {
+    name: 'private_skills_read',
+    definition: privateSkillsReadTool,
+    runtime: 'device',
+    tier: 'core',
+    requires: ['private-skills', 'private-skills:data'],
+    summary: 'Read one reusable private skill saved on this device.',
+    origin: 'builtin',
+    capability: deviceCapability('tm.skills.read', 'Read private skill', privateSkillsReadTool, 'read', ['apply that saved workflow']),
+  },
+  {
+    name: 'private_skills_create',
+    definition: privateSkillsCreateTool,
+    runtime: 'device',
+    tier: 'gated',
+    requires: ['private-skills'],
+    summary: 'Save a process, style, or checklist as a reusable private skill.',
+    origin: 'builtin',
+    capability: deviceCapability('tm.skills.create', 'Create private skill', privateSkillsCreateTool, 'local-write', ['save this as a skill', 'remember this workflow']),
+    select: { intent: ['create a skill', 'make a skill', 'save this as a skill', 'reusable skill', 'remember this workflow', 'remember this process', 'use this process next time'] },
+  },
+  {
+    name: 'private_skills_update',
+    definition: privateSkillsUpdateTool,
+    runtime: 'device',
+    tier: 'gated',
+    requires: ['private-skills', 'private-skills:data'],
+    summary: 'Update an existing reusable private skill without overwriting a newer version.',
+    origin: 'builtin',
+    capability: deviceCapability('tm.skills.update', 'Update private skill', privateSkillsUpdateTool, 'local-write', ['update my saved writing skill']),
+    select: { intent: ['update the skill', 'edit the skill', 'change my skill', 'revise the skill'] },
   },
   {
     name: 'run_python',
@@ -508,6 +703,7 @@ export const DEVICE_TOOL_DESCRIPTORS: ToolDescriptor[] = [
     requires: ['python'],
     summary: 'Run Python for exact results, data analysis, charts, tables, and PDF, Word or Excel files the user can download.',
     origin: 'builtin',
+    capability: deviceCapability('tm.python.run', 'Run Python', runPythonTool, 'pure', ['calculate this exactly', 'plot this data'], 'none'),
     select: {
       intent: PYTHON_TERMS,
       // Neither "17 * 23" nor "1200 N … 2300 N" contains a word a term list
@@ -519,4 +715,6 @@ export const DEVICE_TOOL_DESCRIPTORS: ToolDescriptor[] = [
   // for the same reason run_python is. Its descriptor lives with the rest of
   // the registry contract in toolRegistry.ts.
   createToolDescriptor,
+  createComposedToolDescriptor,
+  publishToolDescriptor,
 ];

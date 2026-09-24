@@ -22,7 +22,7 @@ import { GroupChatParticipant } from '../../types/groupChat';
 import { useContour } from '../contour/useContour';
 import { ContourPanel } from '../contour/ContourPanel';
 import { CONVERT_EVENT } from '../contour/views/FileConvertView';
-import { ContourCommand, recordCommandUsage } from '../contour/modules/commands';
+import { CONTOUR_COMMANDS, ContourCommand, recordCommandUsage } from '../contour/modules/commands';
 import { saveQuickNote } from '../contour/modules/quickNote';
 import { saveQuickEvent } from '../contour/modules/quickEvent';
 
@@ -491,6 +491,11 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
         contour.dismiss();
         break;
       }
+      case 'external':
+        window.open(command.action.url, '_blank', 'noopener,noreferrer');
+        setMessage('');
+        contour.dismiss();
+        break;
       case 'inline':
         // Open the tool INSIDE the contour panel (focused mode)
         if (contour.focusOnModule(command.action.handler)) {
@@ -502,6 +507,32 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
         break;
     }
   }, [navigate, contour, handlePlusMenuSelect]);
+
+  const handleContourSuggestionAccept = useCallback(() => {
+    const candidate = contour.state.suggestion?.candidate;
+    if (!candidate) return;
+
+    if (candidate.module?.id === 'quick-note' && candidate.module.quickNote) {
+      saveQuickNote(candidate.module.quickNote.content);
+      setMessage('');
+      contour.dismiss();
+      return;
+    }
+    if (candidate.module?.id === 'quick-event' && candidate.module.quickEvent) {
+      saveQuickEvent(candidate.module.quickEvent);
+      setMessage('');
+      contour.dismiss();
+      return;
+    }
+    if (candidate.module) {
+      setMessage('');
+      contour.acceptSuggestion();
+      return;
+    }
+
+    const command = CONTOUR_COMMANDS.find(item => item.id === candidate.commandId);
+    if (command) handleContourCommandSelect(command);
+  }, [contour, handleContourCommandSelect]);
 
   /**
    * Get a copyable result value from the current module state
@@ -532,6 +563,12 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (contour.isVisible && contour.state.mode === 'suggestion' && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleContourSuggestionAccept();
+      return;
+    }
+
     // Command palette navigation
     if (contour.isVisible && contour.state.mode === 'commands') {
       if (e.key === 'ArrowUp') { e.preventDefault(); contour.selectUp(); return; }
@@ -1067,6 +1104,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                 onSetTimerDuration={contour.setTimerDuration}
                 onCopyValue={handleCopyValue}
                 onBack={contour.dismiss}
+                onSuggestionAccept={handleContourSuggestionAccept}
               />
             </div>
           </div>

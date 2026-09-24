@@ -15,12 +15,28 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import type { ToolSpec } from '../../../shared/toolRegistry';
+import { generatedToolPublicationIssue } from '../../../shared/toolRegistrySchema';
 import type { PublishResult } from './publishResult';
 
 interface RegistryRow {
   id: string;
   slug: string;
   version: number;
+}
+
+/** Published rows vanish under RLS as soon as an operator revokes them. */
+export async function isRegistryToolActive(
+  id: string,
+  digest: string,
+  client: SupabaseClient = supabase as unknown as SupabaseClient,
+): Promise<boolean> {
+  try {
+    const { data, error } = await client.from('tool_registry').select('id')
+      .eq('id', id).eq('digest', digest).maybeSingle();
+    return !error && !!data;
+  } catch {
+    return false;
+  }
 }
 
 /** Postgres error codes the insert can legitimately come back with. */
@@ -31,10 +47,19 @@ export async function publishTool(
   spec: ToolSpec,
   digest: string,
   client: SupabaseClient = supabase as unknown as SupabaseClient,
+  expectedUserId?: string,
 ): Promise<PublishResult> {
-  const { data: sessionData } = await client.auth.getSession();
+  const issue = generatedToolPublicationIssue(spec);
+  if (issue) return { published: false, reason: 'unsafe_content', detail: issue };
+  let sessionData;
+  try {
+    ({ data: sessionData } = await client.auth.getSession());
+  } catch {
+    return { published: false, reason: 'unavailable' };
+  }
   const userId = sessionData.session?.user?.id;
   if (!userId) return { published: false, reason: 'anonymous' };
+  if (expectedUserId && expectedUserId !== userId) return { published: false, reason: 'anonymous' };
 
   try {
     // The digest is what a tool *is*. If it is already there, publishing
@@ -92,7 +117,7 @@ export async function publishTool(
           if (raced.data) return { published: true, id: raced.data.id, version: raced.data.version, reused: true };
           // Exists but not visible: an operator revoked this exact code. It
           // must not come back under a new version number.
-          return { published: false, reason: 'unavailable', detail: 'an identical tool was revoked from the registry' };
+          return { published: false, reason: 'revoked' };
         }
         continue;
       }

@@ -13,6 +13,8 @@ import {
   executeTool,
   type ToolExecutionContext,
 } from './tools.js';
+import { parsePseudoToolCalls, stripPseudoToolMarkup } from './pseudoToolCalls.js';
+import { createPublicOutputFilter } from '../../shared/modelOutput.js';
 
 export interface AgentLoopEmitter {
   /** Model-generated text deltas. */
@@ -223,6 +225,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
     const decoder = new TextDecoder();
 
     let assistantContent = '';
+    const publicOutput = createPublicOutputFilter();
     let hasToolCalls = false;
     let isFirstContentOfIteration = true;
     toolCallsMap.clear();
@@ -252,8 +255,9 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
               }
             }
             assistantContent += data.content;
-            await emit.emitContent(data.content);
-            fullContent += data.content;
+            const visible = publicOutput.push(data.content);
+            if (visible) await emit.emitContent(visible);
+            fullContent += visible;
           } else if (data.type === 'tool_calls') {
             hasToolCalls = true;
             for (const delta of data.tool_calls) {
@@ -281,6 +285,22 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
         }
       }
       if (done) break;
+    }
+
+    if (!hasToolCalls && activeTools.length > 0) {
+      const pseudoCalls = parsePseudoToolCalls(
+        assistantContent,
+        activeTools,
+        `compat_${iteration}_${Date.now()}`,
+      );
+      if (pseudoCalls.length > 0) {
+        hasToolCalls = true;
+        pseudoCalls.forEach((call, index) => toolCallsMap.set(index, call));
+        const visibleContent = stripPseudoToolMarkup(assistantContent);
+        fullContent = fullContent.trimEnd();
+        assistantContent = visibleContent;
+        log?.(`Agent loop: normalized ${pseudoCalls.length} content-encoded tool call(s)`);
+      }
     }
 
     if (hasToolCalls && toolCallsMap.size > 0) {

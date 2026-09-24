@@ -12,15 +12,79 @@ import { z } from 'zod';
 import { argumentsSchema, digestSchema, hashArguments } from './agent/primitives.js';
 import { inputSchemaSpecSchema } from './agent/schemaSpec.js';
 import {
+  COMPOSED_READ_TOOLS,
+  COMPOSED_SOURCE_PREFIX,
   RESERVED_TERMS,
   TOOL_SPEC_LIMITS,
   digestSubject,
   type PublishedTool,
   type SessionTool,
   type ToolSpec,
+  type ComposedPlan,
 } from './toolRegistry.js';
 
 const { slug, title, description, summary, source, terms, tests, parameters } = TOOL_SPEC_LIMITS;
+
+const FORBIDDEN_TOOL_IMPORT = /^[ \t]*(?:from|import)[ \t]+(?:js|pyodide|micropip|socket|requests|urllib|http|aiohttp|webbrowser|subprocess|importlib)(?:\.|\b)/m;
+const FORBIDDEN_TOOL_CALL = /\b(?:eval|exec|compile|__import__)\s*\(/;
+
+export function generatedToolSourceIssue(code: string): string | null {
+  if (code.startsWith(COMPOSED_SOURCE_PREFIX)) return parseComposedSource(code) ? null : 'invalid composed read-only plan';
+  if (FORBIDDEN_TOOL_IMPORT.test(code)) return 'source may not import network, browser, package-installer or process escape modules';
+  if (FORBIDDEN_TOOL_CALL.test(code)) return 'source may not dynamically evaluate or import code';
+  return null;
+}
+
+const composedStepSchema = z.object({
+  tool: z.enum(COMPOSED_READ_TOOLS),
+  arguments: z.record(z.string().regex(/^[a-z][a-z0-9_]*$/), z.union([
+    z.string().regex(/^\$input\.[a-z][a-z0-9_]*$/, 'string values must be $input.field references'),
+    z.number().int().min(0).max(50), z.boolean(),
+  ])),
+}).strict();
+const composedPlanSchema = z.object({ steps: z.array(composedStepSchema).min(1).max(4) }).strict();
+
+export function parseComposedSource(source: string): ComposedPlan | null {
+  if (!source.startsWith(COMPOSED_SOURCE_PREFIX)) return null;
+  try {
+    const parsed = composedPlanSchema.safeParse(JSON.parse(source.slice(COMPOSED_SOURCE_PREFIX.length)));
+    return parsed.success ? parsed.data : null;
+  } catch { return null; }
+}
+
+/** Resolve input references without evaluation or arbitrary template expansion. */
+export function resolveComposedPlan(plan: ComposedPlan, input: Record<string, unknown>): Array<{ tool: string; arguments: Record<string, unknown> }> | null {
+  const resolved = [];
+  for (const step of plan.steps) {
+    const args: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(step.arguments)) {
+      if (typeof value === 'string') {
+        const field = value.slice('$input.'.length);
+        const actual = input[field];
+        if (typeof actual !== 'string' && typeof actual !== 'number' && typeof actual !== 'boolean') return null;
+        args[key] = actual;
+      } else args[key] = value;
+    }
+    resolved.push({ tool: step.tool, arguments: args });
+  }
+  return resolved;
+}
+
+/** Conservative public-registry screen; never echo matching content to logs. */
+export function generatedToolPublicationIssue(value: Pick<ToolSpec, 'title' | 'description' | 'summary' | 'source' | 'terms' | 'tests'>): string | null {
+  const text = JSON.stringify(value);
+  if (/-----BEGIN [A-Z ]*PRIVATE KEY-----|\b(?:sk|gsk|ghp|gho|hf|xoxb|sb_secret)[-_][A-Za-z0-9_-]{12,}|\bAKIA[0-9A-Z]{16}\b/i.test(text)) {
+    return 'The tool appears to contain a credential or private key.';
+  }
+  if (/\b(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*['"]?[^\s,'"}]{8,}/i.test(text)
+    || /\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b/.test(text)) {
+    return 'The tool appears to contain a secret or bearer token.';
+  }
+  if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text)) {
+    return 'The tool appears to contain an email address. Use synthetic test data instead.';
+  }
+  return null;
+}
 
 /**
  * The model-facing signature, as the bounded JSON-Schema subset in
@@ -73,7 +137,8 @@ export const toolSpecSchema = z.object({
   source: z.string()
     .min(source.min)
     .max(source.max, `source may be at most ${source.max} characters`)
-    .refine((code) => /^[ \t]*def[ \t]+main[ \t]*\(/m.test(code), 'source must define a top-level main() function'),
+    .refine((code) => code.startsWith(COMPOSED_SOURCE_PREFIX) || /^[ \t]*def[ \t]+main[ \t]*\(/m.test(code), 'source must define main() or a composed read-only plan')
+    .refine((code) => generatedToolSourceIssue(code) === null, 'source may not access networks, browser APIs, installers, processes, or dynamic code execution'),
   terms: z.array(termSchema).min(terms.min, `at least ${terms.min} terms`).max(terms.max)
     .transform((list) => [...new Set(list)]),
   tests: z.array(toolTestCaseSchema).min(tests.min, 'at least one test').max(tests.max),
@@ -84,7 +149,7 @@ export type ParsedToolSpec = z.infer<typeof toolSpecSchema>;
 /** The subset a request body carries. Everything a descriptor is built from. */
 export const sessionToolSummarySchema = toolSpecSchema.pick({
   slug: true, title: true, description: true, summary: true, parameters: true, terms: true,
-});
+}).extend({ runtime: z.enum(['python', 'composed']).optional() });
 
 export const publishedToolSchema = toolSpecSchema.extend({
   id: z.string().min(1).max(64),
@@ -108,7 +173,7 @@ export const registryToolPayloadSchema = z.object({
   version: z.number().int().min(1),
   digest: digestSchema,
   parameters: parametersSchema,
-  source: z.string().min(source.min).max(source.max),
+  source: toolSpecSchema.shape.source,
 }).strict();
 
 /**

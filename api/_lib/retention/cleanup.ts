@@ -7,12 +7,12 @@ import { RETENTION } from './policy.js';
 export async function cleanupProcessingData(client: SupabaseClient, now = Date.now()): Promise<void> {
   const iso = (age: number) => new Date(now - age).toISOString();
   const operations = [
-    () => client.from('pro_generation_jobs').update({ status: 'failed', final_content: null, error: 'PROCESSING_EXPIRED' })
+    () => client.from('pro_generation_jobs').update({ status: 'failed', final_content: null, error: 'PROCESSING_EXPIRED', request_payload: null })
       .eq('status', 'running').lte('created_at', iso(RETENTION.abandonedRunMs)),
-    () => client.from('pro_generation_jobs').update({ final_content: null, error: null })
+    () => client.from('pro_generation_jobs').update({ final_content: null, error: null, request_payload: null })
       .in('status', ['completed', 'failed']).lte('updated_at', iso(RETENTION.recoveryMs))
       .or('final_content.not.is.null,error.not.is.null'),
-    () => client.from('pro_generation_jobs').update({ final_content: null, error: null })
+    () => client.from('pro_generation_jobs').update({ final_content: null, error: null, request_payload: null })
       .lte('created_at', iso(RETENTION.maxRunAgeMs)).or('final_content.not.is.null,error.not.is.null'),
     // Keep external run identifiers until processor deletion is verified. Losing
     // those references would make outstanding deletion requests untraceable.

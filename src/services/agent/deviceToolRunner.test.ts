@@ -1,7 +1,11 @@
+import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deviceToolStatus, runDeviceTool } from './deviceToolRunner';
 import { chatService } from '../chat/chatService';
+import { clearChatDeviceRepositoryForTests, resetChatDeviceRepositoryForTests } from '../chat/chatDeviceRepository';
 import { readNotes } from '../notes/notesRepository';
+import { clearPrivateSkillsForTests, privateSkillRepository, resetPrivateSkillRepositoryForTests } from '../skills/privateSkillRepository';
+import { privateSkillCloud } from '../skills/privateSkillCloud';
 
 function installStorage(initial: Record<string, string> = {}) {
   const store = new Map(Object.entries(initial));
@@ -22,9 +26,13 @@ function installStorage(initial: Record<string, string> = {}) {
 const call = (name: string, args: unknown) => ({ id: 'call-1', name, arguments: JSON.stringify(args) });
 
 describe('runDeviceTool', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     installStorage();
-    chatService.setUserId(null);
+    resetChatDeviceRepositoryForTests();
+    await clearChatDeviceRepositoryForTests();
+    chatService.resetForTests();
+    resetPrivateSkillRepositoryForTests();
+    await clearPrivateSkillsForTests();
   });
 
   it('saves a note and hands back a card for the chat to render', async () => {
@@ -123,6 +131,48 @@ describe('runDeviceTool', () => {
     expect(onStatus).toHaveBeenCalledWith('Looking through your notes');
     expect(deviceToolStatus('chats_read')).toBe('Reading an earlier conversation');
   });
+
+  it('creates and reuses a private skill without publishing its instructions', async () => {
+    const saved: import('../skills/privateSkillRepository').PrivateSkill[] = [];
+    const list = vi.spyOn(privateSkillCloud, 'list').mockImplementation(async () => [...saved]);
+    const metadata = vi.spyOn(privateSkillCloud, 'listMetadata').mockImplementation(async () =>
+      saved.map(({ instructions: _instructions, ...skill }) => skill));
+    const readCloud = vi.spyOn(privateSkillCloud, 'read').mockImplementation(async (_userId, idOrSlug) =>
+      saved.find(skill => skill.id === idOrSlug || skill.slug === idOrSlug) ?? null);
+    const count = vi.spyOn(privateSkillCloud, 'count').mockImplementation(async () => saved.length);
+    const create = vi.spyOn(privateSkillCloud, 'create').mockImplementation(async (_userId, skill) => {
+      saved.push(skill);
+      return skill;
+    });
+    privateSkillRepository.setUserId('alice');
+    const args = {
+      slug: 'meeting_brief',
+      title: 'Meeting brief',
+      description: 'Turns source notes into a concise meeting brief for the user.',
+      instructions: 'Read the selected source notes, separate decisions from open questions, and finish with named next actions.',
+      tool_dependencies: ['notes.read'],
+    };
+    const created = await runDeviceTool(call('private_skills_create', args), { runId: 'turn-1' });
+    expect(created.content).toContain('account_private_cloud');
+    expect(created.content).not.toContain(args.instructions);
+
+    const found = await runDeviceTool(call('private_skills_search', { query: 'meeting' }));
+    expect(found.content).toContain('meeting_brief');
+    expect(found.content).not.toContain(args.instructions);
+
+    const read = await runDeviceTool(call('private_skills_read', { skill_id: 'meeting_brief' }));
+    expect(read.content).toContain(args.instructions);
+    expect(read.content).toContain('do not grant tools');
+
+    const replay = await runDeviceTool(call('private_skills_create', args), { runId: 'turn-1' });
+    expect(replay.content).toContain('"reused":true');
+    expect(create).toHaveBeenCalledTimes(1);
+    list.mockRestore();
+    metadata.mockRestore();
+    readCloud.mockRestore();
+    count.mockRestore();
+    create.mockRestore();
+  });
 });
 
 describe('run_python through the device bridge', () => {
@@ -209,6 +259,42 @@ describe('generated tools through the device bridge', () => {
   });
   const saveFile = async () => 'stored-1';
 
+  it('creates and runs a composed read-only tool without starting Python', async () => {
+    await runDeviceTool(call('notes_create', { title: 'Project Atlas', markdown: 'A launch plan' }));
+    const runPython = vi.fn();
+    const publishTool = vi.fn(async () => ({ published: false as const, reason: 'anonymous' as const }));
+    const composed = {
+      slug: 'atlas_lookup', title: 'Atlas lookup',
+      description: 'Searches the account notes for a topic and returns matches for review.',
+      summary: 'Look up a topic in account notes.',
+      parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'], additionalProperties: false },
+      steps: [{ tool: 'notes_search', arguments: { query: '$input.query', limit: 5 } }],
+      terms: ['atlas lookup', 'project lookup'], tests: [{ input: { query: 'synthetic' }, expect: 'notes_search' }],
+    };
+    const created = await runDeviceTool(call('create_composed_tool', composed), { runPython, publishTool });
+    expect(created.createdTool?.source).toContain('TM_COMPOSED_V1');
+    expect(runPython).not.toHaveBeenCalled();
+    const result = await runDeviceTool(call('tm__atlas_lookup', { query: 'Atlas' }), {
+      sessionTools: [created.createdTool!], runPython,
+    });
+    expect(result.content).toContain('Project Atlas');
+    expect(runPython).not.toHaveBeenCalled();
+  });
+
+  it('refuses composed tools that try to write through a step', async () => {
+    const publishTool = vi.fn();
+    const result = await runDeviceTool(call('create_composed_tool', {
+      slug: 'unsafe_writer', title: 'Unsafe writer',
+      description: 'Attempts to write a note as a shared tool without authorization.',
+      summary: 'Writes a note without permission.',
+      parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'], additionalProperties: false },
+      steps: [{ tool: 'notes_create', arguments: { title: '$input.query' } }],
+      terms: ['unsafe writer', 'note writer'], tests: [{ input: { query: 'synthetic' } }],
+    }), { publishTool });
+    expect(result.createdTool).toBeUndefined();
+    expect(publishTool).not.toHaveBeenCalled();
+  });
+
   const spec = {
     slug: 'unit_convert',
     title: 'Unit converter',
@@ -226,7 +312,7 @@ describe('generated tools through the device bridge', () => {
 
   const published = async () => ({ published: true as const, id: 'row-1', version: 1, reused: false });
 
-  it('validates, test-runs in the sandbox, publishes, and hands back the tool', async () => {
+  it('validates, tests, and publishes a generated tool automatically', async () => {
     const runPython = vi.fn(async (_code: string) => outcome());
     const publishTool = vi.fn(async (_spec: unknown, _digest: string) => published());
 
@@ -236,10 +322,45 @@ describe('generated tools through the device bridge', () => {
     const program = runPython.mock.calls[0][0];
     expect(program).toContain('exec(compile(_tm_source, "tm__unit_convert", "exec"), _tm_ns)');
     expect(publishTool).toHaveBeenCalledTimes(1);
+    expect(result.createdTool).toMatchObject({ slug: 'unit_convert', published: true, version: 1 });
+    expect(result.content).toContain('shared TimeMachine registry');
+  });
+
+  it('retries central publication after an automatic save failed', async () => {
+    const runPython = vi.fn(async () => outcome());
+    const created = await runDeviceTool(call('create_tool', spec), {
+      runPython, saveFile, publishTool: async () => ({ published: false, reason: 'unavailable' }),
+    });
+    const publishTool = vi.fn(async (_spec: unknown, _digest: string) => published());
+    const result = await runDeviceTool(call('publish_tool', { slug: spec.slug }), {
+      sessionTools: [created.createdTool!], publishTool,
+    });
+    expect(publishTool).toHaveBeenCalledTimes(1);
     expect(publishTool.mock.calls[0][1]).toMatch(/^sha256:/);
-    expect(result.createdTool).toMatchObject({ slug: 'unit_convert', published: true, registryId: 'row-1', version: 1 });
-    expect(result.content).toContain('tm__unit_convert is created');
-    expect(result.content).toContain('published to the shared TimeMachine registry');
+    expect(result.createdTool).toMatchObject({ published: true, registryId: 'row-1', version: 1 });
+  });
+
+  it('accepts the model-facing tm__ name when publishing a local tool', async () => {
+    const runPython = vi.fn(async () => outcome());
+    const created = await runDeviceTool(call('create_tool', spec), {
+      runPython, saveFile, publishTool: async () => ({ published: false, reason: 'unavailable' }),
+    });
+    const publishTool = vi.fn(async (_spec: unknown, _digest: string) => published());
+    const result = await runDeviceTool(call('publish_tool', { slug: `tm__${spec.slug}` }), {
+      sessionTools: [created.createdTool!], publishTool,
+    });
+    expect(publishTool).toHaveBeenCalledTimes(1);
+    expect(result.createdTool).toMatchObject({ slug: spec.slug, published: true });
+  });
+
+  it('rejects generated source that can escape into browser or network APIs', async () => {
+    const runPython = vi.fn();
+    const result = await runDeviceTool(call('create_tool', {
+      ...spec,
+      source: 'from js import fetch\ndef main(url):\n    return fetch(url)',
+    }), { runPython });
+    expect(runPython).not.toHaveBeenCalled();
+    expect(result.content).toContain('may not access networks');
   });
 
   it('refuses a spec that does not validate, before running anything', async () => {
@@ -275,9 +396,26 @@ describe('generated tools through the device bridge', () => {
   it('keeps a tool that could not be published, and says so', async () => {
     const runPython = vi.fn(async () => outcome());
     const publishTool = vi.fn(async () => ({ published: false as const, reason: 'anonymous' as const }));
-    const result = await runDeviceTool(call('create_tool', spec), { runPython, publishTool });
+    const created = await runDeviceTool(call('create_tool', spec), { runPython, publishTool });
+    expect(created.content).toContain('not signed in');
+    const result = await runDeviceTool(call('publish_tool', { slug: spec.slug }), {
+      sessionTools: [created.createdTool!], publishTool,
+    });
     expect(result.createdTool).toMatchObject({ published: false, version: 1 });
     expect(result.content).toContain('not signed in');
+  });
+
+  it('refuses to create a public tool with a credential or personal test fixture', async () => {
+    const runPython = vi.fn(async () => outcome());
+    const publishTool = vi.fn(published);
+    const result = await runDeviceTool(call('create_tool', {
+      ...spec,
+      tests: [{ input: { value: 1, from_unit: 'alice@example.com', to_unit: 'm' } }],
+    }), { runPython, publishTool });
+    expect(result.createdTool).toBeUndefined();
+    expect(runPython).not.toHaveBeenCalled();
+    expect(publishTool).not.toHaveBeenCalled();
+    expect(result.content).toContain('synthetic tests');
   });
 
   it('runs a session tool from the device copy, never from the frame', async () => {
@@ -302,7 +440,7 @@ describe('generated tools through the device bridge', () => {
 
     const good = await runDeviceTool(
       { id: 'c', name: 'tm__unit_convert', arguments: '{"value": 1, "from_unit": "km", "to_unit": "m"}', tool: payload },
-      { runPython, saveFile },
+      { runPython, saveFile, registryToolActive: async () => true },
     );
     expect(runPython).toHaveBeenCalledTimes(1);
     expect(good.pythonRun?.tool?.shared).toBe(true);
@@ -314,6 +452,27 @@ describe('generated tools through the device bridge', () => {
     expect(runPython).toHaveBeenCalledTimes(1);
     expect(tampered.content).toContain('does not match what the registry recorded');
     expect(tampered.pythonRun).toBeUndefined();
+  });
+
+  it('does not run a revoked published tool, including its originating chat copy', async () => {
+    const { toolDigest } = await import('../../../shared/toolRegistrySchema');
+    const digest = await toolDigest(spec);
+    const payload = { id: 'row-1', slug: spec.slug, title: spec.title, version: 1, digest, parameters: spec.parameters, source: spec.source };
+    const runPython = vi.fn(async () => outcome());
+    const registryToolActive = vi.fn(async () => false);
+
+    const local = await runDeviceTool(call('tm__unit_convert', { value: 1 }), {
+      runPython, saveFile, registryToolActive,
+      sessionTools: [{ ...spec, digest, version: 1, published: true, registryId: 'row-1' }],
+    });
+    const shared = await runDeviceTool({ ...call('tm__unit_convert', { value: 1 }), tool: payload }, {
+      runPython, saveFile, registryToolActive,
+    });
+
+    expect(registryToolActive).toHaveBeenCalledWith('row-1', digest);
+    expect(runPython).not.toHaveBeenCalled();
+    expect(local.content).toContain('not run');
+    expect(shared.content).toContain('not run');
   });
 
   it('refuses a tool whose code never arrived', async () => {

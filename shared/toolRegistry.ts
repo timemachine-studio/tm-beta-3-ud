@@ -3,8 +3,9 @@
  * writes one, the browser that runs it, the registry that shares it, and the
  * catalogue that offers it.
  *
- * A generated tool is a Python function plus a plain-JSON descriptor. It runs
- * in the same Pyodide sandbox as `run_python`, through the same device bridge,
+ * A generated tool is either a Python function or a bounded composition of
+ * read-only device calls, plus a plain-JSON descriptor. It runs
+ * through the same device bridge,
  * and it is selected by exactly the code that selects the built-ins — a
  * `ToolDescriptor` was designed as data for this reason. What this module
  * adds is the shape of the thing itself: how a tool is named, what it must
@@ -17,6 +18,7 @@
  */
 
 import type { ToolDefinition, ToolDescriptor } from './toolCatalog.js';
+import type { CapabilityManifest } from './capabilities.js';
 
 // ─── Naming ─────────────────────────────────────────────────────────────────
 
@@ -29,6 +31,17 @@ import type { ToolDefinition, ToolDescriptor } from './toolCatalog.js';
  * is a different name from `web_fetch`, whatever the model called its slug.
  */
 export const REGISTRY_TOOL_PREFIX = 'tm__';
+export const COMPOSED_SOURCE_PREFIX = 'TM_COMPOSED_V1\n';
+export const COMPOSED_READ_TOOLS = ['notes_search', 'notes_read', 'chats_search', 'chats_read'] as const;
+export type ComposedReadTool = typeof COMPOSED_READ_TOOLS[number];
+export interface ComposedStep { tool: ComposedReadTool; arguments: Record<string, string | number | boolean> }
+export interface ComposedPlan { steps: ComposedStep[] }
+export function composedSource(steps: readonly ComposedStep[]): string {
+  return COMPOSED_SOURCE_PREFIX + JSON.stringify({ steps });
+}
+export function toolRuntime(source: string): 'python' | 'composed' {
+  return source.startsWith(COMPOSED_SOURCE_PREFIX) ? 'composed' : 'python';
+}
 
 export type RegistryToolName = `${typeof REGISTRY_TOOL_PREFIX}${string}`;
 
@@ -151,7 +164,7 @@ export interface SessionTool extends ToolSpec {
  * browser already holds the code, so shipping 16 KB of Python on every leg
  * would be a per-message tax for nothing.
  */
-export type SessionToolSummary = Pick<ToolSpec, 'slug' | 'title' | 'description' | 'summary' | 'parameters' | 'terms'>;
+export type SessionToolSummary = Pick<ToolSpec, 'slug' | 'title' | 'description' | 'summary' | 'parameters' | 'terms'> & { runtime?: 'python' | 'composed' };
 
 export function sessionToolSummary(tool: ToolSpec): SessionToolSummary {
   return {
@@ -161,6 +174,7 @@ export function sessionToolSummary(tool: ToolSpec): SessionToolSummary {
     summary: tool.summary,
     parameters: tool.parameters,
     terms: tool.terms,
+    runtime: toolRuntime(tool.source),
   };
 }
 
@@ -237,8 +251,8 @@ function selectionTerms(tool: SessionToolSummary): string[] {
  * `gated`, for the reason MCP tools are: catalog-tier would make find_tools
  * the only door and cost a whole model round trip for the obvious case. The
  * terms gate it, the budget caps how many can arrive at once, and find_tools
- * reaches the rest. `requires: ['python']` because the sandbox is what runs
- * it — an older bundle that cannot run Python is never offered it.
+ * reaches the rest. Python tools require the Python runtime; composed reads
+ * run through the device bridge without it.
  */
 export function registryToolDescriptor(tool: SessionToolSummary): ToolDescriptor {
   return {
@@ -246,7 +260,7 @@ export function registryToolDescriptor(tool: SessionToolSummary): ToolDescriptor
     definition: definitionFor(tool),
     runtime: 'device',
     tier: 'gated',
-    requires: ['python'],
+    requires: tool.runtime === 'composed' ? ['composed-tools'] : ['python'],
     summary: tool.summary,
     select: { intent: selectionTerms(tool) },
     origin: 'registry',
@@ -335,6 +349,8 @@ export function buildToolRunProgram(tool: Pick<ToolSpec, 'slug' | 'source'>, arg
 // ─── create_tool ────────────────────────────────────────────────────────────
 
 export const CREATE_TOOL_NAME = 'create_tool';
+export const CREATE_COMPOSED_TOOL_NAME = 'create_composed_tool';
+export const PUBLISH_TOOL_NAME = 'publish_tool';
 
 /**
  * Turns that ask for a tool rather than an answer.
@@ -359,7 +375,7 @@ export const createToolTool: ToolDefinition = {
     // schema says only what the model cannot infer. Field rules it gets wrong
     // come back as validation errors it can act on, which is cheaper than
     // teaching them up front on every request.
-    description: "Create a reusable Python tool that later turns and other TimeMachine users can call as tm__<slug>. Use it when the user asks for a tool, or when find_tools found nothing and the capability is likely to be asked for again; for a one-off use run_python. Tests run in the sandbox first — if one fails you get the error, so fix the source and call again with the same slug. Never put the user's own data in the source: it is shared, so every specific value must be a parameter.",
+    description: "Create and test a reusable Python tool, then automatically save it to TimeMachine's shared registry. Use it when the user asks for a tool or find_tools found no fitting capability likely to be needed again; use run_python for one-offs. Source and tests must be generic and contain no user data, secrets, or real examples from private chats.",
     parameters: {
       type: 'object',
       properties: {
@@ -397,8 +413,85 @@ export const createToolDescriptor: ToolDescriptor = {
   // executeTool grants it when a search comes back empty, because that is the
   // moment the model has shown a capability is genuinely missing.
   tier: 'gated',
-  requires: ['python'],
-  summary: 'Write a new reusable Python tool, test it in the sandbox, and make it callable — here and for other users.',
+  requires: ['python', 'authenticated'],
+  summary: 'Write, test, and automatically share a reusable Python tool in the TM registry.',
   origin: 'builtin',
   select: { intent: CREATE_TOOL_TERMS },
+  capability: generatedToolCapability(CREATE_TOOL_NAME, 'Create tool', createToolTool.function.parameters, 'external-write'),
 };
+
+export const createComposedToolTool: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: CREATE_COMPOSED_TOOL_NAME,
+    description: 'Create, validate, and automatically share a reusable read-only tool combining TM Notes or chat-history reads. No Python needed. Steps may call only notes_search, notes_read, chats_search or chats_read. Arguments may refer to the new tool inputs as $input.field. Never embed user data in a public tool.',
+    parameters: {
+      type: 'object',
+      properties: {
+        slug: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' }, summary: { type: 'string' },
+        parameters: { type: 'object', description: 'JSON Schema for the new tool inputs.' },
+        steps: { type: 'array', items: { type: 'object', properties: { tool: { type: 'string', enum: [...COMPOSED_READ_TOOLS] }, arguments: { type: 'object' } }, required: ['tool', 'arguments'] }, description: '1–4 read-only calls. String arguments can be $input.field references.' },
+        terms: { type: 'array', items: { type: 'string' } },
+        tests: { type: 'array', items: { type: 'object', properties: { input: { type: 'object' }, expect: { type: 'string' } }, required: ['input'] }, description: '1–5 synthetic inputs; expect may match the resolved read plan.' },
+      },
+      required: ['slug', 'title', 'description', 'summary', 'parameters', 'steps', 'terms', 'tests'],
+      additionalProperties: false,
+    },
+  },
+};
+
+export const createComposedToolDescriptor: ToolDescriptor = {
+  name: CREATE_COMPOSED_TOOL_NAME, definition: createComposedToolTool, runtime: 'device', tier: 'gated',
+  requires: ['composed-tools', 'authenticated'], summary: 'Make a reusable read-only TM Notes/chat tool without Python.', origin: 'builtin',
+  select: { intent: ['combine my notes and chats', 'search notes and chats', 'read across notes and chats', 'compose a tool', 'read-only tool', 'tool that searches my notes', 'tool that searches my chats'] },
+  capability: generatedToolCapability(CREATE_COMPOSED_TOOL_NAME, 'Create composed tool', createComposedToolTool.function.parameters, 'external-write'),
+};
+
+export const publishToolTool: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: PUBLISH_TOOL_NAME,
+    description: 'Retry saving a tested tool to the shared TimeMachine registry when its automatic publication failed. No additional user request is needed.',
+    parameters: {
+      type: 'object',
+      properties: { slug: { type: 'string', description: 'The local tool slug to publish.' } },
+      required: ['slug'],
+      additionalProperties: false,
+    },
+  },
+};
+
+export const publishToolDescriptor: ToolDescriptor = {
+  name: PUBLISH_TOOL_NAME,
+  definition: publishToolTool,
+  runtime: 'device',
+  tier: 'gated',
+  requires: ['authenticated'],
+  summary: 'Retry central publication of a tested tool when automatic save failed.',
+  origin: 'builtin',
+  select: { intent: ['publish', 'retry publication', 'save the tool', 'share publicly', 'shared registry', 'share the tool', 'make this tool public'] },
+  capability: generatedToolCapability(PUBLISH_TOOL_NAME, 'Publish tool', publishToolTool.function.parameters, 'external-write'),
+};
+
+function generatedToolCapability(
+  name: string,
+  title: string,
+  inputSchema: Record<string, unknown>,
+  effect: CapabilityManifest['effect'],
+): CapabilityManifest {
+  return {
+    id: `tm.tools.${name === CREATE_TOOL_NAME ? 'create' : 'publish'}`,
+    version: 1,
+    name,
+    title,
+    description: name === CREATE_TOOL_NAME ? 'Create, test, and publish a reusable tool.' : 'Retry publishing a tested tool for other TM instances.',
+    examples: name === CREATE_TOOL_NAME ? ['make a reusable unit converter'] : ['publish that tool for everyone'],
+    effect,
+    runtime: 'browser',
+    persistence: 'cloud',
+    background: 'none',
+    requiredGrants: ['python'],
+    inputSchema,
+    outputSchema: { type: 'object', additionalProperties: true },
+  };
+}

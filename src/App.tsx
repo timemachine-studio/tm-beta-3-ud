@@ -55,7 +55,7 @@ import {
 } from './services/groupChat/groupChatService';
 import { GroupChat } from './types/groupChat';
 import { ACCESS_TOKEN_REQUIRED, MAINTENANCE_MODE, AI_PERSONAS } from './config/constants';
-import { ChatSession, chatService, getSupabaseSessions, getLocalSessions, isPersistable } from './services/chat/chatService';
+import { ChatSession, chatService, isPersistable } from './services/chat/chatService';
 import { MaxModeButton } from './components/maxmode/MaxModeButton';
 import { MaxModePill } from './components/maxmode/MaxModePill';
 import { GlassPill } from './components/maxmode/glass';
@@ -126,13 +126,8 @@ function ChatByIdPage() {
       setIsLoading(true);
 
       try {
-        let sessions: ChatSession[];
-        if (user) {
-          sessions = await getSupabaseSessions(user.id);
-        } else {
-          sessions = getLocalSessions();
-        }
-
+        chatService.setUserId(user?.id ?? null);
+        const sessions = await chatService.getSessions();
         const found = sessions.find(s => s.id === id);
         setSession(found || null);
       } catch (error) {

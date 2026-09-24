@@ -53,6 +53,12 @@ export interface Note {
   starred: boolean;
   emoji?: string;
   noteTheme?: NoteTheme;
+  /** Monotonic object revision for agent receipts and conflict-safe edits. */
+  version?: number;
+  /** Earlier conversations used to prepare this note. */
+  sourceChatIds?: string[];
+  /** Stable user-turn id that makes a retried create idempotent. */
+  agentRunId?: string;
 }
 
 export interface InitialNotesState {

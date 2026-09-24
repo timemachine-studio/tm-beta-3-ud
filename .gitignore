@@ -3,9 +3,7 @@ dist/
 *.tsbuildinfo
 
 # Local environment files
-.env
-.env.local
-.env.*.local
+.env*
 !.env.example
 
 # Local logs and OS metadata
@@ -15,6 +13,7 @@ npm-debug.log*
 # Deploy tooling scratch (created by `vercel link` and the Trigger.dev CLI)
 .vercel
 .trigger
+supabase/.temp/
 
 # Test coverage output
 coverage/

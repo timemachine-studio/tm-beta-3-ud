@@ -1,5 +1,6 @@
 import { proContentExpired, RETENTION } from './retention/policy.js';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { ProGenerationPayload } from '../../trigger/proGeneration.js';
 
 // Shared store for TimeMachine PRO background generation jobs.
 // Used by the Vercel API routes and by the Trigger.dev task.
@@ -38,6 +39,10 @@ export interface ProGenerationJob {
   final_content: string | null;
 }
 
+// Deliberately excludes request_payload. Status and recovery routes must never
+// pull a prepared prompt back out of the database after the worker claims it.
+const SAFE_JOB_COLUMNS = 'id,created_at,updated_at,user_id,chat_session_id,run_id,persona,status,error,final_content';
+
 export async function createProJob(userId: string | null, chatSessionId: string | null): Promise<ProGenerationJob> {
   const { data, error } = await getClient()
     .from('pro_generation_jobs')
@@ -47,7 +52,7 @@ export async function createProJob(userId: string | null, chatSessionId: string 
       persona: 'pro',
       status: 'running',
     })
-    .select()
+    .select(SAFE_JOB_COLUMNS)
     .single();
 
   if (error) {
@@ -55,6 +60,32 @@ export async function createProJob(userId: string | null, chatSessionId: string 
   }
 
   return data as ProGenerationJob;
+}
+
+/**
+ * Stage the prepared request in our transient store. Trigger.dev receives only
+ * the opaque job id, so its retained run payload cannot contain prompts,
+ * attachment text, tool code, memories, or IP addresses.
+ */
+export async function storeProJobPayload(jobId: string, payload: ProGenerationPayload): Promise<void> {
+  const { data, error } = await getClient()
+    .from('pro_generation_jobs')
+    .update({ request_payload: payload, request_claimed_at: null })
+    .eq('id', jobId)
+    .eq('status', 'running')
+    .select('id')
+    .maybeSingle();
+
+  if (error || !data) throw new Error('pro_job_payload_store_failed');
+}
+
+/** Atomically returns and erases the prepared request before model work. */
+export async function claimProJobPayload(jobId: string): Promise<ProGenerationPayload> {
+  const { data, error } = await getClient().rpc('claim_pro_generation_payload', { p_job_id: jobId });
+  if (error || !data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('pro_job_payload_missing_or_expired');
+  }
+  return { ...(data as unknown as ProGenerationPayload), jobId };
 }
 
 export async function attachProJobRunId(jobId: string, runId: string): Promise<void> {
@@ -71,7 +102,7 @@ export async function attachProJobRunId(jobId: string, runId: string): Promise<v
 export async function completeProJob(jobId: string, finalContent: string): Promise<void> {
   const { data, error } = await getClient()
     .from('pro_generation_jobs')
-    .update({ status: 'completed', final_content: finalContent, error: null })
+    .update({ status: 'completed', final_content: finalContent, error: null, request_payload: null })
     .eq('id', jobId).eq('status', 'running')
     .gt('created_at', new Date(Date.now() - RETENTION.abandonedRunMs).toISOString()).select('id').maybeSingle();
 
@@ -81,7 +112,7 @@ export async function completeProJob(jobId: string, finalContent: string): Promi
 export async function failProJob(jobId: string, _message: string): Promise<void> {
   const { error } = await getClient()
     .from('pro_generation_jobs')
-    .update({ status: 'failed', error: 'PRO_GENERATION_FAILED', final_content: null })
+    .update({ status: 'failed', error: 'PRO_GENERATION_FAILED', final_content: null, request_payload: null })
     .eq('id', jobId).eq('status', 'running');
 
   if (error) {
@@ -92,7 +123,7 @@ export async function failProJob(jobId: string, _message: string): Promise<void>
 export async function getProJobByRunId(runId: string): Promise<ProGenerationJob | null> {
   const { data, error } = await getClient()
     .from('pro_generation_jobs')
-    .select('*')
+    .select(SAFE_JOB_COLUMNS)
     .eq('run_id', runId)
     .maybeSingle();
 
@@ -108,7 +139,7 @@ export async function getProJobByRunId(runId: string): Promise<ProGenerationJob 
 export async function getActiveProJob(chatSessionId: string, userId: string | null): Promise<ProGenerationJob | null> {
   let query = getClient()
     .from('pro_generation_jobs')
-    .select('*')
+    .select(SAFE_JOB_COLUMNS)
     .eq('chat_session_id', chatSessionId)
     .eq('status', 'running')
     .order('created_at', { ascending: false })

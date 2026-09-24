@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { seasonThemes } from '../../themes/seasons';
 import type { SeasonTheme } from '../../context/themeContextValue';
+import { ContourExtendedSettings } from './ContourExtendedSettings';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -283,6 +284,8 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                         Current keeps your chats in a sidebar. Legacy is the layout before it.
                       </p>
                     </section>
+
+                    <ContourExtendedSettings />
 
                     <section>
                       <SectionLabel>More</SectionLabel>

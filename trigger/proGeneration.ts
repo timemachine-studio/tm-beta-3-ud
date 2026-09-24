@@ -9,7 +9,8 @@ import {
   processMemoryTags,
 } from "../api/ai-proxy.js";
 import type { DeviceToolRequestFrame } from "../shared/deviceTools.js";
-import type { RegistryToolPayload } from "../shared/toolRegistry.js";
+import { registryToolPayload, type RegistryToolPayload } from "../shared/toolRegistry.js";
+import { resolveRequestTools, searchPublishedTools, type InstalledToolPin } from "../api/_lib/toolRegistry.js";
 import { runWithProviderFallback, type ProviderHop } from "../api/_lib/providerResilience.js";
 import {
   attachmentsFrom,
@@ -22,7 +23,7 @@ import {
 import { createToolPolicy, type UserSkill } from "../api/_lib/tools.js";
 import type { ToolDescriptor } from "../shared/toolCatalog.js";
 import { runAgentLoop } from "../api/_lib/agentLoop.js";
-import { completeProJob, failProJob } from "../api/_lib/proJobs.js";
+import { claimProJobPayload, completeProJob, failProJob } from "../api/_lib/proJobs.js";
 import { proOutputStream } from "./streams.js";
 
 // Payload is fully prepared by /api/pro-generation (prompt building, RAG,
@@ -75,6 +76,8 @@ export interface ProGenerationPayload {
    * browser runs them; this task only hands the code down with the call.
    */
   registryTools?: Record<string, RegistryToolPayload>;
+  registrySearchEnabled?: boolean;
+  installedToolPins?: Record<string, InstalledToolPin>;
   /** Flight Controls skills the user enabled, resolved by the route. */
   userSkills?: UserSkill[];
   /** Skill slugs the catalog owns, so a disabled built-in stays disabled. */
@@ -90,6 +93,11 @@ export interface ProGenerationPayload {
   deviceRounds?: number;
 }
 
+/** The only request body retained with the Trigger.dev run. */
+export interface ProGenerationReference {
+  jobId: string;
+}
+
 const MAX_ITERATIONS = 5;
 // Buffer model deltas and flush a few times per second instead of one stream
 // append per token. Markers/control frames always flush pending text first so
@@ -103,7 +111,7 @@ export const proGeneration = task({
   // would re-append duplicate text to the same output stream.
   maxDuration: 3600,
   retry: { maxAttempts: 1 },
-  run: async (payload: ProGenerationPayload) => {
+  run: async (reference: ProGenerationReference) => {
     let pendingText = "";
     let lastFlush = Date.now();
 
@@ -138,6 +146,18 @@ export const proGeneration = task({
     let hasStreamedContent = false;
 
     try {
+      // Claiming is atomic and destructive: the sensitive prepared request is
+      // erased from Supabase before it reaches a model or an output stream.
+      // Trigger's own retained payload contains only `reference.jobId`.
+      const payload = await claimProJobPayload(reference.jobId);
+      const registryTools = { ...(payload.registryTools ?? {}) };
+      const searchRegistry = payload.registrySearchEnabled
+        ? async (query: string) => {
+            const found = resolveRequestTools([], await searchPublishedTools(query, 12), new Map(Object.entries(payload.installedToolPins ?? {})));
+            for (const [name, tool] of found.registryByName) registryTools[name] = registryToolPayload(tool);
+            return found.descriptors;
+          }
+        : undefined;
       // ─── PRO agentic loop (shared with /api/ai-proxy) ─────────────────
       const toolPolicy = createToolPolicy({
         imageAllowed: payload.imageAllowed !== false,
@@ -190,6 +210,7 @@ export const proGeneration = task({
           policy: toolPolicy,
           healthcareSearch: fetchHealthcareRAGContext,
           findable: payload.findableTools ?? [],
+          searchRegistry,
           userSkills: payload.userSkills ?? [],
           governedSkillSlugs: payload.governedSkillSlugs ?? [],
         },
@@ -248,7 +269,7 @@ export const proGeneration = task({
           payload: {
             assistantContent: loopResult.deviceSuspension.assistantContent,
             toolCalls: loopResult.deviceSuspension.allToolCalls.map(call => {
-              const tool = payload.registryTools?.[call.function.name];
+              const tool = registryTools[call.function.name];
               return {
                 id: call.id,
                 name: call.function.name,
@@ -303,7 +324,7 @@ export const proGeneration = task({
     } catch (error) {
       const message = 'PRO_GENERATION_FAILED';
       void error;
-      logger.error("PRO generation failed", { jobId: payload.jobId, error: message });
+      logger.error("PRO generation failed", { jobId: reference.jobId, error: message });
 
       try {
         await flush(true);
@@ -313,7 +334,7 @@ export const proGeneration = task({
         logger.error("Failed to emit pro_error frame");
       }
 
-      await failProJob(payload.jobId, message);
+      await failProJob(reference.jobId, message);
       // Do not rethrow: the client already received a structured error frame,
       // and a failed run would not add anything on top of it.
       return { ok: false, error: message };

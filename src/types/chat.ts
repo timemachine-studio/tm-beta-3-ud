@@ -229,12 +229,26 @@ export interface AttachedFile {
 }
 
 /** A note the AI saved or edited from chat. */
-export interface AppObjectRef {
+export interface NoteAppObjectRef {
   kind: 'note';
   id: string;
   title: string;
-  action: 'created' | 'updated';
+  action: 'created' | 'reused' | 'updated';
+  sourceChatIds?: string[];
 }
+
+/** A durable in-app timer the AI started or controlled. */
+export interface TimerAppObjectRef {
+  kind: 'timer';
+  id: string;
+  title: string;
+  action: 'started' | 'updated';
+  status: import('../services/timer/timerRepository').TimerStatus;
+  deadlineAt: string | null;
+  durationMs: number;
+}
+
+export type AppObjectRef = NoteAppObjectRef | TimerAppObjectRef;
 
 export interface ChatState {
   messages: Message[];
@@ -287,4 +301,4 @@ export type { AgentEvent, ArtifactRef, SourceRef, ToolResult } from "../../share
  * the n-th of m automatic retries after a transient failure — shown, because a
  * silent retry looks like a hang.
  */
-export type LoadingPhase = 'analyzing_photo' | 'thinking' | `retrying:${number}/${number}` | null;
+export type LoadingPhase = 'analyzing_photo' | 'thinking' | `retrying:${number}/${number}` | (string & {}) | null;

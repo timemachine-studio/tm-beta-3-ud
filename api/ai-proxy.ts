@@ -8,7 +8,7 @@ import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
 import { enabledMcpServers, enabledSkills, loadUserMcpServers, resolveFlightControlsCached } from './_lib/flightControls.js';
 import { discoverMcpToolsCached } from './_lib/mcpClient.js';
 import { mcpToolDescriptors } from './_lib/mcpCatalog.js';
-import { attachToolPayloads, loadPublishedToolsCached, recordToolUse, resolveRequestTools } from './_lib/toolRegistry.js';
+import { attachToolPayloads, loadInstalledToolPins, loadPinnedPublishedTools, recordToolUse, resolveRequestTools, searchPublishedTools } from './_lib/toolRegistry.js';
 import { createMcpApprovalRequester } from './_lib/mcpApprovalRequest.js';
 import {
   buildToolGuardrail,
@@ -2521,13 +2521,26 @@ The memory tags will be processed and removed from the visible response, so writ
     const mcpDescriptors = mcpToolDescriptors(mcpTools);
 
     // Tools TimeMachine wrote: this conversation's own, then the shared
-    // registry. They run in the browser's sandbox, so a client that cannot
-    // run Python is not offered them — the descriptors say so and the packer
-    // enforces it — and the registry is not even read for one.
+    // registry. Runtime-specific descriptor gates decide which a client can
+    // run; composed read-only tools do not need Python.
+    const canUseRegistry = (deviceAppsEnabled.includes('python') || deviceAppsEnabled.includes('composed-tools')) && deviceRounds < resolveDeviceRoundBudget();
+    const installedToolPins = canUseRegistry ? await loadInstalledToolPins(userId) : new Map();
+    const registryQuery = [...messages].reverse().find(message => !message.isAI)?.content ?? '';
+    const publishedTools = canUseRegistry
+      ? [...await searchPublishedTools(registryQuery, 12), ...await loadPinnedPublishedTools(installedToolPins)]
+      : [];
     const generatedTools = resolveRequestTools(
       sessionTools,
-      deviceAppsEnabled.includes('python') ? await loadPublishedToolsCached() : [],
+      publishedTools,
+      installedToolPins,
     );
+    const searchRegistry = canUseRegistry
+      ? async (query: string) => {
+          const matched = resolveRequestTools([], await searchPublishedTools(query, 12), installedToolPins);
+          for (const [name, tool] of matched.registryByName) generatedTools.registryByName.set(name, tool);
+          return matched.descriptors;
+        }
+      : undefined;
 
     const toolSet = maxModeRequest
       // A closed set chosen by the mode. No catalogue, no app tools, no
@@ -2545,6 +2558,8 @@ The memory tags will be processed and removed from the visible response, so writ
         deviceApps: deviceAppsEnabled,
         deviceDataPresent,
         deviceRoundsUsed: deviceRounds,
+        userIsAuthenticated: !!userId,
+        hasSearchableRegistry: !!searchRegistry,
         surface: persona === 'pro' ? 'pro' : 'air',
         extraDescriptors: [...mcpDescriptors, ...generatedTools.descriptors],
       });
@@ -2777,6 +2792,7 @@ ${thinkingDirective}`;
             policy: toolPolicy,
             healthcareSearch: fetchHealthcareRAGContext,
             findable: toolSet.findable,
+            searchRegistry,
             userSkills,
             governedSkillSlugs,
             mcpTools,
@@ -3332,7 +3348,7 @@ ${thinkingDirective}`;
             for (const toolCall of toolCalls) {
               const result = await executeTool(
                 toolCall,
-                { persona, inputImageUrls, imageDimensions, policy: toolPolicy, findable: toolSet.findable, userSkills, governedSkillSlugs, mcpTools },
+                { persona, inputImageUrls, imageDimensions, policy: toolPolicy, findable: toolSet.findable, searchRegistry, userSkills, governedSkillSlugs, mcpTools },
                 {
                   // Non-streaming: image markdown is folded into the final content,
                   // and status markers have nowhere to go.
@@ -3499,7 +3515,7 @@ ${thinkingDirective}`;
         for (const toolCall of toolCalls) {
           const result = await executeTool(
             toolCall,
-            { persona, inputImageUrls, imageDimensions, policy: toolPolicy, findable: toolSet.findable, userSkills, governedSkillSlugs, mcpTools },
+            { persona, inputImageUrls, imageDimensions, policy: toolPolicy, findable: toolSet.findable, searchRegistry, userSkills, governedSkillSlugs, mcpTools },
             {
               emitText: (text) => { fullContent += `\n\n${text}`; },
               emitMarker: () => { },

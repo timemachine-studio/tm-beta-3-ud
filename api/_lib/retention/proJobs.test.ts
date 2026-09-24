@@ -1,8 +1,8 @@
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ from: vi.fn() }));
-vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({ from: mocks.from }) }));
+const mocks = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
+vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({ from: mocks.from, rpc: mocks.rpc }) }));
 vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'synthetic-key');
-const { completeProJob, getProJobByRunId } = await import('../proJobs');
+const { claimProJobPayload, completeProJob, getProJobByRunId, storeProJobPayload } = await import('../proJobs');
 afterAll(() => vi.unstubAllEnvs());
 afterEach(() => { vi.clearAllMocks(); vi.useRealTimers(); });
 function query(result: unknown) {
@@ -17,6 +17,23 @@ function query(result: unknown) {
   return { q, filters };
 }
 describe('PRO job retention boundary (mock database)', () => {
+  it('stages a prepared request in the transient payload column', async () => {
+    const fixture = query({ data: { id: 'job' }, error: null });
+    const payload = { jobId: 'job', apiMessages: [], tools: [], model: 'model', temperature: 0, maxTokens: 10, provider: 'provider', userId: 'user', ip: 'ip' };
+    await storeProJobPayload('job', payload);
+    expect(fixture.q.update).toHaveBeenCalledWith({ request_payload: payload, request_claimed_at: null });
+    expect(fixture.filters).toContainEqual(['eq', 'status', 'running']);
+  });
+  it('claims the request through the destructive service-role RPC', async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: { jobId: 'wrong', apiMessages: [] }, error: null });
+    const payload = await claimProJobPayload('job');
+    expect(mocks.rpc).toHaveBeenCalledWith('claim_pro_generation_payload', { p_job_id: 'job' });
+    expect(payload.jobId).toBe('job');
+  });
+  it('fails closed when a request was already claimed or expired', async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: null });
+    await expect(claimProJobPayload('job')).rejects.toThrow('pro_job_payload_missing_or_expired');
+  });
   it('prevents a late completion from reviving an expired job', async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-06T12:00:00Z'));
     const fixture = query({ data: null, error: null });

@@ -13,13 +13,16 @@
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { analyzeWithContourExtended } from '../../services/contour/extendedInterpreter';
+import { useContourExtended } from '../../services/contour/useContourExtended';
+import { shouldConsultContourExtended } from '../../services/contour/intentPolicy';
 import {
   // Types (re-exported from registry)
   ModuleId, ModuleData, ContourState, ContourMode,
   // Handler mapping
   HANDLER_TO_MODULE,
   // Detect & process functions
-  evaluateMath, isMathExpression,
+  evaluateMath, isMathExpression, detectNaturalMath,
   detectGraph,
   detectUnits,
   detectCurrency, resolveCurrency,
@@ -54,6 +57,7 @@ export type { ModuleId, ModuleData, ContourState, ContourMode };
 const INITIAL_STATE: ContourState = {
   mode: 'hidden',
   module: null,
+  suggestion: null,
   commands: [],
   commandQuery: '',
   selectedIndex: 0,
@@ -61,7 +65,11 @@ const INITIAL_STATE: ContourState = {
 
 export function useContour() {
   const [state, setState] = useState<ContourState>(INITIAL_STATE);
+  const extended = useContourExtended();
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const extendedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const extendedGenerationRef = useRef(0);
+  const latestInputRef = useRef('');
   const currencyGenRef = useRef<number>(0);
   const translatorGenRef = useRef<number>(0);
   const dictionaryGenRef = useRef<number>(0);
@@ -70,6 +78,7 @@ export function useContour() {
   useEffect(() => {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      if (extendedDebounceRef.current) clearTimeout(extendedDebounceRef.current);
     };
   }, []);
 
@@ -133,7 +142,12 @@ export function useContour() {
     const graph = detectGraph(trimmed);
     if (graph) return { id: 'graph', focused: false, graph };
 
-    // 15. Quick Note (/note <text>)
+    // 15. Natural-language arithmetic, including small typos. This stays in
+    // Core so obvious calculations are instant and never require approval.
+    const naturalMath = detectNaturalMath(trimmed);
+    if (naturalMath) return { id: 'calculator', focused: false, calculator: naturalMath };
+
+    // 16. Quick Note (/note <text>)
     const note = detectQuickNote(trimmed);
     if (note) return { id: 'quick-note', focused: false, quickNote: note };
 
@@ -169,7 +183,7 @@ export function useContour() {
     switch (moduleId) {
       case 'calculator': {
         if (!trimmed) return { id: 'calculator', focused: true };
-        const calc = evaluateMath(trimmed);
+        const calc = evaluateMath(trimmed) ?? detectNaturalMath(trimmed);
         return { id: 'calculator', focused: true, calculator: calc || undefined };
       }
       case 'units': {
@@ -290,6 +304,13 @@ export function useContour() {
   }, []);
 
   const analyze = useCallback((input: string) => {
+    latestInputRef.current = input;
+    const extendedGeneration = ++extendedGenerationRef.current;
+    if (extendedDebounceRef.current) {
+      clearTimeout(extendedDebounceRef.current);
+      extendedDebounceRef.current = null;
+    }
+
     setState(prev => {
       // Focused mode: only detect for the focused module
       if (prev.mode === 'module' && prev.module?.focused) {
@@ -309,29 +330,29 @@ export function useContour() {
       if (trimmed.startsWith('/')) {
         // 1. Intercept explicit slash commands (Quick Note, Quick Event, Web Viewer)
         const note = detectQuickNote(trimmed);
-        if (note) return { mode: 'module' as const, module: { id: 'quick-note', focused: false, quickNote: note }, commands: [], commandQuery: '', selectedIndex: 0 };
+        if (note) return { mode: 'module' as const, module: { id: 'quick-note', focused: false, quickNote: note }, suggestion: null, commands: [], commandQuery: '', selectedIndex: 0 };
 
         const event = detectQuickEvent(trimmed);
-        if (event) return { mode: 'module' as const, module: { id: 'quick-event', focused: false, quickEvent: event }, commands: [], commandQuery: '', selectedIndex: 0 };
+        if (event) return { mode: 'module' as const, module: { id: 'quick-event', focused: false, quickEvent: event }, suggestion: null, commands: [], commandQuery: '', selectedIndex: 0 };
 
         const web = detectWebViewer(trimmed);
-        if (web) return { mode: 'module' as const, module: { id: 'web-viewer', focused: false, webViewer: web }, commands: [], commandQuery: '', selectedIndex: 0 };
+        if (web) return { mode: 'module' as const, module: { id: 'web-viewer', focused: false, webViewer: web }, suggestion: null, commands: [], commandQuery: '', selectedIndex: 0 };
 
         // /convert [format] opens the tool focused: it needs the panel open
         // for files to be dropped into, not a one-shot result.
         const convert = detectFileConvert(trimmed);
-        if (convert) return { mode: 'module' as const, module: { id: 'file-convert', focused: true, fileConvert: convert }, commands: [], commandQuery: '', selectedIndex: 0 };
+        if (convert) return { mode: 'module' as const, module: { id: 'file-convert', focused: true, fileConvert: convert }, suggestion: null, commands: [], commandQuery: '', selectedIndex: 0 };
 
         // 2. Normal "/" command palette search
         const query = trimmed.slice(1);
         const commands = searchCommands(query);
-        return { mode: 'commands' as const, module: null, commands, commandQuery: query, selectedIndex: 0 };
+        return { mode: 'commands' as const, module: null, suggestion: null, commands, commandQuery: query, selectedIndex: 0 };
       }
 
       // Auto-detect
       const detected = autoDetect(trimmed);
       if (detected) {
-        return { mode: 'module' as const, module: detected, commands: [], commandQuery: '', selectedIndex: 0 };
+        return { mode: 'module' as const, module: detected, suggestion: null, commands: [], commandQuery: '', selectedIndex: 0 };
       }
 
       return INITIAL_STATE;
@@ -381,19 +402,78 @@ export function useContour() {
         });
       }
     }
-  }, [autoDetect, focusedDetect]);
+
+    // Core is deterministic and always wins. Extended is a local fallback for
+    // phrasing Core does not recognise, and only wakes after typing settles.
+    const coreDetected = trimmed && !trimmed.startsWith('/') ? autoDetect(trimmed) : null;
+    const extendedReady = extended.phase === 'ready' || extended.phase === 'active' || extended.phase === 'loading';
+    if (!coreDetected && extendedReady && shouldConsultContourExtended(trimmed)) {
+      extendedDebounceRef.current = setTimeout(() => {
+        void analyzeWithContourExtended(trimmed).then(candidate => {
+          if (!candidate
+            || extendedGenerationRef.current !== extendedGeneration
+            || latestInputRef.current.trim() !== trimmed
+            || isFocusedRef.current) return;
+
+          if (candidate.disposition === 'immediate' && candidate.module) {
+            setState({
+              mode: 'module',
+              module: candidate.module,
+              suggestion: null,
+              commands: [],
+              commandQuery: '',
+              selectedIndex: 0,
+            });
+            return;
+          }
+
+          setState({
+            mode: 'suggestion',
+            module: null,
+            suggestion: {
+              candidate,
+              prompt: `Do you want Contour to use ${candidate.title}?`,
+            },
+            commands: [],
+            commandQuery: '',
+            selectedIndex: 0,
+          });
+        }).catch(() => {
+          // Extended is additive. Its runtime publishes the actionable error;
+          // typing and the Core detector must continue unaffected.
+        });
+      }, 320);
+    }
+  }, [autoDetect, focusedDetect, extended.phase]);
 
   const focusOnModule = useCallback((handler: string) => {
     const moduleId = HANDLER_TO_MODULE[handler];
     if (!moduleId) return false;
+    isFocusedRef.current = true;
     setState({
       mode: 'module',
       module: { id: moduleId, focused: true },
+      suggestion: null,
       commands: [],
       commandQuery: '',
       selectedIndex: 0,
     });
     return true;
+  }, []);
+
+  const acceptSuggestion = useCallback(() => {
+    setState(prev => {
+      const module = prev.suggestion?.candidate.module;
+      if (prev.mode !== 'suggestion' || !module) return prev;
+      return {
+        mode: 'module',
+        module,
+        suggestion: null,
+        commands: [],
+        commandQuery: '',
+        selectedIndex: 0,
+      };
+    });
   }, []);
 
   // Timer controls
@@ -507,6 +587,12 @@ export function useContour() {
 
   const dismiss = useCallback(() => {
     if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
+    extendedGenerationRef.current += 1;
+    if (extendedDebounceRef.current) {
+      clearTimeout(extendedDebounceRef.current);
+      extendedDebounceRef.current = null;
+    }
+    isFocusedRef.current = false;
     setState(INITIAL_STATE);
   }, []);
 
@@ -519,6 +605,7 @@ export function useContour() {
     isFocused,
     analyze,
     focusOnModule,
+    acceptSuggestion,
     selectUp,
     selectDown,
     selectedCommand,

@@ -31,7 +31,7 @@ import {
   type ToolBudgetSurface,
   type ToolDescriptor,
 } from '../../shared/toolCatalog.js';
-import { CREATE_TOOL_NAME } from '../../shared/toolRegistry.js';
+import { CREATE_COMPOSED_TOOL_NAME, CREATE_TOOL_NAME } from '../../shared/toolRegistry.js';
 import {
   MAX_MODE_ROUND_BUDGET,
   maxModeOffersPython,
@@ -140,7 +140,7 @@ ${rules.map((rule, index) => `${index + 1}. ${rule}`).join('\n')}
 // makes the behaviour independent of how long a persona's prompt grows.
 export const THINKING_DIRECTIVE = `
 ## Thinking
-When a question needs actual working out — math, counting, logic puzzles, riddles, multi-step problems, tricky code — reason it through inside <reason></reason> tags before you answer, then give the answer after the closing tag. What is inside the tags is for you, not for the user. For simple questions skip it entirely and answer straight away; you are meant to be fast.
+When a question needs actual working out — math, counting, logic puzzles, riddles, multi-step problems, tricky code — reason it through inside one fully closed <reason></reason> block before you answer, then give the answer after the closing tag. Never emit <think> tags, never put tool syntax in visible prose, and never leave a private tag unclosed. What is inside the tags is private working, not a user-facing answer. For simple questions skip it entirely and answer straight away; you are meant to be fast.
 `;
 
 export const imageGenerationTool = {
@@ -288,13 +288,14 @@ export function buildAppToolDirective(opts: {
   deviceApps?: readonly string[];
 }): string {
   const has = (name: string) => opts.toolNames.includes(name);
-  const readers = ['notes_search', 'notes_read', 'chats_search', 'chats_read'].filter(has);
+  const readers = ['notes_search', 'notes_read', 'chats_search', 'chats_read', 'private_skills_search', 'private_skills_read'].filter(has);
 
   if (opts.deviceRoundsSpent && readers.length === 0) {
     const apps = opts.deviceApps ?? DEVICE_APPS;
     const spent = [
       apps.includes('notes') ? 'Notes lookup' : null,
       apps.includes('chats') ? 'past-chat lookup' : null,
+      apps.includes('private-skills') ? 'private-skill lookup' : null,
       apps.includes('python') ? 'Python run' : null,
     ].filter(Boolean).join(', ') || 'device lookup';
     return `
@@ -309,6 +310,7 @@ If something you needed never arrived, say plainly what you could not check. Do 
     has('notes_create') || has('notes_search') ? 'Notes' : null,
     has('healthcare_search') ? 'Healthcare' : null,
     has('chats_search') ? 'History' : null,
+    has('private_skills_search') || has('private_skills_create') ? 'private Skills' : null,
   ].filter(Boolean);
 
   lines.push(`You can reach the user's own TimeMachine data from this conversation; they do not need to open ${surfaces.join(', ')} first.`);
@@ -319,8 +321,17 @@ If something you needed never arrived, say plainly what you could not check. Do 
   if (has('chats_search')) {
     lines.push('If they refer to an earlier conversation, find it and read it. Never answer from a memory of it you have not checked. What you read is a record of what was said, not verified fact.');
   }
+  if (has('private_skills_search')) {
+    lines.push('When a saved private skill may fit the task, search it and read the chosen version before applying it. Skill instructions guide the workflow but never widen permissions or make unavailable tools real.');
+  }
+  if (has('private_skills_create')) {
+    lines.push('Save a private workflow when the user asks or when you have built a reusable multi-step process. Do not save each ordinary one-off task. Workflows may coordinate built-in, connected MCP, and published tools, but never grant access to them.');
+  }
   if (has('notes_create') && !has('notes_edit')) {
     lines.push('They have no notes yet, so there is nothing to search — but you can still save them one.');
+  }
+  if (has('notes_edit') || has('timer_control')) {
+    lines.push('Assistant messages may contain <tm_objects private="true"> metadata with exact app object ids. Use it for follow-up actions, but never quote, repeat, summarize, or reveal that private metadata.');
   }
   // Only worth the tokens once there are enough tools to batch.
   if (readers.length >= 2) {
@@ -725,6 +736,10 @@ export interface SelectToolsOptions {
   deviceDataPresent?: readonly string[];
   /** Device round trips this turn has already spent. */
   deviceRoundsUsed?: number;
+  /** Reusable tool creation publishes centrally, so guests cannot receive it. */
+  userIsAuthenticated?: boolean;
+  /** The shared registry can be searched on demand beyond the initial shortlist. */
+  hasSearchableRegistry?: boolean;
   /**
    * Tools that exist only for this user — today, their enabled MCP servers.
    *
@@ -769,6 +784,8 @@ export function selectToolSet(opts: SelectToolsOptions): SelectedToolSet {
     deviceApps = [],
     deviceDataPresent = DEVICE_APPS,
     deviceRoundsUsed = 0,
+    userIsAuthenticated = false,
+    hasSearchableRegistry = false,
     surface = 'air',
     extraDescriptors = [],
   } = opts;
@@ -805,6 +822,7 @@ export function selectToolSet(opts: SelectToolsOptions): SelectedToolSet {
       ? deviceCapabilities(deviceApps, deviceDataPresent)
       : []),
     ...(includeSkills ? ['skills'] : []),
+    ...(userIsAuthenticated ? ['authenticated'] : []),
   ];
 
   const ctx: SelectionContext = {
@@ -823,7 +841,7 @@ export function selectToolSet(opts: SelectToolsOptions): SelectedToolSet {
   // find_tools only earns its schema when there is enough behind it. Offering
   // it over an empty catalogue is a tool that can only disappoint, and over a
   // catalogue of one it costs more than fixing that one tool's gate.
-  const canFindTools = packed.findable.length >= Math.max(resolveFindToolsMinTail(), 1);
+  const canFindTools = hasSearchableRegistry || packed.findable.length >= Math.max(resolveFindToolsMinTail(), 1);
   const tools = packed.tools as ProviderTool[];
   if (canFindTools) tools.push(findToolsTool as ProviderTool);
 
@@ -1061,6 +1079,8 @@ export interface ToolExecutionContext {
    * Absent means the catalogue is closed for this run and find_tools says so.
    */
   findable?: readonly ToolDescriptor[];
+  /** Search the published registry without loading it all into this request. */
+  searchRegistry?: (query: string) => Promise<readonly ToolDescriptor[]>;
   /**
    * Skills the user switched on in Flight Controls, merged with the built-in
    * library. Empty for anonymous users and for anyone who enabled none.
@@ -1182,33 +1202,43 @@ export async function executeTool(
       const query = typeof params.query === 'string' ? params.query.trim() : '';
       const policy = ctx.policy;
       const alreadyGranted = new Set((policy?.granted || []).map(tool => tool?.function?.name));
-      const candidates = (ctx.findable || []).filter(descriptor => !alreadyGranted.has(descriptor.name));
+
+      await emit.emitMarker(`[STATUS:Looking for a tool: "${query}"]`);
+      const registryMatches = ctx.searchRegistry ? await ctx.searchRegistry(query) : [];
+      const candidateByName = new Map<string, ToolDescriptor>();
+      for (const descriptor of [...(ctx.findable || []), ...registryMatches]) {
+        if (!alreadyGranted.has(descriptor.name)) candidateByName.set(descriptor.name, descriptor);
+      }
+      const candidates = [...candidateByName.values()];
 
       if (candidates.length === 0) {
         return 'No further tools are available for this request. Work with the tools you already have, and if the user needs something none of them can do, say so plainly.';
       }
 
-      await emit.emitMarker(`[STATUS:Looking for a tool: "${query}"]`);
       // The meta-tool must not find the tool-maker: every miss would rank it
       // first, and the model would be handed "write your own" before it had
       // seen what exists. It is granted explicitly below, on a genuine miss.
-      const creator = candidates.find(descriptor => descriptor.name === CREATE_TOOL_NAME);
+      const creators = candidates.filter(descriptor => descriptor.name === CREATE_TOOL_NAME || descriptor.name === CREATE_COMPOSED_TOOL_NAME);
       const matches = rankFindableTools(
-        creator ? candidates.filter(descriptor => descriptor !== creator) : candidates,
+        candidates.filter(descriptor => !creators.includes(descriptor)),
         query,
       );
       if (matches.length === 0) {
-        const others = candidates.filter(descriptor => descriptor !== creator);
+        const others = candidates.filter(descriptor => !creators.includes(descriptor));
         const names = others.slice(0, 12).map(d => `${d.name} — ${d.summary}`).join('\n');
         // A search that came back empty is the moment a capability has been
         // shown to be missing — the one signal that justifies writing a tool
         // rather than looking for one. So create_tool is loaded here, and
         // only here, without a keyword in the user's message.
-        if (creator && policy) {
-          policy.granted.push(creator.definition as ProviderTool);
-          policy.grantedTokens += estimateSchemaTokens(creator.definition);
-          policy.revoked.delete(creator.name);
-          return `Nothing matched "${query}" — no existing tool does this. create_tool is available now: if Python can do it and the request is likely to come again, write it as a tool and then call it; for a one-off computation, use run_python; for a fact to look up, web_search; otherwise answer without a tool.${names ? `\n\nTools you could still load instead:\n${names}` : ''}`;
+        if (creators.length && policy) {
+          for (const creator of creators) {
+            const cost = estimateSchemaTokens(creator.definition);
+            if (policy.grantedTokens + cost > FIND_GRANT_TOKEN_BUDGET) continue;
+            policy.granted.push(creator.definition as ProviderTool);
+            policy.grantedTokens += cost;
+            policy.revoked.delete(creator.name);
+          }
+          return `Nothing matched "${query}" — no existing tool does this. For a reusable read-only combination of TM Notes or chat-history calls, use create_composed_tool; for reusable computation or file work, use create_tool. Both publish automatically after validation. For a one-off, use the appropriate built-in; otherwise answer without a tool.${names ? `\n\nTools you could still load instead:\n${names}` : ''}`;
         }
         return `Nothing matched "${query}". These are the tools you could still load:\n${names}\n\nCall find_tools again naming one of them, or answer without a tool.`;
       }
@@ -1251,11 +1281,17 @@ export async function executeTool(
       // on its own.
       const weak = matches[0].score <= 2;
       let creatorNote = '';
-      if (weak && creator && policy && policy.grantedTokens + estimateSchemaTokens(creator.definition) <= FIND_GRANT_TOKEN_BUDGET) {
-        policy.granted.push(creator.definition as ProviderTool);
-        policy.grantedTokens += estimateSchemaTokens(creator.definition);
-        policy.revoked.delete(creator.name);
-        creatorNote = `\n\nThat was only a weak match. If none of the above actually does this, create_tool is also loaded: if Python can do it and the request is likely to come again, write it as a tool; for a one-off computation, use run_python; for a fact to look up, web_search.`;
+      if (weak && creators.length && policy) {
+        const grantedCreators: string[] = [];
+        for (const creator of creators) {
+          const cost = estimateSchemaTokens(creator.definition);
+          if (policy.grantedTokens + cost > FIND_GRANT_TOKEN_BUDGET) continue;
+          policy.granted.push(creator.definition as ProviderTool);
+          policy.grantedTokens += cost;
+          policy.revoked.delete(creator.name);
+          grantedCreators.push(creator.name);
+        }
+        if (grantedCreators.length) creatorNote = `\n\nThat was only a weak match. If none fits and this should be reusable, create_tool is also loaded when Python is available; create_composed_tool is also loaded for read-only TM Notes/chat combinations. Available creators: ${grantedCreators.join(', ')}.`;
       }
       return `Loaded ${loaded.length} tool${loaded.length === 1 ? '' : 's'}. ${loaded.length === 1 ? 'It is' : 'They are'} available now — call ${loaded.length === 1 ? 'it' : 'them'} directly.\n${lines}${more}${creatorNote}`;
     } catch (err: unknown) {

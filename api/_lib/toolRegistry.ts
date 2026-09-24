@@ -23,6 +23,7 @@ import {
   registryToolName,
   registryToolPayload,
   sessionToolDescriptor,
+  toolRuntime,
   type PublishedTool,
   type SessionToolSummary,
 } from '../../shared/toolRegistry.js';
@@ -129,7 +130,7 @@ export async function loadPublishedTools(): Promise<PublishedTool[]> {
       console.error(`[Tool Registry] Skipping row ${row.id}: failed validation`);
     }
   }
-  return latestPerSlug(tools);
+  return tools;
 }
 
 export async function loadPublishedToolsCached(): Promise<PublishedTool[]> {
@@ -137,6 +138,23 @@ export async function loadPublishedToolsCached(): Promise<PublishedTool[]> {
   const tools = await loadPublishedTools();
   registryCache = { expires: Date.now() + REGISTRY_CACHE_TTL_MS, tools };
   return tools;
+}
+
+/** Indexed, bounded catalog lookup. The public function returns published rows only. */
+export async function searchPublishedTools(query: string, limit = 12): Promise<PublishedTool[]> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return [];
+  const { data, error } = await flightControlsAdmin.rpc('search_tool_registry', {
+    search_query: query.slice(0, 200),
+    result_limit: Math.min(Math.max(limit, 1), 30),
+  });
+  if (error) {
+    console.error('[Tool Registry] Search failed:', error.message);
+    return [];
+  }
+  return ((data ?? []) as ToolRegistryRow[]).flatMap(row => {
+    const tool = fromRow(row);
+    return tool ? [tool] : [];
+  });
 }
 
 /** For tests, and for a route that just wrote a row. */
@@ -151,6 +169,46 @@ export interface RequestTools {
   registryByName: Map<string, PublishedTool>;
 }
 
+export interface InstalledToolPin { id: string; version: number; digest: string }
+
+export async function loadInstalledToolPins(userId: string | null): Promise<Map<string, InstalledToolPin>> {
+  const pins = new Map<string, InstalledToolPin>();
+  if (!userId || !process.env.SUPABASE_SERVICE_ROLE_KEY) return pins;
+  const { data, error } = await flightControlsAdmin
+    .from('user_tool_installations')
+    .select('tool_id,slug,version,digest')
+    .eq('user_id', userId);
+  if (error) {
+    console.error('[Tool Registry] Installations failed:', error.message);
+    return pins;
+  }
+  for (const row of data || []) {
+    if (typeof row.slug === 'string' && typeof row.tool_id === 'string' && typeof row.version === 'number' && typeof row.digest === 'string') {
+      pins.set(row.slug, { id: row.tool_id, version: row.version, digest: row.digest });
+    }
+  }
+  return pins;
+}
+
+/** Load the exact published rows named by pins, even when they fell outside the popularity cache. */
+export async function loadPinnedPublishedTools(pins: ReadonlyMap<string, InstalledToolPin>): Promise<PublishedTool[]> {
+  const ids = [...new Set([...pins.values()].map(pin => pin.id))];
+  if (ids.length === 0 || !process.env.SUPABASE_SERVICE_ROLE_KEY) return [];
+  const { data, error } = await flightControlsAdmin
+    .from('tool_registry')
+    .select('id,slug,version,digest,title,description,summary,parameters,source,terms,tests,author_id,created_at')
+    .eq('status', 'published')
+    .in('id', ids);
+  if (error) {
+    console.error('[Tool Registry] Pinned tool load failed:', error.message);
+    return [];
+  }
+  return ((data || []) as ToolRegistryRow[]).flatMap(row => {
+    const tool = fromRow(row);
+    return tool ? [tool] : [];
+  });
+}
+
 /**
  * The generated tools this request may offer.
  *
@@ -161,6 +219,7 @@ export interface RequestTools {
 export function resolveRequestTools(
   sessionTools: readonly SessionToolSummary[] | undefined,
   published: readonly PublishedTool[],
+  installed: ReadonlyMap<string, InstalledToolPin> = new Map(),
 ): RequestTools {
   const descriptors: ToolDescriptor[] = [];
   const registryByName = new Map<string, PublishedTool>();
@@ -172,10 +231,30 @@ export function resolveRequestTools(
     descriptors.push(sessionToolDescriptor(tool));
   }
 
+  const bySlug = new Map<string, PublishedTool[]>();
   for (const tool of published) {
+    const versions = bySlug.get(tool.slug) ?? [];
+    versions.push(tool);
+    bySlug.set(tool.slug, versions);
+  }
+  const selected: Array<{ tool: PublishedTool; installed: boolean }> = [];
+  const pinnedSlugs = new Set<string>();
+  for (const [slug, pin] of installed) {
+    if (taken.has(slug)) continue;
+    pinnedSlugs.add(slug);
+    const tool = bySlug.get(slug)?.find(candidate => candidate.id === pin.id && candidate.version === pin.version && candidate.digest === pin.digest);
+    // A revoked or mutated pin vanishes. Never silently upgrade executable code.
+    if (tool) selected.push({ tool, installed: true });
+  }
+  for (const tool of latestPerSlug(published)) {
+    if (!taken.has(tool.slug) && !pinnedSlugs.has(tool.slug)) selected.push({ tool, installed: false });
+  }
+
+  for (const { tool, installed: isInstalled } of selected) {
     if (taken.has(tool.slug)) continue;
     taken.add(tool.slug);
-    descriptors.push(registryToolDescriptor(tool));
+    const descriptor = registryToolDescriptor({ ...tool, runtime: toolRuntime(tool.source) });
+    descriptors.push(isInstalled ? { ...descriptor, tier: 'core' } : descriptor);
     registryByName.set(registryToolName(tool.slug), tool);
   }
 

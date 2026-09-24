@@ -9,7 +9,7 @@ import { popupExit } from '../../utils/popupMotion';
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Search, X } from 'lucide-react';
+import { ArrowLeft, BrainCircuit, Check, Search, X } from 'lucide-react';
 import { ContourState, ModuleData } from './moduleRegistry';
 import { MODULE_META } from './moduleRegistry';
 import { ContourCommand, CATEGORY_INFO, groupByCategory } from './modules/commands';
@@ -42,6 +42,7 @@ interface ContourPanelProps {
   onSetTimerDuration?: (seconds: number) => void;
   onCopyValue?: (value: string) => void;
   onBack?: () => void;
+  onSuggestionAccept?: () => void;
 }
 
 interface AccentTheme {
@@ -157,6 +158,7 @@ function ModuleContent({
 export function ContourPanel({
   state, isVisible, onCommandSelect, selectedIndex, persona = 'default',
   onTimerStart, onTimerToggle, onTimerReset, onSetTimerDuration, onCopyValue, onBack,
+  onSuggestionAccept,
 }: ContourPanelProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLButtonElement>(null);
@@ -254,6 +256,43 @@ export function ContourPanel({
                   onTimerReset={onTimerReset}
                   onSetTimerDuration={onSetTimerDuration}
                 />
+              )}
+
+              {state.mode === 'suggestion' && state.suggestion && (
+                <div className="p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 rounded-xl p-2" style={{ background: accent.bg, border: `1px solid ${accent.border}` }}>
+                      <BrainCircuit className={`h-4 w-4 ${accent.text}`} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex items-center gap-2">
+                        <p className="text-sm font-medium text-ink">{state.suggestion.prompt}</p>
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-medium text-ink-muted" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.06)' }}>
+                          Extended
+                        </span>
+                      </div>
+                      <p className="text-xs leading-relaxed text-ink-muted">{state.suggestion.candidate.description}</p>
+                      <div className="mt-4 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={onSuggestionAccept}
+                          className="flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                          style={{ background: accent.solid }}
+                        >
+                          <Check className="h-4 w-4" />
+                          Do it
+                        </button>
+                        <button
+                          type="button"
+                          onClick={onBack}
+                          className="min-h-10 rounded-xl px-4 text-sm font-medium text-ink-muted hover:text-ink"
+                        >
+                          Not now
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* Commands Mode */}

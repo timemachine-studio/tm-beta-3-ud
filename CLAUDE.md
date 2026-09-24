@@ -233,15 +233,15 @@ Server (never `VITE_`-prefixed):
 
 What this means for new code:
 - **Do not add new writes of conversation content to Supabase.** `chat_sessions` and `chat_messages` are being removed.
-- Route all storage through `ChatService`. Several components currently bypass it and import the Supabase functions directly (`ChatHistoryPage`, `ChatHistoryModal`, `App.tsx`) — don't add more.
-- The store is becoming IndexedDB, not `localStorage`. Don't build on the `chatSessions` blob.
+- Route all personal chat storage through `ChatService`; legacy history pages now use the same device repository.
+- The primary store is IndexedDB, not the legacy `localStorage` `chatSessions` blob.
 - **A local-only store makes silent write failures unrecoverable.** There is no cloud copy. Never `catch` a storage error and only `console.error` it.
 
-**Today, signed-in chats still go to Supabase.** `ChatService.saveSession` routes signed-in users to `saveSupabaseSession` and only anonymous users to `localStorage`. The device-only store is the *destination*, not the current state — verify before writing anything that depends on it.
+**Today, signed-in personal chats are device-only.** `ChatService` uses an account-isolated IndexedDB workspace and fails closed when IndexedDB is unavailable. Legacy cloud rows are read once for migration and retained for recovery, but the app no longer writes personal chats there. Guest mode alone retains a legacy `localStorage` fallback when IndexedDB is unavailable.
 
 Two things to keep straight when writing user-facing copy:
 - Local storage of *history* does not make a conversation private — every turn is still sent to a third-party provider to generate the reply. "We don't store your chats" is true; "your messages never leave your device" is not. See LS.1.
-- **The signup form currently promises "Your chats are stored safely in your device only."** That claim is not true until Gate LS ships. It is tracked as a launch blocker in LS.3 — do not ship to production before it is true.
+- The signup promise concerns personal chat history. Group chats remain cloud-backed, and every AI turn still leaves the device for inference; privacy copy should make both boundaries clear.
 
 ## Security rules for this codebase
 

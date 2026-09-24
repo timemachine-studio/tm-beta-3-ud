@@ -41,6 +41,25 @@ describe('selectTools with device apps', () => {
     expect(offered).not.toContain('chats_search');
   });
 
+  it('offers private-skill creation only on explicit intent and readers only when data exists', () => {
+    const empty = names(selectTools({
+      deviceApps: ['private-skills'], deviceDataPresent: [],
+      messages: [{ content: 'save this as a reusable skill', isAI: false }],
+    }));
+    expect(empty).toContain('private_skills_create');
+    expect(empty).not.toContain('private_skills_search');
+
+    const populated = names(selectTools({
+      deviceApps: ['private-skills'], deviceDataPresent: ['private-skills'],
+      messages: [{ content: 'prepare my weekly brief', isAI: false }],
+    }));
+    expect(populated).toEqual(expect.arrayContaining(['private_skills_search', 'private_skills_read']));
+    expect(populated).not.toContain('private_skills_create');
+    // The private device capability must not accidentally enable the separate
+    // server-managed built-in skill library for Air.
+    expect(populated).not.toContain('list_skills');
+  });
+
   it('assumes data is present when the client says nothing about it', () => {
     // An older bundle sends deviceApps but not deviceDataPresent. Withholding
     // readers there would silently remove a capability it does have.

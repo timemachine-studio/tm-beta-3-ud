@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, Globe, Wrench } from 'lucide-react';
 import type { SessionTool } from '../../../shared/toolRegistry';
 import { registryToolName } from '../../../shared/toolRegistry';
+import { publicationQueueStatus, reconcileToolPublication } from '../../services/tools/toolPublicationQueue';
 
 interface CreatedToolCardProps {
   tools: SessionTool[];
 }
 
 /**
- * A tool the assistant just wrote, tested and — if the user is signed in —
- * published for everyone.
+ * A tool the assistant just wrote and tested. Central publication is automatic;
+ * a failure is shown plainly rather than pretending other users can find it.
  *
  * The one thing this has to be honest about is *where the tool went*. A
  * published tool is code every other user's device may now run; a card that
@@ -28,6 +29,34 @@ export function CreatedToolCard({ tools }: CreatedToolCardProps) {
 
 function ToolView({ tool }: { tool: SessionTool }) {
   const [showSource, setShowSource] = useState(false);
+  const [resolvedTool, setResolvedTool] = useState<SessionTool | null>(null);
+  const [queueState, setQueueState] = useState<{ digest: string; status: 'pending' | 'stopped' | null } | null>(null);
+  useEffect(() => {
+    let active = true;
+    void reconcileToolPublication(tool).then(value => { if (active) setResolvedTool(value); });
+    void publicationQueueStatus(tool.digest).then(status => { if (active) setQueueState({ digest: tool.digest, status }); });
+    const onPublished = (event: Event) => {
+      const detail = (event as CustomEvent<{ digest: string; id: string; version: number }>).detail;
+      if (detail?.digest === tool.digest) setResolvedTool({ ...tool, published: true, registryId: detail.id, version: detail.version });
+    };
+    const onStopped = (event: Event) => {
+      const detail = (event as CustomEvent<{ digest: string }>).detail;
+      if (detail?.digest === tool.digest) setQueueState({ digest: tool.digest, status: 'stopped' });
+    };
+    window.addEventListener('tm:tool-published', onPublished);
+    window.addEventListener('tm:tool-publication-stopped', onStopped);
+    return () => {
+      active = false;
+      window.removeEventListener('tm:tool-published', onPublished);
+      window.removeEventListener('tm:tool-publication-stopped', onStopped);
+    };
+  }, [tool]);
+  const displayTool = !tool.published && resolvedTool?.digest === tool.digest ? resolvedTool : tool;
+  const publicationLabel = queueState?.digest === tool.digest && queueState.status === 'pending'
+    ? 'Central save queued · retrying automatically'
+    : queueState?.digest === tool.digest && queueState.status === 'stopped'
+      ? 'Central save refused · usable in this chat only'
+      : 'Central save not confirmed · usable in this chat only';
   const parameterNames = Object.keys((tool.parameters as { properties?: Record<string, unknown> }).properties ?? {});
 
   return (
@@ -48,9 +77,9 @@ function ToolView({ tool }: { tool: SessionTool }) {
           </p>
           <p className="truncate text-[11px] text-white/40">{tool.summary}</p>
           <p className="mt-0.5 flex items-center gap-1 text-[11px] text-white/45">
-            {tool.published
-              ? <><Globe className="h-3 w-3" /> Published to the shared TimeMachine registry · v{tool.version}</>
-              : 'Kept in this chat only'}
+            {displayTool.published
+              ? <><Globe className="h-3 w-3" /> Published to the shared TimeMachine registry · v{displayTool.version}</>
+              : publicationLabel}
           </p>
         </div>
         <ChevronDown

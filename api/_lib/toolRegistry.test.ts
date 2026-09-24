@@ -3,6 +3,7 @@ import {
   CREATE_TOOL_NAME,
   MAX_SESSION_TOOLS,
   buildToolRunProgram,
+  composedSource,
   importedModules,
   isRegistryToolName,
   registryToolDescriptor,
@@ -106,6 +107,12 @@ describe('spec validation', () => {
     expect(parseToolSpec({ ...spec, tests: [] }).ok).toBe(false);
   });
 
+  it('refuses generated code that can escape into networks, processes or dynamic evaluation', () => {
+    expect(parseToolSpec({ ...spec, source: 'import requests\ndef main(): return requests.get("https://example.com").text' }).ok).toBe(false);
+    expect(parseToolSpec({ ...spec, source: 'import subprocess\ndef main(): return subprocess.run(["pwd"])' }).ok).toBe(false);
+    expect(parseToolSpec({ ...spec, source: 'def main(code): return eval(code)' }).ok).toBe(false);
+  });
+
   it('bounds the row on the way out of the registry exactly as on the way in', () => {
     expect(parsePublishedTool(published())).not.toBeNull();
     expect(parsePublishedTool(published({ digest: 'md5:nope' }))).toBeNull();
@@ -203,6 +210,36 @@ describe('on the catalogue', () => {
     expect(registryByName.has('tm__other_tool')).toBe(true);
   });
 
+  it('keeps an installed tool on its exact immutable version and makes it core', () => {
+    const v1 = published();
+    const v2 = published({ id: 'row-2', version: 2, digest: 'sha256:' + 'b'.repeat(64) });
+    const pins = new Map([[spec.slug, { id: v1.id, version: v1.version, digest: v1.digest }]]);
+    const { descriptors, registryByName } = resolveRequestTools([], [v2, v1], pins);
+
+    expect(descriptors).toHaveLength(1);
+    expect(descriptors[0]).toMatchObject({ name: 'tm__unit_convert', tier: 'core' });
+    expect(registryByName.get('tm__unit_convert')).toMatchObject({ id: 'row-1', version: 1 });
+  });
+
+  it('withholds a revoked or mutated installed version instead of silently upgrading it', () => {
+    const v2 = published({ id: 'row-2', version: 2, digest: 'sha256:' + 'b'.repeat(64) });
+    const missingPin = new Map([[spec.slug, { id: 'revoked-row', version: 1, digest: published().digest }]]);
+    const resolved = resolveRequestTools([], [v2], missingPin);
+
+    expect(resolved.descriptors).toEqual([]);
+    expect(resolved.registryByName.size).toBe(0);
+  });
+
+  it('lets a conversation-local tool shadow an installed version', () => {
+    const v1 = published();
+    const pins = new Map([[spec.slug, { id: v1.id, version: v1.version, digest: v1.digest }]]);
+    const resolved = resolveRequestTools([sessionToolSummary(spec)], [v1], pins);
+
+    expect(resolved.descriptors).toHaveLength(1);
+    expect(resolved.descriptors[0]).toMatchObject({ name: 'tm__unit_convert', tier: 'core' });
+    expect(resolved.registryByName.size).toBe(0);
+  });
+
   it('bounds session tools and keeps one version per slug', () => {
     const many = Array.from({ length: MAX_SESSION_TOOLS + 2 }, (_, i) => sessionToolSummary({ ...spec, slug: `tool_${i}` }));
     expect(resolveRequestTools(many, []).descriptors).toHaveLength(MAX_SESSION_TOOLS);
@@ -229,17 +266,33 @@ describe('the suspension frame', () => {
 });
 
 describe('create_tool', () => {
+  it('offers composed creation only to a client that declares the new executor', () => {
+    const message = userTurn('compose a tool to search notes and chats');
+    const oldClient = selectToolSet({ deviceApps: ['notes', 'chats', 'python'], userIsAuthenticated: true, messages: message });
+    const newClient = selectToolSet({ deviceApps: ['notes', 'chats', 'composed-tools'], userIsAuthenticated: true, messages: message });
+    expect([...names(oldClient.tools), ...oldClient.findable.map(tool => tool.name)]).not.toContain('create_composed_tool');
+    expect([...names(newClient.tools), ...newClient.findable.map(tool => tool.name)]).toContain('create_composed_tool');
+    const composed = { ...spec, source: composedSource([{ tool: 'notes_search', arguments: { query: '$input.value' } }]) };
+    expect(parseToolSpec(composed).ok).toBe(true);
+    const descriptor = registryToolDescriptor({ ...composed, runtime: 'composed' });
+    expect(descriptor.requires).toContain('composed-tools');
+  });
+  it('does not offer central tool creation to an anonymous chat', () => {
+    const set = selectToolSet({ deviceApps: ['python'], messages: userTurn('make me a reusable tool') });
+    expect(names(set.tools)).not.toContain(CREATE_TOOL_NAME);
+    expect(set.findable.map(tool => tool.name)).not.toContain(CREATE_TOOL_NAME);
+  });
   it('is gated on asking for a tool, and findable otherwise', () => {
-    const asked = selectToolSet({ deviceApps: ['python'], messages: userTurn('make me a tool that converts bangla dates') });
+    const asked = selectToolSet({ deviceApps: ['python'], userIsAuthenticated: true, messages: userTurn('make me a tool that converts bangla dates') });
     expect(names(asked.tools)).toContain(CREATE_TOOL_NAME);
 
-    const plain = selectToolSet({ deviceApps: ['python'], messages: userTurn('what is 17 * 23') });
+    const plain = selectToolSet({ deviceApps: ['python'], userIsAuthenticated: true, messages: userTurn('what is 17 * 23') });
     expect(names(plain.tools)).not.toContain(CREATE_TOOL_NAME);
     expect(plain.findable.map(d => d.name)).toContain(CREATE_TOOL_NAME);
   });
 
   it('is granted by a find_tools miss, and never ranked by a find_tools hit', async () => {
-    const set = selectToolSet({ deviceApps: ['python'], messages: userTurn('hello') });
+    const set = selectToolSet({ deviceApps: ['python'], userIsAuthenticated: true, messages: userTurn('hello') });
     const policy = createToolPolicy({ offered: names(set.tools) });
     const ctx = { persona: 'default', policy, findable: set.findable };
 
@@ -258,8 +311,9 @@ describe('create_tool', () => {
       { id: '3', function: { name: 'find_tools', arguments: JSON.stringify({ query: 'bengali numerals' }) } },
       { ...ctx, policy: outright }, silentEmitter,
     );
-    expect(nothing).toContain('create_tool is available now');
-    expect(outright.granted.map(tool => tool.function.name)).toEqual([CREATE_TOOL_NAME]);
+    expect(nothing).toContain('use create_tool');
+    expect(outright.granted.map(tool => tool.function.name)).toContain(CREATE_TOOL_NAME);
+    expect(outright.granted.map(tool => tool.function.name)).not.toContain('create_composed_tool');
 
     // "tool" is in create_tool's name and summary; a query for a web page
     // reader must still find the reader, not the tool-maker.
@@ -270,6 +324,43 @@ describe('create_tool', () => {
     );
     expect(hit).toContain('web_fetch');
     expect(fresh.granted.map(tool => tool.function.name)).not.toContain(CREATE_TOOL_NAME);
+  });
+});
+
+describe('on-demand registry discovery', () => {
+  it('searches beyond the initial shortlist and loads the matching schema', async () => {
+    const set = selectToolSet({
+      deviceApps: ['python'], hasSearchableRegistry: true,
+      messages: userTurn('I need a very specific conversion'),
+    });
+    expect(names(set.tools)).toContain('find_tools');
+    const policy = createToolPolicy({ offered: names(set.tools) });
+    const queries: string[] = [];
+    const answer = await executeTool(
+      { id: 'search', function: { name: 'find_tools', arguments: '{"query":"unit converter"}' } },
+      {
+        persona: 'default', policy, findable: set.findable,
+        searchRegistry: async query => {
+          queries.push(query);
+          return [registryToolDescriptor(published())];
+        },
+      },
+      silentEmitter,
+    );
+    expect(queries).toEqual(['unit converter']);
+    expect(answer).toContain('tm__unit_convert');
+    expect(policy.granted.map(tool => tool.function.name)).toContain('tm__unit_convert');
+  });
+});
+
+describe('publish_tool', () => {
+  it('stays directly available for explicit publish requests that name the tool', () => {
+    const set = selectToolSet({
+      deviceApps: ['python'],
+      userIsAuthenticated: true,
+      messages: userTurn('Publish the reading_time_estimator tool to the shared TimeMachine registry now.'),
+    });
+    expect(names(set.tools)).toContain('publish_tool');
   });
 });
 

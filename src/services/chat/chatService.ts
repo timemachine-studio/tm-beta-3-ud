@@ -16,7 +16,16 @@ import { AI_PERSONAS } from '../../config/constants';
 import { newId } from '../../utils/id';
 import { pythonRunsForStorage } from '../python/pythonResult';
 import type { MaxModeKind } from '../../../shared/maxMode';
-import type { Json, ChatSession as SessionRow, ChatMessage as MessageRow } from '../../types/database';
+import type { ChatSession as SessionRow, ChatMessage as MessageRow } from '../../types/database';
+import {
+  chatWorkspace,
+  deleteDeviceSession,
+  listDeviceSessions,
+  readHistoryMeta,
+  writeDeviceSession,
+  writeDeviceSessions,
+  writeHistoryMeta,
+} from './chatDeviceRepository';
 
 export interface ChatSession {
   id: string;
@@ -70,59 +79,6 @@ function dbRowToSession(row: SessionRow, messages: Message[]): ChatSession {
     persona: row.persona as keyof typeof AI_PERSONAS,
     createdAt: row.created_at,
     lastModified: row.updated_at,
-  };
-}
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Convert Message to database format. The row carries the message's own id so
-// a save is an upsert by id rather than a wipe-and-rewrite (A.4). Ids that
-// predate 1.12 are numeric strings, not uuids; those rows get a fresh id and
-// the message takes it on the next load.
-/** Postgres: the row violates a row-level security policy. */
-const RLS_DENIED = '42501';
-
-let updatePolicyWarned = false;
-function warnUpdatePolicyMissing() {
-  if (updatePolicyWarned) return;
-  updatePolicyWarned = true;
-  console.warn(
-    'chat_messages has no UPDATE policy for the owner, so saving an existing message is refused. '
-    + 'Apply supabase/migrations/chat_messages_update_policy.sql. New messages are still being saved.',
-  );
-}
-
-function messageToDbRow(message: Message, sessionId: string, userId: string) {
-  return {
-    id: UUID.test(message.id) ? message.id : newId(),
-    session_id: sessionId,
-    user_id: userId,
-    role: message.isAI ? 'assistant' : 'user',
-    content: message.content,
-    images: message.inputImageUrls
-      || (message.imageData ? (Array.isArray(message.imageData) ? message.imageData : [message.imageData]) : null),
-    audio_url: message.audioUrl || null,
-    reasoning: message.thinking || null,
-    metadata: {
-      hasAnimated: message.hasAnimated,
-      imageDimensions: message.imageDimensions,
-      specialMode: message.specialMode || null,
-      musicVariations: message.musicVariations || null,
-      mcpApproval: message.mcpApproval || null,
-      // A failed turn has to come back as a failed turn, or reopening the chat
-      // shows a blank bubble where the Retry row was (1.10).
-      status: message.status || null,
-      errorCode: message.errorCode || null,
-      partialContent: message.partialContent || null,
-      appObjects: message.appObjects || null,
-      pythonRuns: messageForStorage(message).pythonRuns || null,
-      attachments: message.attachments || null,
-      createdTools: message.createdTools || null,
-      harnessActions: message.harnessActions || null,
-    } as unknown as Json,
-    // Ordering is by created_at, and ids are no longer timestamps (1.12),
-    // so the message has to carry its own clock.
-    created_at: message.createdAt || new Date().toISOString(),
   };
 }
 
@@ -226,10 +182,10 @@ export function deleteLocalSession(sessionId: string): void {
 }
 
 // ============================================
-// SUPABASE FUNCTIONS (for logged in users)
+// LEGACY SUPABASE READ (one-time device migration only)
 // ============================================
 
-export async function getSupabaseSessions(userId: string): Promise<ChatSession[]> {
+export async function getSupabaseSessions(userId: string, throwOnError = false): Promise<ChatSession[]> {
   try {
     const { data: sessions, error } = await supabase
       .from('chat_sessions')
@@ -251,6 +207,7 @@ export async function getSupabaseSessions(userId: string): Promise<ChatSession[]
 
         if (msgError) {
           console.error('Error fetching messages:', msgError);
+          if (throwOnError) throw msgError;
           return dbRowToSession(session, []);
         }
 
@@ -270,174 +227,9 @@ export async function getSupabaseSessions(userId: string): Promise<ChatSession[]
     return sessionsWithMessages;
   } catch (error) {
     console.error('Error fetching Supabase sessions:', error);
+    if (throwOnError) throw error;
     return [];
   }
-}
-
-// Keep track of active saves to prevent concurrent saves for the same session ID
-const saveQueues = new Map<string, Promise<string | null>>();
-
-export async function saveSupabaseSession(
-  session: ChatSession,
-  userId: string
-): Promise<string | null> {
-  const sessionId = session.id;
-  
-  // Get the existing promise queue for this session or a resolved promise if none exists
-  const existingQueue = saveQueues.get(sessionId) || Promise.resolve();
-  
-  // Define the save operation
-  const performSave = async (): Promise<string | null> => {
-    try {
-      // Use upsert to handle both insert and update in one operation
-      const { data: savedSession, error: sessionError } = await supabase
-        .from('chat_sessions')
-        .upsert({
-          id: session.id,
-          user_id: userId,
-          name: session.name,
-          persona: session.persona,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'id'
-        })
-        .select()
-        .single();
-
-      if (sessionError) {
-        console.error('Error upserting session:', sessionError);
-        throw sessionError;
-      }
-
-      const activeSessionId = savedSession?.id || session.id;
-
-      const validMessages = session.messages.filter(isPersistable);
-
-      if (validMessages.length === 0) {
-        return activeSessionId;
-      }
-
-      // Upsert first, delete after — never the other way round. The previous
-      // strategy deleted every row of the session and re-inserted the lot, so
-      // an insert that failed (network, RLS, an oversized row) left the chat
-      // empty in the database with nothing but a console.error to show for it
-      // (pre-launch-audit.md A.4). Now the rows are written by id; only once
-      // that has succeeded are rows the client no longer has removed.
-      const rows = validMessages.map(msg => messageToDbRow(msg, activeSessionId, userId));
-      let { error: upsertError } = await supabase
-        .from('chat_messages')
-        .upsert(rows, { onConflict: 'id' });
-      if (upsertError && upsertError.code === RLS_DENIED) {
-        // The project has no UPDATE policy on chat_messages: the insert half
-        // of the upsert is allowed, the update half is refused, so every save
-        // after a chat's first one failed here. The fix is the migration in
-        // supabase/migrations/chat_messages_update_policy.sql; until it is
-        // applied, land the new rows (ON CONFLICT DO NOTHING never reaches
-        // the update policy) so the conversation itself is never lost. A row
-        // already stored keeps its earlier version until the policy exists.
-        warnUpdatePolicyMissing();
-        ({ error: upsertError } = await supabase
-          .from('chat_messages')
-          .upsert(rows, { onConflict: 'id', ignoreDuplicates: true }));
-      }
-      if (upsertError) {
-        console.error('Error saving messages:', upsertError);
-        throw upsertError;
-      }
-
-      const keep = new Set(rows.map(row => row.id));
-      const { data: existing, error: fetchError } = await supabase
-        .from('chat_messages')
-        .select('id')
-        .eq('session_id', activeSessionId);
-      if (fetchError) {
-        // The messages are saved; only the prune of stale rows is skipped.
-        console.error('Error listing existing messages:', fetchError);
-        return activeSessionId;
-      }
-      const stale = (existing || []).map(row => String(row.id)).filter(id => !keep.has(id));
-      if (stale.length > 0) {
-        const { error: deleteError } = await supabase
-          .from('chat_messages')
-          .delete()
-          .in('id', stale);
-        if (deleteError) console.error('Error pruning stale messages:', deleteError);
-      }
-
-      return activeSessionId;
-    } catch (error) {
-      console.error('Error saving Supabase session:', error);
-      return null;
-    }
-  };
-  
-  // Chain the new save operation to the queue
-  const nextQueue = existingQueue.then(performSave);
-  saveQueues.set(sessionId, nextQueue);
-  
-  // Clean up the queue entry once complete to prevent memory accumulation
-  nextQueue.finally(() => {
-    if (saveQueues.get(sessionId) === nextQueue) {
-      saveQueues.delete(sessionId);
-    }
-  });
-  
-  return nextQueue;
-}
-
-export async function deleteSupabaseSession(sessionId: string): Promise<boolean> {
-  try {
-    // Messages will be deleted automatically due to CASCADE
-    const { error } = await supabase
-      .from('chat_sessions')
-      .delete()
-      .eq('id', sessionId);
-
-    return !error;
-  } catch (error) {
-    console.error('Error deleting Supabase session:', error);
-    return false;
-  }
-}
-
-export async function renameSupabaseSession(sessionId: string, newName: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('chat_sessions')
-      .update({ name: newName })
-      .eq('id', sessionId);
-
-    return !error;
-  } catch (error) {
-    console.error('Error renaming Supabase session:', error);
-    return false;
-  }
-}
-
-// ============================================
-// MIGRATION FUNCTION
-// ============================================
-
-// Migrate local sessions to Supabase when user logs in
-export async function migrateLocalSessionsToSupabase(userId: string): Promise<number> {
-  const localSessions = getLocalSessions();
-  if (localSessions.length === 0) return 0;
-
-  let migratedCount = 0;
-
-  for (const session of localSessions) {
-    const result = await saveSupabaseSession(session, userId);
-    if (result) {
-      migratedCount++;
-    }
-  }
-
-  // Clear local storage after successful migration
-  if (migratedCount > 0) {
-    localStorage.removeItem('chatSessions');
-  }
-
-  return migratedCount;
 }
 
 // ============================================
@@ -454,6 +246,7 @@ export class ChatService {
   private mutations = new Map<string, Promise<unknown>>();
   private covering = new Map<string, Promise<ChatCardMeta | null>>();
   private coverAttempts = new Map<string, number>();
+  private preparedWorkspaces = new Set<string>();
 
   private mutate<T>(id: string, work: () => Promise<T>): Promise<T> {
     const result = (this.mutations.get(id) ?? Promise.resolve()).catch(() => undefined).then(work);
@@ -473,11 +266,62 @@ export class ChatService {
     this.userId = userId;
   }
 
-  async getSessions(): Promise<ChatSession[]> {
-    if (this.userId) {
-      return getSupabaseSessions(this.userId);
+  /** Reset process-local caches without touching persisted data. Test-only. */
+  resetForTests(): void {
+    this.userId = null;
+    this.archiveKnown = null;
+    this.titles.clear();
+    this.naming.clear();
+    this.revisions.clear();
+    this.mutations.clear();
+    this.covering.clear();
+    this.coverAttempts.clear();
+    this.preparedWorkspaces.clear();
+  }
+
+  /**
+   * Move legacy history onto this device once. Guest localStorage is removed
+   * only after the IndexedDB transaction verifies. Existing signed-in cloud
+   * history is downloaded into the account-isolated workspace and left in
+   * Supabase as a recovery copy; no new cloud writes happen on this path.
+   */
+  private async prepareDeviceHistory(): Promise<void> {
+    const userId = this.userId;
+    const workspace = chatWorkspace(userId);
+    if (this.preparedWorkspaces.has(workspace) || typeof indexedDB === 'undefined') return;
+
+    if (userId) {
+      const marker = `legacy-cloud-import:v1:${userId}`;
+      if (!await readHistoryMeta(marker)) {
+        const cloud = await getSupabaseSessions(userId, true);
+        await writeDeviceSessions(workspace, cloud);
+        await writeHistoryMeta(marker, new Date().toISOString());
+      }
+    } else {
+      const marker = 'legacy-localstorage-import:v1:guest';
+      if (!await readHistoryMeta(marker)) {
+        const legacy = getLocalSessions();
+        await writeDeviceSessions(workspace, legacy);
+        const imported = await listDeviceSessions(workspace);
+        const expected = new Set(legacy.map(session => session.id));
+        if ([...expected].every(id => imported.some(session => session.id === id))) {
+          await writeHistoryMeta(marker, new Date().toISOString());
+          localStorage.removeItem('chatSessions');
+        } else {
+          throw new Error('chat_history_migration_verification_failed');
+        }
+      }
     }
-    return getLocalSessions();
+    this.preparedWorkspaces.add(workspace);
+  }
+
+  async getSessions(): Promise<ChatSession[]> {
+    if (typeof indexedDB === 'undefined') {
+      if (this.userId) throw new Error('device_history_unavailable');
+      return getLocalSessions();
+    }
+    await this.prepareDeviceHistory();
+    return listDeviceSessions(chatWorkspace(this.userId));
   }
 
   /**
@@ -491,10 +335,16 @@ export class ChatService {
     await this.mutate(session.id, async () => {
       if (this.userId !== userId) throw new Error('chat_account_changed');
       const snapshot = { ...session, name: this.titles.get(session.id) ?? session.name };
-      if (userId) {
-        const saved = await saveSupabaseSession(snapshot, userId);
-        if (!saved) throw new Error('chat_save_failed');
-      } else saveLocalSession(snapshot);
+      if (typeof indexedDB === 'undefined') {
+        if (userId) throw new Error('device_history_unavailable');
+        saveLocalSession(snapshot);
+        return;
+      }
+      await this.prepareDeviceHistory();
+      await writeDeviceSession(chatWorkspace(userId), {
+        ...snapshot,
+        messages: snapshot.messages.filter(isPersistable).map(messageForStorage),
+      });
     });
   }
 
@@ -503,9 +353,13 @@ export class ChatService {
     const userId = this.userId;
     return this.mutate(sessionId, async () => {
       if (userId !== this.userId) return false;
-      if (userId) {
-        if (!await deleteSupabaseSession(sessionId)) return false;
-      } else deleteLocalSession(sessionId);
+      if (typeof indexedDB === 'undefined') {
+        if (userId) throw new Error('device_history_unavailable');
+        deleteLocalSession(sessionId);
+      } else {
+        await this.prepareDeviceHistory();
+        await deleteDeviceSession(chatWorkspace(userId), sessionId);
+      }
       await deleteCard(sessionId);
       this.titles.delete(sessionId);
       return true;
@@ -524,18 +378,21 @@ export class ChatService {
   }
 
   private async persistName(sessionId: string, newName: string): Promise<boolean> {
-    if (this.userId) {
-      return renameSupabaseSession(sessionId, newName);
-    }
-    // For local storage
-    const sessions = getLocalSessions();
-    const session = sessions.find(s => s.id === sessionId);
-    if (session) {
+    if (typeof indexedDB === 'undefined') {
+      if (this.userId) throw new Error('device_history_unavailable');
+      const sessions = getLocalSessions();
+      const session = sessions.find(s => s.id === sessionId);
+      if (!session) return false;
       session.name = newName;
       localStorage.setItem('chatSessions', JSON.stringify(sessions));
       return true;
     }
-    return false;
+    await this.prepareDeviceHistory();
+    const workspace = chatWorkspace(this.userId);
+    const session = (await listDeviceSessions(workspace)).find(candidate => candidate.id === sessionId);
+    if (!session) return false;
+    await writeDeviceSession(workspace, { ...session, name: newName, lastModified: new Date().toISOString() });
+    return true;
   }
 
   // ─── History cards ─────────────────────────────────────────────────────
@@ -670,6 +527,7 @@ export class ChatService {
   // caller never has to know which one a given user is on.
 
   async listChats(options?: { limit?: number; after?: string; before?: string }): Promise<ChatSummary[]> {
+    await this.prepareDeviceHistory();
     return listChatSummaries(this.userId, options);
   }
 
@@ -677,10 +535,12 @@ export class ChatService {
     query: string,
     options?: { limit?: number; after?: string; before?: string; excludeChatId?: string },
   ): Promise<ChatSearchHit[]> {
+    await this.prepareDeviceHistory();
     return searchChatArchive(this.userId, query, options);
   }
 
   async readChat(chatId: string, options?: { offset?: number; limit?: number }): Promise<ChatTranscript | null> {
+    await this.prepareDeviceHistory();
     return readChatTranscript(this.userId, chatId, options);
   }
 
@@ -690,15 +550,15 @@ export class ChatService {
    */
   async hasArchive(excludeChatId?: string): Promise<boolean> {
     if (this.archiveKnown !== null) return this.archiveKnown;
+    await this.prepareDeviceHistory();
     this.archiveKnown = await hasArchivedChats(this.userId, excludeChatId);
     return this.archiveKnown;
   }
 
   async migrateOnLogin(): Promise<number> {
-    if (this.userId) {
-      return migrateLocalSessionsToSupabase(this.userId);
-    }
-    return 0;
+    if (!this.userId || typeof indexedDB === 'undefined') return 0;
+    await this.prepareDeviceHistory();
+    return (await listDeviceSessions(chatWorkspace(this.userId))).length;
   }
 }
 

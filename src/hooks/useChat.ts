@@ -23,6 +23,12 @@ import {
 } from '../services/groupChat/groupChatService';
 import { GroupChatParticipant } from '../types/groupChat';
 import { newId } from '../utils/id';
+import { beginRun, reconcileInterruptedRuns, recordRunEvent, settleRun } from '../services/agent/runLedger';
+import { parseDeterministicTimerIntent } from '../services/agent/deterministicActions';
+import { controlTimer, startTimer } from '../services/timer/timerRepository';
+import { privateSkillRepository } from '../services/skills/privateSkillRepository';
+import { stripPrivateModelMarkup } from '../../shared/modelOutput';
+import { retryQueuedToolPublications } from '../services/tools/toolPublicationQueue';
 
 // Format collaborative messages as dialogue for AI context
 // Bundles consecutive user messages between AI responses
@@ -90,11 +96,15 @@ function extractEmotion(content: string): string | null {
 }
 
 function cleanContent(content: string): string {
-  const emotion = extractEmotion(content);
+  const withoutPrivateContext = stripPrivateModelMarkup(content
+    .replace(/<tm_objects\b[^>]*>[\s\S]*?<\/tm_objects>/gi, '')
+    // Compatibility for the first development build of object context.
+    .replace(/\[TimeMachine objects created or changed on this turn;[^\]]*\]/gi, ''));
+  const emotion = extractEmotion(withoutPrivateContext);
   if (emotion) {
-    return content.replace(/<emotion>[a-z]+<\/emotion>/i, '').replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
+    return withoutPrivateContext.replace(/<emotion>[a-z]+<\/emotion>/i, '').replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
   }
-  return content.replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
+  return withoutPrivateContext.replace(/<(reason|think)>[\s\S]*?<\/\1>/gi, '').trim();
 }
 
 /**
@@ -173,6 +183,9 @@ export function useChat(
 
   // In-flight generation, so Stop / unmount / switching chats can cancel it (1.5).
   const abortControllerRef = useRef<AbortController | null>(null);
+  const activeRunIdRef = useRef<string | null>(null);
+
+  useEffect(() => { void reconcileInterruptedRuns(); }, []);
 
   // The assistant placeholder the in-flight turn is writing into, and the
   // turns the user has stopped. Stop has to be authoritative in the UI on its
@@ -204,7 +217,22 @@ export function useChat(
   // fail — and did, raising the "couldn't be saved" banner after every turn.
   // It keeps its chats on the device, like an anonymous visitor.
   useEffect(() => {
-    chatService.setUserId(DEV_MOCK_AUTH ? null : (userId || null));
+    const scopedUserId = DEV_MOCK_AUTH ? null : (userId || null);
+    chatService.setUserId(scopedUserId);
+    privateSkillRepository.setUserId(scopedUserId);
+  }, [userId]);
+
+  useEffect(() => {
+    const ownerId = DEV_MOCK_AUTH ? null : (userId || null);
+    if (!ownerId) return;
+    const retry = () => { void retryQueuedToolPublications(ownerId); };
+    retry();
+    window.addEventListener('online', retry);
+    const interval = window.setInterval(retry, 60_000);
+    return () => {
+      window.removeEventListener('online', retry);
+      window.clearInterval(interval);
+    };
   }, [userId]);
 
   // Set theme based on persona
@@ -909,13 +937,18 @@ export function useChat(
     void _ignored;
 
     const persona = ctx.persona as keyof typeof AI_PERSONAS;
+    // The user message survives Retry; the assistant placeholder does not.
+    // Using it as the run id makes every retry one logical action.
+    const runId = userTurn?.id ?? aiMessageId;
+    activeRunIdRef.current = runId;
+    await beginRun({ id: runId, sessionId: sessionId || 'unsaved', assistantMessageId: aiMessageId });
     const userMemoryContext: UserMemoryContext | undefined = profile ? {
       nickname: profile.nickname || undefined,
       about_me: profile.about_me || undefined
     } : undefined;
 
     setIsLoading(true);
-    setLoadingPhase(ctx.inputImageUrls?.length || ctx.imageData ? 'analyzing_photo' : 'thinking');
+    setLoadingPhase(ctx.inputImageUrls?.length || ctx.imageData ? 'analyzing_photo' : 'Understanding your request');
     setStreamingMessageId(aiMessageId);
     streamingMessageIdRef.current = aiMessageId;
     isStreamingRef.current = true;
@@ -967,6 +1000,8 @@ export function useChat(
           }
 
           setLoadingPhase(null);
+          void settleRun(runId, 'completed', 'Completed');
+          if (activeRunIdRef.current === runId) activeRunIdRef.current = null;
           abortControllerRef.current = null;
           // The turn made it to the end; nothing is left to continue.
           if (ctx.maxMode && sessionId) forgetHarnessResume(sessionId, userTurn ? harnessTurnKey(userTurn) : undefined);
@@ -976,6 +1011,8 @@ export function useChat(
         (error) => {
           if (approvalReceived || wasStopped()) return;
           console.error('Failed to generate streaming response:', error.message);
+          void settleRun(runId, error instanceof ChatError && error.code === 'ABORTED' ? 'cancelled' : 'failed', error.message || 'Failed');
+          if (activeRunIdRef.current === runId) activeRunIdRef.current = null;
 
           // Every failure — rate limit included — now lands as an inline
           // bubble on the turn that failed. The modal it used to raise was a
@@ -995,6 +1032,8 @@ export function useChat(
         (status) => {
           if (wasStopped()) return;
           setLoadingPhase(status as LoadingPhase);
+          const runStatus = status.startsWith('Looking for') ? 'discovering' : status === 'thinking' ? 'verifying' : 'executing';
+          void recordRunEvent(runId, runStatus, status);
         },
         ctx.pdfData,
         ctx.pdfFileName,
@@ -1039,8 +1078,9 @@ export function useChat(
           // project context.
           deviceApps: persona === 'pro' && ctx.maxMode && !collaborative
             ? harnessDeviceApps()
-            : ['notes', 'chats', 'python'],
+            : ['notes', 'chats', 'timer', 'private-skills', 'python', 'composed-tools'],
           currentChatSessionId: !collaborative ? sessionId : undefined,
+          runId,
           onAppObject: (object) => {
             if (wasStopped()) return;
             isDirtyRef.current = true;
@@ -1161,6 +1201,8 @@ export function useChat(
       setLoadingPhase(null);
       abortControllerRef.current = null;
       completeStreamingMessageRef.current(aiMessageId, cleanedContent, aiResponse.thinking, undefined, sessionId);
+      void settleRun(runId, 'completed', 'Completed');
+      if (activeRunIdRef.current === runId) activeRunIdRef.current = null;
     } catch (error) {
       if (wasStopped()) return;
       console.error('Failed to generate response:', error instanceof Error ? error.message : error);
@@ -1283,6 +1325,53 @@ export function useChat(
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     setError(null);
+
+    // Obvious bounded actions are deterministic. They should not wait 20–60
+    // seconds for a model to rediscover a capability the product already
+    // understands, and a model cannot "decide" to claim success without the
+    // executor running. Ambiguous wording still falls through to the agent.
+    const timerIntent = !collaborative && !specialMode && !imageData && !pdfData && !attachments?.length
+      ? parseDeterministicTimerIntent(messageContent)
+      : null;
+    if (timerIntent) {
+      const aiMessageId = newId();
+      const runId = userMessage.id;
+      await beginRun({ id: runId, sessionId: latest.current.currentSessionId || 'unsaved', assistantMessageId: aiMessageId });
+      await recordRunEvent(runId, 'executing', timerIntent.kind === 'start' ? 'Starting your timer' : 'Updating your timer', timerIntent.kind === 'start' ? 'timer_start' : 'timer_control');
+      const timer = timerIntent.kind === 'start'
+        ? await startTimer(timerIntent.amount * (timerIntent.unit === 'hours' ? 3_600_000 : timerIntent.unit === 'minutes' ? 60_000 : 1_000), timerIntent.label)
+        : await controlTimer(undefined, timerIntent.action);
+      const content = timer
+        ? timerIntent.kind === 'start'
+          ? `Timer started for ${timerIntent.amount} ${timerIntent.unit}.`
+          : `${timer.label} ${timer.status === 'cancelled' ? 'cancelled' : timer.status}.`
+        : 'I could not find an active timer to update.';
+      const aiMessage: Message = {
+        id: aiMessageId,
+        createdAt: new Date(Date.parse(userMessage.createdAt ?? '') + 1 || Date.now()).toISOString(),
+        content,
+        isAI: true,
+        status: 'complete',
+        hasAnimated: false,
+        ...(timer ? { appObjects: [{
+          kind: 'timer' as const,
+          id: timer.id,
+          title: timer.label,
+          action: timerIntent.kind === 'start' ? 'started' as const : 'updated' as const,
+          status: timer.status,
+          deadlineAt: timer.deadlineAt,
+          durationMs: timer.durationMs,
+        }] } : {}),
+      };
+      const updated = [...currentMessages, userMessage, aiMessage];
+      setMessages(updated);
+      setIsLoading(false);
+      await settleRun(runId, 'completed', timer ? 'Timer updated' : 'No active timer found');
+      if (!collaborative && latest.current.currentSessionId) {
+        await saveChatSessionRef.current(latest.current.currentSessionId, updated, messagePersona, true);
+      }
+      return;
+    }
 
     // If in collaborative mode, sync user message to group_chat_messages table
     if (collaborative && collabId && uid && profile?.nickname) {
@@ -1452,6 +1541,10 @@ export function useChat(
     if (!aiMessageId && !controller) return;
 
     if (aiMessageId) stoppedTurnsRef.current.add(aiMessageId);
+    if (activeRunIdRef.current) {
+      void settleRun(activeRunIdRef.current, 'cancelled', 'Stopped by the user');
+      activeRunIdRef.current = null;
+    }
     controller?.abort();
     abortControllerRef.current = null;
 

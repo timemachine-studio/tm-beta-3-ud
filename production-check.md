@@ -9,7 +9,7 @@
 
 ## ✅ Remaining work — the running tracker
 
-**Last updated:** 2026-09-09 · **Gate 0:** code complete, pending one manual step. · **Gate 1:** complete.
+**Last updated:** 2026-09-23 · **Gate 0:** database controls applied; remaining owner decisions are listed below. · **Gate 1:** complete.
 
 Keep this table current. When a task closes, strike it here *and* mark its section below.
 
@@ -19,7 +19,7 @@ These are not code. They block launch and none of them can be handed to an agent
 
 | # | What | When | Status |
 |---|---|---|---|
-| 0.4a | **Run `supabase/migrations/rate_limits_rls.sql`** in the Supabase SQL editor. Until then `rate_limits` is still readable with the public anon key. **After applying, `SUPABASE_SERVICE_ROLE_KEY` becomes mandatory in every environment incl. local dev** — without it every request 503s. | **Now.** Last thing standing between here and Gate 0 green. | ⬜ |
+| 0.4a | ~~Run `supabase/migrations/rate_limits_rls.sql` in production.~~ The RLS migration and atomic `bump_rate_limit` RPC are applied to project `etpehiyzlkhknzceizar`; service-role configuration is present locally. | — | ✅ **Done 2026-09-22.** |
 | 0.7a | **Rotate every provider key** that has ever sat in a local `.env` (NVIDIA, Groq, Cerebras, Pollinations, Eaon, SecretsToAI, Supabase service role). **Downgraded from urgent:** a full 69-commit history scan on 2026-08-26 found no `.env`, no provider key, no `service_role` JWT and no committed `dist/`. Nothing has leaked through git — this is now hygiene, not incident response. | Before public launch. Not an emergency. | ⬜ |
 | 0.7b | ~~Enable GitHub secret scanning + push protection~~ | — | ✅ **Done 2026-08-26.** Secret scanning, push protection, Dependabot alerts and Dependabot security updates are all enabled on `timemachine-studio/timemachinechat-v0.2`. (Non-provider patterns and validity checks need GitHub Advanced Security and stayed off.) |
 | 0.8a | **Have counsel review `/privacy` and `/terms`.** They are drafted in good faith but are not legal advice. | Before public launch. Start early — external turnaround. | ⬜ |
@@ -28,11 +28,16 @@ These are not code. They block launch and none of them can be handed to an agent
 | 4.4a | **Set `PROVIDER_DAILY_CEILING`** to a real number in Vercel. The mechanism ships; the value is still `0` (disabled). | Before the domain is public. | ⬜ |
 | — | **Set `ALLOWED_ORIGINS` and `ANON_TRIAL_SECRET`** in Vercel. Unset `ALLOWED_ORIGINS` warns and falls back to same-origin only; unset `ANON_TRIAL_SECRET` weakens the anonymous trial to IP-only. | At deploy time. | ⬜ |
 
-### ⚠ Standing launch blocker
+### Local-history launch status
 
-> The signup form says **"Your chats are stored safely in your device only."** That is **false today** — signed-in chats go to Supabase (`chatService.ts:334`). Added 2026-08-26 at the owner's direction on the basis that Gate LS will make it true first.
->
-> **Either LS.2 + LS.3 ship before the app goes public, or that line comes out.** It is also currently contradicted by the Privacy Policy on the same form. Marked with a `⚠ LAUNCH BLOCKER` comment in `src/components/auth/AuthModal.tsx`. See LS.3.
+> The personal-chat device-only path shipped on 2026-09-23. Signed-in and guest
+> chats now use account-isolated IndexedDB; a production canary created and
+> reloaded a new signed-in chat while the legacy `chat_sessions` count remained
+> unchanged. Signed-in chat now fails closed if IndexedDB is unavailable; the
+> old Supabase write helpers and the history-modal bypass were removed. A failed
+> legacy message read also blocks the import marker instead of producing an empty chat.
+> Legacy cloud rows remain as a recovery source and group chats are
+> still intentionally cloud-backed. Final privacy copy/counsel review remains.
 
 ### Gate 1 — Correctness and stability
 
@@ -63,11 +68,11 @@ These are not code. They block launch and none of them can be handed to an agent
 | # | Task | Effort | When |
 |---|---|---|---|
 | **LS.1** | One honest privacy claim | S | **Decide first.** Everything else in this gate follows from it — and the signup line above already depends on it. |
-| **LS.2** | Move local storage to IndexedDB | M | Before LS.3. Never remove the cloud path while the local store still dies at 5 MB. |
-| **LS.3** | Remove the cloud sync path | M | After LS.2. **Gates the signup claim.** |
-| LS.4 | Migrate existing users off the cloud | M | After LS.3 works, before dropping tables. |
-| LS.5 | Decide what local-only means for group chat / multi-device | S + M | With LS.1 — it is a scope decision. |
-| LS.6 | Export, import, delete | M | With or after LS.3. |
+| **LS.2** | Move local storage to IndexedDB | ✅ | Account-isolated repository live; legacy localStorage import verifies before removal. |
+| **LS.3** | Remove automatic personal cloud writes | ✅ | Production canary left legacy table count unchanged. |
+| LS.4 | Migrate existing users off the cloud | 🟡 | One-time verified device import is live; legacy cloud rows intentionally remain for recovery/export. |
+| LS.5 | Decide what local-only means for group chat / multi-device | ✅ scope | Personal chats are device-only; group collaboration remains cloud-backed; optional paid sync is a later explicit opt-in. |
+| LS.6 | Export, import, delete | 🟡 | Session JSON export/import and per-chat delete are live; attachment-blob round-trip and full workspace purge/recovery tests remain. |
 
 ### Gate 2 — Production infrastructure
 

@@ -122,6 +122,11 @@ export interface ToolDescriptor {
   gateIsFinal?: boolean;
   /** Built-in, or loaded from the shared registry. */
   origin?: 'builtin' | 'registry';
+  /**
+   * Product contract behind this model-facing adapter. New built-ins should
+   * provide it; optional while older server tools migrate without a flag day.
+   */
+  capability?: import('./capabilities.js').CapabilityManifest;
 }
 
 // ─── Term matching ──────────────────────────────────────────────────────────
@@ -441,13 +446,13 @@ export const findToolsTool: ToolDefinition = {
     // every clause is a tax on the cheapest tier. The category list stays —
     // it is what tells the model there is anything behind the door at all —
     // and the worked examples went, because the model writes the query.
-    description: "Load a tool you do not have. TimeMachine has more tools than fit in one request: running code, reading web pages, working with files, connected services. Say what you need and the matching tools become callable immediately.",
+    description: "Search and load a missing capability from TimeMachine's built-ins, connected MCP services, and shared tool registry. Search with a few specific task words; matching tools become callable immediately.",
     parameters: {
       type: 'object',
       properties: {
         query: {
           type: 'string',
-          description: 'The capability you need, in your own words.',
+          description: 'Specific task words, such as reading time estimator or calendar event.',
         },
       },
       required: ['query'],

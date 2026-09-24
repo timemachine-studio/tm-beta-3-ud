@@ -218,6 +218,56 @@ export function isMathExpression(input: string): boolean {
   return /[\d)]\s*[+\-*/%^]\s*[\d(]/.test(trimmed) || /[\d)]\s*[+\-*/%^]\s*$/.test(trimmed);
 }
 
+function editDistance(left: string, right: string): number {
+  const row = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= left.length; i++) {
+    let diagonal = row[0];
+    row[0] = i;
+    for (let j = 1; j <= right.length; j++) {
+      const above = row[j];
+      row[j] = Math.min(
+        row[j] + 1,
+        row[j - 1] + 1,
+        diagonal + (left[i - 1] === right[j - 1] ? 0 : 1),
+      );
+      diagonal = above;
+    }
+  }
+  return row[right.length];
+}
+
+function hasWordLike(words: string[], targets: string[]): boolean {
+  return words.some(word => targets.some(target => {
+    if (word === target) return true;
+    const tolerance = target.length >= 8 ? 2 : target.length >= 5 ? 1 : 0;
+    return tolerance > 0 && editDistance(word, target) <= tolerance;
+  }));
+}
+
+/**
+ * Understand the tiny, high-certainty natural-language arithmetic surface in
+ * Core. Keeping this deterministic means obvious maths never waits for—or asks
+ * permission to use—the optional model, even with an ordinary typo.
+ */
+export function detectNaturalMath(input: string): CalculatorResult | null {
+  const lower = input.toLowerCase().trim();
+  if (isMathExpression(lower)) return evaluateMath(lower);
+  const values = lower.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+  if (values.length !== 2 || values.some(value => !Number.isFinite(value))) return null;
+
+  const words = lower.match(/[a-z]+/g) ?? [];
+  let operator: '+' | '-' | '*' | '/' | null = null;
+  if (hasWordLike(words, ['multiply', 'multiplied', 'multiplication', 'times']) || /\d\s*[×*]\s*\d/.test(lower)) operator = '*';
+  else if (hasWordLike(words, ['divide', 'divided', 'division']) || /\d\s*[÷/]\s*\d/.test(lower)) operator = '/';
+  else if (hasWordLike(words, ['subtract', 'subtracted', 'minus', 'difference']) || /\d\s*-\s*\d/.test(lower)) operator = '-';
+  else if (hasWordLike(words, ['add', 'added', 'plus', 'sum']) || /\d\s*\+\s*\d/.test(lower)) operator = '+';
+  if (!operator) return null;
+
+  let [left, right] = values;
+  if (operator === '-' && /\bfrom\b/.test(lower)) [left, right] = [right, left];
+  return evaluateMath(`${left}${operator}${right}`);
+}
+
 /**
  * Evaluate a math expression string.
  * Returns null if it's not a valid math expression.

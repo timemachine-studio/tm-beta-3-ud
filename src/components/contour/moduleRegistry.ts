@@ -42,7 +42,7 @@ export type { FileConvertResult } from './modules/fileConverter';
 
 // ─── Detect functions (re-exported) ───────────────────────────
 
-export { isMathExpression, evaluateMath } from './modules/calculator';
+export { isMathExpression, evaluateMath, detectNaturalMath } from './modules/calculator';
 export { detectUnits } from './modules/unitConverter';
 export { detectCurrency, resolveCurrency } from './modules/currencyConverter';
 export { detectTimezone } from './modules/timezoneConverter';
@@ -93,6 +93,7 @@ import type { QuickNoteResult } from './modules/quickNote';
 import type { QuickEventResult } from './modules/quickEvent';
 import type { WebViewerResult } from './modules/webViewer';
 import type { FileConvertResult } from './modules/fileConverter';
+import type { ContourSuggestion } from './contracts';
 
 import { ContourCommand, searchCommands, groupByCategory } from './modules/commands';
 export { searchCommands, groupByCategory };
@@ -111,7 +112,7 @@ export type ModuleId =
   | 'file-convert'
   | 'help';
 
-export type ContourMode = 'hidden' | 'commands' | 'module';
+export type ContourMode = 'hidden' | 'commands' | 'module' | 'suggestion';
 
 export interface ModuleData {
   id: ModuleId;
@@ -145,6 +146,7 @@ export interface ModuleData {
 export interface ContourState {
   mode: ContourMode;
   module: ModuleData | null;
+  suggestion: ContourSuggestion | null;
   commands: ContourCommand[];
   commandQuery: string;
   selectedIndex: number;

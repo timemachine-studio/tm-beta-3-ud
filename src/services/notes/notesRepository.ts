@@ -166,6 +166,10 @@ export interface NoteSummary {
   updatedAt: string;
   createdAt: string;
   excerpt: string;
+  version: number;
+  sourceChatIds: string[];
+  /** True when a retry resolved to the note this run already created. */
+  reused?: boolean;
 }
 
 function untitled(note: Note): string {
@@ -180,6 +184,8 @@ export function summarize(note: Note, excerptLength = 180): NoteSummary {
     updatedAt: note.updatedAt,
     createdAt: note.createdAt,
     excerpt: body.length > excerptLength ? `${body.slice(0, excerptLength)}…` : body,
+    version: note.version ?? 1,
+    sourceChatIds: note.sourceChatIds ?? [],
   };
 }
 
@@ -215,8 +221,16 @@ export function readNote(noteId: string): { note: Note; markdown: string } | nul
   return { note, markdown: blocksToMarkdown(note.blocks || []) };
 }
 
-export function createNote(title: string, markdown: string): NoteSummary {
+export function createNote(
+  title: string,
+  markdown: string,
+  options: { runId?: string; sourceChatIds?: string[] } = {},
+): NoteSummary {
   const notes = readNotes();
+  if (options.runId) {
+    const existing = notes.find(note => note.agentRunId === options.runId);
+    if (existing) return { ...summarize(existing), reused: true };
+  }
   const now = new Date().toISOString();
   const note: Note = {
     id: uid(),
@@ -226,6 +240,9 @@ export function createNote(title: string, markdown: string): NoteSummary {
     updatedAt: now,
     starred: false,
     emoji: '📝',
+    version: 1,
+    sourceChatIds: options.sourceChatIds ?? [],
+    agentRunId: options.runId,
   };
   // Newest first, matching what NotesPage shows in the sidebar.
   writeNotes([note, ...notes]);
@@ -259,6 +276,7 @@ export function editNote(
     title: changes.title?.trim() ? changes.title.trim() : existing.title,
     blocks,
     updatedAt: new Date().toISOString(),
+    version: (existing.version ?? 1) + 1,
   };
 
   const next = [...notes];

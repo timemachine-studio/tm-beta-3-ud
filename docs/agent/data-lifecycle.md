@@ -1,14 +1,14 @@
 # TM-02 processing retention and storage lifecycle
 
-Updated 2026-09-07. **TM-02 is incomplete: local controls are implemented, but actual service retention and deletion have not been verified.** TM-00 and TM-01 were checked before changes; their local/source acceptance requirements pass. Neither task established deployed schema, retention settings or processor deletion.
+Updated 2026-09-23. **TM-02 remains incomplete, but the application-side privacy boundary is materially stronger and production-verified.** Personal history is device-owned, PRO input payloads are opaque at Trigger, and production cleanup/schema controls are applied. Processor output retention, backups/logs, and disposable-account deletion still prevent a complete retention claim.
 
 ## Current behavior and agreed direction
 
-Signed-in personal chats still automatically use Supabase `chat_sessions` and `chat_messages`. Guest chats use the browser's `chatSessions` localStorage record. Notes use `tm-notes`; sending content to Notes AI still sends it to a provider. AI memories are a separate cloud store. Group conversations are a cloud collaboration exception.
+Signed-in and guest personal chats now use account-isolated IndexedDB. Guest `chatSessions` data is transactionally imported and removed only after read-back verification. Existing signed-in Supabase history is imported once and retained as a recovery copy; new personal chats no longer write to `chat_sessions` or `chat_messages`. Notes remain device-owned; sending content to a model still transmits the bounded requested context to the configured processor. AI memories are a separate cloud store. Group conversations remain a cloud collaboration exception.
 
-D1 remains the target: free history on-device, paid history on-device by default, optional cloud sync only after verified paid entitlement and explicit consent. Selecting PRO and signing in do not grant sync consent. These storage changes belong to TM-05/TM-15; TM-02 does not replace the repository or silently move legacy data into the unsafe whole-archive localStorage path. No tables or existing user data were deleted.
+D1 is now enforced for the current personal-history path: device-only is the default and selecting PRO or signing in does not enable cloud sync. The optional paid cloud-sync adapter, entitlement service, tombstones and downgrade grace period remain TM-03/TM-15. No legacy chat tables or existing user records were deleted.
 
-The signup disclosure now states the current signed-in cloud behavior. Privacy/account copy distinguishes device data, cloud history, processor data and shared records. It no longer promises device-only storage, daily deletion of rate-limit rows or immediate removal of every copy. These edits describe this checkout; no deployment was made or inspected.
+The device-only implementation and public application were deployed on 2026-09-23. Privacy/account copy must still receive counsel review and a final reconciliation against processor/output retention before general availability.
 
 ## Retention inventory
 
@@ -16,8 +16,9 @@ The signup disclosure now states the current signed-in cloud behavior. Privacy/a
 
 | Store / owner | Purpose and content | Current retention / chosen target | Deletion mechanism and evidence |
 | --- | --- | --- | --- |
-| Guest `chatSessions` / device user | Personal messages, extracted documents, inline images and assistant output | Until local deletion, clearing/eviction; no TTL for saved user history | ChatService local delete; prior baseline reload observed. Full export/import and blob cleanup remain TM-05/07/28. |
-| `chat_sessions`, `chat_messages` / account owner | Legacy signed-in personal history | Until explicit deletion; no automatic purge before verified migration. Future paid disable/expiry: 30-day export grace, then purge; new cloud processing stops immediately | Existing per-session deletes, account deletion; actual RLS, cascades and migration integrity unverified. Never drop these tables under Gate LS. |
+| `tm-chat-history` IndexedDB / device account workspace | Personal messages, structured cards and attachment references | Until local deletion, clearing/eviction; no TTL for saved user history | Transactional per-session writes/deletes, JSON export/import, account/guest isolation and live reload verified. Attachment-blob export/cleanup remains TM-05/TM-28. |
+| `chat_sessions`, `chat_messages` / account owner | Legacy signed-in recovery history; no new personal writes | Until explicit migration/export deletion; no automatic purge before paid-sync policy is complete | One-time bounded import into IndexedDB is live. Production count stayed unchanged across a new signed-in chat. Legacy rows are intentionally retained for recovery. |
+| `tm-private-skills` IndexedDB / device account workspace | User-authored reusable workflow instructions and metadata | Until local storage clearing or a future management/delete action | Versioned account-isolated repository; create/search/read/update and retry idempotency verified. No public upload occurs. |
 | `tm-notes`, `tm-notes-draft` / device user | Note blocks and pending handoff, including embedded media | Saved notes until user deletion/clearing; draft removed when imported | NotesPage source, TM-00/01 reload evidence; account deletion does not wipe other devices. Transactional receipts/versions and account workspaces are TM-06. |
 | `ai_memories`, profile nickname/about_me / account owner | Personal facts reused in future prompts | Until explicit removal/account deletion | Memory service CRUD and account cleanup. Deployed deletion/RLS unverified. Do not call memories a device-only store. |
 | `group_chats`, messages, participants / group members | Shared conversations and membership | Until group/message deletion under membership rules; no automatic personal-history expiry | Group service provides group/message operations. General account endpoint does not prove group erasure; membership and sender-key cleanup remain a live audit/recovery gap. |
@@ -64,7 +65,7 @@ These are published policies, not observations of the supplied accounts. No vend
 
 `api/_lib/retention/policy.ts` defines application limits. The `durableProcessingAvailable()` gate that rejected every new background PRO run with `503 RETENTION_UNVERIFIED` was **removed on 2026-09-08 at the owner's instruction**: beta testers need PRO to work, and a permanently closed gate is not a retention control. `/api/pro-generation` now dispatches runs normally.
 
-The retention facts below are unchanged by that removal: Trigger.dev payload, output, checkpoint and stream deletion is still unverified, so PRO prompts and completions reach a processor whose deletion behaviour we have not confirmed. The bounded expiry helpers (`proContentExpired`, recovery/abandoned/max-age windows) and the cleanup hook still apply to our own rows. Do not describe PRO processing as retention-verified in user-facing copy until the TM-02.5 checks are done.
+PRO request privacy changed on 2026-09-23: `/api/pro-generation` stages the full request in Supabase, Trigger receives only `{jobId}`, and the worker atomically claims and nulls `request_payload` before processing. A signed-in production canary completed with `claimed=true` and `payload_scrubbed=true`. Trigger output/stream deletion is still unverified, so completions continue to reach a processor whose deletion behaviour is not fully controlled. The bounded expiry helpers (`proContentExpired`, recovery/abandoned/max-age windows) and cleanup hook still apply to TM-owned rows. Do not describe PRO processing as retention-verified until TM-02.5 closes the output, log, backup and provider paths.
 
 `api/_lib/retention/cleanup.ts` operates only on the existing PRO and MCP processing tables. It attempts each cleanup phase and returns a fixed failure identifier if any phase fails. It never touches saved chat history, notes, memories, attachments or subscription state. It can run repeatedly; content expiry is anchored to creation/terminal timestamps, not read time. This source change does not make direct Supabase owner reads expire: deployed RLS and deletion must be verified before enabling durable runs.
 
@@ -113,4 +114,4 @@ The latest [zero-row live schema checks](evidence/tm-02/live-schema-access.json)
 - Authorize a monitored cleanup schedule only after the above staging checks. Observe expiry/deletion and retry behavior in the actual services, then record evidence and reconcile public copy with the authorized deployed behavior.
 - Reverify the signed-in deletion UI with a disposable staging account. Do not use the owner's real account for deletion tests.
 
-No next task was started. Resume TM-02 with these prerequisites; do not mark it complete from these local tests or proceed to TM-03/TM-05 as though retention were verified.
+Implementation continued under the owner's explicit release direction. The open items above remain blockers to a complete retention promise; the deployed feature inventory must keep naming them rather than treating successful application tests as proof of processor deletion.

@@ -13,7 +13,7 @@ import {
   personaFallbacks,
   runProviderNames,
 } from './ai-proxy.js';
-import { loadPublishedToolsCached, resolveRequestTools } from './_lib/toolRegistry.js';
+import { loadInstalledToolPins, loadPinnedPublishedTools, resolveRequestTools, searchPublishedTools } from './_lib/toolRegistry.js';
 import { registryToolPayload } from '../shared/toolRegistry.js';
 import { buildToolGuardrail, THINKING_DIRECTIVE, buildAppToolDirective, buildAttachedFilesDirective, resolveDeviceRoundBudget, selectToolSet, toApiMessages, type UserSkill } from './_lib/tools.js';
 import { enabledSkills, resolveFlightControlsCached } from './_lib/flightControls.js';
@@ -31,8 +31,9 @@ import {
   failProJob,
   getActiveProJob,
   getProJobByRunId,
+  storeProJobPayload,
 } from './_lib/proJobs.js';
-import type { ProGenerationPayload } from '../trigger/proGeneration.js';
+import type { ProGenerationPayload, ProGenerationReference } from '../trigger/proGeneration.js';
 import { proGenerationBodySchema, parseOrReject, rejectIfTooLarge } from './_lib/validation.js';
 import {
   applyOcrVision,
@@ -171,9 +172,16 @@ The memory tags will be processed and removed from the visible response, so writ
   // Generated tools, exactly as /api/ai-proxy resolves them. The task cannot
   // read the registry for itself, so the code of any registry tool the model
   // might call travels with the job.
+  const canUseRegistry = (deviceAppsEnabled.includes('python') || deviceAppsEnabled.includes('composed-tools')) && deviceRounds < resolveDeviceRoundBudget();
+  const installedToolPins = canUseRegistry ? await loadInstalledToolPins(userId) : new Map();
+  const registryQuery = [...messages].reverse().find(message => !message.isAI)?.content ?? '';
+  const publishedTools = canUseRegistry
+    ? [...await searchPublishedTools(registryQuery, 12), ...await loadPinnedPublishedTools(installedToolPins)]
+    : [];
   const generatedTools = resolveRequestTools(
     sessionTools,
-    deviceAppsEnabled.includes('python') ? await loadPublishedToolsCached() : [],
+    publishedTools,
+    installedToolPins,
   );
 
   const toolSet = selectToolSet({
@@ -185,6 +193,8 @@ The memory tags will be processed and removed from the visible response, so writ
     deviceApps: deviceAppsEnabled,
     deviceDataPresent,
     deviceRoundsUsed: deviceRounds,
+    userIsAuthenticated: !!userId,
+    hasSearchableRegistry: canUseRegistry,
     surface: 'pro',
     extraDescriptors: generatedTools.descriptors,
   });
@@ -367,6 +377,8 @@ ${thinkingDirective}`;
     searchAllowed,
     offeredTools: offeredToolNames,
     findableTools: toolSet.findable,
+    registrySearchEnabled: canUseRegistry,
+    installedToolPins: Object.fromEntries(installedToolPins),
     // The task runs on Trigger's infrastructure and cannot read Supabase for
     // this user, so the resolved skills travel with the job.
     userSkills,
@@ -385,7 +397,9 @@ ${thinkingDirective}`;
   };
 
   try {
-    const handle = await tasks.trigger('pro-generation', payload, {
+    await storeProJobPayload(job.id, payload);
+    const reference: ProGenerationReference = { jobId: job.id };
+    const handle = await tasks.trigger('pro-generation', reference, {
       tags: [
         'persona:pro',
         userId ? `user:${userId}` : 'user:anonymous',
