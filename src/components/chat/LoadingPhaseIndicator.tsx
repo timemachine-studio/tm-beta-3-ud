@@ -1,93 +1,82 @@
 import { useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import type { LoadingPhase } from '../../types/chat';
+import { AI_PERSONAS } from '../../config/constants';
+import { useTheme } from '../../context/ThemeContext';
 import { AnimatedShinyText } from '../ui/AnimatedShinyText';
-import { SymmetricWave } from '../ui/symmetric-wave';
-import { TextShimmer } from '../ui/TextShimmer';
 import { loadingLabel } from './loadingLabel';
+import { ThinkingAnimationVisual } from './ThinkingAnimationVisual';
 
 const INITIAL_LOADING_PHASE = 'Understanding your request';
-
-const PLAYFUL_WORDS = [
-  'Cooking',
-  'Manifesting',
-  'Manipulating',
-  'Ragebaiting',
-  'Tweaking',
-  'Overtweaking',
-  'Cringing',
-  'Looksmaxxing',
-  'Moonwalking',
-  'Levitating',
-  'Singing',
-  'Dancing',
-  'Gooning',
-  'Overdosing',
-  'Sleeping',
-  'Procrastinating',
-  'Catfishing',
-  'Catastrophizing',
+const REASONING_WORDS = [
+  'Balling', 'Mogging', 'Slaying', 'Flexing', 'Catfishing', 'Skibidying',
+  'Larping', 'Streaming', 'Ragebaiting', 'Trolling', 'Glazing', 'Capping',
+  'Yapping', 'Gaslighting', 'Gatekeeping', 'Bitching', 'Spilling (the tea)',
+  'Cancelling', 'Exposing', 'Snitching', 'Manifesting', 'Crashing out',
+  'Deluluing', 'Cringing', 'Tweaking', 'Geeking', 'Seething', 'Tripping',
+  'Wilding', 'Simping', 'Ghosting', 'Shipping', 'Cooking', 'Clutching',
+  'Aura Farming', 'Side-eying', 'Clocking it', 'Coping', 'Down-badding',
+  'Locking in', 'Peak-fictioing', 'Looksmaxxing', 'Brainrotting', 'Stalking',
+  'Uncing', 'Face-palming', 'Larping',
 ] as const;
-
-function shuffledWords(): string[] {
-  const words = [...PLAYFUL_WORDS];
-  for (let i = words.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [words[i], words[j]] = [words[j], words[i]];
-  }
-  return words;
-}
+const STEP_MS = 3000;
+const REASONING_COLORS: Record<keyof typeof AI_PERSONAS, { dark: string; light: string }> = {
+  default: { dark: '#c084fc', light: '#581c87' }, // Autumn purple
+  girlie: { dark: '#f472b6', light: '#be185d' }, // Spring pink
+  pro: { dark: '#67e8f9', light: '#0e7490' }, // Summer cyan
+};
 
 interface LoadingPhaseIndicatorProps {
   phase: LoadingPhase | undefined;
+  persona: keyof typeof AI_PERSONAS;
   baseColor: string;
   shimmerColor: string;
   compact?: boolean;
 }
 
-function PlayfulLoadingStatus({ baseColor, shimmerColor, compact }: Omit<LoadingPhaseIndicatorProps, 'phase'>) {
-  const [words] = useState(shuffledWords);
-  const [wordIndex, setWordIndex] = useState(0);
+function ReasoningOrbStatus({ compact, persona, phase }: Pick<LoadingPhaseIndicatorProps, 'compact' | 'persona' | 'phase'>) {
+  const [step, setStep] = useState(0);
+  const { mode, thinkingAnimation } = useTheme();
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
-    // Once the shuffled list is exhausted, keep its last word. A request
-    // never repeats a word, even if it remains loading unusually long.
-    if (wordIndex === words.length - 1) return;
-    const timer = window.setTimeout(() => {
-      setWordIndex(index => index + 1);
-    }, 2500 + Math.random() * 1500);
-    return () => window.clearTimeout(timer);
-  }, [wordIndex, words]);
+    const timer = window.setInterval(() => setStep(index => index + 1), STEP_MS);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const isReasoning = !phase || phase === 'thinking' || phase === INITIAL_LOADING_PHASE;
+  const word = isReasoning ? REASONING_WORDS[step % REASONING_WORDS.length] : loadingLabel(phase);
+  const color = REASONING_COLORS[persona][mode];
 
   return (
     <div
       role="status"
-      aria-label="Generating a response"
-      className={`flex items-center justify-center gap-2 ${compact ? 'py-0.5' : 'py-1'}`}
-      style={{ fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif', fontSize: compact ? 14 : 16 }}
+      aria-label={isReasoning ? 'Generating a response' : word}
+      className={`inline-flex min-w-0 items-center ${compact ? 'justify-start gap-2 py-0.5' : 'justify-center gap-2 py-1'}`}
+      style={{ fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif', fontSize: compact ? 15 : 16 }}
     >
-      <SymmetricWave aria-hidden="true" className={compact ? 'text-sm' : 'text-base'} style={{ color: baseColor }} />
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={words[wordIndex]}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.28, ease: 'easeInOut' }}
-          className="inline-flex"
-        >
-          <TextShimmer className="font-medium" duration={3.2} baseColor={baseColor} shimmerColor={shimmerColor}>
-            {words[wordIndex]}
-          </TextShimmer>
-        </motion.div>
-      </AnimatePresence>
+      <ThinkingAnimationVisual choice={thinkingAnimation} step={step} color={color} theme={mode} />
+      <span aria-hidden="true" className={`${compact ? 'min-w-0 truncate' : 'min-w-[19ch]'} whitespace-nowrap text-left font-medium`} style={{ color, opacity: compact ? 0.85 : 1 }}>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.span
+            key={word}
+            initial={reducedMotion ? false : { opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reducedMotion ? undefined : { opacity: 0, y: -4 }}
+            transition={{ duration: reducedMotion ? 0 : 0.24, ease: 'easeInOut' }}
+            className="inline-block"
+          >
+            {word}
+          </motion.span>
+        </AnimatePresence>
+      </span>
     </div>
   );
 }
 
-export function LoadingPhaseIndicator({ phase, baseColor, shimmerColor, compact = false }: LoadingPhaseIndicatorProps) {
-  if (phase === INITIAL_LOADING_PHASE) {
-    return <PlayfulLoadingStatus baseColor={baseColor} shimmerColor={shimmerColor} compact={compact} />;
+export function LoadingPhaseIndicator({ phase, persona, baseColor, shimmerColor, compact = false }: LoadingPhaseIndicatorProps) {
+  if (compact || !phase || phase === 'thinking' || phase === INITIAL_LOADING_PHASE) {
+    return <ReasoningOrbStatus compact={compact} persona={persona} phase={phase} />;
   }
 
   return (

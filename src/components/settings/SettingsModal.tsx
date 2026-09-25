@@ -8,6 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { seasonThemes } from '../../themes/seasons';
 import type { SeasonTheme } from '../../context/themeContextValue';
 import { ContourExtendedSettings } from './ContourExtendedSettings';
+import { ThinkingAnimationSetting } from './ThinkingAnimationSetting';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -284,6 +285,8 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                         Current keeps your chats in a sidebar. Legacy is the layout before it.
                       </p>
                     </section>
+
+                    <ThinkingAnimationSetting />
 
                     <ContourExtendedSettings />
 

@@ -13,7 +13,6 @@ import { useTheme } from '../../context/ThemeContext';
 import { GeneratedImage } from './GeneratedImage';
 import { AnimatedShinyText } from '../ui/AnimatedShinyText';
 import { LoadingPhaseIndicator } from './LoadingPhaseIndicator';
-import { loadingLabel } from './loadingLabel';
 import { HarnessTranscript } from './HarnessActionCard';
 import type { HarnessAction } from '../../types/chat';
 import { AudioPlayerBubble } from './AudioPlayerBubble';
@@ -60,12 +59,6 @@ interface AIMessageProps extends Omit<MessageProps, 'onAnimationComplete'> {
   /** Max Mode: the harness's cards, placed inline by marker (HarnessTranscript). */
   harnessActions?: HarnessAction[];
 }
-
-const SPECIAL_MODE_SHIMMER_TEXT: Record<string, string> = {
-  'web-coding': 'Thinking outside the box',
-  'music-compose': 'Thinking about the melody',
-  'tm-healthcare': 'Talking with the medical researcher',
-};
 
 const getPersonaColor = (persona: keyof typeof AI_PERSONAS = 'default') => {
   switch (persona) {
@@ -216,7 +209,8 @@ function AIMessageComponent({
     isStreamingActive &&
     loadingPhase &&
     loadingPhase !== 'analyzing_photo' &&
-    loadingPhase !== 'thinking'
+    loadingPhase !== 'thinking' &&
+    loadingPhase !== 'Understanding your request'
   );
 
   // Get persona-specific colors for reasoning display
@@ -531,27 +525,6 @@ function AIMessageComponent({
         </div>
       )}
 
-      {/* Special mode thinking state — replaces the normal "Initiating" spinner */}
-      {isStreamingActive && !cleanContent && specialMode && SPECIAL_MODE_SHIMMER_TEXT[specialMode] && (
-        <div className="w-full max-w-2xl mx-auto my-4">
-          <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
-            <AnimatedShinyText
-              text={SPECIAL_MODE_SHIMMER_TEXT[specialMode]}
-              useShimmer={true}
-              baseColor={shimmerColors.baseColor}
-              shimmerColor={shimmerColors.shimmerColor}
-              gradientAnimationDuration={2}
-              textClassName="text-base"
-              className="py-1"
-              style={{
-                fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif',
-                fontSize: '16px'
-              }}
-            />
-          </div>
-        </div>
-      )}
-
       {/* Display audio response if present */}
       {audioUrl && !isRecordingVoice && (
         <div className="w-full max-w-2xl mx-auto my-4">
@@ -564,24 +537,26 @@ function AIMessageComponent({
         </div>
       )}
       {/* Show content when not generating or when generation is complete */}
-      {!isGeneratingImage && !isRecordingVoice && !(isStreamingActive && !cleanContent && specialMode && SPECIAL_MODE_SHIMMER_TEXT[specialMode as string]) && (cleanContent || isStreamingActive) && !audioUrl && (
+      {!isGeneratingImage && !isRecordingVoice && (cleanContent || isStreamingActive) && !audioUrl && (
         <>
           {isChatMode ? (
             <div className="flex flex-col gap-1">
-              {/* Persona name with streaming indicator */}
-              <div className={`text-xs font-medium ${personaColor} opacity-60 flex items-center gap-2`}>
-                {brandOverride?.personaName || AI_PERSONAS[displayPersona].name}
-                {isStreamingActive && (
-                  <motion.div
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                    className="w-2 h-2 bg-current rounded-full"
-                  />
-                )}
-              </div>
-              <div className={`${theme.text} text-base leading-relaxed max-w-[85%]`}>
-                {cleanContent ? (
-                  specialMode === 'music-compose' ? (
+              {isStreamingActive && !cleanContent ? (
+                <LoadingPhaseIndicator
+                  phase={loadingPhase}
+                  persona={displayPersona}
+                  baseColor={shimmerColors.baseColor}
+                  shimmerColor={shimmerColors.shimmerColor}
+                  compact
+                />
+              ) : (
+                <div className={`text-xs font-medium ${personaColor} opacity-60`}>
+                  {brandOverride?.personaName || AI_PERSONAS[displayPersona].name}
+                </div>
+              )}
+              {cleanContent && (
+                <div className={`${theme.text} text-base leading-relaxed max-w-[85%]`}>
+                  {specialMode === 'music-compose' ? (
                     <MusicComposeCard
                       content={cleanContent}
                       isStreamingActive={isStreamingActive}
@@ -625,6 +600,7 @@ function AIMessageComponent({
                         <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-xs w-fit">
                           <LoadingPhaseIndicator
                             phase={loadingPhase}
+                            persona={displayPersona}
                             baseColor={shimmerColors.baseColor}
                             shimmerColor={shimmerColors.shimmerColor}
                             compact
@@ -643,31 +619,9 @@ function AIMessageComponent({
                       </motion.div>
                     )}
                   </>
-                  )
-                ) : isStreamingActive ? (
-                  isSpecialLoadingPhase ? (
-                    <div className="w-full max-w-2xl my-2">
-                      <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-xs w-fit">
-                        <LoadingPhaseIndicator
-                          phase={loadingPhase}
-                          baseColor={shimmerColors.baseColor}
-                          shimmerColor={shimmerColors.shimmerColor}
-                          compact
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-sm opacity-60">
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                        className="w-4 h-4 border-2 border-current border-t-transparent rounded-full"
-                      />
-                      {loadingLabel(loadingPhase)}
-                    </div>
-                  )
-                ) : null}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className={`${theme.text} ${isChatMode
@@ -702,6 +656,7 @@ function AIMessageComponent({
                       <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
                         <LoadingPhaseIndicator
                           phase={loadingPhase}
+                          persona={displayPersona}
                           baseColor={shimmerColors.baseColor}
                           shimmerColor={shimmerColors.shimmerColor}
                         />
@@ -721,26 +676,16 @@ function AIMessageComponent({
                 </>
                 )
               ) : isStreamingActive ? (
-                isSpecialLoadingPhase ? (
-                  <div className="w-full max-w-2xl mx-auto my-4">
-                    <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
-                      <LoadingPhaseIndicator
-                        phase={loadingPhase}
-                        baseColor={shimmerColors.baseColor}
-                        shimmerColor={shimmerColors.shimmerColor}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-3 text-lg opacity-60">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      className="w-6 h-6 border-2 border-current border-t-transparent rounded-full"
+                <div className="w-full max-w-2xl mx-auto my-4">
+                  <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
+                    <LoadingPhaseIndicator
+                      phase={loadingPhase}
+                      persona={displayPersona}
+                      baseColor={shimmerColors.baseColor}
+                      shimmerColor={shimmerColors.shimmerColor}
                     />
-                    {loadingLabel(loadingPhase)}
                   </div>
-                )
+                </div>
               ) : null}
             </div>
           )}

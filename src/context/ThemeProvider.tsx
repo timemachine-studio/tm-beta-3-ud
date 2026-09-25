@@ -16,6 +16,7 @@ import {
 } from '../themes/themeState';
 import { UI_STYLE_KEY, readStoredUiStyle, type UiStyle } from '../themes/uiStyle';
 import { readStoredString, removeStored, writeStoredString } from '../utils/safeStorage';
+import { THINKING_ANIMATION_KEY, readStoredThinkingAnimation, type ThinkingAnimationChoice } from '../config/thinkingAnimation';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [stored] = useState(() => readStoredThemeState(readStoredString));
@@ -31,6 +32,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const lastPersonaSeason = useRef<SeasonTheme>(stored.personaSeason);
   const [lightWarmth, setLightWarmthState] = useState<number>(() => readStoredWarmth(readStoredString));
   const [uiStyle, setUiStyleState] = useState<UiStyle>(() => readStoredUiStyle(readStoredString));
+  const [thinkingAnimation, setThinkingAnimationState] = useState<ThinkingAnimationChoice>(() => readStoredThinkingAnimation(readStoredString));
 
   const theme = mode === 'light' ? lightTheme : seasonThemes[season];
 
@@ -79,6 +81,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     writeStoredString(UI_STYLE_KEY, uiStyle);
   }, [uiStyle]);
+
+  useEffect(() => {
+    writeStoredString(THINKING_ANIMATION_KEY, thinkingAnimation);
+  }, [thinkingAnimation]);
 
   useEffect(() => {
     const handleThemeChange = (event: CustomEvent<unknown>) => {
@@ -137,10 +143,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         seasonFollowsPersona: !manual,
         lightWarmth,
         uiStyle,
+        thinkingAnimation,
         setMode,
         setSeason: pickSeason,
         setLightWarmth,
         setUiStyle,
+        setThinkingAnimation: setThinkingAnimationState,
       }}
     >
       {children}

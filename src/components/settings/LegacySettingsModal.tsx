@@ -7,6 +7,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { seasonThemes } from '../../themes/seasons';
 import type { SeasonTheme } from '../../context/themeContextValue';
 import { ContourExtendedSettings } from './ContourExtendedSettings';
+import { ThinkingAnimationSetting } from './ThinkingAnimationSetting';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -248,6 +249,8 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                         </motion.section>
                       )}
                     </AnimatePresence>
+
+                    <ThinkingAnimationSetting />
 
                     <ContourExtendedSettings />
 

@@ -1,0 +1,36 @@
+@keyframes loading-ui-symmetric-wave-1 {
+  0%, 100% { opacity: 1; }
+  12.5%, 87.5% { opacity: 0.6; }
+  25%, 75% { opacity: 0.3; }
+  37.5%, 62.5%, 50% { opacity: 0; }
+}
+@keyframes loading-ui-symmetric-wave-2 {
+  0%, 100% { opacity: 0.6; }
+  12.5%, 87.5% { opacity: 1; }
+  25%, 75% { opacity: 0.6; }
+  37.5%, 62.5% { opacity: 0.3; }
+  50% { opacity: 0; }
+}
+@keyframes loading-ui-symmetric-wave-3 {
+  0%, 100% { opacity: 0.3; }
+  12.5%, 87.5% { opacity: 0.6; }
+  25%, 75% { opacity: 1; }
+  37.5%, 62.5% { opacity: 0.6; }
+  50% { opacity: 0; }
+}
+@keyframes loading-ui-symmetric-wave-4 {
+  0%, 100% { opacity: 0; }
+  12.5%, 87.5% { opacity: 0.3; }
+  25%, 75% { opacity: 0.6; }
+  37.5%, 62.5% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+@keyframes loading-ui-symmetric-wave-5 {
+  0%, 100%, 12.5%, 87.5% { opacity: 0; }
+  25%, 75% { opacity: 0.3; }
+  37.5%, 62.5% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-ui-symmetric-wave-block { animation: none !important; opacity: 0.6; }
+}

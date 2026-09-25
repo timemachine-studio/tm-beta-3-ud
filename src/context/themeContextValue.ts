@@ -3,6 +3,7 @@ import { darkTheme } from '../themes/dark';
 import type { Theme } from '../types/theme';
 import type { SeasonTheme, ThemeMode } from '../themes/themeState';
 import type { UiStyle } from '../themes/uiStyle';
+import type { ThinkingAnimationChoice } from '../config/thinkingAnimation';
 
 export type { SeasonTheme, ThemeMode, UiStyle };
 
@@ -23,10 +24,12 @@ interface ThemeContextType {
   lightWarmth: number;
   /** The shell: the rail-and-glass `current` UI, or the `legacy` one before it. */
   uiStyle: UiStyle;
+  thinkingAnimation: ThinkingAnimationChoice;
   setMode: (mode: ThemeMode) => void;
   setSeason: (season: SeasonTheme | 'auto') => void;
   setLightWarmth: (warmth: number) => void;
   setUiStyle: (style: UiStyle) => void;
+  setThinkingAnimation: (animation: ThinkingAnimationChoice) => void;
 }
 
 export const ThemeContext = createContext<ThemeContextType>({
@@ -36,10 +39,12 @@ export const ThemeContext = createContext<ThemeContextType>({
   seasonFollowsPersona: true,
   lightWarmth: 40,
   uiStyle: 'current',
+  thinkingAnimation: 'orb-cycle',
   setMode: () => { },
   setSeason: () => { },
   setLightWarmth: () => { },
   setUiStyle: () => { },
+  setThinkingAnimation: () => { },
 });
 
 export function useTheme() {

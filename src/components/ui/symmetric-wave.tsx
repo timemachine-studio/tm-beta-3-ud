@@ -1,59 +1,24 @@
 import type { ComponentProps } from 'react';
 import { cn } from '../../lib/utils';
+import './symmetric-wave.css';
 
 const SYMMETRIC_WAVE_PHASES = [1, 2, 3, 4, 5, 5, 4, 3, 2, 1] as const;
 
 type SymmetricWaveProps = ComponentProps<'span'> & {
   block?: string;
   track?: string;
+  paused?: boolean;
 };
 
 function SymmetricWave({
   className,
   block = '█',
   track = '░',
+  paused = false,
   ...props
 }: SymmetricWaveProps) {
   return (
     <>
-      <style>{`
-        @keyframes loading-ui-symmetric-wave-1 {
-          0%, 100% { opacity: 1; }
-          12.5%, 87.5% { opacity: 0.6; }
-          25%, 75% { opacity: 0.3; }
-          37.5%, 62.5%, 50% { opacity: 0; }
-        }
-        @keyframes loading-ui-symmetric-wave-2 {
-          0%, 100% { opacity: 0.6; }
-          12.5%, 87.5% { opacity: 1; }
-          25%, 75% { opacity: 0.6; }
-          37.5%, 62.5% { opacity: 0.3; }
-          50% { opacity: 0; }
-        }
-        @keyframes loading-ui-symmetric-wave-3 {
-          0%, 100% { opacity: 0.3; }
-          12.5%, 87.5% { opacity: 0.6; }
-          25%, 75% { opacity: 1; }
-          37.5%, 62.5% { opacity: 0.6; }
-          50% { opacity: 0.3; }
-        }
-        @keyframes loading-ui-symmetric-wave-4 {
-          0%, 100% { opacity: 0; }
-          12.5%, 87.5% { opacity: 0.3; }
-          25%, 75% { opacity: 0.6; }
-          37.5%, 62.5% { opacity: 1; }
-          50% { opacity: 0.6; }
-        }
-        @keyframes loading-ui-symmetric-wave-5 {
-          0%, 100%, 12.5%, 87.5% { opacity: 0; }
-          25%, 75% { opacity: 0.3; }
-          37.5%, 62.5% { opacity: 0.6; }
-          50% { opacity: 1; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .loading-ui-symmetric-wave-block { animation: none !important; opacity: 0.6; }
-        }
-      `}</style>
       <span
         role="status"
         className={cn(
@@ -73,6 +38,7 @@ function SymmetricWave({
               className="loading-ui-symmetric-wave-block absolute inset-0 flex items-center justify-center"
               style={{
                 animation: `loading-ui-symmetric-wave-${phase} var(--duration, 2s) linear infinite`,
+                animationPlayState: paused ? 'paused' : undefined,
               }}
             >
               {block}
