@@ -4,11 +4,15 @@ import { Check } from 'lucide-react';
 import { THINKING_ANIMATION_OPTIONS, type ThinkingAnimationChoice } from '../../config/thinkingAnimation';
 import { useTheme } from '../../context/ThemeContext';
 import { ThinkingAnimationVisual } from '../chat/ThinkingAnimationVisual';
+import { paletteColor } from '../../themes/seasonPalette';
 
-const GROUPS = ['Cycles', 'Original styles', 'Individual orbs'] as const;
+const OPTION_SECTIONS = [
+  { label: 'Cycles', options: THINKING_ANIMATION_OPTIONS.filter(option => option.group === 'Cycles') },
+  { label: 'Individual animations', options: THINKING_ANIMATION_OPTIONS.filter(option => option.group !== 'Cycles') },
+] as const;
 
 export function ThinkingAnimationSetting() {
-  const { mode, thinkingAnimation, setThinkingAnimation } = useTheme();
+  const { mode, accentSeason, thinkingAnimation, setThinkingAnimation } = useTheme();
   const reducedMotion = useReducedMotion();
   const [activePreview, setActivePreview] = useState<ThinkingAnimationChoice>(thinkingAnimation);
   const [step, setStep] = useState(0);
@@ -23,18 +27,20 @@ export function ThinkingAnimationSetting() {
     setActivePreview(choice);
     setStep(0);
   };
-  const color = mode === 'light' ? '#7e22ce' : '#d8a4ff';
+  const color = document.documentElement.dataset.healthcare === 'true'
+    ? (mode === 'light' ? '#047857' : '#6ee7b7')
+    : paletteColor(accentSeason, mode);
 
   return (
     <fieldset className="min-w-0">
-      <legend className="mb-1 text-sm font-medium text-ink">Thinking animation</legend>
+      <legend className="tm-display mb-1 text-[1.625rem] italic leading-tight text-ink" style={{ fontWeight: 300 }}>Thinking animation</legend>
       <p className="mb-4 text-xs text-ink-muted">Hover, focus, or select a style to see it move.</p>
       <div className="space-y-5">
-        {GROUPS.map(group => (
-          <div key={group}>
-            <p className="mb-2 text-xs font-medium text-ink-muted">{group}</p>
+        {OPTION_SECTIONS.map(({ label, options }) => (
+          <div key={label ?? 'styles'}>
+            {label && <p className="mb-2 text-xs font-medium text-ink-muted">{label}</p>}
             <div className="grid grid-cols-2 gap-2.5">
-              {THINKING_ANIMATION_OPTIONS.filter(option => option.group === group).map(option => {
+              {options.map(option => {
                 const selected = thinkingAnimation === option.value;
                 const active = activePreview === option.value;
                 const id = `thinking-animation-${option.value.replace(/:/g, '-')}`;
@@ -55,10 +61,10 @@ export function ThinkingAnimationSetting() {
                     />
                     <label
                       htmlFor={id}
-                      className="relative block min-h-[132px] cursor-pointer rounded-2xl border px-3 py-3 transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-purple-400"
+                      className="relative block min-h-[132px] cursor-pointer rounded-2xl border px-3 py-3 transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2"
                       style={{
-                        background: selected ? 'color-mix(in srgb, var(--color-purple-500) 12%, transparent)' : 'rgb(var(--tm-ink-rgb) / 0.035)',
-                        borderColor: selected ? 'color-mix(in srgb, var(--color-purple-500) 60%, transparent)' : 'rgb(var(--tm-ink-rgb) / 0.12)',
+                        background: selected ? 'rgb(var(--tm-season-rgb) / 0.14)' : 'rgb(var(--tm-ink-rgb) / 0.035)',
+                        borderColor: selected ? 'rgb(var(--tm-season-rgb) / 0.6)' : 'rgb(var(--tm-ink-rgb) / 0.12)',
                       }}
                     >
                       <span className="flex h-[76px] items-center justify-center">
@@ -67,7 +73,7 @@ export function ThinkingAnimationSetting() {
                       <span className="mt-1 block truncate text-center text-sm font-medium text-ink">
                         {option.label}
                       </span>
-                      {selected && <Check aria-hidden="true" className="absolute right-3 top-3 h-3.5 w-3.5 text-purple-400" />}
+                      {selected && <Check aria-hidden="true" className="absolute right-3 top-3 h-3.5 w-3.5" style={{ color }} />}
                     </label>
                   </div>
                 );

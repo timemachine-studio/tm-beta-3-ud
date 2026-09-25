@@ -1,15 +1,26 @@
 import { Theme } from '../types/theme';
 
+function extraSeason(name: string, background: string, primary: string, hover: string, glow: string): Theme {
+  return {
+    name, background, text: 'text-gray-200', border: 'border-gray-800/50',
+    input: { background: 'bg-gray-900/75 backdrop-blur-3xl', text: 'text-gray-200', placeholder: 'placeholder-gray-400', border: 'border-transparent' },
+    button: { primary, secondary: 'bg-gray-900/80 hover:bg-gray-800/80 backdrop-blur-3xl text-gray-200 rounded-lg' },
+    modal: { background: 'bg-gray-900/80 backdrop-blur-3xl shadow-lg', overlay: 'bg-black/20 backdrop-blur-md' },
+    dropdown: { background: 'bg-gray-900/80 backdrop-blur-3xl shadow-xs', hover },
+    card: { background: 'bg-gray-900/70 backdrop-blur-3xl shadow-xs', border: 'border-gray-800/30' },
+    glow: { primary: glow, secondary: 'shadow-[0_4px_16px_rgba(0,0,0,0.1)]' },
+  };
+}
+
 /**
- * Seasons are a dark-mode feature. Each is the black canvas with one hue
- * rising from the bottom, and the persona picks one by default (Air →
- * autumn, Girlie → spring, PRO → summer). Light mode has a single variant
- * — see themes/light.ts — so there are no light seasons here.
+ * Seasons paint the dark canvas with a hue rising from the bottom. In light
+ * mode the canvas stays paper-colored, but the same selection colors chrome,
+ * Notes, and thinking visuals. Personas still choose a default season.
  */
 export const seasonThemes = {
   springDark: {
     name: 'Spring Night',
-    background: 'bg-linear-to-t/srgb from-pink-950 to-black to-50%',
+    background: 'bg-linear-to-t/srgb from-red-950 to-black to-50%',
     text: 'text-gray-200',
     border: 'border-gray-800/50',
     input: {
@@ -19,7 +30,7 @@ export const seasonThemes = {
       border: 'border-transparent'
     },
     button: {
-      primary: 'bg-linear-to-r/srgb from-pink-950 to-pink-900 hover:from-pink-900 hover:to-pink-800 text-white rounded-lg shadow-xs',
+      primary: 'bg-linear-to-r/srgb from-red-950 to-red-900 hover:from-red-900 hover:to-red-800 text-white rounded-lg shadow-xs',
       secondary: 'bg-gray-900/80 hover:bg-gray-800/80 backdrop-blur-3xl text-gray-200 rounded-lg'
     },
     modal: {
@@ -28,14 +39,14 @@ export const seasonThemes = {
     },
     dropdown: {
       background: 'bg-gray-900/75 backdrop-blur-3xl shadow-xs',
-      hover: 'hover:bg-pink-950/50'
+      hover: 'hover:bg-red-950/50'
     },
     card: {
       background: 'bg-gray-900/70 backdrop-blur-3xl shadow-xs',
       border: 'border-gray-800/30'
     },
     glow: {
-      primary: 'shadow-[0_4px_16px_rgba(236,72,153,0.15)]',
+      primary: 'shadow-[0_4px_16px_rgba(239,68,68,0.15)]',
       secondary: 'shadow-[0_4px_16px_rgba(0,0,0,0.1)]'
     }
   },
@@ -135,6 +146,10 @@ export const seasonThemes = {
       secondary: 'shadow-[0_4px_16px_rgba(0,0,0,0.1)]'
     }
   },
+  blossomDark: extraSeason('Blossom', 'bg-linear-to-t/srgb from-pink-950 to-black to-50%', 'bg-linear-to-r/srgb from-pink-950 to-pink-900 hover:from-pink-900 hover:to-pink-800 text-white rounded-lg shadow-xs', 'hover:bg-pink-950/50', 'shadow-[0_4px_16px_rgba(236,72,153,0.15)]'),
+  verdureDark: extraSeason('Verdure', 'bg-linear-to-t/srgb from-green-950 to-black to-50%', 'bg-linear-to-r/srgb from-green-950 to-green-900 hover:from-green-900 hover:to-green-800 text-white rounded-lg shadow-xs', 'hover:bg-green-950/50', 'shadow-[0_4px_16px_rgba(34,197,94,0.15)]'),
+  emberDark: extraSeason('Ember', 'bg-linear-to-t/srgb from-orange-950 to-black to-50%', 'bg-linear-to-r/srgb from-orange-950 to-orange-900 hover:from-orange-900 hover:to-orange-800 text-white rounded-lg shadow-xs', 'hover:bg-orange-950/50', 'shadow-[0_4px_16px_rgba(249,115,22,0.15)]'),
+  sunflareDark: extraSeason('Sunflare', 'bg-linear-to-t/srgb from-yellow-950 to-black to-50%', 'bg-linear-to-r/srgb from-yellow-950 to-yellow-900 hover:from-yellow-900 hover:to-yellow-800 text-white rounded-lg shadow-xs', 'hover:bg-yellow-950/50', 'shadow-[0_4px_16px_rgba(234,179,8,0.15)]'),
   /* No hue at all: the black canvas with nothing rising from the bottom.
      Everything else is Autumn Ember's, so the chrome is unchanged. */
   pureDark: {

@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import SendIcon from '../icons/SendIcon';
 import { useTheme } from '../../context/ThemeContext';
+import { effectiveNoteTheme } from './noteThemes';
 import { sendNotesAIRequest } from '../../services/ai/notesAiService';
 import { renderInline } from './renderInline';
 import { compileMathExpression } from '../../utils/mathExpression';
@@ -137,6 +138,13 @@ interface NoteThemeConfig {
 }
 
 const NOTE_THEMES: NoteThemeConfig[] = [
+  {
+    key: 'slate', label: 'Slate', dot: 'bg-slate-300', rgb: '203, 213, 225',
+    checkBg: 'bg-slate-400', checkBorder: 'border-slate-300', quoteBorder: 'border-slate-300/50',
+    calloutBg: 'bg-slate-400/10', calloutBorder: 'border-slate-400/20',
+    editorGradient: 'linear-gradient(180deg, rgba(203,213,225,0.06), transparent 45%)',
+    editorGlow: '0 0 80px rgba(203,213,225,0.08)', textAccent: 'text-slate-300',
+  },
   // Purple — from Default/Air persona: rgba(168, 85, 247)
   {
     key: 'purple', label: 'Purple', dot: 'bg-purple-500', rgb: '168, 85, 247',
@@ -1888,7 +1896,7 @@ export function NoteSidebar({ notes, activeId, onSelect, onNew, onDelete, onTogg
 
 export function NotesPage() {
   const navigate = useNavigate();
-  const { theme } = useTheme();
+  const { theme, accentSeason, themeRevision } = useTheme();
   const [initialState] = useState(() =>
     createInitialNotesState(
       loadNotes(),
@@ -1932,6 +1940,7 @@ export function NotesPage() {
   const themeDropdownRef = useRef<HTMLDivElement>(null);
 
   const activeNote = useMemo(() => notes.find((n) => n.id === activeNoteId) || null, [notes, activeNoteId]);
+  const activeNoteTheme = effectiveNoteTheme(activeNote, themeRevision, accentSeason);
 
   // Close emoji picker / theme dropdown on outside click
   useEffect(() => {
@@ -2250,7 +2259,7 @@ export function NotesPage() {
       style={{
         minHeight: 'calc(var(--vh, 1vh) * 100)',
         background: activeNote
-          ? `linear-gradient(to top, rgba(${getNoteTheme(activeNote.noteTheme).rgb}, 0.35) 0%, var(--color-canvas) 55%)`
+          ? `linear-gradient(to top, rgba(${getNoteTheme(activeNoteTheme).rgb}, 0.35) 0%, var(--color-canvas) 55%)`
           : 'var(--color-canvas)',
         transition: 'background 0.5s ease',
       }}
@@ -2372,12 +2381,12 @@ export function NotesPage() {
                         onClick={() => setShowThemeDropdown(!showThemeDropdown)}
                         className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white/90 transition-all"
                         style={{
-                          background: `rgba(${getNoteTheme(activeNote.noteTheme).rgb}, 0.1)`,
-                          border: `1px solid rgba(${getNoteTheme(activeNote.noteTheme).rgb}, 0.2)`,
+                          background: `rgba(${getNoteTheme(activeNoteTheme).rgb}, 0.1)`,
+                          border: `1px solid rgba(${getNoteTheme(activeNoteTheme).rgb}, 0.2)`,
                         }}
                       >
-                        <div className={`w-2.5 h-2.5 rounded-full ${getNoteTheme(activeNote.noteTheme).dot}`} />
-                        {getNoteTheme(activeNote.noteTheme).label} Theme
+                        <div className={`w-2.5 h-2.5 rounded-full ${getNoteTheme(activeNoteTheme).dot}`} />
+                        {getNoteTheme(activeNoteTheme).label} Theme
                         <Palette className="w-3 h-3" />
                       </button>
                       <AnimatePresence>
@@ -2395,16 +2404,16 @@ export function NotesPage() {
                                 <button
                                   key={t.key}
                                   onClick={() => {
-                                    updateNote(activeNote.id, (n) => ({ ...n, noteTheme: t.key }));
+                                    updateNote(activeNote.id, (n) => ({ ...n, noteTheme: t.key, noteThemeRevision: themeRevision }));
                                     setShowThemeDropdown(false);
                                   }}
                                   className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-white/5 transition-colors ${
-                                    (activeNote.noteTheme || 'purple') === t.key ? 'text-white/90' : 'text-white/50'
+                                    activeNoteTheme === t.key ? 'text-white/90' : 'text-white/50'
                                   }`}
                                 >
                                   <div className={`w-3 h-3 rounded-full ${t.dot}`} />
                                   {t.label} Theme
-                                  {(activeNote.noteTheme || 'purple') === t.key && (
+                                  {activeNoteTheme === t.key && (
                                     <svg className="w-3.5 h-3.5 ml-auto text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
@@ -2489,7 +2498,7 @@ export function NotesPage() {
                           block={block}
                           index={index}
                           focused={focusedBlockIndex === index}
-                          noteTheme={activeNote.noteTheme || 'purple'}
+                          noteTheme={activeNoteTheme}
                           onFocus={() => setFocusedBlockIndex(index)}
                           onChange={(content) => updateBlock(block.id, { content })}
                           onChangeType={(type) => updateBlock(block.id, { type })}
@@ -2516,12 +2525,12 @@ export function NotesPage() {
                         exit={{ opacity: 0, y: 8 }}
                         className="mt-4 flex items-center justify-between rounded-xl px-4 py-3"
                         style={{
-                          background: `rgba(${getNoteTheme(activeNote.noteTheme).rgb}, 0.08)`,
-                          border: `1px solid rgba(${getNoteTheme(activeNote.noteTheme).rgb}, 0.2)`,
+                          background: `rgba(${getNoteTheme(activeNoteTheme).rgb}, 0.08)`,
+                          border: `1px solid rgba(${getNoteTheme(activeNoteTheme).rgb}, 0.2)`,
                         }}
                       >
                         <div className="flex items-center gap-2 text-sm text-white/50">
-                          <Sparkles className="w-4 h-4" style={{ color: `rgba(${getNoteTheme(activeNote.noteTheme).rgb}, 0.8)` }} />
+                          <Sparkles className="w-4 h-4" style={{ color: `rgba(${getNoteTheme(activeNoteTheme).rgb}, 0.8)` }} />
                           <span>{pendingEdits.length + pendingNewBlocks.length} AI change{pendingEdits.length + pendingNewBlocks.length !== 1 ? 's' : ''} pending</span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -2529,9 +2538,9 @@ export function NotesPage() {
                             onClick={handleAcceptAll}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                             style={{
-                              background: `rgba(${getNoteTheme(activeNote.noteTheme).rgb}, 0.2)`,
-                              color: `rgba(${getNoteTheme(activeNote.noteTheme).rgb}, 1)`,
-                              border: `1px solid rgba(${getNoteTheme(activeNote.noteTheme).rgb}, 0.3)`,
+                              background: `rgba(${getNoteTheme(activeNoteTheme).rgb}, 0.2)`,
+                              color: `rgba(${getNoteTheme(activeNoteTheme).rgb}, 1)`,
+                              border: `1px solid rgba(${getNoteTheme(activeNoteTheme).rgb}, 0.3)`,
                             }}
                           >
                             <Check className="w-3.5 h-3.5" /> Accept All

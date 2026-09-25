@@ -16,15 +16,11 @@ import { LyricsMiniPlayer } from './components/music/LyricsMiniPlayer';
 import { Users, Settings, Zap, PanelRightOpen } from 'lucide-react';
 import { LEGACY_TOP_DELAY_MS, LEGACY_TOP_DURATION_MS } from './themes/legacyMotion';
 
-/* The same minds in light mode. Air takes the deep purple that light.css's
-   one-accent ramp lands on; Girlie and PRO keep their exact colours in
-   both modes (see the brand-hue note in light.css). */
-const personaLightAccents: Record<string, string> = { default: '88 28 135', girlie: '236 72 153', pro: '34 211 238' };
 /* The header action button's fill: the mind's hue at 20% behind the ink. */
 const personaBackgroundColors: Record<string, string> = {
-  default: 'rgba(139,0,255,0.2)',
-  girlie: 'rgba(199,21,133,0.2)',
-  pro: 'rgba(30,144,255,0.2)',
+  default: 'rgb(var(--tm-chat-accent-rgb, 139 0 255) / 0.2)',
+  girlie: 'rgb(var(--tm-chat-accent-rgb, 199 21 133) / 0.2)',
+  pro: 'rgb(var(--tm-chat-accent-rgb, 30 144 255) / 0.2)',
 };
 import { AnimatePresence, motion } from 'framer-motion';
 import { useChat } from './hooks/useChat';
@@ -537,15 +533,15 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   }), [currentPersona]);
 
   const flowStateButtonStyles = useMemo(() => ({
-    border: flowStateActive ? '1px solid rgba(168, 85, 247, 0.5)' : '1px solid rgba(168, 85, 247, 0.4)',
+    border: flowStateActive ? '1px solid rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.5)' : '1px solid rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.4)',
     bg: flowStateActive
-      ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgb(var(--tm-ink-rgb) / 0.05))'
-      : 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgb(var(--tm-ink-rgb) / 0.05))',
+      ? 'linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.3), rgb(var(--tm-ink-rgb) / 0.05))'
+      : 'linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.2), rgb(var(--tm-ink-rgb) / 0.05))',
     shadow: flowStateActive
-      ? '0 0 20px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
-      : '0 0 15px rgba(168, 85, 247, 0.35), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
+      ? '0 0 20px rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
+      : '0 0 15px rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.35), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
     text: legacyUi
-      ? flowStateActive ? 'rgb(216, 180, 254)' : 'var(--color-gray-200)'
+      ? flowStateActive ? 'var(--tm-chat-accent-color, rgb(216 180 254))' : 'var(--color-gray-200)'
       : flowStateActive ? 'rgb(var(--tm-accent-rgb, 216 180 254))' : 'rgb(var(--tm-ink-rgb) / 0.92)',
   }), [flowStateActive, legacyUi]);
 
@@ -553,10 +549,10 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   // tinted lens, coloured rim, soft glow and the same 20px blur. Current
   // keeps its existing treatment.
   const girlieActionButtonStyles = useMemo(() => legacyUi ? ({
-    background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgb(var(--tm-ink-rgb) / 0.05))',
+    background: 'linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, 236 72 153) / 0.15), rgb(var(--tm-ink-rgb) / 0.05))',
     color: 'var(--color-gray-200)',
-    border: '1px solid rgba(236, 72, 153, 0.3)',
-    boxShadow: '0 0 12px rgba(236, 72, 153, 0.25), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
+    border: '1px solid rgb(var(--tm-chat-accent-rgb, 236 72 153) / 0.3)',
+    boxShadow: '0 0 12px rgb(var(--tm-chat-accent-rgb, 236 72 153) / 0.25), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',
   }) : ({
@@ -698,6 +694,12 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     return shareId;
   }, [enableCollaborativeMode]);
 
+  const isHealthcareActive = activeChatMode === 'tm-healthcare';
+  useLayoutEffect(() => {
+    document.documentElement.dataset.healthcare = String(isHealthcareActive);
+    return () => { delete document.documentElement.dataset.healthcare; };
+  }, [isHealthcareActive]);
+
   if (MAINTENANCE_MODE) {
     return null;
   }
@@ -719,7 +721,6 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   // seconds before anything painted (production-check.md 1.14).
 
   // Override background for healthcare mode (green gradient instead of season theme)
-  const isHealthcareActive = activeChatMode === 'tm-healthcare';
   const backgroundClass = customBackgroundClass
     ? customBackgroundClass
     : isHealthcareActive
@@ -737,9 +738,9 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
       className={`${legacyUi ? 'tm-legacy-chat-shell' : 'tm-chat-shell'} min-h-screen ${shellBackgroundClass} ${theme.text} relative overflow-hidden`}
       style={{
         minHeight: 'calc(var(--vh, 1vh) * 100)',
-        // Light mode's inline accent follows the mind; dark keeps each
-        // style's own fallback hue, so the variable is left unset there.
-        ...(!legacyUi && mode === 'light' && !brandOverride ? { '--tm-accent-rgb': personaLightAccents[currentPersona] || personaLightAccents.default } : {}),
+        // The root theme supplies the seasonal accent in both appearances;
+        // Healthcare can temporarily override it in the current shell.
+        ...(!legacyUi && mode === 'light' && !brandOverride ? { '--tm-accent-rgb': isHealthcareActive ? '16 185 129' : undefined } : {}),
       } as React.CSSProperties}
     >
       {legacyUi && !customBackgroundClass && (

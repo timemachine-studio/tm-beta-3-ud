@@ -1,4 +1,6 @@
 import type { Block, Note, NoteTheme } from './notesState';
+import type { SeasonTheme } from '../../themes/themeState';
+import { healthcarePalette, seasonPalettes } from '../../themes/seasonPalette';
 
 /* The surfaces every Notes module shares: the note hues, the icon set, the
    pane material for popovers, ids and storage. */
@@ -47,6 +49,13 @@ export interface NoteThemeConfig {
 }
 
 export const NOTE_THEMES: NoteThemeConfig[] = [
+  {
+    key: 'slate', label: 'Slate', dot: 'bg-slate-300', rgb: '203, 213, 225',
+    secondaryRgb: '148, 163, 184', checkBg: 'bg-slate-400', checkBorder: 'border-slate-300',
+    quoteBorder: 'border-slate-300/50', calloutBg: 'bg-slate-400/10', calloutBorder: 'border-slate-400/20',
+    editorGradient: 'linear-gradient(180deg, rgba(203,213,225,0.06), transparent 45%)',
+    editorGlow: '0 0 80px rgba(203,213,225,0.08)', textAccent: 'text-slate-300',
+  },
   // Purple — from Default/Air persona: rgba(168, 85, 247)
   {
     key: 'purple', label: 'Purple', dot: 'bg-purple-500', rgb: '168, 85, 247',
@@ -131,6 +140,13 @@ export const NOTE_THEMES: NoteThemeConfig[] = [
 
 export function getNoteTheme(key?: NoteTheme) {
   return NOTE_THEMES.find((t) => t.key === key) || NOTE_THEMES[0];
+}
+
+export function effectiveNoteTheme(note: Note | null | undefined, revision: number, season: SeasonTheme, healthcare = false): NoteTheme {
+  if (note?.noteTheme && (note.noteThemeRevision === revision || (revision === 0 && note.noteThemeRevision === undefined))) {
+    return note.noteTheme;
+  }
+  return healthcare ? healthcarePalette.note : seasonPalettes[season].note;
 }
 
 // ─── persistence ────────────────────────────────────────────────────

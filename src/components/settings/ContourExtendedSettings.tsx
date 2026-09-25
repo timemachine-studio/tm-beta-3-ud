@@ -30,10 +30,10 @@ export function ContourExtendedSettings() {
 
   return (
     <section>
-      <p className="mb-3 text-sm font-medium text-ink-muted">Contour</p>
+      <p className="tm-display mb-3 text-[1.625rem] italic leading-tight text-ink" style={{ fontWeight: 300 }}>Contour</p>
       <div className="rounded-2xl p-4" style={card}>
         <div className="flex items-start gap-3">
-          <div className="rounded-xl bg-purple-500/10 p-2 text-purple-400">
+          <div className="rounded-xl p-2" style={{ background: 'rgb(var(--tm-season-rgb) / 0.1)', color: 'var(--tm-season-accent)' }}>
             <BrainCircuit className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
@@ -58,7 +58,7 @@ export function ContourExtendedSettings() {
         {extended.phase === 'downloading' && (
           <div className="mt-4">
             <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
-              <div className="h-full rounded-full bg-purple-400 transition-[width]" style={{ width: `${Math.round(extended.progress * 100)}%` }} />
+              <div className="h-full rounded-full transition-[width]" style={{ width: `${Math.round(extended.progress * 100)}%`, background: 'var(--tm-season-accent)' }} />
             </div>
             <div className="mt-1.5 flex justify-between text-[11px] text-ink-muted">
               <span>{formatBytes(extended.downloadedBytes)}</span>
@@ -90,7 +90,8 @@ export function ContourExtendedSettings() {
               type="button"
               onClick={() => void extended.install()}
               disabled={busy || extended.phase === 'checking' || extended.phase === 'unsupported'}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-purple-500/15 px-3 text-xs font-medium text-purple-300 transition hover:bg-purple-500/25 disabled:opacity-50"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+              style={{ background: 'rgb(var(--tm-season-rgb) / 0.15)', color: 'var(--tm-season-accent)' }}
             >
               {busy || extended.phase === 'checking'
                 ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" />

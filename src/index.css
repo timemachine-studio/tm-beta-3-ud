@@ -7,6 +7,12 @@
 @import './stylesheet/light-palette.css';
 @import './stylesheet/light.css';
 @import './stylesheet/legacy-light.css';
+
+/* Season circles are miniature atmosphere previews even on a light page. */
+:root .tm-settings .tm-season-swatch {
+  background-color: #08070a !important;
+  background-image: var(--tm-season-preview) !important;
+}
 @source '../index.html';
 @source './**/*.{js,ts,jsx,tsx}';
 @plugin '@tailwindcss/typography';
@@ -115,7 +121,7 @@
 
   /* The persona menu under the brand. Dark keeps its faint glass sheen;
      light makes it an opaque card like every other floating surface. */
-  --tm-menu-bg: linear-gradient(145deg, rgb(255 255 255 / 0.03), rgb(255 255 255 / 0.01));
+  --tm-menu-bg: linear-gradient(145deg, rgb(var(--tm-season-rgb, 168 85 247) / 0.22), rgb(16 13 24 / 0.97) 68%);
   --tm-menu-border: rgb(255 255 255 / 0.05);
   --tm-menu-shadow: none;
 

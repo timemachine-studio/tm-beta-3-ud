@@ -9,6 +9,7 @@ import { seasonThemes } from '../../themes/seasons';
 import type { SeasonTheme } from '../../context/themeContextValue';
 import { ContourExtendedSettings } from './ContourExtendedSettings';
 import { ThinkingAnimationSetting } from './ThinkingAnimationSetting';
+import { seasonPreviewGradient } from '../../themes/seasonPalette';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -29,13 +30,13 @@ const pane = {
 
 const paneSelected = {
   ...pane,
-  background: 'color-mix(in srgb, var(--color-purple-500) 10%, transparent)',
-  border: '1px solid color-mix(in srgb, var(--color-purple-500) 50%, transparent)',
+  background: 'rgb(var(--tm-season-rgb) / 0.12)',
+  border: '1px solid rgb(var(--tm-season-rgb) / 0.5)',
 } as const;
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-sm font-medium text-ink-muted mb-3">
+    <p className="tm-display mb-3 text-[1.625rem] italic leading-tight text-ink" style={{ fontWeight: 300 }}>
       {children}
     </p>
   );
@@ -143,7 +144,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                               <span className="flex items-center gap-2 w-full">
                                 <Icon className="w-4 h-4 text-ink" />
                                 <span className="text-sm font-medium text-white">{label}</span>
-                                {selected && <Check className="w-4 h-4 ml-auto text-purple-400" />}
+                                {selected && <Check className="w-4 h-4 ml-auto" style={{ color: 'var(--tm-season-accent)' }} />}
                               </span>
                               <span className="text-xs text-ink-muted -mt-2">{hint}</span>
                             </motion.button>
@@ -188,7 +189,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                           <p className="text-xs text-ink-muted mt-3">White on the left, beige on the right.</p>
                         </motion.section>
                       )}
-                      {mode === 'dark' && (
+                      {(
                         <motion.section
                           key="seasons"
                           initial={{ opacity: 0, height: 0 }}
@@ -198,7 +199,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                           className="overflow-hidden"
                         >
                           <SectionLabel>Season</SectionLabel>
-                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" role="radiogroup" aria-label="Season">
+                          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2" role="radiogroup" aria-label="Season">
                             <SeasonSwatch
                               label="Auto"
                               hint="Follows persona"
@@ -218,7 +219,8 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                                 hint={s.name}
                                 selected={!seasonFollowsPersona && season === key}
                                 onSelect={() => setSeason(key)}
-                                swatchClassName={s.background}
+                                swatchClassName=""
+                                swatchStyle={{ '--tm-season-preview': seasonPreviewGradient(key) } as React.CSSProperties}
                               />
                             ))}
                           </div>
@@ -274,7 +276,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                               <span className="flex items-center gap-2 w-full">
                                 <Icon className="w-4 h-4 text-ink" />
                                 <span className="text-sm font-medium text-white">{label}</span>
-                                {selected && <Check className="w-4 h-4 ml-auto text-purple-400" />}
+                                {selected && <Check className="w-4 h-4 ml-auto" style={{ color: 'var(--tm-season-accent)' }} />}
                               </span>
                               <span className="text-xs text-ink-muted -mt-2">{hint}</span>
                             </motion.button>
@@ -319,6 +321,7 @@ function SeasonSwatch({
   onSelect,
   swatch,
   swatchClassName,
+  swatchStyle,
 }: {
   label: string;
   hint: string;
@@ -326,6 +329,7 @@ function SeasonSwatch({
   onSelect: () => void;
   swatch?: React.ReactNode;
   swatchClassName: string;
+  swatchStyle?: React.CSSProperties;
 }) {
   return (
     <button
@@ -336,21 +340,22 @@ function SeasonSwatch({
       className="group flex flex-col items-center gap-1.5 focus-visible:outline-none"
     >
       <span
-        className={`relative block w-12 h-12 rounded-full overflow-hidden transition-transform duration-200 ${swatchClassName} ${
+        className={`relative block w-12 h-12 rounded-full overflow-hidden transition-transform duration-200 ${swatchClassName} ${swatchStyle ? 'tm-season-swatch' : ''} ${
           selected ? 'scale-105' : 'group-hover:scale-105'
         }`}
         style={{
+          ...swatchStyle,
           border: selected
-            ? '2px solid color-mix(in srgb, var(--color-purple-500) 70%, transparent)'
+            ? '2px solid rgb(var(--tm-season-rgb) / 0.7)'
             : '1px solid rgb(var(--tm-ink-rgb) / 0.12)',
           boxShadow: selected
-            ? '0 0 0 3px color-mix(in srgb, var(--color-purple-500) 22%, transparent), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
+            ? '0 0 0 3px rgb(var(--tm-season-rgb) / 0.22), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
             : 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.12)',
         }}
       >
         {swatch}
       </span>
-      <span className={`text-xs font-medium ${selected ? 'text-white' : 'text-ink-muted'}`}>{label}</span>
+      <span className={`text-xs font-medium ${selected ? 'text-ink' : 'text-ink-muted'}`}>{label}</span>
     </button>
   );
 }
@@ -361,7 +366,7 @@ function RowLink({
   hint,
   onClick,
 }: {
-  Icon: React.ComponentType<{ className?: string }>;
+  Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   title: string;
   hint: string;
   onClick: () => void;
@@ -374,7 +379,7 @@ function RowLink({
       className="w-full flex items-center gap-3 p-3.5 rounded-2xl text-left"
       style={pane}
     >
-      <Icon className="w-4.5 h-4.5 text-purple-400" />
+      <Icon className="w-4.5 h-4.5" style={{ color: 'var(--tm-season-accent)' }} />
       <span className="flex flex-col">
         <span className="text-sm font-medium text-white">{title}</span>
         <span className="text-xs text-ink-muted">{hint}</span>

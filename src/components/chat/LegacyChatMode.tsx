@@ -11,6 +11,7 @@ import { BrandOverride } from '../brand/BrandLogo';
 import type { SavedVariation } from './MusicComposeCard';
 import { SesameMark } from '../icons/LegacySesameMark';
 import type { McpApprovalDecision } from '../../types/flightControls';
+import { personaNeonColor } from '../../themes/seasonPalette';
 
 interface ReplyTo {
   id: string;
@@ -56,7 +57,12 @@ export function ChatMode({
   onRetry,
   isRetrying,
 }: ChatModeProps) {
-  const { theme } = useTheme();
+  const { theme, seasonFollowsPersona } = useTheme();
+  const flipWordsStyle = brandOverride
+    ? undefined
+    : !seasonFollowsPersona
+      ? { color: 'var(--tm-chat-accent-vivid)' }
+      : { color: personaNeonColor(currentPersona) };
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // Track the last user message ID we've scrolled to (prevents duplicate scrolls)
@@ -157,6 +163,7 @@ export function ChatMode({
                       words={["better", "brighter", "dream", '"my"']}
                       duration={2500}
                       className={flipWordsColor}
+                      style={flipWordsStyle}
                     />
                   </div>
                   <div>future with TimeMachine.</div>

@@ -20,15 +20,15 @@ interface MaxModeButtonProps {
 
 export function MaxModeButton({ active, textColor, onEnter, onExit, legacy = false }: MaxModeButtonProps) {
   const styles = {
-    border: active ? '1px solid rgba(34, 211, 238, 0.5)' : '1px solid rgba(34, 211, 238, 0.3)',
+    border: active ? '1px solid rgb(var(--tm-chat-accent-rgb, 34 211 238) / 0.5)' : '1px solid rgb(var(--tm-chat-accent-rgb, 34 211 238) / 0.3)',
     background: active
-      ? 'linear-gradient(135deg, rgba(34, 211, 238, 0.3), rgb(var(--tm-ink-rgb) / 0.05))'
-      : 'linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgb(var(--tm-ink-rgb) / 0.05))',
+      ? 'linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, 34 211 238) / 0.3), rgb(var(--tm-ink-rgb) / 0.05))'
+      : 'linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, 34 211 238) / 0.15), rgb(var(--tm-ink-rgb) / 0.05))',
     boxShadow: active
-      ? '0 0 20px rgba(34, 211, 238, 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
-      : '0 0 12px rgba(34, 211, 238, 0.25), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
+      ? '0 0 20px rgb(var(--tm-chat-accent-rgb, 34 211 238) / 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
+      : '0 0 12px rgb(var(--tm-chat-accent-rgb, 34 211 238) / 0.25), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
     // The hue reads as a sticker on paper; light collapses it to the accent.
-    color: active ? legacy ? 'rgb(135,206,250)' : 'rgb(var(--tm-accent-rgb, 135 206 250))' : textColor,
+    color: active ? legacy ? 'var(--tm-chat-accent-color, rgb(135 206 250))' : 'var(--tm-chat-accent-color, rgb(var(--tm-accent-rgb, 135 206 250)))' : textColor,
   };
 
   return (

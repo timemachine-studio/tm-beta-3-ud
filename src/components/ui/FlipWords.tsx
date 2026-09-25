@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 
-export const FlipWords = ({ words, duration = 3000, className }: {
+export const FlipWords = ({ words, duration = 3000, className, style }: {
   words: string[];
   duration?: number;
   className?: string;
+  style?: React.CSSProperties;
 }) => {
   const [index, setIndex] = useState(0);
   const reduced = useReducedMotion();
@@ -16,7 +17,7 @@ export const FlipWords = ({ words, duration = 3000, className }: {
   }, [duration, reduced, words.length]);
   const word = words[reduced ? 0 : index % words.length] || '';
   return (
-    <span className={cn('relative inline-grid text-left', className)}>
+    <span className={cn('relative inline-grid text-left', className)} style={style}>
       <AnimatePresence initial={false}>
         <motion.span
           key={word}

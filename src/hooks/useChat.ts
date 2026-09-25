@@ -236,7 +236,7 @@ export function useChat(
   }, [userId]);
 
   // Set theme based on persona
-  const setPersonaTheme = useCallback((persona: keyof typeof AI_PERSONAS) => {
+  const setPersonaTheme = useCallback((persona: keyof typeof AI_PERSONAS, initial = false) => {
     let themeToSet: string;
 
     switch (persona) {
@@ -250,7 +250,7 @@ export function useChat(
         themeToSet = 'autumnDark';
     }
 
-    window.dispatchEvent(new CustomEvent('themeChange', { detail: themeToSet }));
+    window.dispatchEvent(new CustomEvent('themeChange', { detail: initial ? { season: themeToSet, initial: true } : themeToSet }));
   }, []);
 
   // Save chat session function - uses chatService which handles both local and Supabase
@@ -721,7 +721,7 @@ export function useChat(
     if (themeAppliedRef.current) return;
     if (initialSession && initialPersona) {
       themeAppliedRef.current = true;
-      setPersonaTheme(initialPersona);
+      setPersonaTheme(initialPersona, true);
     }
   }, [initialSession, initialPersona, setPersonaTheme]);
 
@@ -770,7 +770,7 @@ export function useChat(
       const initialMessage = rawMessage.replace(/<emotion>[a-z]+<\/emotion>/i, '').replace(/<reason>[\s\S]*?<\/reason>/i, '').trim();
 
       setCurrentPersona(persona);
-      setPersonaTheme(persona);
+      setPersonaTheme(persona, true);
       setMessages([{
         id: newId(),
         createdAt: new Date().toISOString(),

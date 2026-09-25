@@ -32,8 +32,8 @@
   color-scheme: light;
 
   /* ---- the two poles ---- */
-  /* Cream beige (#FDF1E1) with deep green ink for accents — the pairing
-     the owner picked. Cards sit a step lighter, still off-white. These are
+  /* Cream beige (#FDF1E1) with season-aware accents. Cards sit a step
+     lighter, still off-white. These are
      the warmth=100 values; ThemeProvider overrides the surface tokens
      inline on <html> as the Settings slider moves toward white (see
      lightWarmthVariables in themes/themeState.ts). Ramps below derive from
@@ -131,125 +131,8 @@
   --color-slate-950: var(--color-canvas);
 }
 
-/* One accent. Mirrored purple, cyan and pink read as stickers on beige,
-   so in light every brand hue (persona colours, links, selected states,
-   the accent word) is the same deep green ramp; step 400 is #035930. Red, orange,
-   amber, yellow, green and emerald keep their meaning as status colours
-   — those stay on the mirrored, muted ramps from light-palette.css.
-   Steps 200–400 are the text steps; they sit darker than a pure mirror
-   so accent text on the canvas passes AA. */
-:root[data-tm-ui="legacy"][data-theme="light"] {
-  --color-purple-50: oklch(20% 0.06 155);
-  --color-purple-100: oklch(26% 0.075 155);
-  --color-purple-200: oklch(31% 0.085 155);
-  --color-purple-300: oklch(35% 0.09 155);
-  --color-purple-400: oklch(38.5% 0.095 155);
-  --color-purple-500: oklch(47% 0.09 155);
-  --color-purple-600: oklch(60% 0.08 155);
-  --color-purple-700: oklch(75% 0.06 155);
-  --color-purple-800: oklch(86% 0.045 155);
-  --color-purple-900: oklch(92.5% 0.03 155);
-  --color-purple-950: oklch(96.5% 0.015 155);
-  --color-violet-50: oklch(20% 0.06 155);
-  --color-violet-100: oklch(26% 0.075 155);
-  --color-violet-200: oklch(31% 0.085 155);
-  --color-violet-300: oklch(35% 0.09 155);
-  --color-violet-400: oklch(38.5% 0.095 155);
-  --color-violet-500: oklch(47% 0.09 155);
-  --color-violet-600: oklch(60% 0.08 155);
-  --color-violet-700: oklch(75% 0.06 155);
-  --color-violet-800: oklch(86% 0.045 155);
-  --color-violet-900: oklch(92.5% 0.03 155);
-  --color-violet-950: oklch(96.5% 0.015 155);
-  --color-indigo-50: oklch(20% 0.06 155);
-  --color-indigo-100: oklch(26% 0.075 155);
-  --color-indigo-200: oklch(31% 0.085 155);
-  --color-indigo-300: oklch(35% 0.09 155);
-  --color-indigo-400: oklch(38.5% 0.095 155);
-  --color-indigo-500: oklch(47% 0.09 155);
-  --color-indigo-600: oklch(60% 0.08 155);
-  --color-indigo-700: oklch(75% 0.06 155);
-  --color-indigo-800: oklch(86% 0.045 155);
-  --color-indigo-900: oklch(92.5% 0.03 155);
-  --color-indigo-950: oklch(96.5% 0.015 155);
-  --color-blue-50: oklch(20% 0.06 155);
-  --color-blue-100: oklch(26% 0.075 155);
-  --color-blue-200: oklch(31% 0.085 155);
-  --color-blue-300: oklch(35% 0.09 155);
-  --color-blue-400: oklch(38.5% 0.095 155);
-  --color-blue-500: oklch(47% 0.09 155);
-  --color-blue-600: oklch(60% 0.08 155);
-  --color-blue-700: oklch(75% 0.06 155);
-  --color-blue-800: oklch(86% 0.045 155);
-  --color-blue-900: oklch(92.5% 0.03 155);
-  --color-blue-950: oklch(96.5% 0.015 155);
-  --color-sky-50: oklch(20% 0.06 155);
-  --color-sky-100: oklch(26% 0.075 155);
-  --color-sky-200: oklch(31% 0.085 155);
-  --color-sky-300: oklch(35% 0.09 155);
-  --color-sky-400: oklch(38.5% 0.095 155);
-  --color-sky-500: oklch(47% 0.09 155);
-  --color-sky-600: oklch(60% 0.08 155);
-  --color-sky-700: oklch(75% 0.06 155);
-  --color-sky-800: oklch(86% 0.045 155);
-  --color-sky-900: oklch(92.5% 0.03 155);
-  --color-sky-950: oklch(96.5% 0.015 155);
-  --color-cyan-50: oklch(20% 0.06 155);
-  --color-cyan-100: oklch(26% 0.075 155);
-  --color-cyan-200: oklch(31% 0.085 155);
-  --color-cyan-300: oklch(35% 0.09 155);
-  --color-cyan-400: oklch(38.5% 0.095 155);
-  --color-cyan-500: oklch(47% 0.09 155);
-  --color-cyan-600: oklch(60% 0.08 155);
-  --color-cyan-700: oklch(75% 0.06 155);
-  --color-cyan-800: oklch(86% 0.045 155);
-  --color-cyan-900: oklch(92.5% 0.03 155);
-  --color-cyan-950: oklch(96.5% 0.015 155);
-  --color-teal-50: oklch(20% 0.06 155);
-  --color-teal-100: oklch(26% 0.075 155);
-  --color-teal-200: oklch(31% 0.085 155);
-  --color-teal-300: oklch(35% 0.09 155);
-  --color-teal-400: oklch(38.5% 0.095 155);
-  --color-teal-500: oklch(47% 0.09 155);
-  --color-teal-600: oklch(60% 0.08 155);
-  --color-teal-700: oklch(75% 0.06 155);
-  --color-teal-800: oklch(86% 0.045 155);
-  --color-teal-900: oklch(92.5% 0.03 155);
-  --color-teal-950: oklch(96.5% 0.015 155);
-  --color-fuchsia-50: oklch(20% 0.06 155);
-  --color-fuchsia-100: oklch(26% 0.075 155);
-  --color-fuchsia-200: oklch(31% 0.085 155);
-  --color-fuchsia-300: oklch(35% 0.09 155);
-  --color-fuchsia-400: oklch(38.5% 0.095 155);
-  --color-fuchsia-500: oklch(47% 0.09 155);
-  --color-fuchsia-600: oklch(60% 0.08 155);
-  --color-fuchsia-700: oklch(75% 0.06 155);
-  --color-fuchsia-800: oklch(86% 0.045 155);
-  --color-fuchsia-900: oklch(92.5% 0.03 155);
-  --color-fuchsia-950: oklch(96.5% 0.015 155);
-  --color-pink-50: oklch(20% 0.06 155);
-  --color-pink-100: oklch(26% 0.075 155);
-  --color-pink-200: oklch(31% 0.085 155);
-  --color-pink-300: oklch(35% 0.09 155);
-  --color-pink-400: oklch(38.5% 0.095 155);
-  --color-pink-500: oklch(47% 0.09 155);
-  --color-pink-600: oklch(60% 0.08 155);
-  --color-pink-700: oklch(75% 0.06 155);
-  --color-pink-800: oklch(86% 0.045 155);
-  --color-pink-900: oklch(92.5% 0.03 155);
-  --color-pink-950: oklch(96.5% 0.015 155);
-  --color-rose-50: oklch(20% 0.06 155);
-  --color-rose-100: oklch(26% 0.075 155);
-  --color-rose-200: oklch(31% 0.085 155);
-  --color-rose-300: oklch(35% 0.09 155);
-  --color-rose-400: oklch(38.5% 0.095 155);
-  --color-rose-500: oklch(47% 0.09 155);
-  --color-rose-600: oklch(60% 0.08 155);
-  --color-rose-700: oklch(75% 0.06 155);
-  --color-rose-800: oklch(86% 0.045 155);
-  --color-rose-900: oklch(92.5% 0.03 155);
-  --color-rose-950: oklch(96.5% 0.015 155);
-}
+/* Legacy Light now inherits each hue from the shared light palette.
+   The old all-green remap leaked into persona, dialog, and season accents. */
 
 /* The page root. In dark the seasons paint a gradient; in light the one
    variant is a flat canvas. */
@@ -314,7 +197,7 @@
 /* Inline gradients are the persona-tinted pill recipe
    (`linear-gradient(135deg, accent 20%, white 5%)`) and a few page
    washes. They collapse to the same card every other pill is. */
-:root[data-tm-ui="legacy"][data-theme="light"] [style*="-gradient("]:not([style*="background-clip"]):not([style*="mask"]) {
+:root[data-tm-ui="legacy"][data-theme="light"] [style*="-gradient("]:not([style*="background-clip"]):not([style*="mask"]):not(.tm-season-swatch) {
   background-image: none !important;
   background-color: var(--tm-pane-bg) !important;
 }

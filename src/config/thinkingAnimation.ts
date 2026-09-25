@@ -23,12 +23,14 @@ export type OrbVariant = {
 };
 export type ThinkingVisual = OrbVariant | { kind: 'constellation' } | { kind: 'cubes' };
 type OrbChoice = `orb:${OrbVariant['state']}:${OrbVariant['size']}`;
-export type ThinkingAnimationChoice = 'orb-cycle' | 'all-cycle' | 'constellation' | 'cubes' | OrbChoice;
+export type ThinkingAnimationChoice = 'orb-cycle' | 'compact-cycle' | 'large-cycle' | 'all-cycle' | 'constellation' | 'cubes' | OrbChoice;
 
 export const DEFAULT_THINKING_ANIMATION: ThinkingAnimationChoice = 'orb-cycle';
 export const ORB_VARIANTS: readonly OrbVariant[] = ORB_STATES.flatMap(state =>
   ORB_SIZES.map(size => ({ kind: 'orb' as const, state, size })),
 );
+export const COMPACT_ORB_VARIANTS = ORB_VARIANTS.filter(variant => variant.size === 20);
+export const LARGE_ORB_VARIANTS = ORB_VARIANTS.filter(variant => variant.size === 64);
 export const ALL_THINKING_VISUALS: readonly ThinkingVisual[] = [
   { kind: 'cubes' },
   { kind: 'constellation' },
@@ -41,8 +43,10 @@ export const THINKING_ANIMATION_OPTIONS: ReadonlyArray<{
   group: 'Cycles' | 'Original styles' | 'Individual orbs';
   hint: string;
 }> = [
-  { value: 'orb-cycle', label: 'All orbs', group: 'Cycles', hint: 'Every orb shape, in both sizes.' },
   { value: 'all-cycle', label: 'Everything', group: 'Cycles', hint: 'Cubes, constellation, then every orb variant.' },
+  { value: 'compact-cycle', label: 'All compact orbs', group: 'Cycles', hint: 'Every compact orb, one after another.' },
+  { value: 'large-cycle', label: 'All large orbs', group: 'Cycles', hint: 'Every large orb, one after another.' },
+  { value: 'orb-cycle', label: 'All orbs', group: 'Cycles', hint: 'Every orb shape, in both sizes.' },
   { value: 'cubes', label: 'Original cubes', group: 'Original styles', hint: 'The classic animated block wave.' },
   { value: 'constellation', label: 'Constellation', group: 'Original styles', hint: 'Rotating dots connected one by one.' },
   ...ORB_VARIANTS.map(({ state, size }) => ({
@@ -67,6 +71,8 @@ export function readStoredThinkingAnimation(read: (key: string) => string | null
 export function thinkingVisualAt(choice: ThinkingAnimationChoice, step: number): ThinkingVisual {
   const safeStep = Math.max(0, Math.floor(step));
   if (choice === 'orb-cycle') return ORB_VARIANTS[safeStep % ORB_VARIANTS.length];
+  if (choice === 'compact-cycle') return COMPACT_ORB_VARIANTS[safeStep % COMPACT_ORB_VARIANTS.length];
+  if (choice === 'large-cycle') return LARGE_ORB_VARIANTS[safeStep % LARGE_ORB_VARIANTS.length];
   if (choice === 'all-cycle') return ALL_THINKING_VISUALS[safeStep % ALL_THINKING_VISUALS.length];
   if (choice === 'cubes' || choice === 'constellation') return { kind: choice };
   const variant = ORB_VARIANTS.find(({ state, size }) => choice === `orb:${state}:${size}`);

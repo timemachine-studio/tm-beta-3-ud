@@ -50,26 +50,7 @@ interface SpeechTranscriptionButtonProps {
 
 /* The legacy bar's circle: the mic sits inside the field in the mind's hue
    and turns red while it listens. Kept in step with ChatInput's. */
-const personaStyles = {
-  tintColors: {
-    default: 'rgba(168, 85, 247, 0.2)',
-    girlie: 'rgba(236, 72, 153, 0.15)',
-    pro: 'rgba(34, 211, 238, 0.15)',
-    healthcare: 'rgba(16, 185, 129, 0.18)'
-  },
-  borderColors: {
-    default: 'rgba(168, 85, 247, 0.4)',
-    girlie: 'rgba(236, 72, 153, 0.3)',
-    pro: 'rgba(34, 211, 238, 0.3)',
-    healthcare: 'rgba(52, 211, 153, 0.35)'
-  },
-  glowShadow: {
-    default: '0 0 15px rgba(168, 85, 247, 0.35)',
-    girlie: '0 0 12px rgba(236, 72, 153, 0.25)',
-    pro: '0 0 12px rgba(34, 211, 238, 0.25)',
-    healthcare: '0 0 12px rgba(16, 185, 129, 0.3)'
-  }
-} as const;
+const personaRgb = { default: '168 85 247', girlie: '236 72 153', pro: '34 211 238', healthcare: '16 185 129' } as const;
 
 const recognitionErrorMessage = (error: string) => {
   if (error === 'not-allowed' || error === 'service-not-allowed') {
@@ -91,9 +72,10 @@ export function SpeechTranscriptionButton({
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const startingTextRef = useRef('');
-  const stylePersona: keyof typeof personaStyles.tintColors = accent === 'healthcare'
+  const stylePersona: keyof typeof personaRgb = accent === 'healthcare'
     ? 'healthcare'
     : currentPersona === 'girlie' || currentPersona === 'pro' ? currentPersona : 'default';
+  const accentRgb = stylePersona === 'healthcare' ? personaRgb.healthcare : `var(--tm-chat-accent-rgb, ${personaRgb[stylePersona]})`;
 
   useEffect(() => () => recognitionRef.current?.abort(), []);
 
@@ -167,15 +149,15 @@ export function SpeechTranscriptionButton({
         style={{
           background: isListening
             ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgb(var(--tm-ink-rgb) / 0.05))'
-            : `linear-gradient(135deg, ${personaStyles.tintColors[stylePersona]}, rgb(var(--tm-ink-rgb) / 0.05))`,
+            : `linear-gradient(135deg, rgb(${accentRgb} / ${stylePersona === 'default' ? 0.2 : 0.15}), rgb(var(--tm-ink-rgb) / 0.05))`,
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           border: isListening
             ? '1px solid rgba(239, 68, 68, 0.4)'
-            : `1px solid ${personaStyles.borderColors[stylePersona]}`,
+            : `1px solid rgb(${accentRgb} / ${stylePersona === 'default' ? 0.4 : 0.3})`,
           boxShadow: isListening
             ? '0 0 12px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
-            : `${personaStyles.glowShadow[stylePersona]}, inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`
+            : `0 0 ${stylePersona === 'default' ? 15 : 12}px rgb(${accentRgb} / ${stylePersona === 'default' ? 0.35 : 0.25}), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`
         }}
         type="button"
         aria-label={isListening ? 'Stop live transcription' : 'Start live transcription'}

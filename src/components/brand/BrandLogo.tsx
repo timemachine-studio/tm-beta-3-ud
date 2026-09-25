@@ -8,6 +8,8 @@ import { useAuth } from '../../context/AuthContext';
 import { AgentsModal } from '../agents/AgentsModal';
 import { ChatSession } from '../../services/chat/chatService';
 import { toLayoutPx } from '../../utils/pageZoom';
+import { useTheme } from '../../context/ThemeContext';
+import { personaNeonColor } from '../../themes/seasonPalette';
 
 export interface BrandOverride {
   name: string;
@@ -86,12 +88,16 @@ export function BrandLogo({
   const menuId = useId();
   const reduced = useReducedMotion() ?? false;
   const { user, profile } = useAuth();
+  const { seasonFollowsPersona } = useTheme();
+  const manualChatAccent = !seasonFollowsPersona && !brandOverride && accent !== 'healthcare';
 
   const hue = brandOverride?.glowColor
     ? undefined
     : accent === 'healthcare'
       ? '16 185 129'
-      : personaHues[(currentPersona in personaHues ? currentPersona : 'default') as MenuPersona];
+      : manualChatAccent
+        ? 'var(--tm-chat-accent-rgb)'
+        : personaHues[(currentPersona in personaHues ? currentPersona : 'default') as MenuPersona];
   const textClass = brandOverride?.textColorClass
     || (accent === 'healthcare' ? 'text-emerald-400' : personaColors[(currentPersona in personaColors ? currentPersona : 'default') as MenuPersona]);
 
@@ -169,6 +175,11 @@ export function BrandLogo({
             className={`${bare ? 'text-lg sm:text-2xl' : 'text-[17px] tracking-tight sm:text-lg'} font-bold ${textClass} transition-colors duration-300`}
             style={{
               fontFamily: 'Montserrat, var(--font-display)',
+              color: manualChatAccent
+                ? 'var(--tm-chat-accent-vivid)'
+                : !brandOverride && accent !== 'healthcare'
+                  ? personaNeonColor(currentPersona)
+                  : undefined,
               textShadow: bare
                 ? `0 0 20px ${glowAt(0.6)}, 0 0 40px ${glowAt(0.3)}, 0 0 60px ${glowAt(0.1)}`
                 : `0 0 20px ${glow}`,
@@ -186,7 +197,7 @@ export function BrandLogo({
           className={`shrink-0 transition-transform duration-300 ease-out ${isOpen ? 'rotate-180' : ''} ${bare
             ? `h-4 w-4 sm:h-5 sm:w-5 ${textClass}`
             : 'h-4 w-4'}`}
-          style={bare ? undefined : { color: 'rgb(var(--tm-ink-rgb) / 0.5)' }}
+          style={manualChatAccent ? { color: 'var(--tm-chat-accent-vivid)' } : bare ? undefined : { color: 'rgb(var(--tm-ink-rgb) / 0.5)' }}
           aria-hidden="true"
         />
       </button>

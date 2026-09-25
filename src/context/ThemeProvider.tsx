@@ -17,6 +17,11 @@ import {
 import { UI_STYLE_KEY, readStoredUiStyle, type UiStyle } from '../themes/uiStyle';
 import { readStoredString, removeStored, writeStoredString } from '../utils/safeStorage';
 import { THINKING_ANIMATION_KEY, readStoredThinkingAnimation, type ThinkingAnimationChoice } from '../config/thinkingAnimation';
+import { accentSeasonFor, seasonPalettes } from '../themes/seasonPalette';
+
+const THEME_REVISION_KEY = 'tm-theme-revision';
+const MANUAL_SEASON_KEY = 'tm-season-manual';
+const PERSONA_SEASON_KEY = 'tm-last-persona-season';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [stored] = useState(() => readStoredThemeState(readStoredString));
@@ -24,29 +29,57 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // The season painting now. A persona switch sets it (useChat dispatches
   // `themeChange`), and so does a pick in Settings — but a pick is not a
   // pin: the next persona switch takes the room back to that mind's own
-  // colour. `manual` remembers which of the two set it, for the Settings
-  // swatches; `lastPersonaSeason` is what "Auto" returns to. A season an
-  // older build pinned is honoured as the starting point only.
+  // colour. `manual` remembers which of the two set it across navigation
+  // and reloads; `lastPersonaSeason` is what "Auto" returns to. Choosing a
+  // persona clears the manual choice.
   const [season, setSeason] = useState<SeasonTheme>(stored.pinnedSeason ?? stored.personaSeason);
-  const [manual, setManual] = useState(false);
-  const lastPersonaSeason = useRef<SeasonTheme>(stored.personaSeason);
+  const [manual, setManual] = useState(() => readStoredString(MANUAL_SEASON_KEY) === '1');
+  const [storedPersonaSeason] = useState<SeasonTheme>(() => {
+    const last = readStoredString(PERSONA_SEASON_KEY);
+    return isSeasonTheme(last) ? last : stored.personaSeason;
+  });
+  const lastPersonaSeason = useRef<SeasonTheme>(storedPersonaSeason);
   const [lightWarmth, setLightWarmthState] = useState<number>(() => readStoredWarmth(readStoredString));
   const [uiStyle, setUiStyleState] = useState<UiStyle>(() => readStoredUiStyle(readStoredString));
   const [thinkingAnimation, setThinkingAnimationState] = useState<ThinkingAnimationChoice>(() => readStoredThinkingAnimation(readStoredString));
+  const [themeRevision, setThemeRevision] = useState(() => Number(readStoredString(THEME_REVISION_KEY)) || 0);
+  const advanceThemeRevision = () => setThemeRevision(current => current + 1);
 
-  const theme = mode === 'light' ? lightTheme : seasonThemes[season];
+  const accentSeason = accentSeasonFor(season, !manual);
+  const theme = mode === 'light' ? lightTheme : seasonThemes[accentSeason];
 
   // The mode lives on <html> so plain CSS (light.css) can re-theme the
   // whole document, including portals that render outside the React root.
   // Layout effect so the first paint after a toggle is already the new
   // theme rather than one frame of the old one.
   useLayoutEffect(() => {
-    if (mode === 'light') {
-      document.documentElement.setAttribute('data-theme', 'light');
+    const root = document.documentElement;
+    const palette = seasonPalettes[accentSeason];
+    root.dataset.season = season;
+    root.style.setProperty('--tm-season-rgb', palette.rgb);
+    root.style.setProperty('--tm-season-accent', mode === 'light' ? palette.light : palette.dark);
+    root.style.setProperty('--tm-accent-rgb', palette.rgb);
+    // Manual seasons temporarily tint chat chrome. Persona selection clears
+    // these two overrides and reveals each mind's original colors again.
+    if (manual) {
+      const chatPalette = seasonPalettes[season === 'pureDark' ? 'autumnDark' : season];
+      root.style.setProperty('--tm-chat-accent-rgb', chatPalette.rgb);
+      root.style.setProperty('--tm-chat-accent-color', mode === 'light' ? chatPalette.light : chatPalette.dark);
+      root.style.setProperty('--tm-chat-accent-vivid', chatPalette.dark);
     } else {
-      document.documentElement.removeAttribute('data-theme');
+      root.style.removeProperty('--tm-chat-accent-rgb');
+      root.style.removeProperty('--tm-chat-accent-color');
+      root.style.removeProperty('--tm-chat-accent-vivid');
     }
-  }, [mode]);
+    if (mode === 'light') {
+      root.setAttribute('data-theme', 'light');
+    } else {
+      root.removeAttribute('data-theme');
+    }
+  }, [mode, season, accentSeason, manual]);
+
+  useEffect(() => { writeStoredString(THEME_REVISION_KEY, String(themeRevision)); }, [themeRevision]);
+  useEffect(() => { writeStoredString(MANUAL_SEASON_KEY, manual ? '1' : '0'); }, [manual]);
 
   // The warmth slider moves every light surface token as an inline
   // variable on <html>, which beats light.css. Cleared in dark so the
@@ -88,10 +121,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handleThemeChange = (event: CustomEvent<unknown>) => {
-      if (isSeasonTheme(event.detail)) {
-        lastPersonaSeason.current = event.detail;
-        setSeason(event.detail);
+      const detail = event.detail;
+      const initial = typeof detail === 'object' && detail !== null && 'initial' in detail && detail.initial === true;
+      const next = typeof detail === 'object' && detail !== null && 'season' in detail ? detail.season : detail;
+      if (isSeasonTheme(next)) {
+        if (initial) {
+          lastPersonaSeason.current = next;
+          writeStoredString(PERSONA_SEASON_KEY, next);
+          if (manual || next === season) return;
+        }
+        lastPersonaSeason.current = next;
+        writeStoredString(PERSONA_SEASON_KEY, next);
+        setSeason(next);
         setManual(false);
+        if (next !== season || manual) advanceThemeRevision();
       }
     };
 
@@ -100,7 +143,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => {
       window.removeEventListener('themeChange', handleThemeChange as EventListener);
     };
-  }, []);
+  }, [season, manual]);
 
   useEffect(() => {
     writeStoredString(MODE_KEY, mode);
@@ -113,10 +156,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [season]);
 
   const setMode = (newMode: ThemeMode) => {
+    if (newMode !== mode) advanceThemeRevision();
     setModeState(newMode);
   };
 
   const pickSeason = (newSeason: SeasonTheme | 'auto') => {
+    advanceThemeRevision();
     if (newSeason === 'auto') {
       setSeason(lastPersonaSeason.current);
       setManual(false);
@@ -140,10 +185,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         theme,
         mode,
         season,
+        accentSeason,
         seasonFollowsPersona: !manual,
         lightWarmth,
         uiStyle,
         thinkingAnimation,
+        themeRevision,
         setMode,
         setSeason: pickSeason,
         setLightWarmth,

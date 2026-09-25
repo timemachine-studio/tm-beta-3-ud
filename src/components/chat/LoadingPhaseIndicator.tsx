@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { AnimatedShinyText } from '../ui/AnimatedShinyText';
 import { loadingLabel } from './loadingLabel';
 import { ThinkingAnimationVisual } from './ThinkingAnimationVisual';
+import { paletteColor } from '../../themes/seasonPalette';
 
 const INITIAL_LOADING_PHASE = 'Understanding your request';
 const REASONING_WORDS = [
@@ -20,23 +21,18 @@ const REASONING_WORDS = [
   'Uncing', 'Face-palming', 'Larping',
 ] as const;
 const STEP_MS = 3000;
-const REASONING_COLORS: Record<keyof typeof AI_PERSONAS, { dark: string; light: string }> = {
-  default: { dark: '#c084fc', light: '#581c87' }, // Autumn purple
-  girlie: { dark: '#f472b6', light: '#be185d' }, // Spring pink
-  pro: { dark: '#67e8f9', light: '#0e7490' }, // Summer cyan
-};
-
 interface LoadingPhaseIndicatorProps {
   phase: LoadingPhase | undefined;
   persona: keyof typeof AI_PERSONAS;
   baseColor: string;
   shimmerColor: string;
   compact?: boolean;
+  healthcare?: boolean;
 }
 
-function ReasoningOrbStatus({ compact, persona, phase }: Pick<LoadingPhaseIndicatorProps, 'compact' | 'persona' | 'phase'>) {
+function ReasoningOrbStatus({ compact, phase, healthcare }: Pick<LoadingPhaseIndicatorProps, 'compact' | 'phase' | 'healthcare'>) {
   const [step, setStep] = useState(0);
-  const { mode, thinkingAnimation } = useTheme();
+  const { mode, accentSeason, thinkingAnimation } = useTheme();
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -46,7 +42,7 @@ function ReasoningOrbStatus({ compact, persona, phase }: Pick<LoadingPhaseIndica
 
   const isReasoning = !phase || phase === 'thinking' || phase === INITIAL_LOADING_PHASE;
   const word = isReasoning ? REASONING_WORDS[step % REASONING_WORDS.length] : loadingLabel(phase);
-  const color = REASONING_COLORS[persona][mode];
+  const color = paletteColor(accentSeason, mode, healthcare);
 
   return (
     <div
@@ -74,9 +70,9 @@ function ReasoningOrbStatus({ compact, persona, phase }: Pick<LoadingPhaseIndica
   );
 }
 
-export function LoadingPhaseIndicator({ phase, persona, baseColor, shimmerColor, compact = false }: LoadingPhaseIndicatorProps) {
+export function LoadingPhaseIndicator({ phase, baseColor, shimmerColor, compact = false, healthcare = false }: LoadingPhaseIndicatorProps) {
   if (compact || !phase || phase === 'thinking' || phase === INITIAL_LOADING_PHASE) {
-    return <ReasoningOrbStatus compact={compact} persona={persona} phase={phase} />;
+    return <ReasoningOrbStatus compact={compact} phase={phase} healthcare={healthcare} />;
   }
 
   return (

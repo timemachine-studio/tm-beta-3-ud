@@ -357,7 +357,7 @@
 }
 
 .tm-chat-menu.tm-glass {
-  background: linear-gradient(135deg, rgb(40 29 55 / 0.92), rgb(15 12 24 / 0.92));
+  background: linear-gradient(135deg, rgb(var(--tm-season-rgb, 168 85 247) / 0.22), rgb(16 13 24 / 0.97) 68%);
   max-width: calc(100vw - 24px);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -435,7 +435,9 @@
 .tm-composer-send:hover:not(:disabled) { background: var(--color-pill); opacity: 0.85; }
 .tm-composer-control:disabled { opacity: 0.35; cursor: not-allowed; }
 
-:root[data-theme="light"] .tm-chat-menu.tm-glass { background: var(--tm-popover-bg-solid); }
+:root[data-theme="light"] .tm-chat-menu.tm-glass {
+  background: color-mix(in srgb, var(--tm-popover-bg-solid) 92%, rgb(var(--tm-season-rgb, 168 85 247) / 0.5));
+}
 
 @media (prefers-reduced-motion: reduce) {
   .tm-chat-shell *, .tm-chat-menu { transition-duration: 0s !important; }

@@ -1,6 +1,6 @@
 /* App pages share the landing material, with readable surfaces for tools. */
 :root {
-  --tm-tool-pane: linear-gradient(135deg, rgb(43 32 58 / 0.76), rgb(16 13 25 / 0.82));
+  --tm-tool-pane: linear-gradient(135deg, rgb(var(--tm-season-rgb, 168 85 247) / 0.22), rgb(16 13 25 / 0.96) 68%);
   --tm-tool-border: rgb(255 255 255 / 0.16);
   --tm-tool-shadow: inset 0 1px 0 rgb(255 255 255 / 0.15), 0 24px 64px -20px rgb(0 0 0 / 0.55);
 }
@@ -33,6 +33,18 @@
   -webkit-backdrop-filter: blur(var(--tm-blur-pane)) saturate(150%);
   border: 1px solid var(--tm-tool-border);
   box-shadow: var(--tm-tool-shadow);
+}
+:root:not([data-theme="light"]) .tm-settings {
+  background: linear-gradient(145deg, rgb(var(--tm-season-rgb, 168 85 247) / 0.19), #18151e 55%, #121116) !important;
+  border-color: rgb(var(--tm-season-rgb, 168 85 247) / 0.3);
+}
+:root[data-theme="light"] .tm-settings {
+  background: color-mix(in srgb, var(--tm-pane-bg) 94%, rgb(var(--tm-season-rgb, 168 85 247) / 0.34)) !important;
+}
+:root[data-healthcare="true"] .tm-settings,
+:root[data-healthcare="true"] .tm-chat-menu.tm-glass {
+  --tm-season-rgb: 16 185 129;
+  --tm-season-accent: #6ee7b7;
 }
 .tm-modal-scrim {
   background: rgb(var(--tm-paper-rgb) / 0.46);

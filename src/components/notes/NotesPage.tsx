@@ -29,7 +29,7 @@ import { NoteSidebar } from './NoteSidebar';
 import { NotesAiPanel, type AiTurn } from './NotesAiPanel';
 import { NotesComposer } from './NotesComposer';
 import { EMPTY_ATTACHMENTS, describeAttachments, toPayload, type PendingAttachments } from './notesAttachments';
-import { EMOJI_CATEGORIES, NOTE_THEMES, emptyBlock, getNoteTheme, loadNotes, saveNotes, uid } from './noteThemes';
+import { EMOJI_CATEGORIES, NOTE_THEMES, effectiveNoteTheme, emptyBlock, getNoteTheme, loadNotes, saveNotes, uid } from './noteThemes';
 
 export { NoteSidebar } from './NoteSidebar';
 
@@ -108,7 +108,7 @@ function ChromeMenu({ open, onClose, anchorRef, align = 'right', children, label
 
 export function NotesPage() {
   const navigate = useNavigate();
-  const { theme } = useTheme();
+  const { theme, accentSeason, themeRevision } = useTheme();
   const [initialState] = useState(() =>
     createInitialNotesState(
       loadNotes(),
@@ -151,7 +151,8 @@ export function NotesPage() {
   const moreButtonRef = useRef<HTMLButtonElement>(null);
 
   const activeNote = useMemo(() => notes.find((n) => n.id === activeNoteId) || null, [notes, activeNoteId]);
-  const activeTheme = getNoteTheme(activeNote?.noteTheme);
+  const activeNoteTheme = effectiveNoteTheme(activeNote, themeRevision, accentSeason);
+  const activeTheme = getNoteTheme(activeNoteTheme);
   const hue = activeTheme.rgb.replace(/,/g, ' ');
 
   // "Edited …" ticks once a minute so it never lies for long.
@@ -543,14 +544,14 @@ export function NotesPage() {
                     <p className="px-3 pb-1 pt-1.5 text-[12px] font-medium" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.45)' }}>Colour</p>
                     <div className="grid w-[15rem] grid-cols-2 gap-0.5">
                       {NOTE_THEMES.map((t) => {
-                        const on = (activeNote.noteTheme || 'purple') === t.key;
+                        const on = activeNoteTheme === t.key;
                         return (
                           <button
                             key={t.key}
                             type="button"
                             role="menuitemradio"
                             aria-checked={on}
-                            onClick={() => { updateNote(activeNote.id, (n) => ({ ...n, noteTheme: t.key })); setShowThemeMenu(false); }}
+                            onClick={() => { updateNote(activeNote.id, (n) => ({ ...n, noteTheme: t.key, noteThemeRevision: themeRevision })); setShowThemeMenu(false); }}
                             className="tm-menu-row flex items-center gap-2.5 rounded-xl px-3 py-2 text-[14px]"
                             style={{ color: on ? 'rgb(var(--tm-ink-rgb) / 0.95)' : 'rgb(var(--tm-ink-rgb) / 0.72)' }}
                           >
@@ -680,7 +681,7 @@ export function NotesPage() {
                         block={block}
                         index={index}
                         focused={focusedBlockIndex === index}
-                        noteTheme={activeNote.noteTheme || 'purple'}
+                        noteTheme={activeNoteTheme}
                         onFocus={() => setFocusedBlockIndex(index)}
                         onChange={(content) => updateBlock(block.id, { content })}
                         onChangeType={(type) => updateBlock(block.id, { type })}

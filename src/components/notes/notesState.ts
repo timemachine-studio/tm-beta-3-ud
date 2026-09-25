@@ -42,7 +42,7 @@ export interface Block {
   height?: number;
 }
 
-export type NoteTheme = 'purple' | 'blue' | 'green' | 'pink' | 'orange' | 'red' | 'cyan' | 'yellow';
+export type NoteTheme = 'purple' | 'blue' | 'green' | 'pink' | 'orange' | 'red' | 'cyan' | 'yellow' | 'slate';
 
 export interface Note {
   id: string;
@@ -53,6 +53,8 @@ export interface Note {
   starred: boolean;
   emoji?: string;
   noteTheme?: NoteTheme;
+  /** A manual note color applies until the next global theme revision. */
+  noteThemeRevision?: number;
   /** Monotonic object revision for agent receipts and conflict-safe edits. */
   version?: number;
   /** Earlier conversations used to prepare this note. */

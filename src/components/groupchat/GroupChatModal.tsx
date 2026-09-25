@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Users, Copy, Check, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { AI_PERSONAS } from '../../config/constants';
+import { useTheme } from '../../context/ThemeContext';
+import { seasonPalettes } from '../../themes/seasonPalette';
 
 interface GroupChatModalProps {
   isOpen: boolean;
@@ -23,6 +25,10 @@ export function GroupChatModal({
   onGroupChatCreated
 }: GroupChatModalProps) {
   const { user, profile } = useAuth();
+  const { mode, accentSeason } = useTheme();
+  const palette = seasonPalettes[accentSeason];
+  const actionBackground = mode === 'light' ? palette.light : `rgb(${palette.rgb})`;
+  const actionInk = mode === 'light' ? '#ffffff' : '#100c16';
   const [isCreating, setIsCreating] = useState(false);
   const [shareId, setShareId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -66,12 +72,6 @@ export function GroupChatModal({
     }
   };
 
-  const personaColors = {
-    default: 'from-purple-500 to-violet-500',
-    girlie: 'from-pink-500 to-rose-500',
-    pro: 'from-cyan-500 to-blue-500',
-  };
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -103,15 +103,17 @@ export function GroupChatModal({
                     boxShadow: '0 25px 50px rgb(var(--tm-shadow-rgb) / 0.4), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)'
                   }}
                 >
-                  {/* Persona gradient overlay */}
-                  <div className={`absolute inset-0 bg-linear-to-br/srgb ${personaColors[persona]} opacity-10 rounded-3xl`} />
+                  <div
+                    className="absolute inset-0 rounded-3xl"
+                    style={{ background: `rgb(${palette.rgb} / ${mode === 'light' ? '0.06' : '0.12'})` }}
+                  />
 
                   <div className="relative p-6">
                     {/* Header */}
                     <div className="flex items-center justify-between mb-6">
                       <div className="flex items-center gap-3">
-                        <div className={`p-2.5 rounded-2xl bg-linear-to-br/srgb ${personaColors[persona]}`}>
-                          <Users className="w-5 h-5 text-white" />
+                        <div className="p-2.5 rounded-2xl" style={{ background: actionBackground, color: actionInk }}>
+                          <Users className="w-5 h-5" />
                         </div>
                         <Dialog.Title className="text-xl font-semibold text-white">
                           Group Chat
@@ -176,8 +178,10 @@ export function GroupChatModal({
                           whileTap={{ scale: 0.98 }}
                           onClick={handleCreateGroupChat}
                           disabled={isCreating || !user}
-                          className={`w-full py-4 rounded-xl bg-linear-to-r/srgb ${personaColors[persona]} text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50`}
+                          className="w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
                           style={{
+                            background: actionBackground,
+                            color: actionInk,
                             backdropFilter: 'blur(20px)',
                             WebkitBackdropFilter: 'blur(20px)',
                             border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)',
@@ -207,9 +211,10 @@ export function GroupChatModal({
                           <motion.div
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
-                            className="inline-flex p-4 rounded-full bg-green-500/20 mb-4"
+                            className="inline-flex p-4 rounded-full mb-4"
+                            style={{ background: `rgb(${palette.rgb} / 0.18)` }}
                           >
-                            <Check className="w-8 h-8 text-green-400" />
+                            <Check className="w-8 h-8" style={{ color: palette.dark }} />
                           </motion.div>
                           <h3 className="text-lg font-medium text-white mb-2">
                             Group Chat Created!
@@ -249,7 +254,7 @@ export function GroupChatModal({
                           >
                             {copied ? (
                               <>
-                                <Check className="w-4 h-4 text-green-400" />
+                                <Check className="w-4 h-4" style={{ color: palette.dark }} />
                                 Copied!
                               </>
                             ) : (
@@ -264,8 +269,10 @@ export function GroupChatModal({
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={handleContinue}
-                            className={`flex-1 py-3 rounded-xl bg-linear-to-r/srgb ${personaColors[persona] || personaColors.default} text-white font-medium flex items-center justify-center gap-2`}
+                            className="flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2"
                             style={{
+                              background: actionBackground,
+                              color: actionInk,
                               backdropFilter: 'blur(20px)',
                               WebkitBackdropFilter: 'blur(20px)',
                               border: '1px solid rgb(var(--tm-ink-rgb) / 0.2)',

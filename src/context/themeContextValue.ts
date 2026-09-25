@@ -10,8 +10,10 @@ export type { SeasonTheme, ThemeMode, UiStyle };
 interface ThemeContextType {
   theme: Theme;
   mode: ThemeMode;
-  /** The dark season currently painting. Meaningful in dark mode only. */
+  /** The selected season: background in dark, accent palette in both modes. */
   season: SeasonTheme;
+  /** Resolved accent season; Girlie Auto remains pink, manual Spring is red. */
+  accentSeason: SeasonTheme;
   /**
    * `true` while the season painting is the active persona's own (Air →
    * autumn, Girlie → spring, PRO → summer). Picking a season in Settings
@@ -25,6 +27,8 @@ interface ThemeContextType {
   /** The shell: the rail-and-glass `current` UI, or the `legacy` one before it. */
   uiStyle: UiStyle;
   thinkingAnimation: ThinkingAnimationChoice;
+  /** Increments when a global theme or persona choice should recolor Notes. */
+  themeRevision: number;
   setMode: (mode: ThemeMode) => void;
   setSeason: (season: SeasonTheme | 'auto') => void;
   setLightWarmth: (warmth: number) => void;
@@ -36,10 +40,12 @@ export const ThemeContext = createContext<ThemeContextType>({
   theme: darkTheme,
   mode: 'dark',
   season: 'autumnDark',
+  accentSeason: 'autumnDark',
   seasonFollowsPersona: true,
   lightWarmth: 40,
   uiStyle: 'current',
   thinkingAnimation: 'orb-cycle',
+  themeRevision: 0,
   setMode: () => { },
   setSeason: () => { },
   setLightWarmth: () => { },

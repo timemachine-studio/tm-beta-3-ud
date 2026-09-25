@@ -33,6 +33,9 @@ describe('readStoredThemeState', () => {
     expect(isSeasonTheme('spring')).toBe(false);
     expect(isSeasonTheme('constructor')).toBe(false);
     expect(isSeasonTheme('springDark')).toBe(true);
+    for (const season of ['blossomDark', 'verdureDark', 'emberDark', 'sunflareDark']) {
+      expect(isSeasonTheme(season)).toBe(true);
+    }
   });
 });
 

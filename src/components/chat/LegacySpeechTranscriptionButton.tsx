@@ -46,24 +46,6 @@ interface SpeechTranscriptionButtonProps {
   currentPersona?: Persona;
 }
 
-const personaStyles = {
-  tintColors: {
-    default: 'rgba(168, 85, 247, 0.2)',
-    girlie: 'rgba(236, 72, 153, 0.15)',
-    pro: 'rgba(34, 211, 238, 0.15)'
-  },
-  borderColors: {
-    default: 'rgba(168, 85, 247, 0.4)',
-    girlie: 'rgba(236, 72, 153, 0.3)',
-    pro: 'rgba(34, 211, 238, 0.3)'
-  },
-  glowShadow: {
-    default: '0 0 15px rgba(168, 85, 247, 0.35)',
-    girlie: '0 0 12px rgba(236, 72, 153, 0.25)',
-    pro: '0 0 12px rgba(34, 211, 238, 0.25)'
-  }
-} as const;
-
 const recognitionErrorMessage = (error: string) => {
   if (error === 'not-allowed' || error === 'service-not-allowed') {
     return 'Microphone permission is required';
@@ -84,6 +66,7 @@ export function SpeechTranscriptionButton({
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const startingTextRef = useRef('');
   const stylePersona = currentPersona === 'girlie' || currentPersona === 'pro' ? currentPersona : 'default';
+  const accentRgb = `var(--tm-chat-accent-rgb, ${stylePersona === 'girlie' ? '236 72 153' : stylePersona === 'pro' ? '34 211 238' : '168 85 247'})`;
 
   useEffect(() => () => recognitionRef.current?.abort(), []);
 
@@ -156,15 +139,15 @@ export function SpeechTranscriptionButton({
         style={{
           background: isListening
             ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgb(var(--tm-ink-rgb) / 0.05))'
-            : `linear-gradient(135deg, ${personaStyles.tintColors[stylePersona]}, rgb(var(--tm-ink-rgb) / 0.05))`,
+            : `linear-gradient(135deg, rgb(${accentRgb} / ${stylePersona === 'default' ? 0.2 : 0.15}), rgb(var(--tm-ink-rgb) / 0.05))`,
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           border: isListening
             ? '1px solid rgba(239, 68, 68, 0.4)'
-            : `1px solid ${personaStyles.borderColors[stylePersona]}`,
+            : `1px solid rgb(${accentRgb} / ${stylePersona === 'default' ? 0.4 : 0.3})`,
           boxShadow: isListening
             ? '0 0 12px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
-            : `${personaStyles.glowShadow[stylePersona]}, inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)`,
+            : `0 0 ${stylePersona === 'default' ? 15 : 12}px rgb(${accentRgb} / ${stylePersona === 'default' ? 0.35 : 0.25}), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)`,
           ...(!isListening ? LEGACY_COMPOSER_TRANSITION : {}),
         }}
         type="button"

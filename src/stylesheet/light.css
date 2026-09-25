@@ -80,7 +80,7 @@
   --tm-input-shadow: var(--tm-pane-shadow);
   --tm-popover-bg: #fffcf7;
   --tm-popover-bg-solid: var(--tm-popover-bg);
-  --tm-menu-bg: var(--tm-pane-bg);
+  --tm-menu-bg: color-mix(in srgb, var(--tm-pane-bg) 91%, rgb(var(--tm-season-rgb, 168 85 247) / 0.5));
   --tm-menu-border: var(--tm-pane-border);
   --tm-menu-shadow: var(--tm-pane-shadow);
   --tm-select-bg: #ecdfc9;
@@ -303,7 +303,7 @@
    while the blur preserves the landing page underneath as a soft material,
    rather than letting its headline show through the form. */
 :root[data-theme="light"] .tm-settings {
-  background: color-mix(in srgb, var(--tm-pane-bg) 97%, transparent) !important;
+  background: color-mix(in srgb, var(--tm-pane-bg) 91%, rgb(var(--tm-season-rgb, 168 85 247) / 0.4)) !important;
   backdrop-filter: blur(var(--tm-blur-pane)) saturate(125%) !important;
   -webkit-backdrop-filter: blur(var(--tm-blur-pane)) saturate(125%) !important;
   border-color: color-mix(in srgb, var(--color-ink) 14%, transparent) !important;
@@ -311,6 +311,9 @@
     0 1px 2px rgb(var(--tm-shadow-rgb) / 0.06),
     0 24px 60px -24px rgb(var(--tm-shadow-rgb) / 0.28),
     inset 0 1px 0 rgb(255 255 255 / 0.72) !important;
+}
+:root[data-theme="light"] .tm-settings .tm-display.text-ink {
+  color: var(--color-ink) !important;
 }
 
 :root[data-theme="light"] .tm-settings [style*="backdrop-filter"] {
@@ -367,7 +370,7 @@
 /* Inline gradients are the persona-tinted pill recipe
    (`linear-gradient(135deg, accent 20%, white 5%)`) and a few page
    washes. They collapse to the same card every other pill is. */
-:root[data-theme="light"] [style*="-gradient("]:not([style*="background-clip"]):not([style*="mask"]) {
+:root[data-theme="light"] [style*="-gradient("]:not([style*="background-clip"]):not([style*="mask"]):not(.tm-season-swatch) {
   background-image: none !important;
   background-color: var(--tm-pane-bg) !important;
 }

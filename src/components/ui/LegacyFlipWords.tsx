@@ -7,10 +7,12 @@ export const FlipWords = ({
   words,
   duration = 3000,
   className,
+  style,
 }: {
   words: string[];
   duration?: number;
   className?: string;
+  style?: React.CSSProperties;
 }) => {
   const [index, setIndex] = useState(0);
   const reducedMotion = useReducedMotion();
@@ -31,6 +33,7 @@ export const FlipWords = ({
       transition={{ layout: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } }}
       style={{
         ...LEGACY_TEXT_TRANSITION,
+        ...style,
       }}
       className={cn(
         "relative inline-grid px-2 text-left transition-colors ease-in-out",

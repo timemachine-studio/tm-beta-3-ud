@@ -543,6 +543,7 @@ function AIMessageComponent({
             <div className="flex flex-col gap-1">
               {isStreamingActive && !cleanContent ? (
                 <LoadingPhaseIndicator
+                  healthcare={specialMode === 'tm-healthcare'}
                   phase={loadingPhase}
                   persona={displayPersona}
                   baseColor={shimmerColors.baseColor}
@@ -599,6 +600,7 @@ function AIMessageComponent({
                       <div className="w-full max-w-2xl my-2">
                         <div className="flex items-center justify-start py-2 px-3 rounded-xl bg-black/5 backdrop-blur-xs w-fit">
                           <LoadingPhaseIndicator
+                            healthcare={specialMode === 'tm-healthcare'}
                             phase={loadingPhase}
                             persona={displayPersona}
                             baseColor={shimmerColors.baseColor}
@@ -655,6 +657,7 @@ function AIMessageComponent({
                     <div className="w-full max-w-2xl mx-auto my-4">
                       <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
                         <LoadingPhaseIndicator
+                          healthcare={specialMode === 'tm-healthcare'}
                           phase={loadingPhase}
                           persona={displayPersona}
                           baseColor={shimmerColors.baseColor}
@@ -679,6 +682,7 @@ function AIMessageComponent({
                 <div className="w-full max-w-2xl mx-auto my-4">
                   <div className="flex items-center justify-center py-4 px-4 rounded-2xl bg-black/5 backdrop-blur-xs">
                     <LoadingPhaseIndicator
+                      healthcare={specialMode === 'tm-healthcare'}
                       phase={loadingPhase}
                       persona={displayPersona}
                       baseColor={shimmerColors.baseColor}

@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { AgentsModal } from '../agents/AgentsModal';
 import { ChatSession } from '../../services/chat/chatService';
 import { LEGACY_BRAND_TRANSITION } from '../../themes/legacyMotion';
+import { personaNeonColor } from '../../themes/seasonPalette';
 
 export interface BrandOverride {
   name: string;
@@ -58,7 +59,11 @@ export function BrandLogo({
 }: BrandLogoProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
-  const { theme } = useTheme();
+  const { theme, seasonFollowsPersona } = useTheme();
+  const manualChatAccent = !seasonFollowsPersona && !brandOverride;
+  const personaBrandColor = !brandOverride ? personaNeonColor(currentPersona) : undefined;
+  const seasonalHover = 'linear-gradient(90deg, rgb(var(--tm-season-rgb) / 0.18) 0%, transparent 100%)';
+  const brandGlow = brandOverride?.glowColor || (manualChatAccent ? 'rgb(var(--tm-chat-accent-rgb) / 0.6)' : personaGlowColors[currentPersona]);
   const { user, profile } = useAuth();
 
   const toggleDropdown = () => setIsOpen(!isOpen);
@@ -107,12 +112,13 @@ export function BrandLogo({
               className={`text-xl sm:text-2xl font-bold ${brandOverride?.textColorClass || personaColors[currentPersona]} transition-colors duration-300`}
               style={{
                 fontFamily: 'Montserrat, sans-serif',
+                color: manualChatAccent ? 'var(--tm-chat-accent-vivid)' : personaBrandColor,
                 transitionProperty: 'color, text-shadow',
                 ...LEGACY_BRAND_TRANSITION,
                 textShadow: `
-                  0 0 20px ${brandOverride?.glowColor || personaGlowColors[currentPersona]},
-                  0 0 40px ${(brandOverride?.glowColor || personaGlowColors[currentPersona]).replace(/[\d.]+\)$/, '0.3)')},
-                  0 0 60px ${(brandOverride?.glowColor || personaGlowColors[currentPersona]).replace(/[\d.]+\)$/, '0.1)')}
+                  0 0 20px ${brandGlow},
+                  0 0 40px ${brandGlow.replace(/[\d.]+\)$/, '0.3)')},
+                  0 0 60px ${brandGlow.replace(/[\d.]+\)$/, '0.1)')}
                 `
               }}
             >
@@ -128,7 +134,7 @@ export function BrandLogo({
             animate={{ rotate: isOpen ? 180 : 0 }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             className={`${personaColors[currentPersona]} transition-colors`}
-            style={LEGACY_BRAND_TRANSITION}
+            style={{ ...LEGACY_BRAND_TRANSITION, color: manualChatAccent ? 'var(--tm-chat-accent-vivid)' : personaBrandColor }}
           >
             <ChevronDown className="w-5 h-5" />
           </motion.div>
@@ -153,9 +159,7 @@ export function BrandLogo({
             <motion.button
               whileHover={{
                 scale: 1.03,
-                background: user
-                  ? 'linear-gradient(90deg, rgba(34,197,94,0.2) 0%, transparent 100%)'
-                  : 'linear-gradient(90deg, rgba(168,85,247,0.3) 0%, transparent 100%)'
+                background: seasonalHover
               }}
               whileTap={{ scale: 0.97 }}
               onClick={handleAuthClick}
@@ -168,17 +172,17 @@ export function BrandLogo({
                     style={{
                       background: profile?.avatar_url
                         ? 'transparent'
-                        : 'rgba(168, 85, 247, 0.15)',
+                        : 'rgb(var(--tm-season-rgb) / 0.15)',
                       backdropFilter: 'blur(12px)',
                       WebkitBackdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(168, 85, 247, 0.2)',
+                      border: '1px solid rgb(var(--tm-season-rgb) / 0.2)',
                       boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                     }}
                   >
                     {profile?.avatar_url ? (
                       <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <User className="w-4 h-4 text-purple-400" />
+                      <User className="w-4 h-4" style={{ color: 'var(--tm-season-accent)' }} />
                     )}
                   </div>
                   <div>
@@ -191,14 +195,14 @@ export function BrandLogo({
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center"
                     style={{
-                      background: 'rgba(168, 85, 247, 0.15)',
+                      background: 'rgb(var(--tm-season-rgb) / 0.15)',
                       backdropFilter: 'blur(12px)',
                       WebkitBackdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(168, 85, 247, 0.2)',
+                      border: '1px solid rgb(var(--tm-season-rgb) / 0.2)',
                       boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.1)'
                     }}
                   >
-                    <LogIn className="w-4 h-4 text-purple-400" />
+                    <LogIn className="w-4 h-4" style={{ color: 'var(--tm-season-accent)' }} />
                   </div>
                   <div>
                     <div className="font-bold text-sm">Sign In / Sign Up</div>
@@ -227,6 +231,7 @@ export function BrandLogo({
                   ${currentPersona === key ? `bg-linear-to-r/srgb from-[${personaGlowColors[key as keyof typeof personaGlowColors]}] to-black/10` : 'bg-transparent'}
                   flex flex-col gap-1 border-b border-white/5 last:border-b-0`}
                   style={{
+                    color: currentPersona === key ? personaNeonColor(key) : undefined,
                     background: currentPersona === key ?
                       `linear-gradient(to right, ${personaGlowColors[key as keyof typeof personaGlowColors]}, rgb(var(--tm-paper-rgb) / 0.1))` :
                       'transparent'
@@ -241,7 +246,7 @@ export function BrandLogo({
             <motion.button
               whileHover={{
                 scale: 1.03,
-                background: 'linear-gradient(90deg, rgba(34,197,94,0.2) 0%, transparent 100%)'
+                background: seasonalHover
               }}
               whileTap={{ scale: 0.97 }}
               onClick={handleStartNewChat}
@@ -253,7 +258,7 @@ export function BrandLogo({
             <motion.button
               whileHover={{
                 scale: 1.03,
-                background: 'linear-gradient(90deg, rgba(168,85,247,0.2) 0%, transparent 100%)'
+                background: seasonalHover
               }}
               whileTap={{ scale: 0.97 }}
               onClick={handleHistoryClick}
@@ -265,7 +270,7 @@ export function BrandLogo({
             <motion.button
               whileHover={{
                 scale: 1.03,
-                background: 'linear-gradient(90deg, rgba(168,85,247,0.2) 0%, transparent 100%)'
+                background: seasonalHover
               }}
               whileTap={{ scale: 0.97 }}
               onClick={() => {
@@ -280,7 +285,7 @@ export function BrandLogo({
             <motion.button
               whileHover={{
                 scale: 1.03,
-                background: 'linear-gradient(90deg, rgba(168,85,247,0.2) 0%, transparent 100%)'
+                background: seasonalHover
               }}
               whileTap={{ scale: 0.97 }}
               onClick={handleSettingsClick}

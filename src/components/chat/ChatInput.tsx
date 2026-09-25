@@ -38,38 +38,19 @@ export interface ReplyTo {
 /* The legacy bar: a tinted glass circle either side of a wide, quiet glass
    field — plus on the left, mic and send inside on the right — each circle
    lit in the answering mind's hue with a soft glow. */
-const personaStyles = {
-  tintColors: {
-    default: 'rgba(168, 85, 247, 0.2)',
-    girlie: 'rgba(236, 72, 153, 0.15)',
-    pro: 'rgba(34, 211, 238, 0.15)',
-    // TM Healthcare: the mode paints the room green, so the circles follow.
-    healthcare: 'rgba(16, 185, 129, 0.18)'
-  },
-  borderColors: {
-    default: 'rgba(168, 85, 247, 0.4)',
-    girlie: 'rgba(236, 72, 153, 0.3)',
-    pro: 'rgba(34, 211, 238, 0.3)',
-    healthcare: 'rgba(52, 211, 153, 0.35)'
-  },
-  glowShadow: {
-    default: '0 0 15px rgba(168, 85, 247, 0.35)',
-    girlie: '0 0 12px rgba(236, 72, 153, 0.25)',
-    pro: '0 0 12px rgba(34, 211, 238, 0.25)',
-    healthcare: '0 0 12px rgba(16, 185, 129, 0.3)'
-  }
-} as const;
-
-type StylePersona = keyof typeof personaStyles.tintColors;
+const personaRgb = { default: '168 85 247', girlie: '236 72 153', pro: '34 211 238', healthcare: '16 185 129' } as const;
+type StylePersona = keyof typeof personaRgb;
 
 const controlGlass = (persona: string): React.CSSProperties => {
-  const key: StylePersona = persona in personaStyles.tintColors ? (persona as StylePersona) : 'default';
+  const key: StylePersona = persona in personaRgb ? (persona as StylePersona) : 'default';
+  const accent = key === 'healthcare' ? personaRgb.healthcare : `var(--tm-chat-accent-rgb, ${personaRgb[key]})`;
+  const strength = key === 'default' ? 0.2 : 0.15;
   return {
-    background: `linear-gradient(135deg, ${personaStyles.tintColors[key]}, rgb(var(--tm-ink-rgb) / 0.05))`,
+    background: `linear-gradient(135deg, rgb(${accent} / ${strength}), rgb(var(--tm-ink-rgb) / 0.05))`,
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',
-    border: `1px solid ${personaStyles.borderColors[key]}`,
-    boxShadow: `${personaStyles.glowShadow[key]}, inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`
+    border: `1px solid rgb(${accent} / ${key === 'default' ? 0.4 : 0.3})`,
+    boxShadow: `0 0 ${key === 'default' ? 15 : 12}px rgb(${accent} / ${key === 'default' ? 0.35 : 0.25}), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.15)`
   };
 };
 
