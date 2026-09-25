@@ -10,7 +10,7 @@ import React from 'react';
 import {
   Calculator, ArrowLeftRight, DollarSign, Globe, Palette,
   Timer, Calendar, Shuffle, Type, Braces, Lock, Link, Hash,
-  FileSearch, FileText, BookOpen, HelpCircle, TrendingUp, Repeat,
+  FileSearch, FileText, BookOpen, HelpCircle, TrendingUp, Repeat, WandSparkles,
 } from 'lucide-react';
 
 // ─── Result types (re-exported from individual modules) ────────
@@ -110,6 +110,7 @@ export type ModuleId =
   | 'quick-note' | 'quick-event'
   | 'web-viewer'
   | 'file-convert'
+  | 'prompt-optimizer'
   | 'help';
 
 export type ContourMode = 'hidden' | 'commands' | 'module' | 'suggestion';
@@ -178,6 +179,7 @@ export const HANDLER_TO_MODULE: Record<string, ModuleId> = {
   'quick-note': 'quick-note',
   'quick-event': 'quick-event',
   'file-convert': 'file-convert',
+  'prompt-optimizer': 'prompt-optimizer',
   'help': 'help',
 };
 
@@ -212,5 +214,6 @@ export const MODULE_META: Record<ModuleId, {
   'quick-event': { icon: Calendar, label: 'Quick Event', placeholder: 'Type event...' },
   'web-viewer': { icon: Globe, label: 'Web Viewer', placeholder: 'Search DuckDuckGo or go to URL...' },
   'file-convert': { icon: Repeat, label: 'File Converter', placeholder: 'Drop files above, or type a format — e.g. png, mp3, docx' },
+  'prompt-optimizer': { icon: WandSparkles, label: 'Prompt Optimizer', placeholder: 'Write a prompt to improve...' },
   help: { icon: HelpCircle, label: 'Help', placeholder: '' },
 };

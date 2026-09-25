@@ -299,6 +299,9 @@ export function useContour() {
       case 'help': {
         return { id: 'help', focused: true };
       }
+      case 'prompt-optimizer': {
+        return { id: 'prompt-optimizer', focused: true };
+      }
     }
     return null;
   }, []);

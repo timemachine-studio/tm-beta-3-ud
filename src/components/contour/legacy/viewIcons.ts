@@ -4,7 +4,7 @@ import {
   Timer, Calendar, Shuffle, Type, Braces, Lock, Link, Hash,
   FileSearch, FileText, Settings, History, Image, Brain,
   HelpCircle, Code, Music, HeartPulse, Fingerprint, Clock,
-  Search, Wrench, Monitor, Zap, Command,
+  Search, Wrench, Monitor, Zap, Command, WandSparkles,
   Dices, Coins, RefreshCw,
   BookOpen, Mic, AlignLeft, List, MessageSquare, TrendingUp,
 } from 'lucide-react';
@@ -14,7 +14,7 @@ export const ICON_MAP: Record<string, React.ComponentType<{ className?: string }
   Timer, Calendar, Shuffle, Type, Braces, Lock, Link, Hash,
   FileSearch, FileText, Settings, History, Image, Brain,
   HelpCircle, Code, Music, HeartPulse, Fingerprint, Clock,
-  Search, Wrench, Monitor, Zap, Command,
+  Search, Wrench, Monitor, Zap, Command, WandSparkles,
   Dices, Coins, RefreshCw,
   BookOpen, Mic, AlignLeft, List, MessageSquare, TrendingUp,
   // Aliases for icons not in lucide-react 0.344.0

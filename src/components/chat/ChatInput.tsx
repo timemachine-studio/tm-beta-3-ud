@@ -432,6 +432,12 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     navigator.clipboard.writeText(value).catch(() => { });
   }, []);
 
+  const handleUseOptimizedPrompt = useCallback((value: string) => {
+    setMessage(value);
+    contour.dismiss();
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, [contour]);
+
   const handleContourCommandSelect = useCallback((command: ContourCommand) => {
     recordCommandUsage(command.id);
     switch (command.action.type) {
@@ -1084,6 +1090,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                 onTimerReset={contour.resetTimer}
                 onSetTimerDuration={contour.setTimerDuration}
                 onCopyValue={handleCopyValue}
+                onUsePrompt={handleUseOptimizedPrompt}
                 onBack={contour.dismiss}
                 onSuggestionAccept={handleContourSuggestionAccept}
               />

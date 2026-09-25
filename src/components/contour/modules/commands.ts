@@ -102,6 +102,15 @@ export const CONTOUR_COMMANDS: ContourCommand[] = [
 
   // Utilities
   {
+    id: 'prompt-optimizer',
+    name: 'Prompt Optimizer',
+    description: 'Upgrade a prompt with Air, Girlie, or PRO',
+    icon: 'WandSparkles',
+    category: 'productivity',
+    keywords: ['prompt', 'enhance', 'optimize', 'improve', 'upgrade', 'rewrite', 'ai'],
+    action: { type: 'inline', handler: 'prompt-optimizer' },
+  },
+  {
     id: 'timer',
     name: 'Timer',
     description: 'Set a quick timer or stopwatch',

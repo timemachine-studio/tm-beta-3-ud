@@ -26,6 +26,7 @@ import { NavigationView } from './legacy/NavigationView';
 import { QuickNoteView } from './legacy/QuickNoteView';
 import { QuickEventView } from './legacy/QuickEventView';
 import { WebViewerView } from './legacy/WebViewerView';
+import { PromptOptimizerView } from './views/PromptOptimizerView';
 import { useNavigate } from 'react-router-dom';
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -41,6 +42,7 @@ interface ContourPanelProps {
   onTimerReset?: () => void;
   onSetTimerDuration?: (seconds: number) => void;
   onCopyValue?: (value: string) => void;
+  onUsePrompt?: (value: string) => void;
   onBack?: () => void;
   onSuggestionAccept?: () => void;
 }
@@ -80,11 +82,13 @@ const personaAccent: Record<string, AccentTheme> = {
 // ─── Module View Router ────────────────────────────────────────
 
 function ModuleContent({
-  module, accent, onCopyValue, onTimerStart, onTimerToggle, onTimerReset, onSetTimerDuration,
+  module, accent, persona, onCopyValue, onUsePrompt, onTimerStart, onTimerToggle, onTimerReset, onSetTimerDuration,
 }: {
   module: ModuleData;
   accent: AccentTheme;
+  persona: string;
   onCopyValue?: (value: string) => void;
+  onUsePrompt?: (value: string) => void;
   onTimerStart?: () => void;
   onTimerToggle?: () => void;
   onTimerReset?: () => void;
@@ -93,6 +97,8 @@ function ModuleContent({
   const navigate = useNavigate();
 
   switch (module.id) {
+    case 'prompt-optimizer':
+      return <PromptOptimizerView initialPersona={persona} onUsePrompt={onUsePrompt} />;
     case 'graph':
       return <GraphView module={module} accent={accent} />;
     case 'calculator':
@@ -157,7 +163,7 @@ function ModuleContent({
 
 export function ContourPanel({
   state, isVisible, onCommandSelect, selectedIndex, persona = 'default',
-  onTimerStart, onTimerToggle, onTimerReset, onSetTimerDuration, onCopyValue, onBack,
+  onTimerStart, onTimerToggle, onTimerReset, onSetTimerDuration, onCopyValue, onUsePrompt, onBack,
   onSuggestionAccept,
 }: ContourPanelProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -247,14 +253,16 @@ export function ContourPanel({
             {/* Content */}
             <div
               ref={scrollContainerRef}
-              className="max-h-[320px] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full"
+              className={`${state.module?.id === 'prompt-optimizer' ? 'max-h-[min(540px,calc(100dvh-200px))]' : 'max-h-[320px]'} overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full`}
             >
               {/* Module views */}
               {state.mode === 'module' && state.module && (
                 <ModuleContent
                   module={state.module}
                   accent={accent}
+                  persona={persona}
                   onCopyValue={onCopyValue}
+                  onUsePrompt={onUsePrompt}
                   onTimerStart={onTimerStart}
                   onTimerToggle={onTimerToggle}
                   onTimerReset={onTimerReset}

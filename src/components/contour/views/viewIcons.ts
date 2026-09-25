@@ -7,7 +7,7 @@ import {
   Search, Wrench, Monitor, Zap, Command,
   Dices, Coins, RefreshCw,
   BookOpen, Mic, AlignLeft, List, MessageSquare, TrendingUp,
-  Repeat,
+  Repeat, WandSparkles,
 } from 'lucide-react';
 
 export const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -18,7 +18,7 @@ export const ICON_MAP: Record<string, React.ComponentType<{ className?: string }
   Search, Wrench, Monitor, Zap, Command,
   Dices, Coins, RefreshCw,
   BookOpen, Mic, AlignLeft, List, MessageSquare, TrendingUp,
-  Repeat,
+  Repeat, WandSparkles,
   // Aliases for icons not in lucide-react 0.344.0
   Languages: Globe,
   LetterText: Type,
