@@ -294,7 +294,7 @@ export function LandingPage() {
     // body is overflow:hidden for the chat shell (index.css), so like every
     // other page this one scrolls inside its own root. `isolate` keeps the
     // negative-z layers inside this element instead of behind <body>.
-    <div className="tm-landing relative isolate h-screen overflow-y-auto overflow-x-hidden bg-black text-white">
+    <div className="tm-landing tm-landing-home relative isolate h-screen overflow-y-auto overflow-x-hidden bg-black text-white">
       <Helmet>
         <link
           rel="stylesheet"
@@ -304,14 +304,14 @@ export function LandingPage() {
 
       {/* ── Nav: a floating pill of glass ───────────────────────── */}
       <header className="fixed inset-x-0 top-3 z-30 px-3 sm:top-4 sm:px-6">
-        <div className="tm-glass tm-nav mx-auto flex max-w-5xl items-center justify-between py-2 pl-5 pr-2 sm:pl-6">
+        <div className="tm-glass tm-nav mx-auto flex max-w-5xl items-center justify-between py-2 pl-3 pr-2 sm:pl-6">
           <a
             href="/welcome"
             onClick={(e) => { e.preventDefault(); (document.querySelector('.tm-landing') as HTMLElement | null)?.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' }); }}
             className="rounded-md"
             aria-label="TimeMachine, back to top"
           >
-            <Wordmark />
+            <Wordmark className="text-[17px] sm:text-lg" />
           </a>
           <nav className="hidden items-center gap-7 text-sm text-white/65 md:flex" aria-label="Site">
             <button onClick={() => navigate('/features')} className="transition-colors hover:text-white">Features</button>
@@ -320,8 +320,8 @@ export function LandingPage() {
             <button onClick={() => navigate('/help')} className="transition-colors hover:text-white">Help</button>
           </nav>
           <div className="flex items-center gap-1.5">
-            <button onClick={logIn} className="tm-press tm-glass-pill rounded-full px-4 py-2 text-sm text-white/85 transition-colors hover:text-white">Log in</button>
-            <button onClick={startChatting} className="tm-press rounded-full bg-pill px-4 py-2 text-sm font-medium text-pill-ink hover:opacity-90">Start chatting</button>
+            <button onClick={logIn} className="tm-press tm-glass-pill rounded-full px-3 py-2 text-sm text-white/85 transition-colors hover:text-white sm:px-4">Log in</button>
+            <button onClick={startChatting} className="tm-press rounded-full bg-pill px-3 py-2 text-sm font-medium text-pill-ink hover:opacity-90 sm:px-4">Start chatting</button>
           </div>
         </div>
       </header>
@@ -342,7 +342,7 @@ export function LandingPage() {
           <div className="tm-orb tm-orb-c left-[36%] top-[45%] h-[38vmax] w-[38vmax]" style={{ background: 'rgb(34 211 238 / 0.12)' }} />
         </div>
 
-        <section className="relative flex min-h-[92svh] items-center overflow-x-clip px-5 pb-40 pt-36 sm:px-8 sm:pb-48 sm:pt-44">
+        <section className="relative flex min-h-[78svh] items-center overflow-x-clip px-5 pb-24 pt-28 sm:min-h-[92svh] sm:px-8 sm:pb-48 sm:pt-44">
 
           <div className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
             <motion.h1
@@ -353,7 +353,7 @@ export function LandingPage() {
               <br />
               <em>from future.</em>
             </motion.h1>
-            <motion.p {...enter(0.25)} className="mt-6 max-w-xl text-lg leading-relaxed text-white/65 sm:text-xl">
+            <motion.p {...enter(0.25)} className="mt-5 max-w-xl text-[17px] leading-[1.5] text-white/65 sm:mt-6 sm:text-xl sm:leading-relaxed">
               One chat. Three minds. A coding agent when you need one, and nothing about you for sale.
             </motion.p>
             <motion.div
@@ -362,7 +362,7 @@ export function LandingPage() {
               initial={reduced ? false : { opacity: 0, y: 18, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ ...settle, delay: reduced ? 0 : 0.42 }}
-              className="mt-14 w-full max-w-2xl sm:mt-16"
+              className="mt-10 w-full max-w-2xl sm:mt-16"
             >
               <Composer mind={mind} onMind={setMind} onSubmit={sendFirst} reduced={reduced} />
             </motion.div>
@@ -370,7 +370,7 @@ export function LandingPage() {
         </section>
 
         {/* ── The product, as it is ────────────────────────────────── */}
-        <section className="relative z-10 -mt-32 overflow-x-clip px-5 sm:-mt-40 sm:px-8" aria-label="The TimeMachine chat">
+        <section className="relative z-10 -mt-24 overflow-x-clip px-5 sm:-mt-40 sm:px-8" aria-label="The TimeMachine chat">
           <Glow hue="168 85 247" className="left-1/2 top-[20%] h-[50vmax] w-[70vmax] -translate-x-1/2" alpha={0.12} />
           <motion.figure
             initial={reduced ? false : { opacity: 0, y: 40 }}

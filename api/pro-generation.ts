@@ -18,6 +18,7 @@ import { registryToolPayload } from '../shared/toolRegistry.js';
 import { buildToolGuardrail, THINKING_DIRECTIVE, buildAppToolDirective, buildAttachedFilesDirective, resolveDeviceRoundBudget, selectToolSet, toApiMessages, type UserSkill } from './_lib/tools.js';
 import { enabledSkills, resolveFlightControlsCached } from './_lib/flightControls.js';
 import { SPECIAL_MODE_CONFIGS } from './_lib/specialModePrompts.js';
+import { appendTimeMachineIdentity } from './_lib/brandIdentity.js';
 import {
   getAuthenticatedRequestUser,
   getRequestAccessToken,
@@ -207,7 +208,7 @@ The memory tags will be processed and removed from the visible response, so writ
 
 ${buildToolGuardrail({ canFindTools: toolSet.canFindTools, canRunPython: toolSet.offered.some(descriptor => descriptor.name === 'run_python') })}
 ${thinkingDirective}`;
-  let systemPromptToUse = enhancedSystemPrompt;
+  let systemPromptToUse = appendTimeMachineIdentity(enhancedSystemPrompt);
   const appToolsOffered = toolsToUse.some(tool => tool.function.name === 'healthcare_search'
     || tool.function.name.startsWith('notes_') || tool.function.name.startsWith('chats_'));
   // The client can run them and simply has none left, as opposed to never

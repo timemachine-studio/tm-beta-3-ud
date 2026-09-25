@@ -4,11 +4,11 @@
    brand purple so the page reads as built, not assembled. */
 
 .tm-landing {
-  /* SF Pro for running text, as in the app. Text is the cut for body sizes,
-     Display for anything 20px and up; Apple devices have both locally, and
-     the rest of the world gets its own system face, never a web substitute
-     that would only look almost right. */
-  font-family: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', sans-serif;
+  /* Keep Apple's native SF typography; use a deliberate, stable fallback on
+     Android instead of whichever system-ui face a browser supplies. */
+  font-family: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont, Inter, system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   caret-color: #a855f7;
@@ -46,7 +46,36 @@
 .tm-landing .text-lg,
 .tm-landing .text-xl,
 .tm-landing button {
-  font-family: 'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', sans-serif;
+  font-family: 'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, Inter, system-ui, sans-serif;
+}
+
+@media (max-width: 639px) {
+  .tm-landing-home .tm-nav {
+    gap: 6px;
+  }
+
+  .tm-landing-home .tm-nav > a,
+  .tm-landing-home .tm-nav > div:last-child,
+  .tm-landing-home .tm-nav > div:last-child button {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 359px) {
+  .tm-landing-home .tm-nav {
+    padding-left: 8px;
+    padding-right: 6px;
+  }
+
+  .tm-landing-home .tm-nav > a span {
+    font-size: 15px;
+  }
+
+  .tm-landing-home .tm-nav > div:last-child button {
+    padding-inline: 8px;
+    font-size: 13px;
+  }
 }
 
 /* The display voice: one sans, set tight, medium weight. Tracking stops

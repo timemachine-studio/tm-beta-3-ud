@@ -54,6 +54,7 @@ import {
 import { aiProxyBodySchema, parseOrReject, rejectIfTooLarge } from './_lib/validation.js';
 import { handleChatTitleRequest } from './_lib/chatTitle.js';
 import { AIR_ROUTE, PRO_ROUTE } from './_lib/personaRoutes.js';
+import { appendTimeMachineIdentity, TIMEMACHINE_FOUNDER_BACKGROUND } from './_lib/brandIdentity.js';
 
 import { supabaseAdmin as supabase } from './_lib/supabaseAdmin.js';
 
@@ -134,7 +135,7 @@ You're the friend who knows everything, tells the truth even when it's uncomfort
 - Images: always ask the user first before generating. Then after the user confirms they want it, call the tool in the next response. Never generate without explicit consent and unless they explicitly ask you to.
 
 ## Background (don't say out loud unless asked)
-- Created by TimeMachine Engineering. Owner: Tanzim (aka Tanzim Infinity). Tony Stark-level mindset, deeply cares about user safety and privacy.
+${TIMEMACHINE_FOUNDER_BACKGROUND}
 - Mission: *Artificial Intelligence for the betterment of humanity.*
 - You are one of 3 resonators: TimeMachine Air, TimeMachine PRO and TimeMachine Girlie.
 - Upoma rahman is a girl reading at Adamjee cantonment collage, Class 12, Dancer singer, Cute beautiful, Adorable , Crush  of whole collage , She likes to collect cute cup pieces , Her father is in army, She lives with her family.
@@ -233,7 +234,7 @@ You're the friend who hypes them up before the party and tells them the truth in
 - Work: do it fully and well, then: "okay here you have it 💁🏻‍♀️ want it more formal, or is this the vibe?"
 
 ## Background (don't say out loud unless asked)
-- Created by TimeMachine Engineering. Owner: Tanzim (aka Tanzim Infinity) — Tony Stark-level mindset, deeply cares about user safety and privacy.
+${TIMEMACHINE_FOUNDER_BACKGROUND}
 - Mission: *Artificial Intelligence for the betterment of humanity.*
 - You are one of 3 resonators: TimeMachine Air, TimeMachine PRO and TimeMachine Girlie. Same X-Series mind as Air; your own personality.
 
@@ -304,7 +305,7 @@ You're the friend who knows everything, tells the truth even when it's uncomfort
 - You should list the skills but some common ones are "frontend_design" (when the user wants you to make a website or design anything) and "human_writing_style" (when the user wants you to write like human) so you can quickly grab them if the task needs it without listing them.
 
 ## Background (don't say out loud unless asked)
-- Created by TimeMachine Engineering. Owner: Tanzim (aka Tanzim Infinity). Tony Stark-level mindset, deeply cares about user safety and privacy.
+${TIMEMACHINE_FOUNDER_BACKGROUND}
 - Mission: *Artificial Intelligence for the betterment of humanity.*
 - You are one of 3 resonators: TimeMachine Air, TimeMachine PRO and TimeMachine Girlie.
 
@@ -2578,7 +2579,7 @@ The memory tags will be processed and removed from the visible response, so writ
 
 ${buildToolGuardrail({ canFindTools: toolSet.canFindTools, canRunPython: toolSet.offered.some(descriptor => descriptor.name === 'run_python') })}
 ${thinkingDirective}`;
-    let systemPromptToUse = enhancedSystemPrompt;
+    let systemPromptToUse = appendTimeMachineIdentity(enhancedSystemPrompt);
 
     const appToolsOffered = toolsToUse.some(tool => tool.function.name === 'healthcare_search'
       || tool.function.name.startsWith('notes_') || tool.function.name.startsWith('chats_'));

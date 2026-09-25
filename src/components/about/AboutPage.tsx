@@ -89,7 +89,7 @@ export function AboutPage() {
               TimeMachine <em>Mafia.</em>
             </Display>
             <p className="mt-5 text-[17px] leading-relaxed text-white/65">
-              Founded by Tanzim Ibne Mahboob, TimeMachine Mafia is on a mission to change how people interact with technology. We believe AI should be accessible, personal, and built with integrity.
+              Tanzim Ibne Mahboob founded TimeMachine Mafia with co-founder Shafin Sheikh. As co-owners, they're on a mission to change how people interact with technology. We believe AI should be accessible, personal, and built with integrity.
             </p>
             <p className="mt-4 text-[17px] leading-relaxed text-white/65">
               We are not building an assistant that answers questions. We are building a companion that understands you — and every decision, from the storage model to the wording of a settings toggle, puts you first.
