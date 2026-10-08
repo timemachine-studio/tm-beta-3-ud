@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-26T16:11:00Z",
+  "title": "Design System: TimeMachine /welcome",
+  "scope": {
+    "route": "/welcome",
+    "status": "local implementation; not deployed",
+    "tokenSource": "DESIGN.md frontmatter",
+    "sourceFiles": [
+      "src/components/landing/LandingPage.tsx",
+      "src/components/landing/WelcomeDemos.tsx",
+      "src/components/landing/HeroLight.tsx",
+      "src/components/landing/welcome.css"
+    ],
+    "approvedReference": "docs/landing-redesign/concepts/06-momentum-dark-refinement.png"
+  },
+  "extensions": {
+    "colorMeta": {
+      "violet": {
+        "role": "primary",
+        "displayName": "Air violet"
+      },
+      "pink": {
+        "role": "secondary",
+        "displayName": "Girlie pink"
+      },
+      "cyan": {
+        "role": "tertiary",
+        "displayName": "PRO cyan"
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "Near black"
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Soft white"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Hero display",
+        "purpose": "Single-line desktop heading clamp(36px,4.3vw,62px); responsive mobile wrapping."
+      },
+      "headline": {
+        "displayName": "Section headline",
+        "purpose": "Section and closing headings."
+      }
+    },
+    "shadows": [],
+    "depth": {
+      "glassBackground": "linear-gradient(145deg,rgba(26,26,34,.94),rgba(12,13,18,.94))",
+      "backdropFilter": "blur(24px)",
+      "fallbackBackground": "#17151e",
+      "fallbackContrastBorder": "#68616f",
+      "artMaterial": "Shallow 2.5D satin faces, gentle bevel, narrow edge light, soft contact shading; no chrome or mirror gloss, no purely flat vector substitute."
+    },
+    "motion": [
+      {
+        "name": "button-state",
+        "value": "background .2s, transform .2s",
+        "purpose": "Fill hover and scale(.98) on active; removed for reduced motion."
+      },
+      {
+        "name": "beam-travel",
+        "value": "w-beam-travel 10s cubic-bezier(.45,0,.55,1) infinite alternate",
+        "purpose": "CSS light travels translateY(5%) to translateY(50%), opacity .75–1. Even planes use12s; every third14s; each plane has a sequential -1.35s phase offset."
+      },
+      {
+        "name": "viewpoint",
+        "value": "transform 600ms cubic-bezier(.16,1,.3,1)",
+        "purpose": "Fine-pointer offsets max 17px/12px, plus bounded .13× hero scroll displacement. Disabled when paused or reduced motion."
+      },
+      {
+        "name": "preview-switch",
+        "value": "w-preview-enter 260ms cubic-bezier(.16,1,.3,1)",
+        "purpose": "Opacity and 8px continuity on feature switching; hidden mounted panes retain input. Disabled for reduced motion."
+      },
+      {
+        "name": "edge-breathe",
+        "value": "w-edge-breathe 7s ease-in-out infinite",
+        "purpose": "One-pixel edge light changes opacity .3 to .85. Grain is static SVG turbulence, not animated."
+      }
+    ],
+    "motionControl": "Pause light sweeps and edge breathing on explicit pause, document hidden, or hero outside the welcome scroll viewport. Reduced motion disables animation and smooth scrolling, leaves a static light treatment, and hides the pause control.",
+    "heroGeometry": "Twelve CSS diagonal planes, -42deg rotation, 14px desktop/10px mobile gaps, varied lengths and sequential -1.35s light phases. Violet-dominant with a sparse cool seam. Static noise affects light alpha. Backdrop extends behind the compact product window.",
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "min-width:1600px"
+      },
+      {
+        "name": "compact-desktop",
+        "value": "max-width:1000px"
+      },
+      {
+        "name": "mobile",
+        "value": "max-width:760px"
+      },
+      {
+        "name": "narrow-mobile",
+        "value": "max-width:359px"
+      }
+    ],
+    "assets": [
+      {
+        "path": "/landing/odyssey/logo-final.webp",
+        "provenance": "public/landing/odyssey/logo-final.webp.json",
+        "purpose": "TimeMachine silhouette preserved in a shallow satin tile."
+      },
+      {
+        "path": "/landing/odyssey/minds-final.webp",
+        "provenance": "public/landing/odyssey/minds-final.webp.json",
+        "purpose": "Three violet, pink, cyan paths converge; contain sizing."
+      },
+      {
+        "path": "/landing/odyssey/workspace-final.webp",
+        "provenance": "public/landing/odyssey/workspace-final.webp.json",
+        "purpose": "Shallow workspace stack; contain sizing."
+      },
+      {
+        "path": "docs/landing-redesign/assets/hero-reference.webp",
+        "provenance": "docs/landing-redesign/assets/hero-reference.webp.json",
+        "purpose": "Retained generated exploration/reference; not used as the runtime hero background. Runtime uses CSS planes with independent light sweeps."
+      }
+    ],
+    "latestComposition": {
+      "sequence": [
+        "hero",
+        "product demo",
+        "asymmetric bento",
+        "closing",
+        "footer"
+      ],
+      "headerMaxWidth": "860px",
+      "demoWidth": "min(900px,64vw)",
+      "measuredAt1440": {
+        "demoTop": 507,
+        "demoWidth": 900,
+        "demoHeight": 388
+      },
+      "demoTabs": "top",
+      "composer": "inline draft/model selector/send arrow",
+      "removedFromRoute": [
+        "extra demo heading/window toolbar",
+        "separate Minds/Contour/privacy marketing sections",
+        "oversized Max Mode illustration"
+      ],
+      "authoritativeReference": "06-momentum-dark-refinement.png, with user's later increased rail density"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Bright pill CTA; smaller variants are used in navigation and previews.",
+      "html": "<button class=\"ds-primary\">Start chatting</button>",
+      "css": ".ds-primary{font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f7;color:#121217;border:1px solid transparent;border-radius:50px;min-height:44px;padding:12px 22px;font-size:14px;font-weight:500;cursor:pointer;transition:background .2s,transform .2s}.ds-primary:hover{background:#dfdbe9}.ds-primary:focus-visible{outline:2px solid #bd93ff;outline-offset:5px}.ds-primary:active{transform:scale(.98)}.ds-primary:disabled{opacity:.45;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Dark bordered pill for preview actions.",
+      "html": "<button class=\"ds-secondary\">Preview refinement</button>",
+      "css": ".ds-secondary{font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;background:rgba(20,20,28,.82);color:#dedce8;border:1px solid #393744;border-radius:50px;min-height:44px;padding:12px 22px;font-size:14px;font-weight:500;cursor:pointer;transition:background .2s,transform .2s}.ds-secondary:hover{background:#25232f}.ds-secondary:focus-visible{outline:2px solid #bd93ff;outline-offset:5px}.ds-secondary:active{transform:scale(.98)}.ds-secondary:disabled{opacity:.45;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none}}"
+    },
+    {
+      "name": "Optimizer field",
+      "kind": "input",
+      "refersTo": "optimizer-input",
+      "description": "Editable local draft textarea with explicit label.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-draft\">Your draft</label><textarea id=\"ds-draft\" class=\"ds-field\">Plan a weekend in Tokyo.</textarea>",
+      "css": ".ds-field-label{display:block;font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;font-size:11px;color:#bab3c7;margin:18px 0 8px}.ds-field{display:block;font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;color:#f5f5f7;resize:vertical;min-height:78px;width:100%;background:#101117;border:1px solid #35313f;border-radius:12px;padding:14px;font-size:12px;line-height:1.6;caret-color:#bd93ff}.ds-field:focus-visible{outline:2px solid #bd93ff;outline-offset:5px}"
+    },
+    {
+      "name": "Mind selector",
+      "kind": "chip",
+      "description": "Violet, pink, and cyan model selectors; selected state is pressed.",
+      "html": "<div class=\"ds-minds\" role=\"group\" aria-label=\"Preview model\"><button aria-pressed=\"true\" class=\"ds-air\">Air</button><button aria-pressed=\"false\" class=\"ds-girlie\">Girlie</button><button aria-pressed=\"false\" class=\"ds-pro\">PRO</button></div>",
+      "css": ".ds-minds{display:flex;gap:8px;flex-wrap:wrap}.ds-minds button{font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;background:#17151d;border:1px solid #35303e;border-radius:30px;min-height:36px;padding:7px 18px;font-size:12px;cursor:pointer}.ds-air{color:#bd93ff}.ds-girlie{color:#f28bba}.ds-pro{color:#72d6ea}.ds-minds button[aria-pressed=true]{background:#2b213d;border-color:currentColor}.ds-minds button:focus-visible{outline:2px solid #bd93ff;outline-offset:5px}"
+    },
+    {
+      "name": "Glass tile",
+      "kind": "card",
+      "refersTo": "glass-card",
+      "description": "Tonal translucent bento surface without a box shadow.",
+      "html": "<article class=\"ds-glass\"><h3>Notes</h3><p>A place for your thinking.</p></article>",
+      "css": ".ds-glass{font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;color:#f5f5f7;background:linear-gradient(145deg,rgba(26,26,34,.94),rgba(12,13,18,.94));border:1px solid rgba(255,255,255,.12);border-radius:28px;padding:30px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}.ds-glass h3{font-size:18px;letter-spacing:-.02em;font-weight:550;margin:0}.ds-glass p{font-size:12px;color:#b3aebe;margin:8px 0 0;line-height:1.6}@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){.ds-glass{background:#17151e;backdrop-filter:none;-webkit-backdrop-filter:none;border-color:#68616f}}@supports not (backdrop-filter:blur(1px)){.ds-glass{background:#17151e}}"
+    },
+    {
+      "name": "Navigation links",
+      "kind": "nav",
+      "description": "Desktop link treatment inside the translucent navigation bar.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main navigation\"><a href=\"#minds\">Minds</a><a href=\"#contour\">Contour</a><a href=\"#notes\">Notes</a><a href=\"#max-mode\">Max Mode</a></nav>",
+      "css": ".ds-nav{font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;display:flex;align-items:center;gap:24px;padding:12px 18px;border:1px solid rgba(255,255,255,.12);border-radius:22px;background:rgba(15,15,20,.85);backdrop-filter:blur(24px)}.ds-nav a{font-size:13px;color:#bdbdc9;text-decoration:none}.ds-nav a:hover{color:white}.ds-nav a:focus-visible{outline:2px solid #bd93ff;outline-offset:5px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Momentum",
+    "overview": "Near-black space, large white type, violet architectural light, and restrained translucent panels frame a hands-on product introduction. Pink and cyan distinguish the other minds. Artwork has shallow 2.5D satin depth, broad graphic faces, narrow edge lighting, and soft grounded shading. The confirmed material direction excludes chrome and mirror gloss; it also excludes completely flat vector treatment.",
+    "keyCharacteristics": [
+      "Black breathing room around bright editorial type.",
+      "Independently animated CSS hero light planes and original TimeMachine artwork.",
+      "Functional, clearly labeled local demos inside restrained dark panels."
+    ],
+    "rules": [],
+    "dos": [
+      "Do keep this record scoped to `/welcome` and refresh it from the source when the page changes.",
+      "Do preserve the approved shallow satin material and independently animated architectural hero lighting.",
+      "Do keep the bento directly after the demo, with Minds later in the page.",
+      "Do label scripted and template previews and reserve real application handoff for explicit entry actions."
+    ],
+    "donts": [
+      "Don't introduce chrome, mirror reflections, or purely flat artwork as replacements for the approved depth.",
+      "Don't represent local demos as model responses, saved edits, or executed workspace actions.",
+      "Don't apply this landing palette and layout to unrelated chat surfaces or treat this record as evidence of deployment."
+    ]
+  }
+}

@@ -1,0 +1,292 @@
+# Raycast.com Landing Page — Full Design & UX Specification
+
+Extracted directly from a screen recording of raycast.com, frame by frame. This is written so a build agent can implement it section by section without guessing.
+
+---
+
+## 0. Global Design System
+
+**Theme:** Pure dark mode. Background is near-black, `#050505` to `#0A0A0A`, never flat pure `#000` (there's always a subtle vignette or gradient glow behind content).
+
+**Primary accent color:** A saturated crimson/red, roughly `#FF3B30` to `#E8384A` range, used for the brand logo, hero background, and highlight accents throughout.
+
+**Secondary accent colors:** Used only inside feature-showcase cards to differentiate them, cycling through blue (`#3B82F6`-ish), green/emerald (Spotify card), purple/magenta (Color Picker card), teal (TinyPNG card). The rest of the site stays monochrome red/white/gray.
+
+**Typography:**
+- Headlines: bold, tight-tracking geometric sans-serif (Inter/system-ui style). Large sizes: hero headline ~56 to 64px, section headlines ~28 to 34px.
+- Body/subhead text: same sans-serif, regular weight, muted gray (`#9CA3AF`-ish), smaller size (~16 to 18px), usually two lines max, centered under a bold headline in "statement" sections.
+- Monospace font used exclusively in the developer/API section (labels like `FIG_02`, `ACTION BAR`, `SEARCH BAR`) and in some code-adjacent UI captions. Looks like a technical-drawing annotation font.
+- Standard paragraph text (nav links, footer links, card body copy): regular weight, white or gray depending on hierarchy.
+
+**Buttons:**
+- Primary button: white/off-white rounded-pill or rounded-rectangle background, black text, small icon on the left (a 4-square grid icon representing the Raycast app icon), e.g. "Download", "Download for Windows".
+- Secondary/ghost button: transparent background, thin light-gray border, white text, e.g. "The Raycast Keyboard →".
+- All buttons have visible hover states (slight brightness/scale change) and rounded corners (~8 to 10px radius).
+
+**Cards:** Rounded corners (~12 to 16px), thin 1px semi-transparent border (`rgba(255,255,255,0.08)`-ish), dark fill slightly lighter than page background, occasional colored gradient fill for feature-showcase cards.
+
+**Texture:** A grain/noise texture overlay is visible across the hero's red graphic and other colored sections, giving it a slightly gritty, film-grain look rather than a flat smooth gradient. This is a recurring brand signature.
+
+**Layout grid:** Centered content column, max-width roughly 1200 to 1300px, generous vertical whitespace between sections (200px+), full-bleed backgrounds behind some sections.
+
+**Motion language (site-wide):**
+- Elements fade in and slide up (~20 to 30px) on scroll into view, staggered slightly between siblings.
+- Section transitions often blur/dim the previous section as the next one becomes active (used heavily in the pinned/scroll-jacked demo section, see Section 2).
+- Hover states on nav links: subtle background pill highlight.
+- Cursor-following or scroll-linked reveal effects appear multiple times (typing text animations, streaming AI text, card carousels).
+
+---
+
+## 1. Navigation Bar (sticky, persists across entire page)
+
+Fixed/sticky pill-shaped bar, floating with margin from the top and sides (not full-width edge-to-edge), rounded corners, dark translucent background with a subtle border, sits above all content.
+
+Layout, left to right:
+- **Logo**: small red rocket/paper-airplane icon + "Raycast" wordmark, bold white text.
+- **Center nav links** (regular weight, gray, turn white on hover): `Store`, `Pro`, `AI`, `iOS`, `Windows`, `Teams`, `Enterprise`, `Blog`, `Pricing`.
+- **Right side**: `Log in` (plain text link) followed by a white pill **Download** button with a small 4-square grid icon.
+
+This bar never disappears or restyles on scroll; it stays identical the entire way down.
+
+---
+
+## 2. Hero Section
+
+**Background:** Full-bleed dramatic diagonal graphic: three to four thick diagonal bands of crimson red light streaking from top-right to bottom-left across a black background, with soft-focus blur/glow at the edges of each band and a visible grain/noise texture layered on top. It looks like colored light beams or fabric folds, dark red fading to near-black at the edges of the viewport.
+
+**Content (vertically centered, fades/slides in on load):**
+1. Headline, two lines, extra bold, centered: **"Your shortcut to everything."**
+2. Subheadline directly below, centered, smaller, light gray: **"A collection of powerful productivity tools all within an extendable launcher. Fast, ergonomic and reliable."**
+3. After ~1 to 2 seconds, a primary CTA button fades/slides up beneath the subheadline: a white pill button with the grid icon, dynamically labeled by detected OS, e.g. **"Download for Windows"**.
+4. Below the button, two lines of small monospace/gray helper text: OS requirement (e.g. "Windows 10+ (x64 or ARM64)") and an alternate install method ("Install via WinGet").
+5. Below that, a secondary ghost-style pill button: **"The Raycast Keyboard →"** (links to a merch/keyboard product).
+
+All hero text and buttons are centered, stacked vertically, over the red diagonal background.
+
+---
+
+## 3. "Take shortcuts, not detours" — Pinned Scroll-Driven Product Demo
+
+This is the site's signature interaction and the most complex section to rebuild. As the user scrolls, a **single mock application window stays pinned/sticky in the viewport** while its internal content changes through several distinct states, synced to scroll position. Below the pinned window, a caption (bold title + gray description) also changes state in sync.
+
+**Section intro copy** (appears first, centered): **"Take shortcuts, not detours."** / **"One interface, everything you need."**
+
+**The mock window itself:**
+- Styled like a macOS app frame: a thin top bar showing macOS menu items (`Apple, Finder, File, Edit, View, Go, Window, Help`) and a right-aligned system status bar (icons + "37m left", wifi, battery, clock, date). This establishes it's a native-feeling desktop launcher, not a webpage.
+- Below that top chrome sits the actual Raycast command-palette UI: a rounded dark panel with a search input at the top and a results list below, floating centered on the page over a dimmed/blurred version of the previous background.
+
+**State-by-state content inside the pinned window (each state = one scroll "chapter"):**
+
+1. **Clipboard History**: Search input reads placeholder "Type to filter entries...", with an "All Types" dropdown at top right. A two-pane layout: left pane is a scrollable list of clipboard items grouped under "Today" (a copied image entry, color swatches like `#FF6363`, `#59D499`, `#56C2FF`, `#FFC531` each with a colored circular swatch icon, a URL entry, a GitHub link entry, a text snippet, an email). Selecting a color entry shows a right-hand detail pane: a large circular color preview, the hex code, and metadata rows (Application: VS Code, Content Type: Color, Copied: timestamp). Bottom bar shows the current command name ("Clipboard History") on the left and action hints on the right ("Copy to Clipboard ⏎", "Actions ⌘K"). Below the window (in real page flow, still pinned) a small floating icon dock/toolbar of 5 rounded square buttons appears (clipboard, sparkle/AI, emoji, calculator, window-grid), with a tooltip label above the hovered icon. Caption beneath: **"Remember Everything."** bold, followed by gray text **"Stop playing Clipboard ping-pong..."**
+
+2. **AI (Quick AI panel)**: Same window chrome, but content switches to a text input at top ("which note taking apps support markdown?" typed out with a visible blinking-cursor typing animation, character by character) and a response panel below that **streams in progressively** line by line: a numbered markdown list of note apps (Obsidian, Notion, Typora, Bear, Joplin, then more items appear: Zettlr, Boost Note, iA Writer), followed by a "References" row with small numbered source chips (Notion, Obsidian, "+10 more"). The icon dock below highlights the sparkle/AI icon with tooltip "AI". Caption: **"Be Curious."** / gray: "Have a question? Why google it when you can..."
+
+3. **Emoji Picker**: dock highlights the smiley icon, tooltip "Emoji Picker". Caption: **"Express Yourself."** / "Search for emojis and symbols and paste..."
+
+4. **Root Search / Command Palette (default state)**: Input placeholder reverts to "Search for apps and commands...", with "Ask AI" and "Tab" hint chips on the right of the input. Below, a "Suggestions" section lists commands with leading icon, name, source app label, and a right-aligned "Command" tag (Store/Raycast, Clipboard History/Raycast, Search Files/Raycast, My Schedule/Calendar, Define Word/Dictionary), followed by a "Commands" section list (Calculator History, My Schedule, Clipboard History...). Bottom bar: "Open Command ⏎" and "Actions ⌘K". Dock highlights calculator then window-grid icons in sequence, tooltips "Window Management" appear above.
+
+5. **Window Management**: A results list shows window-layout options with small colored rectangle icons representing screen zones (e.g. "Top Left Quarter"), each tagged "Window Management" on the right, "Open Command ⏎ / Actions ⌘K" bar at bottom. Caption: **"Tidy Up."** / "Resize and reorganize your focused window without touching your mouse."
+
+**Interaction notes for the agent:**
+- This entire block behaves like a scrollytelling component: the browser scroll position drives which "state" of the mock UI is shown, while the mock window itself does not scroll with the page (it's pinned/`position: sticky` for a fixed scroll distance, then releases).
+- Transitions between states are cross-fades, not hard cuts; the previous state's content fades and slightly blurs while the new one fades in.
+- Small floating dock icons at the bottom of the window act like a persistent "current mode" indicator; the active icon is lit/white, others are dim gray, and a tooltip pops above whichever one is "active" for that state.
+- Captions below the window always follow the pattern: **Bold 2 to 3 word hook.** + normal-weight gray continuation sentence, fading in and out per state.
+
+---
+
+## 4. "It's not about saving time" — Split Statement + Keyboard Feature Grid
+
+Two-column layout (roughly 40/60 split).
+
+**Left column (vertically centered):**
+- Headline, two lines: bold white first line **"It's not about saving time."**, gray second line **"It's about feeling like you're never wasting it."**
+- Below it, a white pill **Download** button with grid icon.
+
+**Right column:**
+- A large stylized illustration of a physical keyboard, top-down view, dimmed/dark, with individual keys faintly visible (letters, symbols, modifier keys like ⌘, arrows).
+- Overlaid on top of the keyboard illustration, floating rounded-rect cards sit at different positions like sticky notes pinned to the keys, each with a small icon + bold keyword + short gray description:
+  - Icon: right-arrow. (Card partially cut off, left-most.)
+  - Clock icon: **"Fast."** "Think in milliseconds."
+  - Command-key icon: **"Ergonomic."** "Keyboard First."
+  - Person icon: **"Personal."** "Your tools, your way."
+  - Target/reliability icon: **"Reliable."** "99.8% crash-free rate."
+- These cards appear to fade/scale in with a slight stagger as the section scrolls into view, sitting on a semi-transparent dark backdrop over the keyboard art.
+
+---
+
+## 5. "There's an extension for that" — Tabbed Horizontal Card Carousel
+
+**Header row:** Left side: bold headline **"There's an extension for that."** / gray subhead "Use your favorite tools without even opening them." Right side: a **pill-shaped tab switcher** with 4 options: `Productivity` (active/white pill by default), `Engineering`, `Design`, `Writing`. Clicking a tab updates the page URL hash (e.g. `#writing`) and swaps the entire card set below with a fade/slide transition.
+
+**Card carousel (below header):** A horizontally-scrolling row of app/extension showcase cards, each roughly 320px wide, partially cropped at the right edge to hint at more content (inviting horizontal scroll/drag). Each card:
+- Colored gradient background unique to that app's brand (e.g. Linear = dark indigo/purple with a faint line-art planet/orbit illustration; Google Translate = blue gradient with floating translated-phrase chips like "Omelette du fromage" in multiple languages/scripts; Spotify = green gradient with an album-art photo at the bottom; Arc = purple/pink gradient with abstract line art).
+- Top row inside card: small rounded app-icon logo + app name (bold) on the left, a circular "→" chevron button on the right (click affordance, presumably opens that extension's store page).
+- Below: one to two lines of description copy in white/light gray, e.g. "Create, search and modify your issues without leaving your keyboard."
+- Bottom two-thirds of the card is a decorative illustration/screenshot fragment representing that tool in action (translated word chips, an album cover, a color swatch UI, a "150 KB" compression badge, etc).
+
+**Design tab example (color-swapped set):** Color Picker (magenta/purple gradient, big glowing orange circle swatch), TinyPNG (teal gradient, "150 KB" compressed-size badge), "Lorem Ipsum" placeholder-text generator (dark teal, minimal), Image Mods (purple, partially visible).
+
+**Below the carousel:** left-aligned text link **"Browse thousands more →"**, and on the right, two small circular prev/next arrow nav buttons to manually page the carousel.
+
+---
+
+## 6. "AI Agent" — Meet Your New Virtual Assistant
+
+**Eyebrow label:** small red uppercase monospace tag **"AI AGENT"** centered above the headline.
+
+**Headline:** bold, centered, **"Meet your new virtual assistant"**, gray subhead below: "Raycast AI uses the tools you already rely on to get work done."
+
+**Large demo panel below (full-width card, chat-app layout):**
+- Left sidebar (dark, narrower column): a search input "Search chats", then a folder tree with icons: `Website`, `Daily`, a `Recent` label, then a flat list of past chat thread titles acting as nav items, one highlighted/active: `Sync linear tasks` (bold/active), followed by more thread names: "Create landing page for AI Agents", "Compress files", "Create Raycast extension", "Analyse website traffic", "Triage support queries" (fading opacity toward the bottom, implying more content below scroll).
+- Top of the right/main pane: small window-control icons (sidebar toggle, play/run, edit) on the left, current conversation title "Sync linear tasks" center-left, and on the right a model-picker chip **"Claude Opus 5 High"** with a small settings/switch icon.
+- Main chat body: a user prompt bubble containing rich inline mentions/chips, e.g. "Check [Linear icon+label chip] for tasks assigned to me and create a task in [Things icon+label chip, checked/blue] for each one." The mentioned app names render as small pill-shaped chips with icons, not plain text.
+- Below the prompt, a vertical step-by-step **agent execution log**: each step is a row with a small status icon (spinning/loading indicator, or a checked blue checkbox once complete) plus a label and, where relevant, a small numeric badge (e.g. "5"): "Fetching assigned tasks", "Fetching issue details (5)", "Create Things task (5)" (this one checked complete).
+- Final response text below the steps in plain body copy: "You have 5 new tasks waiting for you in Linear. I've created a corresponding task for each one in Things."
+- The whole panel is labeled "AI Chat" at the bottom edge as a caption/tag.
+
+---
+
+## 7. Two-Column Feature Grid: "Quick AI" and "AI Extensions"
+
+Two side-by-side cards, each with a small demo mockup on top and a text block at the bottom.
+
+**Left card ("Quick AI"):**
+- Mini demo: a text input styled like a spotlight/quick-launcher bar with placeholder-ish suggested prompt chips listed vertically beneath it: "Summarise this", "Draft a follow-up email", "Explain this error", "Open the agenda for my next meeting", "Suggest copy for this section", "Setup a meeting with Tom" (each a full-width list row, hover-selectable style).
+- Bottom text: bold **"Quick AI"**, gray description "Quick AI lives a single hotkey away, giving you access to Raycast AI without leaving your workflow."
+
+**Right card ("AI Extensions"):**
+- Mini demo: a chat-style transcript snippet ("...ead meeting transcripts from [something] and add any action items to [Things chip]") with a processing-step row below showing a small colored app icon (looks like a "Granola" notes-app badge) + "Reading Granola transcripts..." + a count badge "2".
+- Bottom text: bold **"AI Extensions"**, gray description "Connect all of your everyday tools with AI so it can work in all the same places you do."
+
+**Below both cards, centered:** a text link **"Learn more about Raycast AI →"**.
+
+---
+
+## 8. "Built for professionals like you" — Testimonial Carousel
+
+Centered headline **"Built for professionals like you."** / gray subhead "Used by seriously productive people."
+
+Below: a **horizontally auto-scrolling (or draggable) row of testimonial chips**, each a small rounded card containing a circular avatar photo, bold name, gray @handle, and role/company line, e.g.:
+- Adam Whitcroft, @AdamWhitcroft, "Designer, Owner"
+- Guillermo Rauch, @rauchg, "CEO, Vercel" (shown as the emphasized/centered, slightly larger and brighter card, i.e. the row has a focal/active item that's more prominent than its dimmer neighbors, like a carousel with a "current" item)
+- Marques Brownlee, @MKBHD, "Creator, MKBHD"
+
+The non-focal cards on either side are visually dimmed (lower opacity), implying continuous horizontal auto-scroll with a spotlighted center item.
+
+---
+
+## 9. "Don't repeat yourself" — Automation Bento Grid
+
+**Header (appears above the grid):** bold **"Don't repeat yourself."** / gray "Automate the things you do all the time."
+
+A **2x2-ish bento grid** of unequal-sized feature cards:
+
+1. **Snippets** (top-left, wide card): small list icon + bold "Snippets" title, gray description "Tired of typing the same thing? Create a snippet and insert it by simply typing its keyword." Background shows a decorative teal/cyan diagonal-striped graphic (echoing the hero's grain-diagonal style but in blue/teal) with a floating dark chat-style card on top: "Sure, here you go:" followed by a highlighted blue text block showing an expanded snippet result (an address), a small undo/refresh icon button bottom-left, and a white "Send" button bottom-right.
+
+2. **Quicklinks** (bottom-left): a live-looking search input containing "scratch" with a results dropdown below showing two matches, each with a small app-favicon, name, and domain (e.g. "Figma Scratchpad, figma.com", "Framer Scratchpad, framer.com"), one row highlighted/hovered. Below the mini demo: bold **"Quicklinks"** title, gray description "Say goodbye to open tabs. Create quicklinks to launch anything from anywhere."
+
+3. **Hotkeys and Aliases** (bottom-right): a mini demo showing three large key-cap illustrations in a row connected by "+" signs: `option` key, `command` key, and a blank/letter key (`L`), each rendered as a big rounded dark square with the key glyph/label centered, like a visual hotkey builder. Below: keyboard-shortcut icon + bold **"Hotkeys and Aliases"** title, gray description "Speed up your workflow by assigning hotkeys or aliases to common commands or apps."
+
+(A fourth card, partially visible before this crop, likely mirrors the "Meeting notes" AI task-list style card seen in the next frame, i.e. a note-taking/task card with a checklist: "Meeting notes" title, body text mentioning "beta feedback" with an inline red-tinted hyperlink, and below it a "Task list" section with checkbox rows, some checked, in a red-tinted decorative diagonal-striped panel similar to the Snippets card's teal one but in red.)
+
+---
+
+## 10. "It can take notes. Track your flights..." — Capability List + Notes Callout
+
+A dense, long-form paragraph of short capability statements, gray text, left-aligned, large line-height, reading like a rapid-fire feature list rendered as flowing prose (not bullets):
+
+> "It can take notes. Track your flights. Convert anything. Search files. Run scripts. Manage your windows. Plan your day. Remind you of stuff. Translate into any language. Block distractions. Find text in screenshots. Insert Emojis. And much, much more."
+
+Each short sentence appears to fade/highlight in sequence (brighter white momentarily) as it's "read", suggesting a scroll- or time-based text-highlight animation across the paragraph, with already-passed and not-yet-reached sentences dimmed to gray while the current one is brighter white.
+
+Below the paragraph: a small callout row: app icon + bold **"Raycast Notes"**, gray description "A quick way to capture a thought while working on something else." followed by an inline red **"Learn more"** link.
+
+To the right of this text block (same row/section), a floating card mockup: bold header "Meeting notes", a line of body text with an inline red hyperlink ("beta feedback"), a divider, then a bold "Task list" label and a vertical checklist (red-outlined checkbox squares, some checked/filled red, item labels like "Collect and go through beta feedback", "Add settings entry point case", "Need to handle multiple accounts case", "Add error for profile pic file size", "Look into crash on sign out", "add feature flag for launch", the lower items fading in opacity toward the bottom edge).
+
+---
+
+## 11. "Stay in the loop" — Community/Social Carousel
+
+Centered headline **"Stay in the loop."**
+
+Below it, a horizontally scrolling row of social-platform cards, each showing a platform icon/label at the top with a "Join →" or "Follow →" action link, dimmed at the edges (auto-scrolling carousel, same visual language as the testimonial carousel in Section 8).
+
+---
+
+## 12. YouTube Video Carousel
+
+A horizontal carousel of video thumbnail cards, each roughly square/portrait, rounded corners, showing:
+- "[?] Raycast tricks to up [your workflow]" (partially cropped, blue/gray thumbnail with an arrow icon)
+- "Our Extension Picks for UI Developers" (thumbnail shows a person mid-sentence on camera plus small app-icon overlays)
+- "Introducing Raycast Focus" (dark thumbnail, glowing green rounded-square icon centered)
+- "Mastering Quicklinks in Raycast" (dark thumbnail, pink/magenta abstract chain-link 3D render)
+- "Raycast Notes is Finally [Here]" (cropped, dark thumbnail with a large "T" text icon)
+
+Below the carousel, centered: gray text "Check out our YouTube channel to learn about features you didn't even know existed." followed by a red YouTube play-button icon + bold **"YouTube →"** link.
+
+---
+
+## 13. "Build the perfect tools" — Developer/API Blueprint Section
+
+This section has a completely distinct visual language from the rest of the page: a **technical blueprint/schematic aesthetic** with thin gray grid lines dividing the layout into labeled panels, monospace uppercase labels (`FIG_01`, `FIG_02`, `FIG_03`, `FIG_04`, `FIG_06`, `ACTION BAR`, `SEARCH BAR`), and blue-toned isometric 3D wireframe line-art illustrations of UI components floating in each panel (not flat icons, actual extruded/3D-looking outline renders with a soft blue glow on select surfaces).
+
+Layout is a multi-row grid, each row split into a left text panel and a right (or alternating) illustration panel, all separated by thin 1px hairlines forming a literal grid overlay across the whole section (like graph paper), with small corner tick marks or crosshair-style "expand" icons (↗) in panel corners.
+
+**Row 1:** Left: headline **"Build the perfect tools."** (large, bold, white, the word "the" cut off/partially visible in earlier scroll state suggests the same fade/reveal animation pattern as other headlines) with body copy below: "Our extension API is designed to allow anyone with web development skills to unleash the power of Raycast." and a bold text link **"Read the docs ↗"**. Right: isometric wireframe illustration of a search-bar / list UI component, labeled `ACTION BAR` and `SEARCH BAR` in small caps monospace tags near it, rendered as a stacked/exploded 3D diagram (a flat search-bar plane and a card plane separated in z-space, connected by a highlighted blue bar).
+
+**Row 2 ("FIG_02", implied):** wireframe of a boxy device/module shape (looks like an abstracted computer/appliance icon), also isometric line art.
+
+**Row 3:** headline **"Batteries included."**, body copy (partially visible): "...strongly typed API, hot-reloading, and modern tooling that make it a blast to work with." Paired with `FIG_03` wireframe: small blue rounded UI element shapes (toggle switches, small cards, a pill shape) scattered like disassembled parts. Adjacent `FIG_04` panel: two overlapping pill/rounded-rect shapes with a glowing blue circular toggle knob, illustrating a toggle-switch component.
+
+Also present in this cluster: a right-aligned text block, bold **"Cross-platform"**, gray body "Build your extension once and make it available to Raycast users on both macOS and Windows." paired with an isometric wireframe of a vintage boxy computer/monitor shape (nodding to classic Mac form factor, all blue-outlined 3D line art).
+
+And: bold **"Built-in UI"**, gray body "Our UI component library allows you to concentrate on the logic while we push the pixels." paired with `FIG_03`'s disassembled toggle/card shapes described above.
+
+**Row featuring FIG_06:** an isometric wireframe of a layered device/tray shape with a small play/media icon embedded, paired with bold **"Publish to the Store"**, gray body "Submit your extension to the Store and share it with thousands of users.", and centered below the row a bold text link **"Get started ↗"**.
+
+A visible browser status-bar URL during this section reads `https://developers.raycast.com/api-reference/user-interface/list`, confirming these panels link out to the actual developer docs subpages.
+
+---
+
+## 14. Final CTA — Giant Keyboard "Take the short way"
+
+A large-scale illustrated keyboard fills most of the viewport width, rendered as a realistic-but-stylized top-down keycap grid (QWERTY layout visible: Q W E R T Y U I O row, A S D F G H J K L row, Z X C V B N M row with `< >` punctuation keys, and the bottom modifier row: `fn`, `control`, `option`, **`command`** (highlighted with a red glow/border, appears "pressed" or emphasized), a large blank spacebar, then mirrored `command`/`option` on the right). All keys are dark with light-gray glyphs except the emphasized `command` key which has a red outline glow.
+
+Below the keyboard: centered bold headline **"Take the short way."**, gray subhead **"Download and use Raycast for free."**, and (cut off at the very bottom of the captured recording) presumably another white Download pill button.
+
+---
+
+## 15. Footer
+
+Full-width footer below a horizontal divider line, dark background continuing from the page.
+
+**Six columns of link groups**, each with a bold white column header and a vertical stack of regular-weight gray links (turning white on hover), external links marked with a small ↗ icon:
+
+1. **Product**: Store, Pro, Teams, Pricing, Changelog, Browser Extension, Developers, iOS, Windows, Raycast 2.0, API Docs ↗, Manual ↗, Troubleshooting ↗, Raycast vs Alfred, FAQ
+2. **Core Features**: Raycast AI, Raycast Notes, Raycast Focus, Clipboard History, Window Management, File Search, Quicklinks, Calculator, Calendar, System, Emoji Picker
+3. **Top Extensions**: Design Tools, Developer Tools, Pomodoro Timer, Productivity, Project Management, Time Management, Clipboard History, Productivity, Transcript, Translation, Work From Home, AI
+4. **Company**: Manifesto, Customers, Careers, Terms of Service, Privacy Policy, Acceptable Use, [Security] Policy, DPA, Trust Center ↗, Press Kit, Contact
+5. **Community**: Community Stories, Ambassadors, Slack, X/Twitter ↗, GitHub ↗, Dribbble ↗
+6. **By Raycast**: Keyboard, Glaze ↗, Explore Snippets ↗, Explore Quicklinks ↗, Prompts ↗, Chat Presets ↗, ray.so ↗, Icon Maker ↗, Merch ↗, Wallpapers
+
+**Newsletter signup row** (below the link columns, separated by another hairline divider): Left side, bold **"Subscribe to our newsletter."**, gray "Get product updates and news in your inbox. No spam." Right side, an inline form: a dark rounded text input with placeholder-style example email (e.g. "ken@bell.labs") and a white **"Subscribe"** button immediately to its right, plus small legal disclaimer text below the input: "By submitting your email address, you agree to receive Raycast's monthly newsletter. For more information, please read our privacy policy. You can always withdraw your consent."
+
+---
+
+## Summary of Reusable Interaction Patterns to Implement
+
+1. **Sticky pinned demo window** that swaps internal UI state as the user scrolls through a tall section (Section 3). This is the hardest and most important pattern to replicate faithfully.
+2. **Tabbed content swap** where clicking a pill tab both updates the URL hash and cross-fades a card grid below it (Section 5).
+3. **Horizontal draggable/auto-scroll carousels** used three times for different content types: brand extension cards, testimonials, and YouTube thumbnails, each with edge-cropping to hint more content, plus optional manual prev/next arrow buttons.
+4. **Typing/streaming text animation** for AI demo inputs and outputs, character-by-character for the question, line-by-line/streaming for the answer.
+5. **Sequential highlight/reveal animation** on long-form paragraph text, dimming unread text and brightening the "current" sentence (Section 10).
+6. **Fade + slide-up entrance** on virtually every headline, subhead, card, and button as it enters the viewport, staggered by a small delay between siblings.
+7. **Grain/noise texture** layered over gradient/color backgrounds (hero, Snippets card, Meeting notes card) for a consistent tactile brand texture.
+8. **Isometric wireframe illustration style** (blue-line, exploded/stacked 3D) used exclusively in the developer section to visually signal "technical/API" content, contrasted against the flatter, photographic/gradient style used everywhere else.
+9. **Consistent card anatomy**: icon/logo top-left, action affordance top-right (chevron/arrow button), bold title, 1 to 2 line gray description, decorative visual filling the remaining card space.
+10. **Bold-word-plus-sentence caption pattern** repeated throughout: a short 1 to 3 word bold hook followed by a longer regular-weight gray sentence, almost always structured as `**Hook.** Continuation sentence.`
+
+---
+
+*Extracted from a 65-second screen recording (1892×860) of the live site. Timings/exact pixel values are approximate; visual hierarchy, layout structure, copy, and interaction patterns are captured with high fidelity.*
