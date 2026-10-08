@@ -28,6 +28,7 @@
     "@ffmpeg/util": "^0.12.2",
     "@imagemagick/magick-wasm": "^0.0.43",
     "@modelcontextprotocol/client": "^2.0.0",
+    "@openhands/typescript-client": "1.49.6",
     "@radix-ui/react-dialog": "^1.0.5",
     "@radix-ui/react-switch": "^1.0.3",
     "@radix-ui/react-tabs": "^1.0.4",

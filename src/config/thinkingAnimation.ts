@@ -25,7 +25,7 @@ export type ThinkingVisual = OrbVariant | { kind: 'constellation' } | { kind: 'c
 type OrbChoice = `orb:${OrbVariant['state']}:${OrbVariant['size']}`;
 export type ThinkingAnimationChoice = 'orb-cycle' | 'compact-cycle' | 'large-cycle' | 'all-cycle' | 'constellation' | 'cubes' | OrbChoice;
 
-export const DEFAULT_THINKING_ANIMATION: ThinkingAnimationChoice = 'orb-cycle';
+export const DEFAULT_THINKING_ANIMATION: ThinkingAnimationChoice = 'orb:composing:64';
 export const ORB_VARIANTS: readonly OrbVariant[] = ORB_STATES.flatMap(state =>
   ORB_SIZES.map(size => ({ kind: 'orb' as const, state, size })),
 );

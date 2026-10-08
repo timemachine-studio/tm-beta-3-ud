@@ -28,6 +28,11 @@ export function isSeasonTheme(value: unknown): value is SeasonTheme {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(seasonThemes, value);
 }
 
+/** Model changes paint the room only while Settings is on Auto. */
+export function seasonAfterPersonaChange(current: SeasonTheme, next: SeasonTheme, followsPersona: boolean): SeasonTheme {
+  return followsPersona ? next : current;
+}
+
 export interface StoredThemeState {
   mode: ThemeMode;
   /** The season the user pinned in Settings, or null when it follows the persona. */

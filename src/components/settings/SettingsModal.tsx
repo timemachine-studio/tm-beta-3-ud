@@ -2,7 +2,7 @@ import { popupExit, scrimExit } from '../../utils/popupMotion';
 import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sun, Moon, Sparkles, Info, Mail, Check, PanelLeft, Type } from 'lucide-react';
+import { X, Sun, Moon, Sparkles, Info, Mail, Check, PanelLeft, Layers, Type } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { seasonThemes } from '../../themes/seasons';
@@ -82,7 +82,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                 >
                   <div className="relative p-6 space-y-7">
                     <div className="flex items-center justify-between">
-                      <Dialog.Title className="tm-display tm-dialog-heading text-white">Settings</Dialog.Title>
+                      <Dialog.Title className="tm-display tm-dialog-heading text-ink">Settings</Dialog.Title>
                       <Dialog.Close asChild>
                         <motion.button
                           whileHover={{ scale: 1.08 }}
@@ -100,7 +100,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                       <SectionLabel>Appearance</SectionLabel>
                       <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Theme">
                         {([
-                          { value: 'light', label: 'Light', hint: 'Flat and calm', Icon: Sun },
+                          { value: 'light', label: 'Light', hint: 'Soft, frosted glass', Icon: Sun },
                           { value: 'dark', label: 'Dark', hint: 'Black, with seasons', Icon: Moon },
                         ] as const).map(({ value, label, hint, Icon }) => {
                           const selected = mode === value;
@@ -225,8 +225,8 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                             ))}
                           </div>
                           <p className="text-xs text-ink-muted mt-3">
-                            Each persona brings its own colour — Air, Girlie and PRO. Pick a season to
-                            recolour the room now; switching persona brings its colour back. Pure is black with no colour at all.
+                            Auto follows your model or mode. Choose a season to keep its theme when switching.
+                            Pure keeps a black background while its accent follows your chosen mind.
                           </p>
                         </motion.section>
                       )}
@@ -234,10 +234,11 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
 
                     <section>
                       <SectionLabel>Interface</SectionLabel>
-                      <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Interface">
+                      <div className="tm-interface-choice-grid grid grid-cols-3 gap-3" role="radiogroup" aria-label="Interface">
                         {([
-                          { value: 'current', label: 'Current', hint: 'Sidebar and glass', Icon: PanelLeft },
-                          { value: 'legacy', label: 'Legacy', hint: 'The classic layout', Icon: Type },
+                          { value: 'present', label: 'Present', hint: 'New liquid glass', Icon: PanelLeft },
+                          { value: 'classic', label: 'Classic', hint: 'Seasonal liquid glass', Icon: Layers },
+                          { value: 'legacy', label: 'Legacy', hint: 'Original layout', Icon: Type },
                         ] as const).map(({ value, label, hint, Icon }) => {
                           const selected = uiStyle === value;
                           return (
@@ -245,46 +246,45 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                               key={value}
                               role="radio"
                               aria-checked={selected}
-                              whileHover={{ scale: 1.015 }}
+                              whileHover={{ y: -1 }}
                               whileTap={{ scale: 0.985 }}
                               onClick={() => setUiStyle(value)}
-                              className="relative flex flex-col items-start gap-3 p-4 rounded-2xl text-left transition-colors"
+                              data-interface-style={value}
+                              className="tm-interface-choice relative flex flex-col items-start gap-3 p-3 rounded-2xl text-left transition-colors"
                               style={selected ? paneSelected : pane}
                             >
-                              {/* A miniature of each shell: the current one has a rail
-                                  and a pill for the brand; the legacy one is the brand
-                                  alone in the corner over an open room. */}
+                              {/* Present and Classic share a rail layout; their glass
+                                  treatment differs. Legacy shows the earlier open layout. */}
                               <span
                                 aria-hidden
-                                className="relative block w-full h-14 rounded-xl overflow-hidden"
+                                className={`tm-interface-preview relative block w-full h-14 rounded-xl overflow-hidden is-${value}`}
                                 style={{ background: '#0a0710', border: '1px solid rgb(255 255 255 / 0.12)' }}
                               >
-                                {value === 'current' ? (
+                                {value !== 'legacy' ? (
                                   <>
                                     <span className="absolute inset-y-0 left-0 w-[30%]" style={{ background: 'rgb(255 255 255 / 0.06)', borderRight: '1px solid rgb(255 255 255 / 0.08)' }} />
-                                    <span className="absolute top-2 left-[36%] h-2.5 w-10 rounded-full" style={{ background: 'rgb(168 85 247 / 0.35)', border: '1px solid rgb(168 85 247 / 0.5)' }} />
+                                    <span className={`absolute top-2 left-[36%] h-2.5 w-10 ${value === 'present' ? 'rounded-full' : 'rounded-md'}`} style={{ background: 'rgb(var(--tm-season-rgb) / 0.24)', border: '1px solid rgb(var(--tm-season-rgb) / 0.5)' }} />
                                     <span className="absolute bottom-2 left-[36%] right-2 h-2.5 rounded-full" style={{ background: 'rgb(255 255 255 / 0.1)' }} />
                                   </>
                                 ) : (
                                   <>
-                                    <span className="absolute top-2 left-2 h-2 w-10 rounded-full" style={{ background: '#c084fc', boxShadow: '0 0 8px rgb(168 85 247 / 0.7)' }} />
-                                    <span className="absolute bottom-2 left-2 h-2.5 w-2.5 rounded-full" style={{ background: 'rgb(168 85 247 / 0.4)' }} />
-                                    <span className="absolute bottom-2 left-6 right-2 h-2.5 rounded-full" style={{ background: 'rgb(255 255 255 / 0.1)', border: '1px solid rgb(255 255 255 / 0.1)' }} />
+                                    <span className="absolute top-2 left-2 h-2 w-10 rounded-full" style={{ background: 'var(--tm-season-accent)', boxShadow: '0 0 8px rgb(var(--tm-season-rgb) / 0.45)' }} />
+                                    <span className="absolute bottom-2 left-2 right-2 h-2.5 rounded-full" style={{ background: 'rgb(255 255 255 / 0.1)', border: '1px solid rgb(255 255 255 / 0.1)' }} />
                                   </>
                                 )}
                               </span>
-                              <span className="flex items-center gap-2 w-full">
+                              <span className="tm-interface-choice-title flex items-center gap-1.5 w-full">
                                 <Icon className="w-4 h-4 text-ink" />
-                                <span className="text-sm font-medium text-white">{label}</span>
+                                <span className="text-sm font-medium text-ink">{label}</span>
                                 {selected && <Check className="w-4 h-4 ml-auto" style={{ color: 'var(--tm-season-accent)' }} />}
                               </span>
-                              <span className="text-xs text-ink-muted -mt-2">{hint}</span>
+                              <span className="tm-interface-choice-hint text-xs text-ink-muted -mt-2">{hint}</span>
                             </motion.button>
                           );
                         })}
                       </div>
                       <p className="text-xs text-ink-muted mt-3">
-                        Current keeps your chats in a sidebar. Legacy is the layout before it.
+                        Classic restores the seasonal glass treatment. Appearance and season settings still apply in every interface.
                       </p>
                     </section>
 

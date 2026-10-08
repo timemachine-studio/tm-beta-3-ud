@@ -145,7 +145,9 @@ export function SpeechTranscriptionButton({
         whileTap={{ scale: 0.95 }}
         onClick={handleToggle}
         disabled={disabled && !isListening}
-        className="p-3 rounded-full transition-all duration-300 relative group disabled:opacity-50 disabled:cursor-not-allowed"
+        className="tm-composer-control p-3 rounded-full transition-all duration-300 relative group disabled:opacity-50 disabled:cursor-not-allowed"
+        data-tm-material="composer-control"
+        data-tm-composer-control="microphone"
         style={{
           background: isListening
             ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgb(var(--tm-ink-rgb) / 0.05))'

@@ -79,6 +79,14 @@
   ],
   "rewrites": [
     {
+      "source": "/api/work-model/v1/chat/completions",
+      "destination": "/api/pro-generation?workModel=1"
+    },
+    {
+      "source": "/api/work",
+      "destination": "/api/pro-generation?work=1"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

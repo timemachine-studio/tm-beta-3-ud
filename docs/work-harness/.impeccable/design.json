@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-28T07:09:33.000Z",
+  "title": "Design System: TimeMachine Work",
+  "extensions": {
+    "colorMeta": {
+      "seasonal-accent": {
+        "role": "primary",
+        "displayName": "Active seasonal accent",
+        "tonalRamp": [
+          "oklch(from rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252))) 0.15 c h)",
+          "oklch(from rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252))) 0.26 c h)",
+          "oklch(from rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252))) 0.37 c h)",
+          "oklch(from rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252))) 0.48 c h)",
+          "oklch(from rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252))) 0.59 c h)",
+          "oklch(from rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252))) 0.7 c h)",
+          "oklch(from rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252))) 0.83 c h)",
+          "oklch(from rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252))) 0.95 c h)"
+        ]
+      },
+      "brand-accent": {
+        "role": "primary",
+        "displayName": "TM vivid title"
+      },
+      "light-structure-paper": {
+        "role": "neutral",
+        "displayName": "Light-mode translucent theme paper"
+      }
+    },
+    "typographyMeta": {
+      "brand": {
+        "displayName": "Whole-name identity",
+        "purpose": "Top sidebar title; Montserrat across the entire name."
+      },
+      "headline": {
+        "displayName": "Home question",
+        "purpose": "Primary task prompt."
+      }
+    },
+    "shadows": [
+      {
+        "name": "composer",
+        "value": "0 12px 34px rgb(var(--tm-shadow-rgb) / .13), inset 0 1px rgb(var(--tm-edge-rgb) / .36), inset 0 -1px rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .11)",
+        "purpose": "Deeper rounded composer glass reflections and diffuse lift inside the flush shell."
+      },
+      {
+        "name": "sidebar-rim",
+        "value": "inset -1px 0 rgb(var(--tm-edge-rgb) / .09)",
+        "purpose": "Subtle joined-sidebar highlight."
+      },
+      {
+        "name": "brand-dark-glow",
+        "value": "0 0 20px rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .6), 0 0 40px rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .3), 0 0 60px rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .1)",
+        "purpose": "Inherited dark-mode title text shadow; removed in light mode."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "background-color 140ms ease, transform 140ms ease",
+        "purpose": "Default Work buttons; reduced motion disables transitions."
+      },
+      {
+        "name": "pressed-scale",
+        "value": "scale(.97)",
+        "purpose": "Enabled controls respond on press."
+      },
+      {
+        "name": "sidebar-toggle-morph",
+        "value": "left 240ms ease, top 240ms ease; icon transform 240ms ease, opacity 180ms ease",
+        "purpose": "One persistent sidebar button travels and crossfades between X and PanelLeft; reduced motion removes transitions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "single-column",
+        "value": "900px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "New task button",
+      "kind": "button",
+      "description": "Under Sessions navigation; understated glass action.",
+      "html": "<button class=\"ds-new-task\">+ New task</button>",
+      "css": ".ds-new-task{font-family:var(--font-sans);color:var(--color-ink);background:linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .17), rgb(var(--tm-edge-rgb) / .08) 58%, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .07)), rgb(var(--tm-paper-rgb) / .28);border:1px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .25);border-radius:999px;padding:9px 14px;min-height:40px;font-size:13px;box-shadow:inset 0 1px rgb(var(--tm-edge-rgb) / .3),0 4px 12px rgb(var(--tm-shadow-rgb) / .06);backdrop-filter:blur(var(--tm-blur-glass)) saturate(145%);-webkit-backdrop-filter:blur(var(--tm-blur-glass)) saturate(145%);transition:background-color 140ms ease,transform 140ms ease}.ds-new-task:hover{background:rgb(var(--tm-ink-rgb) / .08)}.ds-new-task:focus-visible{outline:2px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)));outline-offset:3px}.ds-new-task:active{transform:scale(.97)}.ds-new-task:disabled{opacity:.45;cursor:not-allowed}@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){.ds-new-task{background:var(--color-surface);backdrop-filter:none;-webkit-backdrop-filter:none}}"
+    },
+    {
+      "name": "Section navigation",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "Season-tinted selected section with compact geometry.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Work sections\"><button aria-current=\"page\">Home</button><button>Agents</button><button>Sessions</button></nav>",
+      "css": ".ds-nav{display:grid;gap:3px}.ds-nav button{font-family:var(--font-sans);color:var(--color-ink);text-align:left;border:0;border-radius:999px;background:transparent;min-height:40px;padding:9px 14px;font-size:13px}.ds-nav button[aria-current=page]{background:linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .17), rgb(var(--tm-edge-rgb) / .08) 58%, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .07)), rgb(var(--tm-paper-rgb) / .28);border:1px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .2);box-shadow:inset 0 1px rgb(var(--tm-edge-rgb) / .28),0 3px 9px rgb(var(--tm-shadow-rgb) / .06);backdrop-filter:blur(var(--tm-blur-glass)) saturate(140%)}.ds-nav button:hover{background:rgb(var(--tm-ink-rgb) / .08)}.ds-nav button:focus-visible{outline:2px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)));outline-offset:3px}.ds-nav button:active{transform:scale(.97)}@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){.ds-nav button[aria-current=page]{background:var(--color-surface);backdrop-filter:none;-webkit-backdrop-filter:none}}"
+    },
+    {
+      "name": "Session search",
+      "kind": "input",
+      "refersTo": "session-search",
+      "description": "Bordered compact field filters actual Work sessions.",
+      "html": "<label class=\"ds-search\"><span aria-hidden=\"true\">⌕</span><input aria-label=\"Search Work sessions\" placeholder=\"Find a session…\"></label>",
+      "css": ".ds-search{font-family:var(--font-sans);color:var(--color-ink);display:flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid rgb(var(--tm-ink-rgb) / .16);border-radius:999px;background:linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .17), rgb(var(--tm-edge-rgb) / .08) 58%, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .07)), rgb(var(--tm-paper-rgb) / .28);backdrop-filter:blur(var(--tm-blur-glass)) saturate(140%)}.ds-search input{font-family:var(--font-sans);color:var(--color-ink);width:100%;min-width:0;background:transparent;border:0;outline:none;font-size:12px}.ds-search input::placeholder{color:rgb(var(--tm-ink-rgb) / .7)}.ds-search:hover{border-color:rgb(var(--tm-ink-rgb) / .25)}.ds-search:focus-within{outline:2px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)));outline-offset:3px}@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){.ds-search{background:var(--color-surface);backdrop-filter:none;-webkit-backdrop-filter:none}}"
+    },
+    {
+      "name": "Task composer",
+      "kind": "card",
+      "refersTo": "composer",
+      "description": "Theme-tinted translucent primary composing surface.",
+      "html": "<div class=\"ds-composer\"><textarea aria-label=\"Describe your task\" placeholder=\"Describe the outcome you want…\"></textarea><div class=\"ds-composer-footer\">Air <span>Task instructions</span></div></div>",
+      "css": ".ds-composer{font-family:var(--font-sans);color:var(--color-ink);background:linear-gradient(145deg, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .13), rgb(var(--tm-edge-rgb) / .055) 48%, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .05)), rgb(var(--tm-paper-rgb) / .34);border:1px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .24);border-radius:28px;padding:16px 18px 12px;backdrop-filter:blur(var(--tm-blur-pane)) saturate(160%);-webkit-backdrop-filter:blur(var(--tm-blur-pane)) saturate(160%);box-shadow:0 12px 34px rgb(var(--tm-shadow-rgb) / .13),inset 0 1px rgb(var(--tm-edge-rgb) / .36),inset 0 -1px rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .11)}.ds-composer textarea{font-family:var(--font-sans);color:var(--color-ink);width:100%;min-height:60px;border:0;background:transparent;font-size:14px;line-height:1.6;caret-color:rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)));resize:vertical}.ds-composer textarea::placeholder{color:rgb(var(--tm-ink-rgb) / .7)}.ds-composer textarea:focus-visible{outline:2px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)));outline-offset:3px}.ds-composer-footer{display:flex;justify-content:space-between;font-size:12px;color:rgb(var(--tm-ink-rgb) / .7);margin-top:6px}@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){.ds-composer{background:var(--color-surface);backdrop-filter:none;-webkit-backdrop-filter:none}}"
+    },
+    {
+      "name": "Send action",
+      "kind": "button",
+      "refersTo": "send",
+      "description": "Circular accent-tinted create/steer action; disabled without access or input.",
+      "html": "<button class=\"ds-send\" aria-label=\"Create a plan\"><svg width=\"21\" height=\"21\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"m5 12 7-7 7 7M12 19V5\"/></svg></button>",
+      "css": ".ds-send{font-family:var(--font-sans);color:var(--color-ink);display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border-radius:999px;background:linear-gradient(145deg,rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .3),rgb(var(--tm-ink-rgb) / .08));border:1px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .4);transition:background-color 140ms ease,transform 140ms ease}.ds-send:hover:not(:disabled){background:rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .32)}.ds-send:focus-visible{outline:2px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)));outline-offset:3px}.ds-send:active:not(:disabled){transform:scale(.97)}.ds-send:disabled{opacity:.45;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-send{transition:none}}"
+    },
+    {
+      "name": "Read only badge",
+      "kind": "chip",
+      "refersTo": "read-only-badge",
+      "description": "Noninteractive Hermes metadata capability label.",
+      "html": "<span class=\"ds-read-only\">Read only</span>",
+      "css": ".ds-read-only{font-family:var(--font-sans);font-size:10px;color:rgb(var(--tm-ink-rgb) / .7);padding:4px 8px;border:1px solid rgb(var(--tm-ink-rgb) / .16);border-radius:999px;background:linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .17), rgb(var(--tm-edge-rgb) / .08) 58%, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .07)), rgb(var(--tm-paper-rgb) / .28)}@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){.ds-read-only{background:var(--color-surface);backdrop-filter:none;-webkit-backdrop-filter:none}}"
+    },
+    {
+      "name": "Library choice",
+      "kind": "card",
+      "refersTo": "library-row",
+      "description": "Rounded glass agent, skill or session row with a trailing pill.",
+      "html": "<button class=\"ds-library\"><strong>TimeMachine Air</strong><span>Selected</span></button>",
+      "css": ".ds-library{font-family:var(--font-sans);color:var(--color-ink);display:flex;justify-content:space-between;align-items:center;gap:14px;width:100%;padding:18px;text-align:left;border:1px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .2);border-radius:24px;background:linear-gradient(145deg, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .13), rgb(var(--tm-edge-rgb) / .055) 48%, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .05)), rgb(var(--tm-paper-rgb) / .34);box-shadow:0 5px 18px rgb(var(--tm-shadow-rgb) / .08),inset 0 1px rgb(var(--tm-edge-rgb) / .28);backdrop-filter:blur(var(--tm-blur-glass)) saturate(145%)}.ds-library strong{font-size:14px;font-weight:600}.ds-library span{font-size:12px;padding:5px 10px;border:1px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .19);border-radius:999px;background:linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .17), rgb(var(--tm-edge-rgb) / .08) 58%, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .07)), rgb(var(--tm-paper-rgb) / .28)}.ds-library:hover{border-color:rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .35)}.ds-library:focus-visible{outline:2px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)));outline-offset:3px}.ds-library:active{transform:scale(.97)}@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){.ds-library{background:var(--color-surface);backdrop-filter:none;-webkit-backdrop-filter:none}}"
+    },
+    {
+      "name": "Task pane",
+      "kind": "card",
+      "refersTo": "task-pane",
+      "description": "Separate rounded glass thread or workspace pane; desktop pair has a 14px gap.",
+      "html": "<section class=\"ds-task-pane\"><h2>Workspace</h2><p>Plan, files and activity.</p></section>",
+      "css": ".ds-task-pane{font-family:var(--font-sans);color:var(--color-ink);padding:24px;border:1px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .21);border-radius:26px;background:linear-gradient(145deg, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .13), rgb(var(--tm-edge-rgb) / .055) 48%, rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .05)), rgb(var(--tm-paper-rgb) / .34);box-shadow:0 9px 28px rgb(var(--tm-shadow-rgb) / .1),inset 0 1px rgb(var(--tm-edge-rgb) / .28);backdrop-filter:blur(var(--tm-blur-pane)) saturate(150%)}.ds-task-pane h2{font-size:20px;font-weight:600}.ds-task-pane p{font-size:14px;line-height:1.7}@media(max-width:900px){.ds-task-pane{border-radius:24px}}@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){.ds-task-pane{background:var(--color-surface);backdrop-filter:none;-webkit-backdrop-filter:none}}"
+    },
+    {
+      "name": "Sidebar toggle",
+      "kind": "button",
+      "refersTo": "sidebar-toggle",
+      "description": "Single persistent pill-glass toggle; X while open, PanelLeft while closed. Its accessible state follows the sidebar.",
+      "html": "<button class=\"ds-sidebar-toggle\" data-open=\"true\" aria-expanded=\"true\" aria-controls=\"ds-sidebar\" aria-label=\"Hide Work sidebar\"><svg class=\"ds-toggle-close\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M18 6 6 18M6 6l12 12\"/></svg><svg class=\"ds-toggle-panel\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M9 3v18\"/></svg></button>",
+      "css": ".ds-sidebar-toggle{position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;color:var(--color-ink);border:1px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .18);border-radius:999px;background:linear-gradient(135deg,rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .17),rgb(var(--tm-edge-rgb) / .08) 58%,rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)) / .07)),rgb(var(--tm-paper-rgb) / .28);box-shadow:inset 0 1px rgb(var(--tm-edge-rgb) / .26);backdrop-filter:blur(var(--tm-blur-glass)) saturate(145%);transition:background-color 140ms ease}.ds-sidebar-toggle svg{position:absolute;transition:transform 240ms ease,opacity 180ms ease}.ds-toggle-close{opacity:0;transform:rotate(-90deg) scale(.72)}.ds-toggle-panel{opacity:1;transform:rotate(0) scale(1)}.ds-sidebar-toggle[data-open=true] .ds-toggle-close{opacity:1;transform:rotate(0) scale(1)}.ds-sidebar-toggle[data-open=true] .ds-toggle-panel{opacity:0;transform:rotate(90deg) scale(.72)}.ds-sidebar-toggle:hover{background:rgb(var(--tm-ink-rgb) / .08)}.ds-sidebar-toggle:focus-visible{outline:2px solid rgb(var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252)));outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-sidebar-toggle,.ds-sidebar-toggle svg{transition:none}}@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){.ds-sidebar-toggle{background:var(--color-surface);backdrop-filter:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Agenta-inspired operations, TimeMachine identity",
+    "overview": "This is a scoped record of the built Work harness, not a replacement for the main TimeMachine or landing-page design system. Its integrated navigation and workspace follow the user's Agenta reference; its seasonal accents, glass materials and whole-name Montserrat wordmark remain TimeMachine's.\n\nThe workspace is calm and operational. An uninterrupted working surface carries compact navigation and controls, while generous space around the task composer gives the user's goal priority. In dark mode, Work reveals the same underlying Chat application shell and AppAtmosphere gradient through a transparent Work shell. Light mode retains Work's subtle seasonal glass and paper wash. Both follow the active Auto or manually selected theme without a separate Work palette.",
+    "keyCharacteristics": [
+      "Full-screen integrated sidebar and content.",
+      "Rounded seasonal glass controls and cards with compact operational typography.",
+      "A whole-name bold wordmark with dark-mode glow.",
+      "Visible capability and access states grounded in actual connections."
+    ],
+    "rules": [
+      {
+        "name": "The Theme Authority Rule",
+        "body": "Read the existing TM theme bindings; do not hard-code the capture's purple or cream as Work's permanent palette.",
+        "section": "colors"
+      },
+      {
+        "name": "The Viewport Rule",
+        "body": "Keep the Work shell edge-to-edge; constrain the content that needs a reading or composing measure, not the entire application.",
+        "section": "layout"
+      },
+      {
+        "name": "The Shared Atmosphere Rule",
+        "body": "In dark mode, reveal the existing Chat app shell and AppAtmosphere through the Work shell; do not recreate that gradient inside Work.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "Do preserve TM's seasonal theme bindings and whole-name bold identity.",
+      "Do reveal the shared Chat atmosphere in dark mode and preserve Work's seasonal paper wash in light mode.",
+      "Do keep the viewport shell flush and give the composer its own reading measure.",
+      "Do preserve draft and editor state when showing or hiding navigation.",
+      "Do distinguish configuration, explicit checks and actual execution.",
+      "Do retain keyboard focus, disclosure semantics and opaque-material fallbacks."
+    ],
+    "donts": [
+      "Don't restore an outer boxed frame, padded shell or page-wide maximum width.",
+      "Don't add duplicate Tasks or Settings controls to the content header.",
+      "Don't replace TM identity with Agenta branding or fixed screenshot colors.",
+      "Don't claim a source checkout, fixture or metadata response proves deployed execution.",
+      "Don't imply Hermes skills, schedules or task execution are available from discovery alone."
+    ]
+  }
+}

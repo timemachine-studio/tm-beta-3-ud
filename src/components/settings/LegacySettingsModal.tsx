@@ -104,13 +104,13 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
 
                     <section>
                       <SectionLabel>Interface</SectionLabel>
-                      <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Interface">
-                        {(['current', 'legacy'] as const).map(style => (
+                      <div className="grid grid-cols-3 gap-3" role="radiogroup" aria-label="Interface">
+                        {(['present', 'classic', 'legacy'] as const).map(style => (
                           <button key={style} type="button" role="radio" aria-checked={uiStyle === style}
                             onClick={() => setUiStyle(style)}
                             className="p-4 rounded-2xl text-left text-sm"
                             style={uiStyle === style ? paneSelected : pane}>
-                            {style === 'current' ? 'Current' : 'Legacy'}
+                            {style === 'present' ? 'Present' : style === 'classic' ? 'Classic' : 'Legacy'}
                           </button>
                         ))}
                       </div>
@@ -246,7 +246,7 @@ export const SettingsModal = React.memo(({ isOpen, onClose }: SettingsModalProps
                           </div>
                           <p className="text-xs text-white/45 mt-3">
                             Auto lets each persona bring its own colour — Air, Girlie and PRO.
-                            Pick a season to recolour the room; choosing a model restores its own colour. Pure keeps the canvas black.
+                            Pick a season to keep its theme when switching models or modes. Pure keeps the canvas black.
                           </p>
                         </motion.section>
                       )}

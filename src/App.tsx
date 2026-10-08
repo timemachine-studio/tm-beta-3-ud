@@ -63,6 +63,9 @@ import { SEOHead } from './components/seo/SEOHead';
 import { RouteLoadingFallback } from './components/routing/RouteLoadingFallback';
 import { hasEnteredApp, markEnteredApp, type LandingHandoff } from './components/landing/entered';
 import { useAppViewport } from './hooks/useAppViewport';
+import './components/work/work.css';
+
+type InterfaceMode = 'chat' | 'work';
 
 const LandingPage = lazy(() => import('./components/landing/LandingPage').then((module) => ({ default: module.LandingPage })));
 const HomePage = lazy(() => import('./components/home/HomePage').then((module) => ({ default: module.HomePage })));
@@ -105,6 +108,7 @@ const PremiumCalendarPage = lazy(() => import('./components/lifestyle/PremiumCal
 // The editor, terminal and preview only exist on /max; the main bundle must
 // not carry CodeMirror and xterm for everyone else.
 const WorkspacePanel = lazy(() => import('./components/maxmode/WorkspacePanel').then((module) => ({ default: module.WorkspacePanel })));
+const WorkHarness = lazy(() => import('./components/work/WorkHarness').then(module => ({ default: module.WorkHarness })));
 const GroupSettingsPage = lazy(() => import('./components/groupchat/GroupSettingsPage').then((module) => ({ default: module.GroupSettingsPage })));
 
 // Chat by ID page component - defined OUTSIDE to prevent re-renders
@@ -201,15 +205,24 @@ function freshProSession(sessionId: string): ChatSession {
 }
 
 function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackgroundClass, maxModeRoute }: MainChatPageProps = {}) {
-  const { theme, mode, uiStyle } = useTheme();
+  const { theme, mode, uiStyle, seasonFollowsPersona } = useTheme();
   // Settings → Interface. The legacy shell has no atmosphere and no glass
   // around the brand; the composer is the legacy bar in both.
   const legacyUi = uiStyle === 'legacy';
-  const ChatBrand = legacyUi ? LegacyBrandLogo : BrandLogo;
+  const ChatBrand = legacyUi && (groupChatId || brandOverride || maxModeRoute) ? LegacyBrandLogo : BrandLogo;
   const ChatTranscript = legacyUi ? LegacyChatMode : ChatMode;
   const { user, profile, loading: authLoading, profileLoading, needsOnboarding, updateLastPersona } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>('chat');
+  const [workVisited, setWorkVisited] = useState(false);
+  const switchInterfaceMode = (next: InterfaceMode) => {
+    setInterfaceMode(next);
+    if (next === 'work') setWorkVisited(true);
+  };
+  const canSwitchHarness = !groupChatId && !brandOverride && !maxModeRoute;
+  const showWork = canSwitchHarness && interfaceMode === 'work';
 
   useEffect(() => {
     if (MAINTENANCE_MODE) {
@@ -533,21 +546,19 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   }), [currentPersona]);
 
   const flowStateButtonStyles = useMemo(() => ({
-    border: flowStateActive ? '1px solid rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.5)' : '1px solid rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.4)',
+    border: flowStateActive ? '1px solid rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.72)' : '1px solid rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.44)',
     bg: flowStateActive
-      ? 'linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.3), rgb(var(--tm-ink-rgb) / 0.05))'
-      : 'linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.2), rgb(var(--tm-ink-rgb) / 0.05))',
+      ? 'linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.2), rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.055) 60%, rgb(var(--tm-paper-rgb) / 0.18))'
+      : 'linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.16), rgb(var(--tm-paper-rgb) / 0.12))',
     shadow: flowStateActive
-      ? '0 0 20px rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.4), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)'
-      : '0 0 15px rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.35), inset 0 1px 0 rgb(var(--tm-ink-rgb) / 0.15)',
-    text: legacyUi
-      ? flowStateActive ? 'var(--tm-chat-accent-color, rgb(216 180 254))' : 'var(--color-gray-200)'
-      : flowStateActive ? 'rgb(var(--tm-accent-rgb, 216 180 254))' : 'rgb(var(--tm-ink-rgb) / 0.92)',
+      ? '0 0 16px -3px rgb(var(--tm-chat-accent-rgb, 168 85 247) / 0.46), 0 10px 24px -14px rgb(var(--tm-shadow-rgb) / 0.9), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.26), inset 0 0 0 1px rgb(var(--tm-edge-rgb) / 0.08)'
+      : '0 7px 18px -12px rgb(var(--tm-shadow-rgb) / 0.8), inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.2)',
+    text: flowStateActive
+      ? 'var(--tm-chat-accent-vivid, var(--tm-chat-accent-color, var(--tm-season-accent, #d8b4fe)))'
+      : legacyUi ? 'var(--color-gray-200)' : 'rgb(var(--tm-ink-rgb) / 0.92)',
   }), [flowStateActive, legacyUi]);
 
-  // Girlie's action uses the same legacy glass construction as Air and PRO:
-  // tinted lens, coloured rim, soft glow and the same 20px blur. Current
-  // keeps its existing treatment.
+  // Current shares the same themed header treatment with Air and PRO.
   const girlieActionButtonStyles = useMemo(() => legacyUi ? ({
     background: 'linear-gradient(135deg, rgb(var(--tm-chat-accent-rgb, 236 72 153) / 0.15), rgb(var(--tm-ink-rgb) / 0.05))',
     color: 'var(--color-gray-200)',
@@ -695,10 +706,11 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   }, [enableCollaborativeMode]);
 
   const isHealthcareActive = activeChatMode === 'tm-healthcare';
+  const healthcareUsesTheme = isHealthcareActive && seasonFollowsPersona;
   useLayoutEffect(() => {
-    document.documentElement.dataset.healthcare = String(isHealthcareActive);
+    document.documentElement.dataset.healthcare = String(healthcareUsesTheme);
     return () => { delete document.documentElement.dataset.healthcare; };
-  }, [isHealthcareActive]);
+  }, [healthcareUsesTheme]);
 
   if (MAINTENANCE_MODE) {
     return null;
@@ -720,10 +732,10 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   // single reason a first-time visitor watched a bare spinner for up to eight
   // seconds before anything painted (production-check.md 1.14).
 
-  // Override background for healthcare mode (green gradient instead of season theme)
+  // Healthcare's green atmosphere is automatic only; manual seasons stay.
   const backgroundClass = customBackgroundClass
     ? customBackgroundClass
-    : isHealthcareActive
+    : healthcareUsesTheme
       ? legacyUi ? 'bg-linear-to-t/srgb from-green-950 to-black to-50%' : 'bg-canvas'
       : theme.background;
   // Legacy backgrounds are Tailwind gradients, which CSS cannot interpolate.
@@ -735,12 +747,13 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   return (
     <div
       id={brandOverride ? 'reveoule-theme' : undefined}
-      className={`${legacyUi ? 'tm-legacy-chat-shell' : 'tm-chat-shell'} min-h-screen ${shellBackgroundClass} ${theme.text} relative overflow-hidden`}
+      data-interface-mode={canSwitchHarness ? interfaceMode : undefined}
+      className={`${legacyUi ? 'tm-legacy-chat-shell' : 'tm-chat-shell'} ${canSwitchHarness ? 'tm-harness-shell' : ''} min-h-screen ${shellBackgroundClass} ${theme.text} relative overflow-hidden`}
       style={{
         minHeight: 'calc(var(--vh, 1vh) * 100)',
         // The root theme supplies the seasonal accent in both appearances;
         // Healthcare can temporarily override it in the current shell.
-        ...(!legacyUi && mode === 'light' && !brandOverride ? { '--tm-accent-rgb': isHealthcareActive ? '16 185 129' : undefined } : {}),
+        ...(!legacyUi && mode === 'light' && !brandOverride ? { '--tm-accent-rgb': healthcareUsesTheme ? '16 185 129' : undefined } : {}),
       } as React.CSSProperties}
     >
       {legacyUi && !customBackgroundClass && (
@@ -777,10 +790,17 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
           makes the column the containing block for the chat's own fixed
           header and composer, so they stay inside it instead of spanning the
           workspace too. */}
-      {!legacyUi && !brandOverride && !customBackgroundClass && <AppAtmosphere variant={isHealthcareActive ? 'healthcare' : undefined} />}
+      {!legacyUi && !brandOverride && !customBackgroundClass && <AppAtmosphere variant={healthcareUsesTheme ? 'healthcare' : undefined} />}
+      {canSwitchHarness && !showWork && <div className="tm-harness-brand">
+        <ChatBrand currentPersona={legacyUi ? topPersona : currentPersona} onPersonaChange={handlePersonaChange}
+          onLoadChat={loadChat} onStartNewChat={startNewChat} onOpenAuth={handleOpenAuth}
+          onOpenAccount={handleOpenAccount} onOpenHistory={handleOpenHistory} onOpenSettings={handleOpenSettings}
+          bare interfaceMode={interfaceMode} onInterfaceModeChange={switchInterfaceMode}
+          accent={healthcareUsesTheme ? 'healthcare' : undefined} />
+      </div>}
       <div
-        className={maxModeRoute ? 'flex h-screen' : undefined}
-        style={maxModeRoute ? { height: 'calc(var(--vh, 1vh) * 100)' } : undefined}
+        className={maxModeRoute ? 'flex h-screen' : 'tm-chat-harness'}
+        style={showWork ? { display: 'none' } : maxModeRoute ? { height: 'calc(var(--vh, 1vh) * 100)' } : undefined}
       >
       <div
         className={maxModeRoute ? `relative min-w-0 flex-1 h-full ${workspaceOpen ? 'hidden lg:block' : ''}` : undefined}
@@ -799,7 +819,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
             {/* The brand is the legacy header's bare, glowing wordmark in
                 both shells; its menu carries the minds and the app's few
                 other places. */}
-            <div className={legacyUi ? undefined : "tm-chat-brand tm-chat-brand-bare min-w-0"}>
+            <div className={legacyUi ? 'tm-chat-header-brand' : 'tm-chat-brand tm-chat-brand-bare tm-chat-header-brand min-w-0'}>
             <ChatBrand
               currentPersona={legacyUi ? topPersona : currentPersona}
               onPersonaChange={handlePersonaChange}
@@ -811,13 +831,15 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
               onOpenSettings={handleOpenSettings}
               brandOverride={brandOverride}
               bare
-              accent={isHealthcareActive ? 'healthcare' : undefined}
+              interfaceMode={canSwitchHarness ? interfaceMode : undefined}
+              onInterfaceModeChange={canSwitchHarness ? switchInterfaceMode : undefined}
+              accent={healthcareUsesTheme ? 'healthcare' : undefined}
             />
             </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="tm-header-guest-actions flex items-center gap-2">
               {isAnonymous && (
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/50">
+                <div className="tm-header-message-pill hidden sm:flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/50">
                   <span>{getRemainingMessages(currentPersona)} free messages left</span>
                 </div>
               )}
@@ -845,6 +867,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
               >
               {isAnonymous ? (
                 <motion.button
+                  className="tm-header-signup-pill"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleOpenAuth}
@@ -877,10 +900,10 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                   onExit={maxModeRoute ? exitMaxMode : undefined}
                 />
               ) : topPersona === 'default' ? (
-                // Flow State button for Air — liquid glass style
+                // Flow State uses a quiet outlined state and lights when enabled.
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.025 }}
+                  whileTap={{ scale: 0.975 }}
                   onClick={() => setFlowStateActive(!flowStateActive)}
                   style={{
                     background: flowStateButtonStyles.bg,
@@ -895,12 +918,13 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    transition: 'all 0.3s ease',
+                    transition: 'background 180ms ease, border-color 180ms ease, box-shadow 180ms ease, color 180ms ease, transform 120ms ease',
                   }}
                   aria-pressed={flowStateActive}
                   aria-label={flowStateActive ? "Disable Flow State" : "Enable Flow State"}
+                  className={legacyUi ? undefined : 'tm-chat-header-action'}
                 >
-                  <Zap style={{ width: '16px', height: '16px', color: flowStateButtonStyles.text, fill: flowStateActive ? flowStateButtonStyles.text : 'none' }} />
+                  <Zap className={`tm-flow-state-bolt ${flowStateActive ? 'is-active' : ''}`} size={18} strokeWidth={flowStateActive ? 2 : 1.8} fill={flowStateActive ? 'currentColor' : 'none'} aria-hidden="true" />
                   <span style={{ fontSize: '14px', color: flowStateButtonStyles.text }}>
                     Flow State
                   </span>
@@ -923,6 +947,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                       transition: 'all 0.3s ease',
                     }}
                     aria-label="Group Settings"
+                    className={legacyUi ? undefined : 'tm-chat-header-action'}
                   >
                     <Settings style={{ width: '16px', height: '16px', color: girlieActionButtonStyles.color }} />
                     <span style={{ fontSize: '14px', color: girlieActionButtonStyles.color }}>Group Settings</span>
@@ -944,6 +969,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                       transition: 'all 0.3s ease',
                     }}
                     aria-label="Open Group Chat"
+                    className={legacyUi ? undefined : 'tm-chat-header-action'}
                   >
                     <Users style={{ width: '16px', height: '16px', color: girlieActionButtonStyles.color }} />
                     <span style={{ fontSize: '14px', color: girlieActionButtonStyles.color }}>Group Chat</span>
@@ -1249,7 +1275,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                 <ChatTranscript
                   messages={messages}
                   currentPersona={currentPersona}
-                  accent={isHealthcareActive ? 'healthcare' : undefined}
+                  accent={healthcareUsesTheme ? 'healthcare' : undefined}
                   onMessageAnimated={markMessageAsAnimated}
                   error={error}
                   streamingMessageId={streamingMessageId}
@@ -1369,6 +1395,16 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
         </Suspense>
       )}
       </div>
+      {canSwitchHarness && workVisited && <Suspense fallback={showWork ? <RouteLoadingFallback /> : null}>
+        <WorkHarness key={`${user?.id ?? 'guest'}:${currentSessionId}`} sessionId={currentSessionId} persona={currentPersona} visible={showWork}
+          brand={<div className="tm-work-brand-menu"><BrandLogo currentPersona={legacyUi ? topPersona : currentPersona}
+            onPersonaChange={handlePersonaChange} onLoadChat={loadChat} onStartNewChat={startNewChat}
+            onOpenAuth={handleOpenAuth} onOpenAccount={handleOpenAccount} onOpenHistory={handleOpenHistory}
+            onOpenSettings={handleOpenSettings} brandOverride={{ name: 'TimeMachine Work' }} bare workMenu
+            interfaceMode={interfaceMode} onInterfaceModeChange={switchInterfaceMode} /></div>}
+          onPersonaChange={handlePersonaChange} onOpenAuth={() => { setInterfaceMode('chat'); handleOpenAuth(); }} onOpenSettings={handleOpenSettings}
+          beforeStart={persistNow} onLocalWork={async () => { await persistNow(); setMaxMode('auto'); window.location.assign(`/max/${currentSessionId}`); }} />
+      </Suspense>}
     </div>
   );
 }

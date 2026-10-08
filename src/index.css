@@ -7,6 +7,8 @@
 @import './stylesheet/light-palette.css';
 @import './stylesheet/light.css';
 @import './stylesheet/legacy-light.css';
+@import './stylesheet/present.css';
+@import './stylesheet/classic.css';
 
 /* Season circles are miniature atmosphere previews even on a light page. */
 :root .tm-settings .tm-season-swatch {

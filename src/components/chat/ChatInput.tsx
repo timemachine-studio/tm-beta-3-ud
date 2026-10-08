@@ -183,7 +183,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const docInputRef = useRef<HTMLInputElement>(null);
   const plusMenuRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { theme, uiStyle } = useTheme();
+  const { theme, uiStyle, seasonFollowsPersona } = useTheme();
   const legacyUi = uiStyle === 'legacy';
   const ComposerPlusMenu = legacyUi ? LegacyPlusMenu : PlusMenu;
   const ComposerContour = legacyUi ? LegacyContourPanel : ContourPanel;
@@ -679,7 +679,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
 
   // The circles take the mode's colour over the mind's while TM Healthcare
   // is on, as the room does.
-  const glassKey = !legacyUi && selectedPlusOption === 'tm-healthcare' ? 'healthcare' : currentPersona;
+  const glassKey = !legacyUi && seasonFollowsPersona && selectedPlusOption === 'tm-healthcare' ? 'healthcare' : currentPersona;
 
   const handlePlusButtonClick = () => {
     if (selectedPlusOption) {
@@ -967,8 +967,10 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
               whileTap={{ scale: 0.95 }}
               onClick={handlePlusButtonClick}
               disabled={isLoading || isUploading}
-              className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
+              className={`tm-composer-control p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
               style={syncedLegacyControlGlass(glassKey, legacyUi)}
+              data-tm-material="composer-control"
+              data-tm-composer-control="attach"
               aria-label="Attach or choose a mode"
               aria-expanded={showPlusMenu}
               onKeyDown={(event) => {
@@ -1011,6 +1013,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                 onKeyDown={handleKeyDown}
                 placeholder="Type / for contour"
                 aria-label="Message TimeMachine"
+                data-tm-material="composer"
                 disabled={isLoading || isUploading}
                 className={`${legacyUi ? 'w-full px-6 pr-32' : 'tm-legacy-field w-full px-6 pr-28'} rounded-[28px]
                   ${theme.input.text} placeholder-gray-400
@@ -1041,7 +1044,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                   onTranscript={setMessage}
                   disabled={isLoading || isUploading}
                   currentPersona={currentPersona}
-                  accent={!legacyUi && selectedPlusOption === 'tm-healthcare' ? 'healthcare' : undefined}
+                  accent={!legacyUi && seasonFollowsPersona && selectedPlusOption === 'tm-healthcare' ? 'healthcare' : undefined}
                 />
 
                 <motion.button
@@ -1054,8 +1057,10 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                   disabled={canStop
                     ? false
                     : (isLoading || isUploading || isFileReading || (!message.trim() && selectedImages.length === 0 && !selectedFile))}
-                  className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
+                  className={`tm-composer-control tm-composer-send p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
                   style={syncedLegacyControlGlass(glassKey, legacyUi)}
+                  data-tm-material="composer-control"
+                  data-tm-composer-control="send"
                 >
                   {canStop ? (
                     <Square className="w-5 h-5 relative z-10 fill-current" />

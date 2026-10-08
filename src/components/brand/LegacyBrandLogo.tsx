@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Settings, Wand2, History, Plus, User, LogIn } from 'lucide-react';
+import { BriefcaseBusiness, ChevronDown, Settings, Wand2, History, MessageCircle, Plus, User, LogIn } from 'lucide-react';
 import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +27,8 @@ interface BrandLogoProps {
   onOpenHistory?: () => void;
   onOpenSettings?: () => void;
   brandOverride?: BrandOverride;
+  interfaceMode?: 'chat' | 'work';
+  onInterfaceModeChange?: (mode: 'chat' | 'work') => void;
 }
 
 const personaColors = {
@@ -55,7 +57,9 @@ export function BrandLogo({
   onOpenAccount,
   onOpenHistory,
   onOpenSettings,
-  brandOverride
+  brandOverride,
+  interfaceMode,
+  onInterfaceModeChange,
 }: BrandLogoProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
@@ -100,12 +104,15 @@ export function BrandLogo({
   return (
     <div className="relative">
       <div className="flex items-center gap-2">
-        <motion.div
+        <motion.button
+          type="button"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="relative z-50 flex items-center gap-2 cursor-pointer group"
+          className="relative z-50 flex items-center gap-2 cursor-pointer group border-0 bg-transparent p-0 text-left"
           onClick={toggleDropdown}
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
         >
           <div className="flex flex-col">
             <h1
@@ -138,7 +145,7 @@ export function BrandLogo({
           >
             <ChevronDown className="w-5 h-5" />
           </motion.div>
-        </motion.div>
+        </motion.button>
       </div>
 
       <AnimatePresence>
@@ -243,6 +250,17 @@ export function BrandLogo({
                   </div>
                 </motion.button>
               ))}
+            {interfaceMode && onInterfaceModeChange && <div className="tm-interface-menu" role="radiogroup" aria-label="Interface mode">
+              {(['chat', 'work'] as const).map(next => {
+                const Icon = next === 'chat' ? MessageCircle : BriefcaseBusiness;
+                return <button key={next} type="button" role="radio" aria-checked={interfaceMode === next}
+                  onClick={() => { setIsOpen(false); onInterfaceModeChange(next); }}
+                  className={`w-full px-4 py-3 text-left ${theme.text} flex items-center justify-between gap-3 border-b border-white/5`}>
+                  <span className="flex items-center gap-3"><Icon className="h-4 w-4" aria-hidden="true" />{next === 'chat' ? 'Chat' : 'Work'}</span>
+                  <span className="tm-interface-check" aria-hidden="true" />
+                </button>;
+              })}
+            </div>}
             <motion.button
               whileHover={{
                 scale: 1.03,

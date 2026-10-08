@@ -48,7 +48,10 @@ export default defineConfig(({ mode }) => {
             }
             if (urlObj.pathname.startsWith('/api/')) {
               // Extract API endpoint name (strip leading /api/ and potential query parameters)
-              const apiName = urlObj.pathname.slice(5);
+              const runtimeModel = urlObj.pathname === '/api/work-model/v1/chat/completions';
+              const apiName = urlObj.pathname === '/api/work' || runtimeModel ? 'pro-generation' : urlObj.pathname.slice(5);
+              if (urlObj.pathname === '/api/work') urlObj.searchParams.set('work', '1');
+              if (runtimeModel) urlObj.searchParams.set('workModel', '1');
               const apiPath = path.resolve(process.cwd(), 'api', `${apiName}.ts`);
 
               try {

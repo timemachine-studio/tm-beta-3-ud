@@ -1,0 +1,247 @@
+/* Present: the current, seasonal liquid-glass material. Classic and Legacy
+   deliberately keep their own material rules below. */
+:root[data-tm-ui='present'],
+:root[data-tm-ui='present'] .tm-notes {
+  --tm-liquid-accent-rgb: var(--tm-chat-accent-rgb, var(--tm-season-rgb, 192 132 252));
+  --tm-liquid-accent-color: var(--tm-chat-accent-color, var(--tm-season-accent, #d8a4ff));
+  --tm-liquid-panel:
+    linear-gradient(142deg, rgb(var(--tm-edge-rgb) / .10), rgb(var(--tm-liquid-accent-rgb) / .075) 28%, rgb(var(--tm-ink-rgb) / .025) 62%, rgb(var(--tm-liquid-accent-rgb) / .12)),
+    radial-gradient(115% 100% at 0% 0%, rgb(var(--tm-liquid-accent-rgb) / .18), transparent 67%),
+    rgb(var(--tm-paper-rgb) / .11);
+  --tm-liquid-control:
+    linear-gradient(138deg, rgb(var(--tm-edge-rgb) / .14), rgb(var(--tm-liquid-accent-rgb) / .18) 23%, rgb(var(--tm-ink-rgb) / .035) 66%, rgb(var(--tm-liquid-accent-rgb) / .13)),
+    radial-gradient(120% 130% at 0% 0%, rgb(var(--tm-liquid-accent-rgb) / .17), transparent 70%),
+    rgb(var(--tm-paper-rgb) / .07);
+  --tm-liquid-selected:
+    linear-gradient(138deg, rgb(var(--tm-edge-rgb) / .13), rgb(var(--tm-liquid-accent-rgb) / .29) 34%, rgb(var(--tm-liquid-accent-rgb) / .17)),
+    rgb(var(--tm-paper-rgb) / .06);
+  --tm-liquid-pill:
+    linear-gradient(138deg, rgb(var(--tm-edge-rgb) / .17), rgb(var(--tm-liquid-accent-rgb) / .30) 24%, rgb(var(--tm-liquid-accent-rgb) / .15) 72%, rgb(var(--tm-edge-rgb) / .04)),
+    radial-gradient(115% 160% at 0% 0%, rgb(var(--tm-liquid-accent-rgb) / .20), transparent 70%),
+    rgb(var(--tm-paper-rgb) / .055);
+  --tm-liquid-pill-selected:
+    linear-gradient(138deg, rgb(var(--tm-edge-rgb) / .23), rgb(var(--tm-liquid-accent-rgb) / .42) 27%, rgb(var(--tm-liquid-accent-rgb) / .28) 100%),
+    rgb(var(--tm-paper-rgb) / .055);
+  --tm-liquid-composer:
+    linear-gradient(138deg, rgb(var(--tm-edge-rgb) / .12), rgb(var(--tm-liquid-accent-rgb) / .24) 20%, rgb(var(--tm-ink-rgb) / .035) 58%, rgb(var(--tm-liquid-accent-rgb) / .18)),
+    radial-gradient(110% 130% at 0% 0%, rgb(var(--tm-liquid-accent-rgb) / .20), transparent 68%),
+    rgb(var(--tm-paper-rgb) / .08);
+  --tm-liquid-sheet:
+    linear-gradient(142deg, rgb(var(--tm-edge-rgb) / .09), rgb(var(--tm-liquid-accent-rgb) / .10) 34%, rgb(var(--tm-ink-rgb) / .025) 72%),
+    radial-gradient(120% 85% at 0% 0%, rgb(var(--tm-liquid-accent-rgb) / .14), transparent 70%),
+    rgb(var(--tm-paper-rgb) / .64);
+  --tm-liquid-themed-sheet:
+    linear-gradient(142deg, rgb(var(--tm-liquid-accent-rgb) / .20), rgb(var(--tm-liquid-accent-rgb) / .055) 52%, transparent 100%),
+    var(--tm-liquid-sheet);
+  --tm-liquid-edge: rgb(var(--tm-liquid-accent-rgb) / .27);
+  --tm-liquid-shadow:
+    0 20px 54px -30px rgb(var(--tm-shadow-rgb) / .42),
+    0 2px 14px -7px rgb(var(--tm-liquid-accent-rgb) / .27),
+    inset 0 1px 0 rgb(var(--tm-edge-rgb) / .27),
+    inset 0 0 0 1px rgb(var(--tm-edge-rgb) / .065),
+    inset 0 -1px 0 rgb(var(--tm-ink-rgb) / .10),
+    inset 0 18px 32px -28px rgb(var(--tm-edge-rgb) / .46);
+  --tm-liquid-control-shadow:
+    0 8px 20px -12px rgb(var(--tm-shadow-rgb) / .32),
+    0 2px 10px -6px rgb(var(--tm-liquid-accent-rgb) / .32),
+    inset 0 1px 0 rgb(var(--tm-edge-rgb) / .34),
+    inset 0 0 0 1px rgb(var(--tm-edge-rgb) / .085),
+    inset 0 -1px 0 rgb(var(--tm-ink-rgb) / .08);
+  --tm-liquid-filter: blur(24px) saturate(188%) brightness(1.025);
+  --tm-liquid-pane-filter: blur(38px) saturate(180%) brightness(1.018);
+}
+
+:root[data-tm-ui='present'] .tm-notes {
+  --tm-liquid-accent-rgb: var(--tm-notes-hue, var(--tm-season-rgb));
+}
+
+:root[data-tm-ui='present'] :is(
+  .tm-glass, .glass-morphism, .glass-card, .glass, .tm-panel,
+  .tm-composer-surface, .tm-notes-ai-composer, .tm-history-card,
+  [class*='backdrop-blur'][class*='bg-surface']
+) {
+  background: var(--tm-liquid-panel) !important;
+  border-color: var(--tm-liquid-edge) !important;
+  box-shadow: var(--tm-liquid-shadow) !important;
+  backdrop-filter: var(--tm-liquid-filter) !important;
+  -webkit-backdrop-filter: var(--tm-liquid-filter) !important;
+}
+
+:root[data-tm-ui='present'] :is(
+  .tm-surface.tm-glass, .tm-settings.tm-glass, .tm-chat-menu.tm-glass,
+  .tm-notes-menu.tm-glass, .tm-flight-controls, [data-tm-material='sheet'],
+  [role='dialog'][style*='backdrop-filter']
+) {
+  background: var(--tm-liquid-sheet) !important;
+  border-color: var(--tm-liquid-edge) !important;
+  box-shadow: var(--tm-liquid-shadow) !important;
+  backdrop-filter: var(--tm-liquid-pane-filter) !important;
+  -webkit-backdrop-filter: var(--tm-liquid-pane-filter) !important;
+}
+
+:root[data-tm-ui='present'] :is(
+  .tm-glass-pill, .glass-button, .glass-btn, .glass-input,
+  .tm-composer-control:not(.tm-composer-send), [data-tm-material='control'],
+  [style*='backdrop-filter'][style*='-gradient('][style*='border:'],
+  [style*='backdrop-filter'][style*='background: rgb(var(--tm-ink-rgb)']
+):not(.tm-notes-icon):not(.tm-notes-ai-suggest) {
+  background: var(--tm-liquid-control) !important;
+  border-color: rgb(var(--tm-liquid-accent-rgb) / .25) !important;
+  box-shadow: var(--tm-liquid-control-shadow) !important;
+  backdrop-filter: var(--tm-liquid-filter) !important;
+  -webkit-backdrop-filter: var(--tm-liquid-filter) !important;
+}
+
+:root[data-tm-ui='present'] :is(.tm-glass-pill, .glass-button, .glass-btn, [data-tm-material='control']):hover:not(:disabled),
+:root[data-tm-ui='present'] :is(.tm-glass-pill, [data-tm-material='control'])[aria-pressed='true'] {
+  background: var(--tm-liquid-selected) !important;
+}
+
+:root[data-tm-ui='present'] .tm-chat-header button.tm-chat-header-action[aria-label][style*='backdrop-filter'][style*='border:'] {
+  background: var(--tm-liquid-pill) !important;
+  border: 1px solid rgb(var(--tm-liquid-accent-rgb) / .38) !important;
+  box-shadow: var(--tm-liquid-control-shadow) !important;
+  backdrop-filter: var(--tm-liquid-filter) !important;
+  -webkit-backdrop-filter: var(--tm-liquid-filter) !important;
+}
+
+:root[data-tm-ui='present'] .tm-chat-header button.tm-chat-header-action[aria-label][aria-pressed='true'],
+:root[data-tm-ui='present'] .tm-chat-header button.tm-chat-header-action[aria-label]:hover:not(:disabled) {
+  background: var(--tm-liquid-pill-selected) !important;
+}
+
+:root[data-tm-ui='present'] .tm-chat-header button.tm-chat-header-action[aria-label] :is(span, svg) {
+  color: inherit !important;
+}
+
+:root[data-tm-ui='present'] :is(.tm-legacy-field[aria-label], [data-tm-material='composer']) {
+  background: var(--tm-liquid-composer) !important;
+  border-color: var(--tm-liquid-edge) !important;
+  box-shadow: var(--tm-liquid-shadow) !important;
+  backdrop-filter: var(--tm-liquid-filter) !important;
+  -webkit-backdrop-filter: var(--tm-liquid-filter) !important;
+}
+
+:root[data-tm-ui='present'] :is(.tm-notes-rail, .tm-notes-ai, .tm-notes-topbar, .tm-shell-topbar) {
+  background: var(--tm-liquid-panel) !important;
+  border-color: var(--tm-liquid-edge) !important;
+  backdrop-filter: var(--tm-liquid-pane-filter) !important;
+  -webkit-backdrop-filter: var(--tm-liquid-pane-filter) !important;
+}
+
+:root[data-tm-ui='present'] .tm-notes-ai {
+  background: var(--tm-liquid-themed-sheet) !important;
+  box-shadow: var(--tm-liquid-shadow) !important;
+}
+
+/* Notes' marked controls are intentionally plain until a pointer hovers or
+   presses. Expanded menus and selected icons never leave a parked pill. */
+:root[data-tm-ui='present'] .tm-notes .tm-notes-icon,
+:root[data-tm-ui='present'] .tm-notes .tm-notes-ai-suggest {
+  background: transparent !important;
+  background-image: none !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:root[data-tm-ui='present'] .tm-notes .tm-notes-icon {
+  border-radius: 9px;
+}
+
+:root[data-tm-ui='present'] .tm-notes .tm-notes-icon:hover,
+:root[data-tm-ui='present'] .tm-notes .tm-notes-icon:active,
+:root[data-tm-ui='present'] .tm-notes .tm-notes-ai-suggest:hover,
+:root[data-tm-ui='present'] .tm-notes .tm-notes-ai-suggest:active {
+  background: var(--tm-liquid-selected) !important;
+  border-color: rgb(var(--tm-liquid-accent-rgb) / .4) !important;
+  box-shadow: var(--tm-liquid-control-shadow) !important;
+  backdrop-filter: var(--tm-liquid-filter) !important;
+  -webkit-backdrop-filter: var(--tm-liquid-filter) !important;
+  color: var(--tm-liquid-accent-color) !important;
+}
+
+:root[data-tm-ui='present'] .tm-notes .tm-notes-ai-suggest {
+  min-height: 42px;
+  margin-block: 3px;
+  padding-inline: 12px;
+  border-radius: 13px;
+}
+
+:root[data-tm-ui='present'] .tm-notes .tm-notes-icon[data-lit='true'] {
+  color: var(--tm-liquid-accent-color);
+}
+
+:root[data-tm-ui='present'] .tm-notes .tm-notes-ai-suggest svg {
+  color: rgb(var(--tm-ink-rgb) / .5);
+}
+
+:root[data-tm-ui='present'] .tm-notes .tm-notes-ai-suggest:hover svg,
+:root[data-tm-ui='present'] .tm-notes .tm-notes-ai-suggest:active svg {
+  color: inherit;
+}
+
+:root[data-tm-ui='present'] .tm-notes .tm-notes-ai-user,
+:root[data-tm-ui='present'] .tm-notes .tm-notes-pending {
+  box-shadow: var(--tm-liquid-control-shadow);
+  backdrop-filter: var(--tm-liquid-filter);
+  -webkit-backdrop-filter: var(--tm-liquid-filter);
+  background: var(--tm-liquid-selected) !important;
+  border-color: rgb(var(--tm-liquid-accent-rgb) / .28) !important;
+}
+
+:root[data-tm-ui='present'] .tm-settings :is([aria-pressed='true'], [aria-checked='true'])[style*='backdrop-filter'] {
+  background: var(--tm-liquid-selected) !important;
+  border-color: rgb(var(--tm-liquid-accent-rgb) / .45) !important;
+}
+
+:root[data-tm-ui='present'] .tm-chat-menu [role='menuitemradio'][aria-checked='true'] {
+  background: var(--tm-liquid-selected) !important;
+}
+
+:root[data-tm-ui='present'] .tm-menu-row:hover:not([aria-checked='true']),
+:root[data-tm-ui='present'] .tm-menu-row:focus-visible:not([aria-checked='true']) {
+  background: var(--tm-liquid-control) !important;
+  box-shadow: var(--tm-liquid-control-shadow);
+  backdrop-filter: var(--tm-liquid-filter);
+  -webkit-backdrop-filter: var(--tm-liquid-filter);
+}
+
+:root[data-tm-ui='present'] .tm-composer-send {
+  background: var(--tm-liquid-pill-selected) !important;
+  border: 1px solid rgb(var(--tm-liquid-accent-rgb) / .34) !important;
+  box-shadow: var(--tm-liquid-control-shadow) !important;
+  backdrop-filter: var(--tm-liquid-filter) !important;
+  -webkit-backdrop-filter: var(--tm-liquid-filter) !important;
+  color: var(--tm-liquid-accent-color) !important;
+}
+
+:root[data-tm-ui='present'] .tm-composer-send:disabled {
+  background: var(--tm-liquid-control) !important;
+  border-color: rgb(var(--tm-liquid-accent-rgb) / .2) !important;
+  color: rgb(var(--tm-ink-rgb) / .58) !important;
+  opacity: .62 !important;
+}
+
+:root[data-tm-ui='present'] .tm-chat-welcome button.reveoule-action-pill.tm-glass-pill {
+  background: var(--tm-liquid-pill) !important;
+  border-color: rgb(var(--tm-liquid-accent-rgb) / .34) !important;
+}
+
+:root[data-tm-ui='present'] .tm-flow-state-bolt {
+  filter: none;
+  flex: none;
+}
+
+:root[data-tm-ui='present'] .tm-flow-state-bolt.is-active {
+  color: var(--tm-liquid-accent-color);
+  filter: none;
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root[data-tm-ui='present'] {
+    --tm-liquid-filter: none;
+    --tm-liquid-pane-filter: none;
+  }
+}

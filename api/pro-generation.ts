@@ -455,6 +455,10 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.query?.workModel === '1') return (await import('./_lib/work/runtimeGateway.js')).default(req, res);
+  // /api/work rewrites here to preserve the existing Vercel Function budget.
+  // Work has its own verified-auth, premium and owner-scoped handler.
+  if (req.query?.work === '1') return (await import('./_lib/work/handler.js')).default(req, res);
   applyCors(req, res, 'GET, POST, OPTIONS');
   res.setHeader('Cache-Control', 'no-store');
 

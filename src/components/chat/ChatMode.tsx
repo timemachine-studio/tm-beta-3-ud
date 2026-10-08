@@ -11,7 +11,7 @@ import { BrandOverride } from '../brand/BrandLogo';
 import type { SavedVariation } from './MusicComposeCard';
 import { SesameMark } from '../icons/SesameMark';
 import type { McpApprovalDecision } from '../../types/flightControls';
-import { healthcarePalette, personaNeonColor } from '../../themes/seasonPalette';
+import { healthcarePalette, personaNeonColor, usesAppearanceAccent } from '../../themes/seasonPalette';
 
 interface ReplyTo {
   id: string;
@@ -60,12 +60,12 @@ export function ChatMode({
   isRetrying,
   accent,
 }: ChatModeProps) {
-  const { theme, uiStyle, seasonFollowsPersona } = useTheme();
+  const { theme, uiStyle, mode, season, seasonFollowsPersona } = useTheme();
   const flipWordsStyle = brandOverride
     ? undefined
     : accent === 'healthcare'
       ? { color: healthcarePalette.dark }
-      : !seasonFollowsPersona
+      : usesAppearanceAccent(season, seasonFollowsPersona, mode, uiStyle)
         ? { color: 'var(--tm-chat-accent-vivid)' }
         : { color: personaNeonColor(currentPersona) };
   const legacyUi = uiStyle === 'legacy';

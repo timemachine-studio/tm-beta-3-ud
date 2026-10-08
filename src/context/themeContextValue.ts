@@ -2,8 +2,8 @@ import { createContext, useContext } from 'react';
 import { darkTheme } from '../themes/dark';
 import type { Theme } from '../types/theme';
 import type { SeasonTheme, ThemeMode } from '../themes/themeState';
-import type { UiStyle } from '../themes/uiStyle';
-import type { ThinkingAnimationChoice } from '../config/thinkingAnimation';
+import { DEFAULT_UI_STYLE, type UiStyle } from '../themes/uiStyle';
+import { DEFAULT_THINKING_ANIMATION, type ThinkingAnimationChoice } from '../config/thinkingAnimation';
 
 export type { SeasonTheme, ThemeMode, UiStyle };
 
@@ -17,8 +17,7 @@ interface ThemeContextType {
   /**
    * `true` while the season painting is the active persona's own (Air →
    * autumn, Girlie → spring, PRO → summer). Picking a season in Settings
-   * recolours the room now and turns this off — until the next persona
-   * switch, which always brings that mind's colour back. "Auto" returns to
+   * recolours the room and turns this off across persona switches. "Auto" returns to
    * the persona's colour straight away.
    */
   seasonFollowsPersona: boolean;
@@ -43,8 +42,8 @@ export const ThemeContext = createContext<ThemeContextType>({
   accentSeason: 'autumnDark',
   seasonFollowsPersona: true,
   lightWarmth: 40,
-  uiStyle: 'current',
-  thinkingAnimation: 'orb-cycle',
+  uiStyle: DEFAULT_UI_STYLE,
+  thinkingAnimation: DEFAULT_THINKING_ANIMATION,
   themeRevision: 0,
   setMode: () => { },
   setSeason: () => { },

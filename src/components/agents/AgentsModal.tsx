@@ -121,7 +121,7 @@ export function AgentsModal({ isOpen, onClose, onSignIn }: AgentsModalProps) {
                 exit={popupExit}
                 className="tm-dialog-viewport fixed inset-0 flex items-center justify-center p-4 z-50"
               >
-                <div className={`relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-black/55 shadow-2xl backdrop-blur-3xl ${theme.glow.secondary}`}>
+                <div className={`tm-flight-controls relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-black/55 shadow-2xl backdrop-blur-3xl ${theme.glow.secondary}`}>
                   <div className="border-b border-white/10 px-6 pb-4 pt-6 sm:px-8">
                     <Dialog.Title className={`text-2xl font-light tracking-wide ${theme.text}`}>
                       Flight Controls

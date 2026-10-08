@@ -49,6 +49,7 @@ export function MaxModeButton({ active, textColor, onEnter, onExit, legacy = fal
         transition: 'all 0.3s ease',
       }}
       aria-pressed={active}
+      className={legacy ? undefined : 'tm-chat-header-action'}
       aria-label={active ? 'Leave Max Mode' : 'Turn on Max Mode'}
       title={active ? 'Leave Max Mode' : 'Turn on Max Mode'}
     >

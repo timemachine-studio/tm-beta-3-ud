@@ -2,14 +2,14 @@ import { popupExit } from '../../utils/popupMotion';
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { ChevronDown, Settings, Wand2, History, Plus, User, LogIn } from 'lucide-react';
+import { BriefcaseBusiness, ChevronDown, Settings, Wand2, History, MessageCircle, Plus, User, LogIn } from 'lucide-react';
 import { AI_PERSONAS } from '../../config/constants';
 import { useAuth } from '../../context/AuthContext';
 import { AgentsModal } from '../agents/AgentsModal';
 import { ChatSession } from '../../services/chat/chatService';
 import { toLayoutPx } from '../../utils/pageZoom';
 import { useTheme } from '../../context/ThemeContext';
-import { personaNeonColor } from '../../themes/seasonPalette';
+import { personaNeonColor, usesAppearanceAccent } from '../../themes/seasonPalette';
 
 export interface BrandOverride {
   name: string;
@@ -41,6 +41,9 @@ interface BrandLogoProps {
    * persona rows keep each mind's own hue.
    */
   accent?: 'healthcare';
+  interfaceMode?: 'chat' | 'work';
+  onInterfaceModeChange?: (mode: 'chat' | 'work') => void;
+  workMenu?: boolean;
 }
 
 type MenuPersona = 'default' | 'girlie' | 'pro';
@@ -79,6 +82,9 @@ export function BrandLogo({
   brandOverride,
   bare = false,
   accent,
+  interfaceMode,
+  onInterfaceModeChange,
+  workMenu = false,
 }: BrandLogoProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
@@ -88,8 +94,8 @@ export function BrandLogo({
   const menuId = useId();
   const reduced = useReducedMotion() ?? false;
   const { user, profile } = useAuth();
-  const { seasonFollowsPersona } = useTheme();
-  const manualChatAccent = !seasonFollowsPersona && !brandOverride && accent !== 'healthcare';
+  const { seasonFollowsPersona, mode, uiStyle, season } = useTheme();
+  const manualChatAccent = usesAppearanceAccent(season, seasonFollowsPersona, mode, uiStyle) && !brandOverride && accent !== 'healthcare';
 
   const hue = brandOverride?.glowColor
     ? undefined
@@ -100,6 +106,7 @@ export function BrandLogo({
         : personaHues[(currentPersona in personaHues ? currentPersona : 'default') as MenuPersona];
   const textClass = brandOverride?.textColorClass
     || (accent === 'healthcare' ? 'text-emerald-400' : personaColors[(currentPersona in personaColors ? currentPersona : 'default') as MenuPersona]);
+  const menuHue = hue ?? '168 85 247';
 
   // The menu renders in a portal: the nav it hangs from is glass, and a
   // backdrop-filter cannot see through its parent's backdrop-filter, so a
@@ -149,6 +156,11 @@ export function BrandLogo({
   const close = () => setIsOpen(false);
   const pick = (persona: keyof typeof AI_PERSONAS) => { onPersonaChange(persona); close(); };
   const run = (fn?: () => void) => () => { close(); fn?.(); };
+  const pickInterface = (next: 'chat' | 'work') => {
+    close();
+    onInterfaceModeChange?.(next);
+    triggerRef.current?.focus();
+  };
 
   const rowClass = 'tm-menu-row flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left';
   const glow = brandOverride?.glowColor || `rgb(${hue} / 0.5)`;
@@ -216,7 +228,7 @@ export function BrandLogo({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={popupExit}
               transition={settle}
-              className={`tm-glass tm-chat-menu fixed z-[60] origin-top-left rounded-[28px] p-1.5 w-[19rem]`}
+              className={`tm-glass tm-chat-menu ${workMenu ? 'tm-work-menu' : ''} fixed z-[60] origin-top-left rounded-[28px] p-1.5 w-[19rem]`}
               style={{ top: anchor.top, left: anchor.left, maxHeight: `calc(var(--tm-100dvh) - ${anchor.top + 12}px)` }}
               onKeyDown={(event) => {
                 const buttons = Array.from(event.currentTarget.querySelectorAll('button'));
@@ -237,17 +249,17 @@ export function BrandLogo({
                 <span
                   className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full"
                   style={{
-                    background: profile?.avatar_url ? 'transparent' : `rgb(${hue ?? '168 85 247'} / 0.14)`,
-                    border: `1px solid rgb(${hue ?? '168 85 247'} / 0.28)`,
+                    background: profile?.avatar_url ? 'transparent' : `rgb(${menuHue} / 0.14)`,
+                    border: `1px solid rgb(${menuHue} / 0.28)`,
                     boxShadow: 'inset 0 1px 0 rgb(var(--tm-edge-rgb) / 0.2)',
                   }}
                 >
                   {user && profile?.avatar_url ? (
                     <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
                   ) : user ? (
-                    <User className="h-4 w-4" style={{ color: `rgb(${hue ?? '168 85 247'})` }} />
+                    <User className="h-4 w-4" style={{ color: `rgb(${menuHue})` }} />
                   ) : (
-                    <LogIn className="h-4 w-4" style={{ color: `rgb(${hue ?? '168 85 247'})` }} />
+                    <LogIn className="h-4 w-4" style={{ color: `rgb(${menuHue})` }} />
                   )}
                 </span>
                 <span className="min-w-0">
@@ -255,7 +267,7 @@ export function BrandLogo({
                     {user ? profile?.nickname || 'My account' : 'Log in or sign up'}
                   </span>
                   <span className="block text-[13px]" style={{ color: 'rgb(var(--tm-ink-rgb) / 0.5)' }}>
-                    {user ? 'Profile, memories and images' : 'Unlimited chats with a TimeMachine ID'}
+                    {user ? 'Profile, memories and images' : workMenu ? 'Sign in for unlimited chats' : 'Unlimited chats with a TimeMachine ID'}
                   </span>
                 </span>
               </button>
@@ -268,7 +280,7 @@ export function BrandLogo({
                   .filter((key) => !('hiddenFromDropdown' in AI_PERSONAS[key] && (AI_PERSONAS[key] as { hiddenFromDropdown?: boolean }).hiddenFromDropdown))
                   .map((key) => {
                     const active = currentPersona === key;
-                    const h = personaHues[key];
+                    const h = active ? menuHue : personaHues[key];
                     return (
                       <button
                         key={key}
@@ -299,6 +311,20 @@ export function BrandLogo({
                     );
                   })}
               </div>
+
+              {interfaceMode && onInterfaceModeChange && <div className="tm-interface-menu">
+                <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />
+                <div role="group" aria-label="Interface mode">
+                  {(['chat', 'work'] as const).map(next => {
+                    const Icon = next === 'chat' ? MessageCircle : BriefcaseBusiness;
+                    return <button key={next} type="button" role="menuitemradio" aria-checked={interfaceMode === next}
+                      onClick={() => pickInterface(next)} className={`${rowClass} justify-between`}>
+                      <span className="flex items-center gap-3"><Icon className="h-4 w-4" aria-hidden="true" />{next === 'chat' ? 'Chat' : 'Work'}</span>
+                      <span className="tm-interface-check" aria-hidden="true" />
+                    </button>;
+                  })}
+                </div>
+              </div>}
 
               <div className="mx-3 my-1.5 h-px" style={{ background: 'rgb(var(--tm-ink-rgb) / 0.08)' }} />
 

@@ -380,10 +380,10 @@ export function LandingPage() {
            
           >
             <img
-              src="/landing/screen-chat.webp"
-              alt="The TimeMachine chat: a three-day Kyoto plan from TimeMachine Air, with a budget table and the composer below."
-              width={2848}
-              height={1800}
+              src="/landing/screen-chat-selected.png"
+              alt="TimeMachine Air answering a question about month names, with Flow State and the message composer."
+              width={1897}
+              height={852}
               fetchPriority="high"
               className="block w-full"
             />
@@ -560,10 +560,10 @@ export function LandingPage() {
 
             <motion.figure {...reveal(0.12)} className="tm-panel mt-12 overflow-hidden rounded-3xl">
               <img
-                src="/landing/screen-contour.webp"
-                alt="The Contour palette open in the chat, listing the unit, currency, timezone and colour converters."
-                width={1684}
-                height={792}
+                src="/landing/screen-contour-selected.png"
+                alt="The current TimeMachine Contour command palette, with searchable tools and converters."
+                width={937}
+                height={597}
                 loading="lazy"
                 className="block w-full"
               />
@@ -593,10 +593,10 @@ export function LandingPage() {
 
             <motion.figure {...reveal(0.1)} className="tm-panel mt-4 overflow-hidden rounded-3xl">
               <img
-                src="/landing/screen-notes.webp"
-                alt="TimeMachine Notes with a Kyoto trip note open: headings, a checklist, a bullet list and a quote, and the Notes composer below."
-                width={2848}
-                height={1800}
+                src="/landing/screen-notes-current.png"
+                alt="The current TimeMachine Notes interface with a Kyoto trip note, sidebar, headings, checklist, and AI writing panel."
+                width={1440}
+                height={900}
                 loading="lazy"
                 className="block w-full"
               />

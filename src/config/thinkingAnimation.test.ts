@@ -12,6 +12,12 @@ import {
 } from './thinkingAnimation';
 
 describe('thinking animation selection', () => {
+  it('defaults to Cadelle without replacing saved preferences', () => {
+    expect(DEFAULT_THINKING_ANIMATION).toBe('orb:composing:64');
+    expect(THINKING_ANIMATION_OPTIONS.find(option => option.value === DEFAULT_THINKING_ANIMATION)?.label).toBe('Cadelle');
+    expect(readStoredThinkingAnimation(() => null)).toBe('orb:composing:64');
+    expect(readStoredThinkingAnimation(() => 'orb-cycle')).toBe('orb-cycle');
+  });
   it('offers both presets for every non-shaping orb plus the originals and cycles', () => {
     expect(ORB_VARIANTS).toHaveLength(16);
     expect(ORB_VARIANTS.map(variant => variant.state)).not.toContain('shaping');

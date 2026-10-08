@@ -1,5 +1,6 @@
 import type { SeasonTheme, ThemeMode } from './themeState';
 import type { NoteTheme } from '../components/notes/notesState';
+import type { UiStyle } from './uiStyle';
 
 /** One palette for chrome, reasoning visuals, and the default Notes hue. */
 export const seasonPalettes: Record<SeasonTheme, { rgb: string; dark: string; light: string; note: NoteTheme }> = {
@@ -34,7 +35,23 @@ export function accentSeasonFor(season: SeasonTheme, followsPersona: boolean): S
   return followsPersona && season === 'springDark' ? 'blossomDark' : season;
 }
 
+/** Auto uses the persona's original season in either appearance.
+ * Air stays Autumn purple; stored manual choices remain authoritative. */
+export function appearanceSeasonFor(season: SeasonTheme, followsPersona: boolean, _mode: ThemeMode, _ui: UiStyle): SeasonTheme {
+  return accentSeasonFor(season, followsPersona);
+}
+
+export function usesAppearanceAccent(season: SeasonTheme, followsPersona: boolean, mode: ThemeMode, ui: UiStyle): boolean {
+  return !followsPersona || appearanceSeasonFor(season, followsPersona, mode, ui) !== accentSeasonFor(season, followsPersona);
+}
+
+/** Pure keeps a black canvas while its accent follows the active mind. */
+export function appearancePaletteFor(season: SeasonTheme, _ui: UiStyle, personaSeason: SeasonTheme = 'autumnDark') {
+  return seasonPalettes[season === 'pureDark' ? accentSeasonFor(personaSeason, true) : season];
+}
+
 export function paletteColor(season: SeasonTheme, mode: ThemeMode, healthcare = false) {
+  if (season === 'pureDark' && !healthcare) return 'var(--tm-season-accent)';
   const palette = healthcare ? healthcarePalette : seasonPalettes[season];
   return mode === 'light' ? palette.light : palette.dark;
 }

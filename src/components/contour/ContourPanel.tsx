@@ -28,6 +28,7 @@ import { QuickEventView } from './views/QuickEventView';
 import { WebViewerView } from './views/WebViewerView';
 import { PromptOptimizerView } from './views/PromptOptimizerView';
 import { useNavigate } from 'react-router-dom';
+import { seasonalContourAccent } from './seasonalAccent';
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -54,30 +55,6 @@ interface AccentTheme {
   text: string;
   solid: string;
 }
-
-const personaAccent: Record<string, AccentTheme> = {
-  default: {
-    bg: 'rgba(168, 85, 247, 0.08)',
-    border: 'rgba(168, 85, 247, 0.25)',
-    glow: '0 0 40px rgba(168, 85, 247, 0.15)',
-    text: 'text-purple-400',
-    solid: '#a855f7',
-  },
-  girlie: {
-    bg: 'rgba(236, 72, 153, 0.08)',
-    border: 'rgba(236, 72, 153, 0.25)',
-    glow: '0 0 40px rgba(236, 72, 153, 0.15)',
-    text: 'text-pink-400',
-    solid: '#ec4899',
-  },
-  pro: {
-    bg: 'rgba(34, 211, 238, 0.08)',
-    border: 'rgba(34, 211, 238, 0.25)',
-    glow: '0 0 40px rgba(34, 211, 238, 0.15)',
-    text: 'text-cyan-400',
-    solid: '#22d3ee',
-  },
-};
 
 // ─── Module View Router ────────────────────────────────────────
 
@@ -169,7 +146,7 @@ export function ContourPanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLButtonElement>(null);
   const [showTouchControls, setShowTouchControls] = useState(false);
-  const accent = personaAccent[persona] || personaAccent.default;
+  const accent: AccentTheme = seasonalContourAccent;
 
   useEffect(() => {
     const coarsePointer = window.matchMedia('(pointer: coarse)');
@@ -210,7 +187,7 @@ export function ContourPanel({
           className="tm-workspace tm-contour absolute bottom-full left-0 right-0 mb-4 z-50"
         >
           <div
-            className="tm-glass tm-surface rounded-[28px] overflow-hidden"
+            className="tm-glass tm-surface tm-contour-panel rounded-[28px] overflow-hidden"
           >
             {/* Header */}
             <div className="px-5 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid rgb(var(--tm-ink-rgb) / 0.06)' }}>
@@ -229,7 +206,7 @@ export function ContourPanel({
                 )}
                 {!isFocused && (
                   <>
-                    <div className="w-2 h-2 rounded-full" style={{ background: accent.border.replace('0.25', '0.8'), boxShadow: `0 0 6px ${accent.border}` }} />
+                    <div className="w-2 h-2 rounded-full" style={{ background: accent.solid, boxShadow: `0 0 6px ${accent.border}` }} />
                     <span className="text-sm font-medium text-ink">
                       TimeMachine Contour
                     </span>

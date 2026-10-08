@@ -1,0 +1,327 @@
+/* Classic is the original seasonal glass treatment from the screenshots:
+   a clearly tinted lens, bright seasonal hairline, and a soft lifted shadow.
+   The hue follows the active season/persona, while Appearance still controls
+   the light or dark material below. */
+:root[data-tm-ui='classic'] {
+  --tm-classic-accent-rgb: var(--tm-chat-accent-rgb, var(--tm-season-rgb, 168 85 247));
+  --tm-classic-accent: var(--tm-chat-accent-color, var(--tm-season-accent, #c084fc));
+  --tm-classic-panel:
+    linear-gradient(135deg,
+      rgb(var(--tm-classic-accent-rgb) / .13),
+      rgb(var(--tm-edge-rgb) / .035));
+  --tm-classic-control:
+    linear-gradient(138deg,
+      rgb(var(--tm-classic-accent-rgb) / .16),
+      rgb(var(--tm-edge-rgb) / .05));
+  --tm-classic-composer:
+    linear-gradient(135deg,
+      rgb(var(--tm-classic-accent-rgb) / .18),
+      rgb(var(--tm-edge-rgb) / .035));
+  --tm-classic-composer-control:
+    linear-gradient(138deg,
+      rgb(var(--tm-classic-accent-rgb) / .20),
+      rgb(var(--tm-edge-rgb) / .05));
+  --tm-classic-selected:
+    linear-gradient(138deg,
+      rgb(var(--tm-classic-accent-rgb) / .27),
+      rgb(var(--tm-edge-rgb) / .08));
+  --tm-classic-sheet:
+    linear-gradient(135deg,
+      rgb(var(--tm-classic-accent-rgb) / .18),
+      rgb(var(--tm-paper-rgb) / .50));
+  --tm-classic-edge: rgb(var(--tm-classic-accent-rgb) / .38);
+  --tm-classic-shadow:
+    inset 0 1px 0 rgb(var(--tm-edge-rgb) / .24),
+    inset 0 0 0 1px rgb(var(--tm-classic-accent-rgb) / .07),
+    0 16px 38px -25px rgb(var(--tm-shadow-rgb) / .50),
+    0 5px 16px -14px rgb(var(--tm-classic-accent-rgb) / .28);
+  --tm-classic-control-shadow:
+    inset 0 1px 0 rgb(var(--tm-edge-rgb) / .25),
+    inset 0 0 0 1px rgb(var(--tm-classic-accent-rgb) / .08),
+    0 7px 18px -14px rgb(var(--tm-shadow-rgb) / .44),
+    0 3px 12px -12px rgb(var(--tm-classic-accent-rgb) / .28);
+  --tm-classic-hover-shadow:
+    inset 0 1px 0 rgb(var(--tm-edge-rgb) / .3),
+    0 9px 22px -14px rgb(var(--tm-shadow-rgb) / .48),
+    0 3px 14px -10px rgb(var(--tm-classic-accent-rgb) / .34);
+  --tm-classic-composer-shadow:
+    inset 0 1px 0 rgb(var(--tm-edge-rgb) / .31),
+    inset 0 0 0 1px rgb(var(--tm-classic-accent-rgb) / .09),
+    0 18px 44px -30px rgb(var(--tm-shadow-rgb) / .54),
+    0 4px 17px -13px rgb(var(--tm-classic-accent-rgb) / .30);
+  --tm-classic-composer-filter: blur(24px) saturate(150%);
+}
+
+/* Dark Classic uses the black canvas and season-washed aubergine glass from
+   the earlier Air/Girlie/PRO screenshots. */
+:root[data-tm-ui='classic']:not([data-theme='light']) {
+  --tm-classic-panel:
+    linear-gradient(135deg,
+      rgb(var(--tm-classic-accent-rgb) / .14),
+      rgb(var(--tm-edge-rgb) / .035));
+  --tm-classic-control:
+    linear-gradient(135deg,
+      rgb(var(--tm-classic-accent-rgb) / .17),
+      rgb(var(--tm-edge-rgb) / .05));
+  --tm-classic-selected:
+    linear-gradient(135deg,
+      rgb(var(--tm-classic-accent-rgb) / .26),
+      rgb(var(--tm-edge-rgb) / .08));
+  --tm-classic-sheet:
+    linear-gradient(145deg,
+      rgb(var(--tm-classic-accent-rgb) / .18),
+      rgb(7 10 16 / .58));
+  --tm-classic-composer:
+    linear-gradient(135deg,
+      rgb(var(--tm-classic-accent-rgb) / .22),
+      rgb(var(--tm-edge-rgb) / .04));
+  --tm-classic-composer-control:
+    linear-gradient(138deg,
+      rgb(var(--tm-classic-accent-rgb) / .22),
+      rgb(var(--tm-edge-rgb) / .05));
+  --tm-classic-edge: rgb(var(--tm-classic-accent-rgb) / .42);
+}
+
+/* Light Classic keeps the warm paper, but restores the rosy/seasonal glass
+   tint and broad soft lift visible in the original screenshots. */
+:root[data-tm-ui='classic'][data-theme='light'] {
+  --tm-classic-panel:
+    linear-gradient(145deg,
+      rgb(var(--tm-classic-accent-rgb) / .13),
+      rgb(var(--tm-paper-rgb) / .76) 54%,
+      rgb(var(--tm-classic-accent-rgb) / .075));
+  --tm-classic-control:
+    linear-gradient(135deg,
+      rgb(var(--tm-classic-accent-rgb) / .13),
+      rgb(var(--tm-paper-rgb) / .7) 62%,
+      rgb(var(--tm-classic-accent-rgb) / .075));
+  --tm-classic-selected:
+    linear-gradient(135deg,
+      rgb(var(--tm-classic-accent-rgb) / .20),
+      rgb(var(--tm-paper-rgb) / .68) 72%,
+      rgb(var(--tm-classic-accent-rgb) / .12));
+  --tm-classic-sheet:
+    linear-gradient(145deg,
+      rgb(var(--tm-classic-accent-rgb) / .15),
+      rgb(var(--tm-paper-rgb) / .94) 58%,
+      rgb(var(--tm-classic-accent-rgb) / .08));
+  --tm-classic-composer:
+    linear-gradient(100deg,
+      rgb(var(--tm-classic-accent-rgb) / .16) 0%,
+      rgb(var(--tm-paper-rgb) / .74) 43%,
+      rgb(var(--tm-paper-rgb) / .70) 72%,
+      rgb(var(--tm-classic-accent-rgb) / .10) 100%),
+    rgb(var(--tm-paper-rgb) / .70);
+  --tm-classic-composer-control:
+    linear-gradient(138deg,
+      rgb(var(--tm-classic-accent-rgb) / .18),
+      rgb(var(--tm-paper-rgb) / .73) 70%,
+      rgb(var(--tm-classic-accent-rgb) / .11));
+  --tm-classic-edge: rgb(var(--tm-classic-accent-rgb) / .27);
+  --tm-classic-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .68),
+    inset 0 0 0 1px rgb(var(--tm-classic-accent-rgb) / .035),
+    0 18px 40px -21px rgb(var(--tm-shadow-rgb) / .25),
+    0 8px 24px -14px rgb(var(--tm-classic-accent-rgb) / .19);
+  --tm-classic-control-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .72),
+    0 8px 22px -13px rgb(var(--tm-shadow-rgb) / .22),
+    0 5px 16px -11px rgb(var(--tm-classic-accent-rgb) / .17);
+  --tm-classic-hover-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .78),
+    0 10px 24px -13px rgb(var(--tm-shadow-rgb) / .26),
+    0 5px 16px -8px rgb(var(--tm-classic-accent-rgb) / .22);
+  --tm-classic-composer-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .78),
+    inset 0 0 0 1px rgb(var(--tm-classic-accent-rgb) / .10),
+    0 20px 48px -28px rgb(var(--tm-shadow-rgb) / .27),
+    0 6px 24px -14px rgb(var(--tm-classic-accent-rgb) / .25);
+}
+
+:root[data-tm-ui='classic'] :is(
+  .tm-glass, .glass-morphism, .glass-card, .glass, .tm-panel,
+  .tm-composer-surface, .tm-notes-ai-composer, .tm-history-card,
+  [class*='backdrop-blur'][class*='bg-surface']
+) {
+  background: var(--tm-classic-panel) !important;
+  border-color: var(--tm-classic-edge) !important;
+  box-shadow: var(--tm-classic-shadow) !important;
+  backdrop-filter: blur(28px) saturate(165%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(165%) !important;
+}
+
+:root[data-tm-ui='classic'] :is(.tm-glass, .glass-morphism, .glass-card, .glass)::before {
+  background: linear-gradient(118deg,
+    rgb(var(--tm-edge-rgb) / .19),
+    rgb(var(--tm-classic-accent-rgb) / .075) 28%,
+    transparent 61%,
+    rgb(var(--tm-edge-rgb) / .05));
+}
+
+:root[data-tm-ui='classic'] :is(
+  .tm-glass-pill, .glass-button, .glass-btn, .glass-input,
+  .tm-composer-control:not(.tm-composer-send), [data-tm-material='control']
+):not(.tm-notes-icon):not(.tm-notes-ai-suggest) {
+  background: var(--tm-classic-control) !important;
+  border: 1px solid var(--tm-classic-edge) !important;
+  box-shadow: var(--tm-classic-control-shadow) !important;
+  backdrop-filter: blur(22px) saturate(165%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(165%) !important;
+}
+
+:root[data-tm-ui='classic'] :is(
+  .tm-glass-pill, .glass-button, .glass-btn, [data-tm-material='control']
+):hover:not(:disabled),
+:root[data-tm-ui='classic'] :is(
+  .tm-glass-pill, [data-tm-material='control']
+)[aria-pressed='true'] {
+  background: var(--tm-classic-selected) !important;
+  box-shadow: var(--tm-classic-hover-shadow) !important;
+}
+
+:root[data-tm-ui='classic'] :is(
+  .tm-surface.tm-glass, .tm-settings.tm-glass, .tm-chat-menu.tm-glass,
+  .tm-notes-menu.tm-glass, .tm-flight-controls, [data-tm-material='sheet'],
+  [role='dialog'][style*='backdrop-filter']
+) {
+  background: var(--tm-classic-sheet) !important;
+  border-color: var(--tm-classic-edge) !important;
+  box-shadow: var(--tm-classic-shadow) !important;
+  backdrop-filter: blur(36px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(160%) !important;
+}
+
+:root[data-tm-ui='classic'] :is(
+  .tm-notes-rail, .tm-notes-ai, .tm-notes-topbar, .tm-shell-topbar
+) {
+  background: var(--tm-classic-panel) !important;
+  border-color: var(--tm-classic-edge) !important;
+  box-shadow: var(--tm-classic-shadow);
+  backdrop-filter: blur(30px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(160%) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-notes .tm-notes-ai {
+  background: var(--tm-classic-sheet) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-contour-panel {
+  background: var(--tm-classic-sheet) !important;
+  border-color: var(--tm-classic-edge) !important;
+  box-shadow: var(--tm-classic-shadow) !important;
+  backdrop-filter: blur(36px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(160%) !important;
+}
+
+/* The notes toolbar and suggestion actions intentionally have no parked
+   capsules. The seasonal classic lens appears only for hover or pointer-down. */
+:root[data-tm-ui='classic'] .tm-notes .tm-notes-icon,
+:root[data-tm-ui='classic'] .tm-notes .tm-notes-ai-suggest {
+  background: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:root[data-tm-ui='classic'] .tm-notes .tm-notes-icon:hover,
+:root[data-tm-ui='classic'] .tm-notes .tm-notes-icon:active,
+:root[data-tm-ui='classic'] .tm-notes .tm-notes-ai-suggest:hover,
+:root[data-tm-ui='classic'] .tm-notes .tm-notes-ai-suggest:active {
+  background: var(--tm-classic-selected) !important;
+  border: 1px solid var(--tm-classic-edge) !important;
+  box-shadow: var(--tm-classic-control-shadow) !important;
+  backdrop-filter: blur(20px) saturate(155%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(155%) !important;
+}
+
+/* The chat dock is deliberately more pronounced than a generic panel: this
+   restores Classic's broad tinted, see-through bar and its separate glass
+   circles for attachment, voice, and send. */
+:root[data-tm-ui='classic'] .tm-chat-dock {
+  background: linear-gradient(to top,
+    rgb(var(--tm-classic-accent-rgb) / .08),
+    rgb(var(--tm-paper-rgb) / .06) 48%,
+    transparent 100%) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-chat-dock [data-tm-material='composer'] {
+  background: var(--tm-classic-composer) !important;
+  border: 1px solid var(--tm-classic-edge) !important;
+  box-shadow: var(--tm-classic-composer-shadow) !important;
+  backdrop-filter: var(--tm-classic-composer-filter) !important;
+  -webkit-backdrop-filter: var(--tm-classic-composer-filter) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-chat-dock [data-tm-material='composer']:focus {
+  border-color: rgb(var(--tm-classic-accent-rgb) / .56) !important;
+  box-shadow:
+    var(--tm-classic-composer-shadow),
+    0 0 0 3px rgb(var(--tm-classic-accent-rgb) / .12) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-chat-dock [data-tm-material='composer']::placeholder {
+  color: rgb(var(--tm-ink-rgb) / .62) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-chat-dock [data-tm-material='composer-control'] {
+  background: var(--tm-classic-composer-control) !important;
+  border: 1px solid var(--tm-classic-edge) !important;
+  box-shadow: var(--tm-classic-control-shadow) !important;
+  backdrop-filter: var(--tm-classic-composer-filter) !important;
+  -webkit-backdrop-filter: var(--tm-classic-composer-filter) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-chat-dock [data-tm-material='composer-control']:hover:not(:disabled),
+:root[data-tm-ui='classic'] .tm-chat-dock [data-tm-material='composer-control'][aria-pressed='true'] {
+  background: var(--tm-classic-selected) !important;
+  box-shadow: var(--tm-classic-hover-shadow) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-chat-dock [data-tm-composer-control='send'] {
+  background: var(--tm-classic-selected) !important;
+  color: var(--tm-classic-accent) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-chat-dock [data-tm-composer-control='send']:disabled {
+  background: var(--tm-classic-composer-control) !important;
+  border-color: rgb(var(--tm-classic-accent-rgb) / .20) !important;
+  color: rgb(var(--tm-ink-rgb) / .56) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-chat-header button.tm-chat-header-action[aria-label][style*='backdrop-filter'][style*='border:'] {
+  background: var(--tm-classic-composer-control) !important;
+  border: 1px solid var(--tm-classic-edge) !important;
+  box-shadow: var(--tm-classic-control-shadow) !important;
+  backdrop-filter: var(--tm-classic-composer-filter) !important;
+  -webkit-backdrop-filter: var(--tm-classic-composer-filter) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-chat-header button.tm-chat-header-action[aria-label][aria-pressed='true'],
+:root[data-tm-ui='classic'] .tm-chat-header button.tm-chat-header-action[aria-label]:hover:not(:disabled) {
+  background: var(--tm-classic-selected) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-composer-send {
+  background: var(--tm-classic-selected) !important;
+  border: 1px solid var(--tm-classic-edge) !important;
+  box-shadow: var(--tm-classic-control-shadow) !important;
+  color: var(--tm-classic-accent) !important;
+}
+
+:root[data-tm-ui='classic'] .tm-flow-state-bolt.is-active {
+  color: var(--tm-classic-accent);
+  filter: none;
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root[data-tm-ui='classic'] :is(
+    .tm-glass, .glass-morphism, .glass-card, .glass, .tm-glass-pill,
+    .glass-button, .glass-btn, .tm-surface.tm-glass, .tm-settings.tm-glass,
+    .tm-notes-rail, .tm-notes-ai, .tm-contour-panel
+  ) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
